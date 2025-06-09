@@ -3,6 +3,8 @@ import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { useAuth } from "@/hooks/useAuth";
+import { isUnauthorizedError, canAccessAnalytics, canAccessMerchants, canAccessAgents, canAccessTransactions } from "@/lib/authUtils";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Header } from "@/components/layout/header";
 import Dashboard from "@/pages/dashboard";
@@ -11,10 +13,37 @@ import Agents from "@/pages/agents";
 import Transactions from "@/pages/transactions";
 import Reports from "@/pages/reports";
 import NotFound from "@/pages/not-found";
-import { useState } from "react";
+import Landing from "@/pages/landing";
+import { useState, useEffect } from "react";
+import { useToast } from "@/hooks/use-toast";
 
-function Router() {
+// Update query client to handle auth errors
+queryClient.setDefaultOptions({
+  queries: {
+    retry: (failureCount, error) => {
+      if (isUnauthorizedError(error as Error)) {
+        return false;
+      }
+      return failureCount < 3;
+    },
+  },
+});
+
+function AuthenticatedApp() {
+  const { user } = useAuth();
+  const { toast } = useToast();
   const [globalSearch, setGlobalSearch] = useState("");
+
+  useEffect(() => {
+    if (user && (user as any).firstName) {
+      toast({
+        title: "Welcome to CoreCRM",
+        description: `Logged in as ${(user as any).firstName} ${(user as any).lastName} (${(user as any).role})`,
+      });
+    }
+  }, [user, toast]);
+
+  if (!user) return null;
 
   const getPageInfo = (pathname: string) => {
     switch (pathname) {
@@ -59,7 +88,7 @@ function Router() {
           <Route path="/">
             {() => {
               const pageInfo = getPageInfo("/");
-              return (
+              return canAccessAnalytics(user) ? (
                 <>
                   <Header 
                     title={pageInfo.title} 
@@ -70,11 +99,23 @@ function Router() {
                     <Dashboard />
                   </main>
                 </>
+              ) : (
+                <>
+                  <Header 
+                    title="Merchants" 
+                    subtitle="Manage merchant profiles and settings"
+                    onSearch={setGlobalSearch}
+                  />
+                  <main className="flex-1 overflow-auto bg-gray-50">
+                    <Merchants />
+                  </main>
+                </>
               );
             }}
           </Route>
           <Route path="/merchants">
             {() => {
+              if (!canAccessMerchants(user)) return <NotFound />;
               const pageInfo = getPageInfo("/merchants");
               return (
                 <>
@@ -92,6 +133,7 @@ function Router() {
           </Route>
           <Route path="/agents">
             {() => {
+              if (!canAccessAgents(user)) return <NotFound />;
               const pageInfo = getPageInfo("/agents");
               return (
                 <>
@@ -109,6 +151,7 @@ function Router() {
           </Route>
           <Route path="/transactions">
             {() => {
+              if (!canAccessTransactions(user)) return <NotFound />;
               const pageInfo = getPageInfo("/transactions");
               return (
                 <>
@@ -126,6 +169,7 @@ function Router() {
           </Route>
           <Route path="/reports">
             {() => {
+              if (!canAccessAnalytics(user)) return <NotFound />;
               const pageInfo = getPageInfo("/reports");
               return (
                 <>
@@ -152,13 +196,32 @@ function Router() {
   );
 }
 
+function AppContent() {
+  const { isAuthenticated, isLoading } = useAuth();
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      {isAuthenticated ? <AuthenticatedApp /> : <Landing />}
+    </div>
+  );
+}
+
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <div className="min-h-screen bg-gray-50">
-          <Router />
-        </div>
+        <AppContent />
         <Toaster />
       </TooltipProvider>
     </QueryClientProvider>
