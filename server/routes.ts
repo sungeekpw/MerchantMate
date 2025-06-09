@@ -2,11 +2,78 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertMerchantSchema, insertAgentSchema, insertTransactionSchema } from "@shared/schema";
+import { setupAuth, isAuthenticated, requireRole, requirePermission } from "./replitAuth";
 import { z } from "zod";
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Merchant routes
-  app.get("/api/merchants", async (req, res) => {
+  // Auth middleware
+  await setupAuth(app);
+
+  // Auth routes
+  app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      res.json(user);
+    } catch (error) {
+      console.error("Error fetching user:", error);
+      res.status(500).json({ message: "Failed to fetch user" });
+    }
+  });
+
+  // User management routes (admin and super admin only)
+  app.get("/api/users", requireRole(['admin', 'corporate', 'super_admin']), async (req, res) => {
+    try {
+      const users = await storage.getAllUsers();
+      res.json(users);
+    } catch (error) {
+      console.error("Error fetching users:", error);
+      res.status(500).json({ message: "Failed to fetch users" });
+    }
+  });
+
+  app.patch("/api/users/:id/role", requireRole(['super_admin']), async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { role } = req.body;
+      
+      if (!['merchant', 'agent', 'admin', 'corporate', 'super_admin'].includes(role)) {
+        return res.status(400).json({ message: "Invalid role" });
+      }
+
+      const user = await storage.updateUserRole(id, role);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      res.json(user);
+    } catch (error) {
+      console.error("Error updating user role:", error);
+      res.status(500).json({ message: "Failed to update user role" });
+    }
+  });
+
+  app.patch("/api/users/:id/status", requireRole(['admin', 'corporate', 'super_admin']), async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { status } = req.body;
+      
+      if (!['active', 'suspended', 'inactive'].includes(status)) {
+        return res.status(400).json({ message: "Invalid status" });
+      }
+
+      const user = await storage.updateUserStatus(id, status);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      res.json(user);
+    } catch (error) {
+      console.error("Error updating user status:", error);
+      res.status(500).json({ message: "Failed to update user status" });
+    }
+  });
+
+  // Merchant routes with role-based access
+  app.get("/api/merchants", isAuthenticated, async (req: any, res) => {
     try {
       const { search } = req.query;
       let merchants;

@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, timestamp, decimal } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, decimal, varchar, jsonb, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -72,3 +72,37 @@ export type MerchantWithAgent = Merchant & {
 export type TransactionWithMerchant = Transaction & {
   merchant?: Merchant;
 };
+
+// User management tables
+export const users = pgTable("users", {
+  id: varchar("id").primaryKey().notNull(),
+  email: varchar("email").unique(),
+  firstName: varchar("first_name"),
+  lastName: varchar("last_name"),
+  profileImageUrl: varchar("profile_image_url"),
+  role: text("role").notNull().default("merchant"), // merchant, agent, admin, corporate, super_admin
+  status: text("status").notNull().default("active"), // active, suspended, inactive
+  permissions: jsonb("permissions").default("{}"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Session storage table
+export const sessions = pgTable(
+  "sessions",
+  {
+    sid: varchar("sid").primaryKey(),
+    sess: jsonb("sess").notNull(),
+    expire: timestamp("expire").notNull(),
+  },
+  (table) => [index("IDX_session_expire").on(table.expire)],
+);
+
+export const insertUserSchema = createInsertSchema(users).omit({
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertUser = z.infer<typeof insertUserSchema>;
+export type UpsertUser = typeof users.$inferInsert;
+export type User = typeof users.$inferSelect;
