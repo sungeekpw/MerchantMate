@@ -35,11 +35,9 @@ export function Sidebar() {
           const Icon = item.icon;
           
           return (
-            <Link key={item.name} href={item.href}>
-              <a className={cn("paycrm-nav-item", isActive && "active")}>
-                <Icon className="w-5 h-5" />
-                <span className="font-medium">{item.name}</span>
-              </a>
+            <Link key={item.name} href={item.href} className={cn("paycrm-nav-item", isActive && "active")}>
+              <Icon className="w-5 h-5" />
+              <span className="font-medium">{item.name}</span>
             </Link>
           );
         })}
