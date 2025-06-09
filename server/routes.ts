@@ -249,22 +249,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/agents/:id", async (req, res) => {
+  app.get("/api/agents/:id", isAuthenticated, async (req: any, res) => {
     try {
+      const currentUser = req.currentUser;
       const id = parseInt(req.params.id);
       const agent = await storage.getAgent(id);
       
       if (!agent) {
         return res.status(404).json({ message: "Agent not found" });
       }
+
+      // Role-based access control
+      if (currentUser.role === 'agent') {
+        const userAgent = await storage.getAgentByEmail(currentUser.email);
+        if (!userAgent || userAgent.id !== id) {
+          return res.status(403).json({ message: "Access denied" });
+        }
+      } else if (currentUser.role === 'merchant') {
+        const merchant = await storage.getMerchantByEmail(currentUser.email);
+        if (!merchant || merchant.agentId !== id) {
+          return res.status(403).json({ message: "Access denied" });
+        }
+      }
       
       res.json(agent);
     } catch (error) {
+      console.error("Error fetching agent:", error);
       res.status(500).json({ message: "Failed to fetch agent" });
     }
   });
 
-  app.post("/api/agents", async (req, res) => {
+  app.post("/api/agents", requireRole(['admin', 'corporate', 'super_admin']), async (req, res) => {
     try {
       const validatedData = insertAgentSchema.parse(req.body);
       
@@ -284,7 +299,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/agents/:id", async (req, res) => {
+  app.put("/api/agents/:id", requireRole(['admin', 'corporate', 'super_admin']), async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       const validatedData = insertAgentSchema.partial().parse(req.body);
@@ -304,7 +319,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/agents/:id", async (req, res) => {
+  app.delete("/api/agents/:id", requireRole(['admin', 'corporate', 'super_admin']), async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       const deleted = await storage.deleteAgent(id);
@@ -319,42 +334,95 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Transaction routes
-  app.get("/api/transactions", async (req, res) => {
+  // Transaction routes with role-based access
+  app.get("/api/transactions", isAuthenticated, async (req: any, res) => {
     try {
+      const currentUser = req.currentUser;
       const { search, merchantId } = req.query;
-      let transactions;
-      
-      if (search && typeof search === 'string') {
-        transactions = await storage.searchTransactions(search);
-      } else if (merchantId && typeof merchantId === 'string') {
-        transactions = await storage.getTransactionsByMerchant(parseInt(merchantId));
+      let transactions: any[] = [];
+
+      // Role-based data filtering
+      if (currentUser.role === 'merchant') {
+        // Merchants can only see their own transactions
+        const merchant = await storage.getMerchantByEmail(currentUser.email);
+        if (merchant) {
+          transactions = await storage.getTransactionsByMerchant(merchant.id);
+        }
+      } else if (currentUser.role === 'agent') {
+        // Agents can see transactions from their assigned merchants
+        const agent = await storage.getAgentByEmail(currentUser.email);
+        if (agent) {
+          const allMerchants = await storage.getAllMerchants();
+          const agentMerchants = allMerchants.filter(m => m.agentId === agent.id);
+          const allTransactions = await storage.getAllTransactions();
+          transactions = allTransactions.filter(t => 
+            agentMerchants.some(m => m.id === t.merchantId)
+          );
+        }
       } else {
-        transactions = await storage.getAllTransactions();
+        // Admins, corporate, and super admins can see all transactions
+        if (search && typeof search === 'string') {
+          transactions = await storage.searchTransactions(search);
+        } else if (merchantId && typeof merchantId === 'string') {
+          transactions = await storage.getTransactionsByMerchant(parseInt(merchantId));
+        } else {
+          transactions = await storage.getAllTransactions();
+        }
+      }
+
+      // Apply search filter for role-based results
+      if (search && typeof search === 'string' && (currentUser.role === 'merchant' || currentUser.role === 'agent')) {
+        const searchLower = search.toLowerCase();
+        transactions = transactions.filter(t => 
+          t.transactionId.toLowerCase().includes(searchLower) ||
+          (t.merchant?.businessName && t.merchant.businessName.toLowerCase().includes(searchLower)) ||
+          t.paymentMethod.toLowerCase().includes(searchLower)
+        );
       }
       
       res.json(transactions);
     } catch (error) {
+      console.error("Error fetching transactions:", error);
       res.status(500).json({ message: "Failed to fetch transactions" });
     }
   });
 
-  app.get("/api/transactions/:id", async (req, res) => {
+  app.get("/api/transactions/:id", isAuthenticated, async (req: any, res) => {
     try {
+      const currentUser = req.currentUser;
       const id = parseInt(req.params.id);
       const transaction = await storage.getTransaction(id);
       
       if (!transaction) {
         return res.status(404).json({ message: "Transaction not found" });
       }
+
+      // Role-based access control
+      if (currentUser.role === 'merchant') {
+        const merchant = await storage.getMerchantByEmail(currentUser.email);
+        if (!merchant || transaction.merchantId !== merchant.id) {
+          return res.status(403).json({ message: "Access denied" });
+        }
+      } else if (currentUser.role === 'agent') {
+        const agent = await storage.getAgentByEmail(currentUser.email);
+        if (agent) {
+          const merchant = await storage.getMerchant(transaction.merchantId);
+          if (!merchant || merchant.agentId !== agent.id) {
+            return res.status(403).json({ message: "Access denied" });
+          }
+        } else {
+          return res.status(403).json({ message: "Access denied" });
+        }
+      }
       
       res.json(transaction);
     } catch (error) {
+      console.error("Error fetching transaction:", error);
       res.status(500).json({ message: "Failed to fetch transaction" });
     }
   });
 
-  app.post("/api/transactions", async (req, res) => {
+  app.post("/api/transactions", requireRole(['admin', 'corporate', 'super_admin']), async (req, res) => {
     try {
       const validatedData = insertTransactionSchema.parse(req.body);
       
@@ -374,7 +442,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/transactions/:id", async (req, res) => {
+  app.put("/api/transactions/:id", requireRole(['admin', 'corporate', 'super_admin']), async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       const validatedData = insertTransactionSchema.partial().parse(req.body);
@@ -394,31 +462,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Analytics routes
-  app.get("/api/analytics/dashboard", async (req, res) => {
+  // Analytics routes with role-based access
+  app.get("/api/analytics/dashboard", requireRole(['admin', 'corporate', 'super_admin']), async (req, res) => {
     try {
       const metrics = await storage.getDashboardMetrics();
       res.json(metrics);
     } catch (error) {
+      console.error("Error fetching dashboard metrics:", error);
       res.status(500).json({ message: "Failed to fetch dashboard metrics" });
     }
   });
 
-  app.get("/api/analytics/top-merchants", async (req, res) => {
+  app.get("/api/analytics/top-merchants", requireRole(['admin', 'corporate', 'super_admin']), async (req, res) => {
     try {
       const topMerchants = await storage.getTopMerchants();
       res.json(topMerchants);
     } catch (error) {
+      console.error("Error fetching top merchants:", error);
       res.status(500).json({ message: "Failed to fetch top merchants" });
     }
   });
 
-  app.get("/api/analytics/recent-transactions", async (req, res) => {
+  app.get("/api/analytics/recent-transactions", requireRole(['admin', 'corporate', 'super_admin']), async (req, res) => {
     try {
       const limit = req.query.limit ? parseInt(req.query.limit as string) : 10;
       const recentTransactions = await storage.getRecentTransactions(limit);
       res.json(recentTransactions);
     } catch (error) {
+      console.error("Error fetching recent transactions:", error);
       res.status(500).json({ message: "Failed to fetch recent transactions" });
     }
   });
