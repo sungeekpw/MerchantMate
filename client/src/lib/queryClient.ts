@@ -12,7 +12,6 @@ export async function apiRequest(
   url: string,
   data?: unknown | undefined,
 ): Promise<Response> {
-  console.log(`Making ${method} request to ${url} with credentials`);
   const res = await fetch(url, {
     method,
     headers: data ? { "Content-Type": "application/json" } : {},
@@ -20,8 +19,6 @@ export async function apiRequest(
     credentials: "include",
     mode: "cors",
   });
-
-  console.log(`Response status: ${res.status}`);
   await throwIfResNotOk(res);
   return res;
 }
