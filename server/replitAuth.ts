@@ -27,18 +27,22 @@ export function getSession() {
   const pgStore = connectPg(session);
   const sessionStore = new pgStore({
     conString: process.env.DATABASE_URL,
-    createTableIfMissing: false,
+    createTableIfMissing: true,
     ttl: sessionTtl,
     tableName: "sessions",
   });
+  
+  // Use a default secret if not provided
+  const sessionSecret = process.env.SESSION_SECRET || 'fallback-secret-key-for-development';
+  
   return session({
-    secret: process.env.SESSION_SECRET!,
+    secret: sessionSecret,
     store: sessionStore,
     resave: false,
     saveUninitialized: false,
     cookie: {
       httpOnly: true,
-      secure: true,
+      secure: false, // Set to false for development
       maxAge: sessionTtl,
     },
   });
@@ -78,10 +82,19 @@ export async function setupAuth(app: Express) {
     tokens: client.TokenEndpointResponse & client.TokenEndpointResponseHelpers,
     verified: passport.AuthenticateCallback
   ) => {
-    const user = {};
-    updateUserSession(user, tokens);
-    await upsertUser(tokens.claims());
-    verified(null, user);
+    try {
+      console.log("Auth verify callback triggered");
+      const user = {};
+      updateUserSession(user, tokens);
+      const claims = tokens.claims();
+      console.log("User claims:", claims);
+      await upsertUser(claims);
+      console.log("User upserted successfully");
+      verified(null, user);
+    } catch (error) {
+      console.error("Error in auth verify:", error);
+      verified(error, null);
+    }
   };
 
   for (const domain of process.env
@@ -109,8 +122,9 @@ export async function setupAuth(app: Express) {
   });
 
   app.get("/api/callback", (req, res, next) => {
+    console.log("Callback route hit");
     passport.authenticate(`replitauth:${req.hostname}`, {
-      successReturnToOrRedirect: "/",
+      successRedirect: "/",
       failureRedirect: "/api/login",
     })(req, res, next);
   });
@@ -128,14 +142,26 @@ export async function setupAuth(app: Express) {
 }
 
 export const isAuthenticated: RequestHandler = async (req, res, next) => {
-  const user = req.user as any;
+  if (!req.isAuthenticated()) {
+    return res.status(401).json({ message: "Unauthorized" });
+  }
 
-  if (!req.isAuthenticated() || !user.expires_at) {
+  const user = req.user as any;
+  if (!user?.expires_at) {
     return res.status(401).json({ message: "Unauthorized" });
   }
 
   const now = Math.floor(Date.now() / 1000);
   if (now <= user.expires_at) {
+    // Attach user data to request
+    try {
+      if (user.claims?.sub) {
+        const dbUser = await storage.getUser(user.claims.sub);
+        (req as any).currentUser = dbUser;
+      }
+    } catch (error) {
+      console.error("Error fetching user data:", error);
+    }
     return next();
   }
 
@@ -149,6 +175,12 @@ export const isAuthenticated: RequestHandler = async (req, res, next) => {
     const config = await getOidcConfig();
     const tokenResponse = await client.refreshTokenGrant(config, refreshToken);
     updateUserSession(user, tokenResponse);
+    
+    // Attach user data to request after refresh
+    if (user.claims?.sub) {
+      const dbUser = await storage.getUser(user.claims.sub);
+      (req as any).currentUser = dbUser;
+    }
     return next();
   } catch (error) {
     res.status(401).json({ message: "Unauthorized" });
@@ -159,9 +191,13 @@ export const isAuthenticated: RequestHandler = async (req, res, next) => {
 // Role-based access control middleware
 export const requireRole = (allowedRoles: string[]): RequestHandler => {
   return async (req, res, next) => {
+    // First check if user is authenticated
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
     const user = req.user as any;
-    
-    if (!req.isAuthenticated() || !user.claims?.sub) {
+    if (!user?.claims?.sub) {
       return res.status(401).json({ message: "Unauthorized" });
     }
 
