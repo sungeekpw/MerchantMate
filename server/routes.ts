@@ -6,8 +6,12 @@ import { setupAuth, isAuthenticated, requireRole, requirePermission } from "./re
 import { z } from "zod";
 import session from "express-session";
 import MemoryStore from "memorystore";
+import cookieParser from "cookie-parser";
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Add cookie parser middleware
+  app.use(cookieParser());
+
   // Development session setup
   if (process.env.NODE_ENV === 'development') {
     const SessionStore = MemoryStore(session);
