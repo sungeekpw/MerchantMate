@@ -1,17 +1,34 @@
 import { Link, useLocation } from "wouter";
-import { CreditCard, BarChart3, Store, Users, Receipt, FileText } from "lucide-react";
+import { CreditCard, BarChart3, Store, Users, Receipt, FileText, LogOut, User } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/hooks/useAuth";
+import { canAccessAnalytics, canAccessMerchants, canAccessAgents, canAccessTransactions } from "@/lib/authUtils";
+import { Button } from "@/components/ui/button";
 
 const navigation = [
-  { name: "Dashboard", href: "/", icon: BarChart3 },
-  { name: "Merchants", href: "/merchants", icon: Store },
-  { name: "Agents", href: "/agents", icon: Users },
-  { name: "Transactions", href: "/transactions", icon: Receipt },
-  { name: "Reports", href: "/reports", icon: FileText },
+  { name: "Dashboard", href: "/", icon: BarChart3, requiresRole: ['admin', 'corporate', 'super_admin'] },
+  { name: "Merchants", href: "/merchants", icon: Store, requiresRole: ['merchant', 'agent', 'admin', 'corporate', 'super_admin'] },
+  { name: "Agents", href: "/agents", icon: Users, requiresRole: ['agent', 'merchant', 'admin', 'corporate', 'super_admin'] },
+  { name: "Transactions", href: "/transactions", icon: Receipt, requiresRole: ['merchant', 'agent', 'admin', 'corporate', 'super_admin'] },
+  { name: "Reports", href: "/reports", icon: FileText, requiresRole: ['admin', 'corporate', 'super_admin'] },
 ];
 
 export function Sidebar() {
   const [location] = useLocation();
+  const { user } = useAuth();
+
+  const handleLogout = () => {
+    window.location.href = "/api/logout";
+  };
+
+  const getFilteredNavigation = () => {
+    if (!user) return [];
+    
+    return navigation.filter(item => {
+      const userRole = (user as any)?.role;
+      return item.requiresRole.includes(userRole);
+    });
+  };
 
   return (
     <div className="corecrm-sidebar w-64 min-h-screen flex flex-col">
@@ -30,7 +47,7 @@ export function Sidebar() {
 
       {/* Navigation */}
       <nav className="flex-1 p-4 space-y-2">
-        {navigation.map((item) => {
+        {getFilteredNavigation().map((item) => {
           const isActive = location === item.href;
           const Icon = item.icon;
           
@@ -43,18 +60,33 @@ export function Sidebar() {
         })}
       </nav>
 
-      {/* User Profile */}
-      <div className="p-4 border-t border-gray-200">
-        <div className="flex items-center space-x-3">
-          <div className="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center">
-            <Users className="w-4 h-4 text-gray-600" />
+      {/* User Profile & Logout */}
+      {user && (
+        <div className="p-4 border-t border-gray-200">
+          <div className="flex items-center space-x-3 mb-3">
+            <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center">
+              <User className="w-4 h-4 text-gray-600" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-gray-900 truncate">
+                {(user as any)?.firstName} {(user as any)?.lastName}
+              </p>
+              <p className="text-xs text-gray-500 capitalize">
+                {(user as any)?.role?.replace('_', ' ')}
+              </p>
+            </div>
           </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-gray-900">John Admin</p>
-            <p className="text-xs text-gray-500">Administrator</p>
-          </div>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={handleLogout}
+            className="w-full"
+          >
+            <LogOut className="w-4 h-4 mr-2" />
+            Sign Out
+          </Button>
         </div>
-      </div>
+      )}
     </div>
   );
 }
