@@ -4,8 +4,29 @@ import { storage } from "./storage";
 import { insertMerchantSchema, insertAgentSchema, insertTransactionSchema } from "@shared/schema";
 import { setupAuth, isAuthenticated, requireRole, requirePermission } from "./replitAuth";
 import { z } from "zod";
+import session from "express-session";
+import MemoryStore from "memorystore";
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Development session setup
+  if (process.env.NODE_ENV === 'development') {
+    const SessionStore = MemoryStore(session);
+    
+    app.use(session({
+      secret: 'dev-session-secret',
+      store: new SessionStore({
+        checkPeriod: 86400000 // prune expired entries every 24h
+      }),
+      resave: false,
+      saveUninitialized: false,
+      cookie: {
+        httpOnly: true,
+        secure: false, // false for development
+        maxAge: 24 * 60 * 60 * 1000 // 24 hours
+      }
+    }));
+  }
+
   // Development auth route for testing
   if (process.env.NODE_ENV === 'development') {
     app.post('/api/auth/dev-login', async (req, res) => {
@@ -14,8 +35,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const user = await storage.getUser(userId);
         if (user) {
           // Set session manually for development
-          (req.session as any).userId = userId;
-          res.json({ success: true, user });
+          if (req.session) {
+            (req.session as any).userId = userId;
+            res.json({ success: true, user });
+          } else {
+            res.status(500).json({ message: "Session not initialized" });
+          }
         } else {
           res.status(404).json({ message: "User not found" });
         }
@@ -519,7 +544,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/transactions/:id", requireRole(['admin', 'corporate', 'super_admin']), async (req, res) => {
+  app.put("/api/transactions/:id", devRequireRole(['admin', 'corporate', 'super_admin']), async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       const validatedData = insertTransactionSchema.partial().parse(req.body);
@@ -540,7 +565,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Analytics routes with role-based access
-  app.get("/api/analytics/dashboard", requireRole(['admin', 'corporate', 'super_admin']), async (req, res) => {
+  app.get("/api/analytics/dashboard", devRequireRole(['admin', 'corporate', 'super_admin']), async (req, res) => {
     try {
       const metrics = await storage.getDashboardMetrics();
       res.json(metrics);
@@ -550,7 +575,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/analytics/top-merchants", requireRole(['admin', 'corporate', 'super_admin']), async (req, res) => {
+  app.get("/api/analytics/top-merchants", devRequireRole(['admin', 'corporate', 'super_admin']), async (req, res) => {
     try {
       const topMerchants = await storage.getTopMerchants();
       res.json(topMerchants);
@@ -560,7 +585,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/analytics/recent-transactions", requireRole(['admin', 'corporate', 'super_admin']), async (req, res) => {
+  app.get("/api/analytics/recent-transactions", devRequireRole(['admin', 'corporate', 'super_admin']), async (req, res) => {
     try {
       const limit = req.query.limit ? parseInt(req.query.limit as string) : 10;
       const recentTransactions = await storage.getRecentTransactions(limit);
