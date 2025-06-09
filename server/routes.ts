@@ -36,22 +36,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       try {
         const user = await storage.getUser(userId);
         if (user) {
-          // Set session manually for development
-          if (req.session) {
-            (req.session as any).userId = userId;
-            // Force session save
-            req.session.save((err) => {
-              if (err) {
-                console.error("Session save error:", err);
-                res.status(500).json({ message: "Session save failed" });
-              } else {
-                console.log("Session saved successfully for user:", userId);
-                res.json({ success: true, user });
-              }
-            });
-          } else {
-            res.status(500).json({ message: "Session not initialized" });
-          }
+          // Use simple token approach for development
+          const token = Buffer.from(userId).toString('base64');
+          res.cookie('dev-auth-token', token, {
+            httpOnly: false,
+            secure: false,
+            maxAge: 24 * 60 * 60 * 1000,
+            sameSite: 'lax'
+          });
+          console.log("Dev token set for user:", userId);
+          res.json({ success: true, user, token });
         } else {
           res.status(404).json({ message: "User not found" });
         }
@@ -63,14 +57,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     app.get('/api/auth/user', async (req: any, res) => {
       try {
-        console.log("Auth check - session:", req.session);
         console.log("Auth check - cookies:", req.headers.cookie);
-        const userId = (req.session as any)?.userId;
-        console.log("Auth check - userId from session:", userId);
         
-        if (!userId) {
+        // Check for dev token in cookies
+        const token = req.cookies['dev-auth-token'];
+        console.log("Dev token found:", token);
+        
+        if (!token) {
           return res.status(401).json({ message: "Unauthorized" });
         }
+        
+        const userId = Buffer.from(token, 'base64').toString();
+        console.log("Decoded userId:", userId);
+        
         const user = await storage.getUser(userId);
         if (!user) {
           return res.status(401).json({ message: "User not found" });
@@ -83,9 +82,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
 
     app.post('/api/auth/logout', (req, res) => {
-      req.session?.destroy(() => {
-        res.json({ success: true });
-      });
+      res.clearCookie('dev-auth-token');
+      res.json({ success: true });
     });
   } else {
     // Production auth setup
