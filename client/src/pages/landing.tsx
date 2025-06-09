@@ -1,11 +1,48 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Shield, Users, BarChart3, CreditCard } from "lucide-react";
+import { useState } from "react";
+import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 
 export default function Landing() {
+  const [selectedUser, setSelectedUser] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const { toast } = useToast();
+
   const handleLogin = () => {
     window.location.href = "/api/login";
   };
+
+  const handleDevLogin = async () => {
+    if (!selectedUser) {
+      toast({
+        title: "Error",
+        description: "Please select a user to login as",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      await apiRequest("POST", "/api/auth/dev-login", { userId: selectedUser });
+      
+      // Reload the page to trigger authentication check
+      window.location.reload();
+    } catch (error) {
+      toast({
+        title: "Login Failed",
+        description: "Unable to login with selected user",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const isDevelopment = import.meta.env.DEV;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
@@ -15,9 +52,38 @@ export default function Landing() {
           <p className="text-xl text-gray-600 mb-8">
             Professional payment processing and customer relationship management
           </p>
-          <Button onClick={handleLogin} size="lg" className="bg-blue-600 hover:bg-blue-700">
-            Sign In with Replit
-          </Button>
+          
+          {isDevelopment ? (
+            <div className="space-y-4">
+              <div className="max-w-md mx-auto">
+                <Select value={selectedUser} onValueChange={setSelectedUser}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select user to login as..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="user_super_admin_1">System Administrator (Super Admin)</SelectItem>
+                    <SelectItem value="user_admin_1">Sarah Wilson (Agent)</SelectItem>
+                    <SelectItem value="user_agent_1">Mike Chen (Agent)</SelectItem>
+                    <SelectItem value="user_merchant_1">Tech Mart (Merchant)</SelectItem>
+                    <SelectItem value="user_corporate_1">Corporate Manager (Corporate)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <Button 
+                onClick={handleDevLogin} 
+                size="lg" 
+                className="bg-blue-600 hover:bg-blue-700"
+                disabled={isLoading}
+              >
+                {isLoading ? "Signing In..." : "Development Login"}
+              </Button>
+              <p className="text-sm text-gray-500">Development mode - Select a user role to test</p>
+            </div>
+          ) : (
+            <Button onClick={handleLogin} size="lg" className="bg-blue-600 hover:bg-blue-700">
+              Sign In with Replit
+            </Button>
+          )}
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
