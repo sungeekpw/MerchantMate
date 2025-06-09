@@ -98,7 +98,7 @@
 }
 
 .paycrm-nav-item.active {
-  @apply bg-primary/10 text-primary font-medium;
+  @apply bg-primary bg-opacity-10 text-primary font-medium;
 }
 
 .paycrm-nav-item:not(.active) {
