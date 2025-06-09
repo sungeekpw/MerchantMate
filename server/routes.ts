@@ -326,9 +326,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/agents/:id", isAuthenticated, async (req: any, res) => {
+  app.get("/api/agents/:id", devAuth, async (req: any, res) => {
     try {
-      const currentUser = req.currentUser;
+      const currentUser = req.dbUser;
       const id = parseInt(req.params.id);
       const agent = await storage.getAgent(id);
       
@@ -356,7 +356,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/agents", requireRole(['admin', 'corporate', 'super_admin']), async (req, res) => {
+  app.post("/api/agents", devRequireRole(['admin', 'corporate', 'super_admin']), async (req, res) => {
     try {
       const validatedData = insertAgentSchema.parse(req.body);
       
@@ -376,7 +376,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/agents/:id", requireRole(['admin', 'corporate', 'super_admin']), async (req, res) => {
+  app.put("/api/agents/:id", devRequireRole(['admin', 'corporate', 'super_admin']), async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       const validatedData = insertAgentSchema.partial().parse(req.body);
@@ -396,7 +396,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/agents/:id", requireRole(['admin', 'corporate', 'super_admin']), async (req, res) => {
+  app.delete("/api/agents/:id", devRequireRole(['admin', 'corporate', 'super_admin']), async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       const deleted = await storage.deleteAgent(id);
@@ -412,9 +412,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Transaction routes with role-based access
-  app.get("/api/transactions", isAuthenticated, async (req: any, res) => {
+  app.get("/api/transactions", devAuth, async (req: any, res) => {
     try {
-      const currentUser = req.currentUser;
+      const currentUser = req.dbUser;
       const { search, merchantId } = req.query;
       let transactions: any[] = [];
 
@@ -464,9 +464,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/transactions/:id", isAuthenticated, async (req: any, res) => {
+  app.get("/api/transactions/:id", devAuth, async (req: any, res) => {
     try {
-      const currentUser = req.currentUser;
+      const currentUser = req.dbUser;
       const id = parseInt(req.params.id);
       const transaction = await storage.getTransaction(id);
       
@@ -499,7 +499,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/transactions", requireRole(['admin', 'corporate', 'super_admin']), async (req, res) => {
+  app.post("/api/transactions", devRequireRole(['admin', 'corporate', 'super_admin']), async (req, res) => {
     try {
       const validatedData = insertTransactionSchema.parse(req.body);
       
