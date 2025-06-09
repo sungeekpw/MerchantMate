@@ -14,7 +14,7 @@ export function Sidebar() {
   const [location] = useLocation();
 
   return (
-    <div className="paycrm-sidebar w-64 min-h-screen flex flex-col">
+    <div className="corecrm-sidebar w-64 min-h-screen flex flex-col">
       {/* Logo */}
       <div className="p-6 border-b border-gray-200">
         <div className="flex items-center space-x-3">
@@ -22,7 +22,7 @@ export function Sidebar() {
             <CreditCard className="w-6 h-6 text-white" />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-gray-900">PayCRM</h1>
+            <h1 className="text-xl font-bold text-gray-900">CoreCRM</h1>
             <p className="text-sm text-gray-500">Payment Management</p>
           </div>
         </div>
@@ -35,7 +35,7 @@ export function Sidebar() {
           const Icon = item.icon;
           
           return (
-            <Link key={item.name} href={item.href} className={cn("paycrm-nav-item", isActive && "active")}>
+            <Link key={item.name} href={item.href} className={cn("corecrm-nav-item", isActive && "active")}>
               <Icon className="w-5 h-5" />
               <span className="font-medium">{item.name}</span>
             </Link>

@@ -44,9 +44,9 @@ export default function Reports() {
 
   const getStatusBadge = (status: string) => {
     if (status === "available") {
-      return "paycrm-status-completed";
+      return "corecrm-status-completed";
     } else if (status === "generating") {
-      return "paycrm-status-pending";
+      return "corecrm-status-pending";
     }
     return "bg-gray-100 text-gray-800";
   };
@@ -77,7 +77,7 @@ export default function Reports() {
 
       {/* Quick Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <Card className="paycrm-card">
+        <Card className="corecrm-card">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
@@ -91,7 +91,7 @@ export default function Reports() {
           </CardContent>
         </Card>
 
-        <Card className="paycrm-card">
+        <Card className="corecrm-card">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
@@ -105,7 +105,7 @@ export default function Reports() {
           </CardContent>
         </Card>
 
-        <Card className="paycrm-card">
+        <Card className="corecrm-card">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
@@ -119,7 +119,7 @@ export default function Reports() {
           </CardContent>
         </Card>
 
-        <Card className="paycrm-card">
+        <Card className="corecrm-card">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
@@ -139,7 +139,7 @@ export default function Reports() {
         {reportTypes.map((report) => {
           const Icon = report.icon;
           return (
-            <Card key={report.title} className="paycrm-card">
+            <Card key={report.title} className="corecrm-card">
               <CardHeader className="pb-3">
                 <div className="flex items-start justify-between">
                   <div className="flex items-center space-x-3">
@@ -151,7 +151,7 @@ export default function Reports() {
                       <p className="text-sm text-gray-500 mt-1">{report.description}</p>
                     </div>
                   </div>
-                  <Badge className={`paycrm-status-badge ${getStatusBadge(report.status)}`}>
+                  <Badge className={`corecrm-status-badge ${getStatusBadge(report.status)}`}>
                     {report.status === "available" ? "Ready" : "Generating"}
                   </Badge>
                 </div>
@@ -188,7 +188,7 @@ export default function Reports() {
       </div>
 
       {/* Recent Reports */}
-      <Card className="paycrm-card">
+      <Card className="corecrm-card">
         <CardHeader>
           <CardTitle className="text-lg font-semibold">Recent Reports</CardTitle>
         </CardHeader>

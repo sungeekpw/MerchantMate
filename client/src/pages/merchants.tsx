@@ -87,9 +87,9 @@ export default function Merchants() {
 
   const getStatusBadge = (status: string) => {
     const styles = {
-      active: "paycrm-status-active",
-      pending: "paycrm-status-pending",
-      suspended: "paycrm-status-suspended",
+      active: "corecrm-status-active",
+      pending: "corecrm-status-pending",
+      suspended: "corecrm-status-suspended",
     };
     return styles[status as keyof typeof styles] || "bg-gray-100 text-gray-800";
   };
@@ -103,7 +103,7 @@ export default function Merchants() {
 
   return (
     <div className="p-6 space-y-6">
-      <Card className="paycrm-card">
+      <Card className="corecrm-card">
         <CardHeader>
           <div className="flex items-center justify-between">
             <CardTitle className="text-lg font-semibold">Merchants</CardTitle>
@@ -204,7 +204,7 @@ export default function Merchants() {
                         {merchant.agent ? `${merchant.agent.firstName} ${merchant.agent.lastName}` : "Unassigned"}
                       </TableCell>
                       <TableCell>
-                        <Badge className={`paycrm-status-badge ${getStatusBadge(merchant.status)}`}>
+                        <Badge className={`corecrm-status-badge ${getStatusBadge(merchant.status)}`}>
                           {merchant.status.charAt(0).toUpperCase() + merchant.status.slice(1)}
                         </Badge>
                       </TableCell>

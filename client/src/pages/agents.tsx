@@ -87,15 +87,15 @@ export default function Agents() {
 
   const getStatusBadge = (status: string) => {
     const styles = {
-      active: "paycrm-status-active",
-      inactive: "paycrm-status-suspended",
+      active: "corecrm-status-active",
+      inactive: "corecrm-status-suspended",
     };
     return styles[status as keyof typeof styles] || "bg-gray-100 text-gray-800";
   };
 
   return (
     <div className="p-6 space-y-6">
-      <Card className="paycrm-card">
+      <Card className="corecrm-card">
         <CardHeader>
           <div className="flex items-center justify-between">
             <CardTitle className="text-lg font-semibold">Agents</CardTitle>
@@ -190,7 +190,7 @@ export default function Agents() {
                       <TableCell className="text-gray-500">{agent.territory || "—"}</TableCell>
                       <TableCell className="font-medium">{agent.commissionRate}%</TableCell>
                       <TableCell>
-                        <Badge className={`paycrm-status-badge ${getStatusBadge(agent.status)}`}>
+                        <Badge className={`corecrm-status-badge ${getStatusBadge(agent.status)}`}>
                           {agent.status.charAt(0).toUpperCase() + agent.status.slice(1)}
                         </Badge>
                       </TableCell>

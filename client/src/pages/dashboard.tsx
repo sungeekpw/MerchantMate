@@ -32,9 +32,9 @@ export default function Dashboard() {
 
   const getStatusBadge = (status: string) => {
     const styles = {
-      completed: "paycrm-status-completed",
-      pending: "paycrm-status-pending",
-      failed: "paycrm-status-failed",
+      completed: "corecrm-status-completed",
+      pending: "corecrm-status-pending",
+      failed: "corecrm-status-failed",
     };
     return styles[status as keyof typeof styles] || "bg-gray-100 text-gray-800";
   };
@@ -63,7 +63,7 @@ export default function Dashboard() {
     <div className="p-6 space-y-8">
       {/* Metrics Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <Card className="paycrm-metric-card">
+        <Card className="corecrm-metric-card">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
@@ -88,7 +88,7 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        <Card className="paycrm-metric-card">
+        <Card className="corecrm-metric-card">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
@@ -113,7 +113,7 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        <Card className="paycrm-metric-card">
+        <Card className="corecrm-metric-card">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
@@ -138,7 +138,7 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        <Card className="paycrm-metric-card">
+        <Card className="corecrm-metric-card">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
@@ -168,7 +168,7 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Recent Transactions */}
         <div className="lg:col-span-2">
-          <Card className="paycrm-card">
+          <Card className="corecrm-card">
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-lg font-semibold">Recent Transactions</CardTitle>
@@ -180,7 +180,7 @@ export default function Dashboard() {
             </CardHeader>
             <CardContent className="p-0">
               <div className="overflow-x-auto">
-                <table className="paycrm-table">
+                <table className="corecrm-table">
                   <thead>
                     <tr>
                       <th>Transaction ID</th>
@@ -214,7 +214,7 @@ export default function Dashboard() {
                           <td>{transaction.merchant?.businessName || "Unknown"}</td>
                           <td className="font-semibold">{formatCurrency(transaction.amount)}</td>
                           <td>
-                            <Badge className={`paycrm-status-badge ${getStatusBadge(transaction.status)}`}>
+                            <Badge className={`corecrm-status-badge ${getStatusBadge(transaction.status)}`}>
                               {transaction.status.charAt(0).toUpperCase() + transaction.status.slice(1)}
                             </Badge>
                           </td>
@@ -234,7 +234,7 @@ export default function Dashboard() {
         {/* Sidebar */}
         <div className="space-y-6">
           {/* Quick Actions */}
-          <Card className="paycrm-card">
+          <Card className="corecrm-card">
             <CardHeader className="pb-3">
               <CardTitle className="text-lg font-semibold">Quick Actions</CardTitle>
             </CardHeader>
@@ -262,7 +262,7 @@ export default function Dashboard() {
           </Card>
 
           {/* Top Merchants */}
-          <Card className="paycrm-card">
+          <Card className="corecrm-card">
             <CardHeader className="pb-3">
               <CardTitle className="text-lg font-semibold">Top Merchants</CardTitle>
             </CardHeader>
@@ -304,7 +304,7 @@ export default function Dashboard() {
           </Card>
 
           {/* System Status */}
-          <Card className="paycrm-card">
+          <Card className="corecrm-card">
             <CardHeader className="pb-3">
               <CardTitle className="text-lg font-semibold">System Status</CardTitle>
             </CardHeader>

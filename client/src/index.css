@@ -84,71 +84,71 @@
   }
 }
 
-/* Custom styles for PayCRM */
-.paycrm-sidebar {
+/* Custom styles for CoreCRM */
+.corecrm-sidebar {
   @apply bg-white border-r border-gray-200 shadow-sm;
 }
 
-.paycrm-card {
+.corecrm-card {
   @apply bg-white rounded-xl border border-gray-200 shadow-sm;
 }
 
-.paycrm-nav-item {
+.corecrm-nav-item {
   @apply flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors duration-200;
 }
 
-.paycrm-nav-item.active {
+.corecrm-nav-item.active {
   @apply bg-primary bg-opacity-10 text-primary font-medium;
 }
 
-.paycrm-nav-item:not(.active) {
+.corecrm-nav-item:not(.active) {
   @apply text-gray-600 hover:bg-gray-50 hover:text-gray-900;
 }
 
-.paycrm-status-badge {
+.corecrm-status-badge {
   @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
 }
 
-.paycrm-status-active {
+.corecrm-status-active {
   @apply bg-green-100 text-green-800;
 }
 
-.paycrm-status-pending {
+.corecrm-status-pending {
   @apply bg-yellow-100 text-yellow-800;
 }
 
-.paycrm-status-suspended {
+.corecrm-status-suspended {
   @apply bg-red-100 text-red-800;
 }
 
-.paycrm-status-completed {
+.corecrm-status-completed {
   @apply bg-green-100 text-green-800;
 }
 
-.paycrm-status-failed {
+.corecrm-status-failed {
   @apply bg-red-100 text-red-800;
 }
 
-.paycrm-metric-card {
+.corecrm-metric-card {
   @apply bg-white rounded-xl border border-gray-200 shadow-sm p-6;
 }
 
-.paycrm-table {
+.corecrm-table {
   @apply w-full divide-y divide-gray-200;
 }
 
-.paycrm-table thead {
+.corecrm-table thead {
   @apply bg-gray-50;
 }
 
-.paycrm-table th {
+.corecrm-table th {
   @apply px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider;
 }
 
-.paycrm-table td {
+.corecrm-table td {
   @apply px-6 py-4 whitespace-nowrap text-sm text-gray-900;
 }
 
-.paycrm-table tbody tr {
+.corecrm-table tbody tr {
   @apply hover:bg-gray-50 transition-colors duration-150;
 }
