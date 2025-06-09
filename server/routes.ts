@@ -48,7 +48,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             maxAge: 24 * 60 * 60 * 1000,
             sameSite: 'lax'
           });
-          console.log("Dev token set for user:", userId);
+
           res.json({ success: true, user, token });
         } else {
           res.status(404).json({ message: "User not found" });
@@ -61,18 +61,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     app.get('/api/auth/user', async (req: any, res) => {
       try {
-        console.log("Auth check - cookies:", req.headers.cookie);
-        
         // Check for dev token in cookies
         const token = req.cookies['dev-auth-token'];
-        console.log("Dev token found:", token);
         
         if (!token) {
           return res.status(401).json({ message: "Unauthorized" });
         }
         
         const userId = Buffer.from(token, 'base64').toString();
-        console.log("Decoded userId:", userId);
         
         const user = await storage.getUser(userId);
         if (!user) {

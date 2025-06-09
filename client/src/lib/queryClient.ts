@@ -29,12 +29,10 @@ export const getQueryFn: <T>(options: {
 }) => QueryFunction<T> =
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
-    console.log(`Making query request to ${queryKey[0]} with credentials`);
     const res = await fetch(queryKey[0] as string, {
       credentials: "include",
       mode: "cors",
     });
-    console.log(`Query response status: ${res.status}`);
 
     if (unauthorizedBehavior === "returnNull" && res.status === 401) {
       return null;
