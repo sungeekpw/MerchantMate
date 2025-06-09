@@ -10,10 +10,10 @@ export const merchants = pgTable("merchants", {
   phone: text("phone").notNull(),
   address: text("address"),
   agentId: integer("agent_id"),
-  processingFee: decimal("processing_fee", { precision: 5, scale: 2 }).default("2.50"),
+  processingFee: decimal("processing_fee", { precision: 5, scale: 2 }).default("2.50").notNull(),
   status: text("status").notNull().default("active"), // active, pending, suspended
-  monthlyVolume: decimal("monthly_volume", { precision: 12, scale: 2 }).default("0"),
-  createdAt: timestamp("created_at").defaultNow(),
+  monthlyVolume: decimal("monthly_volume", { precision: 12, scale: 2 }).default("0").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
 export const agents = pgTable("agents", {

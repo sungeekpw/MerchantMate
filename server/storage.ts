@@ -201,8 +201,16 @@ export class MemStorage implements IStorage {
   async createMerchant(insertMerchant: InsertMerchant): Promise<Merchant> {
     const id = this.currentMerchantId++;
     const merchant: Merchant = {
-      ...insertMerchant,
       id,
+      businessName: insertMerchant.businessName,
+      businessType: insertMerchant.businessType,
+      email: insertMerchant.email,
+      phone: insertMerchant.phone,
+      address: insertMerchant.address || null,
+      agentId: insertMerchant.agentId || null,
+      processingFee: insertMerchant.processingFee || "2.50",
+      status: insertMerchant.status || "active",
+      monthlyVolume: insertMerchant.monthlyVolume || "0",
       createdAt: new Date()
     };
     this.merchants.set(id, merchant);
@@ -248,8 +256,14 @@ export class MemStorage implements IStorage {
   async createAgent(insertAgent: InsertAgent): Promise<Agent> {
     const id = this.currentAgentId++;
     const agent: Agent = {
-      ...insertAgent,
       id,
+      firstName: insertAgent.firstName,
+      lastName: insertAgent.lastName,
+      email: insertAgent.email,
+      phone: insertAgent.phone,
+      territory: insertAgent.territory || null,
+      commissionRate: insertAgent.commissionRate || "5.00",
+      status: insertAgent.status || "active",
       createdAt: new Date()
     };
     this.agents.set(id, agent);
@@ -307,8 +321,14 @@ export class MemStorage implements IStorage {
   async createTransaction(insertTransaction: InsertTransaction): Promise<Transaction> {
     const id = this.currentTransactionId++;
     const transaction: Transaction = {
-      ...insertTransaction,
       id,
+      transactionId: insertTransaction.transactionId,
+      merchantId: insertTransaction.merchantId,
+      amount: insertTransaction.amount,
+      paymentMethod: insertTransaction.paymentMethod,
+      status: insertTransaction.status,
+      processingFee: insertTransaction.processingFee || null,
+      netAmount: insertTransaction.netAmount || null,
       createdAt: new Date()
     };
     this.transactions.set(id, transaction);
