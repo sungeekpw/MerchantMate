@@ -39,9 +39,9 @@ export default function Transactions() {
 
   const getStatusBadge = (status: string) => {
     const styles = {
-      completed: "paycrm-status-completed",
-      pending: "paycrm-status-pending",
-      failed: "paycrm-status-failed",
+      completed: "corecrm-status-completed",
+      pending: "corecrm-status-pending",
+      failed: "corecrm-status-failed",
       refunded: "bg-orange-100 text-orange-800",
     };
     return styles[status as keyof typeof styles] || "bg-gray-100 text-gray-800";
@@ -77,7 +77,7 @@ export default function Transactions() {
 
   return (
     <div className="p-6 space-y-6">
-      <Card className="paycrm-card">
+      <Card className="corecrm-card">
         <CardHeader>
           <div className="flex items-center justify-between">
             <CardTitle className="text-lg font-semibold">Transaction History</CardTitle>
@@ -185,7 +185,7 @@ export default function Transactions() {
                         </div>
                       </TableCell>
                       <TableCell>
-                        <Badge className={`paycrm-status-badge ${getStatusBadge(transaction.status)}`}>
+                        <Badge className={`corecrm-status-badge ${getStatusBadge(transaction.status)}`}>
                           {transaction.status.charAt(0).toUpperCase() + transaction.status.slice(1)}
                         </Badge>
                       </TableCell>
