@@ -1,4 +1,4 @@
-import { merchants, agents, transactions, type Merchant, type Agent, type Transaction, type InsertMerchant, type InsertAgent, type InsertTransaction, type MerchantWithAgent, type TransactionWithMerchant } from "@shared/schema";
+import { merchants, agents, transactions, users, type Merchant, type Agent, type Transaction, type User, type InsertMerchant, type InsertAgent, type InsertTransaction, type UpsertUser, type MerchantWithAgent, type TransactionWithMerchant } from "@shared/schema";
 import { db } from "./db";
 import { eq } from "drizzle-orm";
 
@@ -29,6 +29,16 @@ export interface IStorage {
   createTransaction(transaction: InsertTransaction): Promise<Transaction>;
   updateTransaction(id: number, transaction: Partial<InsertTransaction>): Promise<Transaction | undefined>;
   searchTransactions(query: string): Promise<TransactionWithMerchant[]>;
+
+  // User operations
+  getUser(id: string): Promise<User | undefined>;
+  getUserByEmail(email: string): Promise<User | undefined>;
+  getAllUsers(): Promise<User[]>;
+  upsertUser(user: UpsertUser): Promise<User>;
+  updateUser(id: string, updates: Partial<UpsertUser>): Promise<User | undefined>;
+  updateUserRole(id: string, role: string): Promise<User | undefined>;
+  updateUserStatus(id: string, status: string): Promise<User | undefined>;
+  updateUserPermissions(id: string, permissions: Record<string, boolean>): Promise<User | undefined>;
 
   // Analytics
   getDashboardMetrics(): Promise<{
@@ -301,6 +311,72 @@ export class DatabaseStorage implements IStorage {
       ...row.transaction,
       merchant: row.merchant || undefined,
     }));
+  }
+
+  // User operations
+  async getUser(id: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user || undefined;
+  }
+
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.email, email));
+    return user || undefined;
+  }
+
+  async getAllUsers(): Promise<User[]> {
+    return await db.select().from(users);
+  }
+
+  async upsertUser(userData: UpsertUser): Promise<User> {
+    const [user] = await db
+      .insert(users)
+      .values(userData)
+      .onConflictDoUpdate({
+        target: users.id,
+        set: {
+          ...userData,
+          updatedAt: new Date(),
+        },
+      })
+      .returning();
+    return user;
+  }
+
+  async updateUser(id: string, updates: Partial<UpsertUser>): Promise<User | undefined> {
+    const [user] = await db
+      .update(users)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(users.id, id))
+      .returning();
+    return user || undefined;
+  }
+
+  async updateUserRole(id: string, role: string): Promise<User | undefined> {
+    const [user] = await db
+      .update(users)
+      .set({ role, updatedAt: new Date() })
+      .where(eq(users.id, id))
+      .returning();
+    return user || undefined;
+  }
+
+  async updateUserStatus(id: string, status: string): Promise<User | undefined> {
+    const [user] = await db
+      .update(users)
+      .set({ status, updatedAt: new Date() })
+      .where(eq(users.id, id))
+      .returning();
+    return user || undefined;
+  }
+
+  async updateUserPermissions(id: string, permissions: Record<string, boolean>): Promise<User | undefined> {
+    const [user] = await db
+      .update(users)
+      .set({ permissions, updatedAt: new Date() })
+      .where(eq(users.id, id))
+      .returning();
+    return user || undefined;
   }
 }
 
