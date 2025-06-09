@@ -75,37 +75,81 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Merchant routes with role-based access
   app.get("/api/merchants", isAuthenticated, async (req: any, res) => {
     try {
+      const currentUser = req.currentUser;
       const { search } = req.query;
-      let merchants;
-      
-      if (search && typeof search === 'string') {
-        merchants = await storage.searchMerchants(search);
+      let merchants: any[] = [];
+
+      // Role-based data filtering
+      if (currentUser.role === 'merchant') {
+        // Merchants can only see their own data
+        const merchant = await storage.getMerchantByEmail(currentUser.email);
+        merchants = merchant ? [{ ...merchant, agent: undefined }] : [];
+      } else if (currentUser.role === 'agent') {
+        // Agents can only see merchants assigned to them
+        const agent = await storage.getAgentByEmail(currentUser.email);
+        if (agent) {
+          const allMerchants = await storage.getAllMerchants();
+          merchants = allMerchants.filter(m => m.agentId === agent.id);
+        } else {
+          merchants = [];
+        }
       } else {
-        merchants = await storage.getAllMerchants();
+        // Admins, corporate, and super admins can see all merchants
+        if (search && typeof search === 'string') {
+          merchants = await storage.searchMerchants(search);
+        } else {
+          merchants = await storage.getAllMerchants();
+        }
+      }
+
+      // Apply search filter if needed for role-based results
+      if (search && typeof search === 'string' && (currentUser.role === 'merchant' || currentUser.role === 'agent')) {
+        const searchLower = search.toLowerCase();
+        merchants = merchants.filter(m => 
+          m.businessName.toLowerCase().includes(searchLower) ||
+          m.email.toLowerCase().includes(searchLower) ||
+          m.businessType.toLowerCase().includes(searchLower)
+        );
       }
       
       res.json(merchants);
     } catch (error) {
+      console.error("Error fetching merchants:", error);
       res.status(500).json({ message: "Failed to fetch merchants" });
     }
   });
 
-  app.get("/api/merchants/:id", async (req, res) => {
+  app.get("/api/merchants/:id", isAuthenticated, async (req: any, res) => {
     try {
+      const currentUser = req.currentUser;
       const id = parseInt(req.params.id);
       const merchant = await storage.getMerchant(id);
       
       if (!merchant) {
         return res.status(404).json({ message: "Merchant not found" });
       }
+
+      // Role-based access control
+      if (currentUser.role === 'merchant') {
+        const userMerchant = await storage.getMerchantByEmail(currentUser.email);
+        if (!userMerchant || userMerchant.id !== id) {
+          return res.status(403).json({ message: "Access denied" });
+        }
+      } else if (currentUser.role === 'agent') {
+        const agent = await storage.getAgentByEmail(currentUser.email);
+        if (!agent || merchant.agentId !== agent.id) {
+          return res.status(403).json({ message: "Access denied" });
+        }
+      }
       
       res.json(merchant);
     } catch (error) {
+      console.error("Error fetching merchant:", error);
       res.status(500).json({ message: "Failed to fetch merchant" });
     }
   });
 
-  app.post("/api/merchants", async (req, res) => {
+  app.post("/api/merchants", requireRole(['admin', 'corporate', 'super_admin']), async (req, res) => {
     try {
       const validatedData = insertMerchantSchema.parse(req.body);
       
@@ -125,7 +169,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/merchants/:id", async (req, res) => {
+  app.put("/api/merchants/:id", requireRole(['admin', 'corporate', 'super_admin']), async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       const validatedData = insertMerchantSchema.partial().parse(req.body);
@@ -145,7 +189,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/merchants/:id", async (req, res) => {
+  app.delete("/api/merchants/:id", requireRole(['admin', 'corporate', 'super_admin']), async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       const deleted = await storage.deleteMerchant(id);
@@ -160,20 +204,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Agent routes
-  app.get("/api/agents", async (req, res) => {
+  // Agent routes with role-based access
+  app.get("/api/agents", isAuthenticated, async (req: any, res) => {
     try {
+      const currentUser = req.currentUser;
       const { search } = req.query;
-      let agents;
-      
-      if (search && typeof search === 'string') {
-        agents = await storage.searchAgents(search);
+      let agents: any[] = [];
+
+      // Role-based data filtering
+      if (currentUser.role === 'agent') {
+        // Agents can only see their own data
+        const agent = await storage.getAgentByEmail(currentUser.email);
+        agents = agent ? [agent] : [];
+      } else if (currentUser.role === 'merchant') {
+        // Merchants can see their assigned agent
+        const merchant = await storage.getMerchantByEmail(currentUser.email);
+        if (merchant && merchant.agentId) {
+          const agent = await storage.getAgent(merchant.agentId);
+          agents = agent ? [agent] : [];
+        }
       } else {
-        agents = await storage.getAllAgents();
+        // Admins, corporate, and super admins can see all agents
+        if (search && typeof search === 'string') {
+          agents = await storage.searchAgents(search);
+        } else {
+          agents = await storage.getAllAgents();
+        }
+      }
+
+      // Apply search filter for role-based results
+      if (search && typeof search === 'string' && (currentUser.role === 'agent' || currentUser.role === 'merchant')) {
+        const searchLower = search.toLowerCase();
+        agents = agents.filter(a => 
+          `${a.firstName} ${a.lastName}`.toLowerCase().includes(searchLower) ||
+          a.email.toLowerCase().includes(searchLower) ||
+          (a.territory && a.territory.toLowerCase().includes(searchLower))
+        );
       }
       
       res.json(agents);
     } catch (error) {
+      console.error("Error fetching agents:", error);
       res.status(500).json({ message: "Failed to fetch agents" });
     }
   });
