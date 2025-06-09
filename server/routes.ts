@@ -109,7 +109,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/users/:id/role", requireRole(['super_admin']), async (req, res) => {
+  app.patch("/api/users/:id/role", devRequireRole(['super_admin']), async (req, res) => {
     try {
       const { id } = req.params;
       const { role } = req.body;
@@ -129,7 +129,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/users/:id/status", requireRole(['admin', 'corporate', 'super_admin']), async (req, res) => {
+  app.patch("/api/users/:id/status", devRequireRole(['admin', 'corporate', 'super_admin']), async (req, res) => {
     try {
       const { id } = req.params;
       const { status } = req.body;
@@ -150,9 +150,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Merchant routes with role-based access
-  app.get("/api/merchants", isAuthenticated, async (req: any, res) => {
+  app.get("/api/merchants", devAuth, async (req: any, res) => {
     try {
-      const currentUser = req.currentUser;
+      const currentUser = req.dbUser;
       const { search } = req.query;
       let merchants: any[] = [];
 
@@ -196,9 +196,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/merchants/:id", isAuthenticated, async (req: any, res) => {
+  app.get("/api/merchants/:id", devAuth, async (req: any, res) => {
     try {
-      const currentUser = req.currentUser;
+      const currentUser = req.dbUser;
       const id = parseInt(req.params.id);
       const merchant = await storage.getMerchant(id);
       
@@ -226,7 +226,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/merchants", requireRole(['admin', 'corporate', 'super_admin']), async (req, res) => {
+  app.post("/api/merchants", devRequireRole(['admin', 'corporate', 'super_admin']), async (req, res) => {
     try {
       const validatedData = insertMerchantSchema.parse(req.body);
       
@@ -246,7 +246,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/merchants/:id", requireRole(['admin', 'corporate', 'super_admin']), async (req, res) => {
+  app.put("/api/merchants/:id", devRequireRole(['admin', 'corporate', 'super_admin']), async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       const validatedData = insertMerchantSchema.partial().parse(req.body);
@@ -266,7 +266,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/merchants/:id", requireRole(['admin', 'corporate', 'super_admin']), async (req, res) => {
+  app.delete("/api/merchants/:id", devRequireRole(['admin', 'corporate', 'super_admin']), async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       const deleted = await storage.deleteMerchant(id);
@@ -282,9 +282,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Agent routes with role-based access
-  app.get("/api/agents", isAuthenticated, async (req: any, res) => {
+  app.get("/api/agents", devAuth, async (req: any, res) => {
     try {
-      const currentUser = req.currentUser;
+      const currentUser = req.dbUser;
       const { search } = req.query;
       let agents: any[] = [];
 
