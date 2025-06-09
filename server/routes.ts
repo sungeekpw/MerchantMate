@@ -6,23 +6,100 @@ import { setupAuth, isAuthenticated, requireRole, requirePermission } from "./re
 import { z } from "zod";
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Auth middleware
-  await setupAuth(app);
+  // Development auth route for testing
+  if (process.env.NODE_ENV === 'development') {
+    app.post('/api/auth/dev-login', async (req, res) => {
+      const { userId } = req.body;
+      try {
+        const user = await storage.getUser(userId);
+        if (user) {
+          // Set session manually for development
+          (req.session as any).userId = userId;
+          res.json({ success: true, user });
+        } else {
+          res.status(404).json({ message: "User not found" });
+        }
+      } catch (error) {
+        console.error("Dev login error:", error);
+        res.status(500).json({ message: "Login failed" });
+      }
+    });
 
-  // Auth routes
-  app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user.claims.sub;
+    app.get('/api/auth/user', async (req: any, res) => {
+      try {
+        const userId = (req.session as any)?.userId;
+        if (!userId) {
+          return res.status(401).json({ message: "Unauthorized" });
+        }
+        const user = await storage.getUser(userId);
+        if (!user) {
+          return res.status(401).json({ message: "User not found" });
+        }
+        res.json(user);
+      } catch (error) {
+        console.error("Error fetching user:", error);
+        res.status(500).json({ message: "Failed to fetch user" });
+      }
+    });
+
+    app.post('/api/auth/logout', (req, res) => {
+      req.session?.destroy(() => {
+        res.json({ success: true });
+      });
+    });
+  } else {
+    // Production auth setup
+    await setupAuth(app);
+
+    app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
+      try {
+        const userId = req.user.claims.sub;
+        const user = await storage.getUser(userId);
+        res.json(user);
+      } catch (error) {
+        console.error("Error fetching user:", error);
+        res.status(500).json({ message: "Failed to fetch user" });
+      }
+    });
+  }
+
+  // Development authentication middleware
+  const devAuth = async (req: any, res: any, next: any) => {
+    if (process.env.NODE_ENV === 'development') {
+      const userId = (req.session as any)?.userId;
+      if (!userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
       const user = await storage.getUser(userId);
-      res.json(user);
-    } catch (error) {
-      console.error("Error fetching user:", error);
-      res.status(500).json({ message: "Failed to fetch user" });
+      if (!user) {
+        return res.status(401).json({ message: "User not found" });
+      }
+      req.user = { claims: { sub: userId } };
+      req.dbUser = user;
+      return next();
     }
-  });
+    return isAuthenticated(req, res, next);
+  };
+
+  const devRequireRole = (allowedRoles: string[]) => async (req: any, res: any, next: any) => {
+    if (process.env.NODE_ENV === 'development') {
+      const userId = (req.session as any)?.userId;
+      if (!userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      const user = await storage.getUser(userId);
+      if (!user || !allowedRoles.includes(user.role)) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+      req.user = { claims: { sub: userId } };
+      req.dbUser = user;
+      return next();
+    }
+    return requireRole(allowedRoles)(req, res, next);
+  };
 
   // User management routes (admin and super admin only)
-  app.get("/api/users", requireRole(['admin', 'corporate', 'super_admin']), async (req, res) => {
+  app.get("/api/users", devRequireRole(['admin', 'corporate', 'super_admin']), async (req, res) => {
     try {
       const users = await storage.getAllUsers();
       res.json(users);
