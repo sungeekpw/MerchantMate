@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Shield, Users, BarChart3, CreditCard } from "lucide-react";
 import { useState } from "react";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
 export default function Landing() {
@@ -29,8 +29,13 @@ export default function Landing() {
     try {
       await apiRequest("POST", "/api/auth/dev-login", { userId: selectedUser });
       
-      // Reload the page to trigger authentication check
-      window.location.reload();
+      // Invalidate and refetch auth data
+      await queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+      
+      toast({
+        title: "Login Successful",
+        description: "Redirecting to dashboard...",
+      });
     } catch (error) {
       toast({
         title: "Login Failed",
