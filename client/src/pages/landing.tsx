@@ -29,13 +29,9 @@ export default function Landing() {
     try {
       await apiRequest("POST", "/api/auth/dev-login", { userId: selectedUser });
       
-      // Invalidate and refetch auth data
-      await queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
-      
-      toast({
-        title: "Login Successful",
-        description: "Redirecting to dashboard...",
-      });
+      // Clear cache and refetch auth data
+      queryClient.removeQueries({ queryKey: ["/api/auth/user"] });
+      await queryClient.refetchQueries({ queryKey: ["/api/auth/user"] });
     } catch (error) {
       toast({
         title: "Login Failed",

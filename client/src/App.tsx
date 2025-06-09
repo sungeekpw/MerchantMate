@@ -14,8 +14,19 @@ import Transactions from "@/pages/transactions";
 import Reports from "@/pages/reports";
 import NotFound from "@/pages/not-found";
 import Landing from "@/pages/landing";
-import { useState, useEffect } from "react";
+import { useState, useEffect, createContext, useContext } from "react";
 import { useToast } from "@/hooks/use-toast";
+
+// Create auth context for immediate state updates
+const AuthContext = createContext<{
+  user: any;
+  setUser: (user: any) => void;
+  isLoading: boolean;
+}>({
+  user: null,
+  setUser: () => {},
+  isLoading: false,
+});
 
 // Update query client to handle auth errors
 queryClient.setDefaultOptions({
@@ -30,7 +41,7 @@ queryClient.setDefaultOptions({
 });
 
 function AuthenticatedApp() {
-  const { user } = useAuth();
+  const { user } = useContext(AuthContext);
   const { toast } = useToast();
   const [globalSearch, setGlobalSearch] = useState("");
 
