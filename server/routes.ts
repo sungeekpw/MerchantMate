@@ -18,12 +18,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         checkPeriod: 86400000 // prune expired entries every 24h
       }),
       resave: false,
-      saveUninitialized: false,
+      saveUninitialized: true, // Changed to true for development
       cookie: {
-        httpOnly: true,
-        secure: false, // false for development
-        maxAge: 24 * 60 * 60 * 1000 // 24 hours
-      }
+        httpOnly: false, // Allow JavaScript access for development
+        secure: false,
+        maxAge: 24 * 60 * 60 * 1000,
+        sameSite: 'lax'
+      },
+      name: 'corecrm.session' // Custom session name
     }));
   }
 
@@ -37,7 +39,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Set session manually for development
           if (req.session) {
             (req.session as any).userId = userId;
-            res.json({ success: true, user });
+            // Force session save
+            req.session.save((err) => {
+              if (err) {
+                console.error("Session save error:", err);
+                res.status(500).json({ message: "Session save failed" });
+              } else {
+                console.log("Session saved successfully for user:", userId);
+                res.json({ success: true, user });
+              }
+            });
           } else {
             res.status(500).json({ message: "Session not initialized" });
           }
@@ -52,7 +63,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     app.get('/api/auth/user', async (req: any, res) => {
       try {
+        console.log("Auth check - session:", req.session);
+        console.log("Auth check - cookies:", req.headers.cookie);
         const userId = (req.session as any)?.userId;
+        console.log("Auth check - userId from session:", userId);
+        
         if (!userId) {
           return res.status(401).json({ message: "Unauthorized" });
         }
