@@ -1,6 +1,6 @@
-import { merchants, agents, transactions, users, type Merchant, type Agent, type Transaction, type User, type InsertMerchant, type InsertAgent, type InsertTransaction, type UpsertUser, type MerchantWithAgent, type TransactionWithMerchant } from "@shared/schema";
+import { merchants, agents, transactions, users, loginAttempts, twoFactorCodes, type Merchant, type Agent, type Transaction, type User, type InsertMerchant, type InsertAgent, type InsertTransaction, type UpsertUser, type MerchantWithAgent, type TransactionWithMerchant, type LoginAttempt, type TwoFactorCode } from "@shared/schema";
 import { db } from "./db";
-import { eq } from "drizzle-orm";
+import { eq, or, and, gte } from "drizzle-orm";
 
 export interface IStorage {
   // Merchant operations
@@ -347,6 +347,36 @@ export class DatabaseStorage implements IStorage {
     return user || undefined;
   }
 
+  async getUserByUsername(username: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.username, username));
+    return user || undefined;
+  }
+
+  async getUserByUsernameOrEmail(username: string, email: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(
+      or(eq(users.username, username), eq(users.email, email))
+    );
+    return user || undefined;
+  }
+
+  async getUserByResetToken(token: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.passwordResetToken, token));
+    return user || undefined;
+  }
+
+  async getUserByEmailVerificationToken(token: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.emailVerificationToken, token));
+    return user || undefined;
+  }
+
+  async createUser(userData: Partial<UpsertUser>): Promise<User> {
+    const [user] = await db
+      .insert(users)
+      .values(userData as UpsertUser)
+      .returning();
+    return user;
+  }
+
   async getAllUsers(): Promise<User[]> {
     return await db.select().from(users);
   }
@@ -400,6 +430,75 @@ export class DatabaseStorage implements IStorage {
       .where(eq(users.id, id))
       .returning();
     return user || undefined;
+  }
+
+  // Authentication operations
+  async createLoginAttempt(attempt: {
+    username?: string | null;
+    email?: string | null;
+    ipAddress: string;
+    userAgent: string;
+    success: boolean;
+    failureReason?: string;
+  }): Promise<void> {
+    await db.insert(loginAttempts).values({
+      username: attempt.username,
+      email: attempt.email,
+      ipAddress: attempt.ipAddress,
+      userAgent: attempt.userAgent,
+      success: attempt.success,
+      failureReason: attempt.failureReason,
+    });
+  }
+
+  async getRecentLoginAttempts(usernameOrEmail: string, ip: string, timeWindow: number): Promise<LoginAttempt[]> {
+    const timeThreshold = new Date(Date.now() - timeWindow);
+    return await db.select().from(loginAttempts).where(
+      and(
+        or(
+          eq(loginAttempts.username, usernameOrEmail),
+          eq(loginAttempts.email, usernameOrEmail)
+        ),
+        eq(loginAttempts.ipAddress, ip),
+        gte(loginAttempts.createdAt, timeThreshold),
+        eq(loginAttempts.success, false)
+      )
+    );
+  }
+
+  async create2FACode(code: {
+    userId: string;
+    code: string;
+    type: string;
+    expiresAt: Date;
+  }): Promise<void> {
+    await db.insert(twoFactorCodes).values({
+      userId: code.userId,
+      code: code.code,
+      type: code.type,
+      expiresAt: code.expiresAt,
+    });
+  }
+
+  async verify2FACode(userId: string, code: string): Promise<boolean> {
+    const [validCode] = await db.select().from(twoFactorCodes).where(
+      and(
+        eq(twoFactorCodes.userId, userId),
+        eq(twoFactorCodes.code, code),
+        eq(twoFactorCodes.used, false),
+        gte(twoFactorCodes.expiresAt, new Date())
+      )
+    );
+
+    if (validCode) {
+      // Mark code as used
+      await db.update(twoFactorCodes)
+        .set({ used: true })
+        .where(eq(twoFactorCodes.id, validCode.id));
+      return true;
+    }
+
+    return false;
   }
 }
 
