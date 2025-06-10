@@ -9,6 +9,13 @@ import {
   twoFactorVerifySchema 
 } from "@shared/schema";
 
+declare module "express-session" {
+  interface SessionData {
+    userId: string;
+    sessionId: string;
+  }
+}
+
 export function setupAuthRoutes(app: Express) {
   // Authentication middleware
   const requireAuth = async (req: any, res: any, next: any) => {
@@ -57,25 +64,29 @@ export function setupAuthRoutes(app: Express) {
   });
 
   // User login
-  app.post('/api/auth/login', async (req, res) => {
+  app.post('/api/auth/login', async (req: any, res) => {
     try {
       const validatedData = loginUserSchema.parse(req.body);
       const result = await authService.login(validatedData, req);
       
       if (result.success && result.user && result.sessionId) {
+        // Store user session data
         req.session.userId = result.user.id;
         req.session.sessionId = result.sessionId;
+        
+        // Force session save before responding
         req.session.save((err: any) => {
           if (err) {
             console.error("Session save error:", err);
-            return res.status(500).json({ success: false, message: "Login failed" });
+            return res.status(500).json({ success: false, message: "Session save failed" });
           }
+          console.log("Session saved successfully for user:", result.user.id);
           res.json(result);
         });
       } else {
         res.status(400).json(result);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Login error:", error);
       res.status(400).json({ 
         success: false, 
