@@ -15,11 +15,7 @@ const navigation = [
 
 export function Sidebar() {
   const [location] = useLocation();
-  const { user } = useAuth();
-
-  const handleLogout = () => {
-    window.location.href = "/api/logout";
-  };
+  const { user, logout } = useAuth();
 
   const getFilteredNavigation = () => {
     if (!user) return [];
@@ -79,7 +75,7 @@ export function Sidebar() {
           <Button 
             variant="outline" 
             size="sm" 
-            onClick={handleLogout}
+            onClick={logout}
             className="w-full"
           >
             <LogOut className="w-4 h-4 mr-2" />
