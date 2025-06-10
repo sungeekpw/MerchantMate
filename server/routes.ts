@@ -1,6 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
+import { setupAuthRoutes } from "./authRoutes";
 import { insertMerchantSchema, insertAgentSchema, insertTransactionSchema } from "@shared/schema";
 import { setupAuth, isAuthenticated, requireRole, requirePermission } from "./replitAuth";
 import { z } from "zod";

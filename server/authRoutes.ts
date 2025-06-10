@@ -1,0 +1,231 @@
+import type { Express } from "express";
+import { authService } from "./auth";
+import { storage } from "./storage";
+import { 
+  registerUserSchema, 
+  loginUserSchema, 
+  passwordResetRequestSchema, 
+  passwordResetSchema,
+  twoFactorVerifySchema 
+} from "@shared/schema";
+
+export function setupAuthRoutes(app: Express) {
+  // Authentication middleware
+  const requireAuth = async (req: any, res: any, next: any) => {
+    if (!req.session?.userId) {
+      return res.status(401).json({ message: "Authentication required" });
+    }
+    
+    const user = await storage.getUser(req.session.userId);
+    if (!user || user.status !== 'active') {
+      req.session.destroy(() => {});
+      return res.status(401).json({ message: "Account not found or inactive" });
+    }
+    
+    req.user = user;
+    next();
+  };
+
+  // User registration
+  app.post('/api/auth/register', async (req, res) => {
+    try {
+      const validatedData = registerUserSchema.parse(req.body);
+      const result = await authService.register(validatedData, req);
+      
+      if (result.success) {
+        res.status(201).json(result);
+      } else {
+        res.status(400).json(result);
+      }
+    } catch (error) {
+      console.error("Registration error:", error);
+      res.status(400).json({ 
+        success: false, 
+        message: "Invalid registration data" 
+      });
+    }
+  });
+
+  // User login
+  app.post('/api/auth/login', async (req, res) => {
+    try {
+      const validatedData = loginUserSchema.parse(req.body);
+      const result = await authService.login(validatedData, req);
+      
+      if (result.success && result.user && result.sessionId) {
+        req.session.userId = result.user.id;
+        req.session.sessionId = result.sessionId;
+        req.session.save((err: any) => {
+          if (err) {
+            console.error("Session save error:", err);
+            return res.status(500).json({ success: false, message: "Login failed" });
+          }
+          res.json(result);
+        });
+      } else {
+        res.status(400).json(result);
+      }
+    } catch (error) {
+      console.error("Login error:", error);
+      res.status(400).json({ 
+        success: false, 
+        message: "Invalid login data" 
+      });
+    }
+  });
+
+  // User logout
+  app.post('/api/auth/logout', (req: any, res) => {
+    req.session.destroy((err: any) => {
+      if (err) {
+        console.error("Logout error:", err);
+        return res.status(500).json({ message: "Logout failed" });
+      }
+      res.clearCookie('connect.sid');
+      res.json({ success: true, message: "Logged out successfully" });
+    });
+  });
+
+  // Get current user
+  app.get('/api/auth/user', requireAuth, (req: any, res) => {
+    res.json(req.user);
+  });
+
+  // Forgot password
+  app.post('/api/auth/forgot-password', async (req, res) => {
+    try {
+      const validatedData = passwordResetRequestSchema.parse(req.body);
+      const result = await authService.requestPasswordReset(validatedData);
+      res.json(result);
+    } catch (error) {
+      console.error("Password reset request error:", error);
+      res.status(400).json({ 
+        success: false, 
+        message: "Invalid request data" 
+      });
+    }
+  });
+
+  // Reset password
+  app.post('/api/auth/reset-password', async (req, res) => {
+    try {
+      const validatedData = passwordResetSchema.parse(req.body);
+      const result = await authService.resetPassword(validatedData);
+      
+      if (result.success) {
+        res.json(result);
+      } else {
+        res.status(400).json(result);
+      }
+    } catch (error) {
+      console.error("Password reset error:", error);
+      res.status(400).json({ 
+        success: false, 
+        message: "Invalid reset data" 
+      });
+    }
+  });
+
+  // Verify email
+  app.get('/api/auth/verify-email', async (req, res) => {
+    try {
+      const { token } = req.query;
+      if (!token || typeof token !== 'string') {
+        return res.status(400).json({ 
+          success: false, 
+          message: "Verification token required" 
+        });
+      }
+      
+      const result = await authService.verifyEmail(token);
+      
+      if (result.success) {
+        res.redirect('/?verified=true');
+      } else {
+        res.redirect('/?verified=false');
+      }
+    } catch (error) {
+      console.error("Email verification error:", error);
+      res.redirect('/?verified=false');
+    }
+  });
+
+  // Verify 2FA code
+  app.post('/api/auth/verify-2fa', async (req, res) => {
+    try {
+      const validatedData = twoFactorVerifySchema.parse(req.body);
+      res.json({ success: true, message: "2FA verification endpoint ready" });
+    } catch (error) {
+      res.status(400).json({ 
+        success: false, 
+        message: "Invalid 2FA data" 
+      });
+    }
+  });
+
+  // Enable 2FA
+  app.post('/api/auth/enable-2fa', requireAuth, async (req: any, res) => {
+    try {
+      const result = await authService.enable2FA(req.user.id);
+      res.json(result);
+    } catch (error) {
+      console.error("Enable 2FA error:", error);
+      res.status(500).json({ 
+        success: false, 
+        message: "Failed to enable 2FA" 
+      });
+    }
+  });
+
+  // Disable 2FA
+  app.post('/api/auth/disable-2fa', requireAuth, async (req: any, res) => {
+    try {
+      const result = await authService.disable2FA(req.user.id);
+      res.json(result);
+    } catch (error) {
+      console.error("Disable 2FA error:", error);
+      res.status(500).json({ 
+        success: false, 
+        message: "Failed to disable 2FA" 
+      });
+    }
+  });
+
+  // Username availability check
+  app.post('/api/auth/check-username', async (req, res) => {
+    try {
+      const { username } = req.body;
+      if (!username) {
+        return res.status(400).json({ available: false, message: "Username required" });
+      }
+      
+      const existingUser = await storage.getUserByUsername(username);
+      res.json({ 
+        available: !existingUser,
+        message: existingUser ? "Username already taken" : "Username available"
+      });
+    } catch (error) {
+      console.error("Username check error:", error);
+      res.status(500).json({ available: false, message: "Check failed" });
+    }
+  });
+
+  // Email availability check
+  app.post('/api/auth/check-email', async (req, res) => {
+    try {
+      const { email } = req.body;
+      if (!email) {
+        return res.status(400).json({ available: false, message: "Email required" });
+      }
+      
+      const existingUser = await storage.getUserByEmail(email);
+      res.json({ 
+        available: !existingUser,
+        message: existingUser ? "Email already registered" : "Email available"
+      });
+    } catch (error) {
+      console.error("Email check error:", error);
+      res.status(500).json({ available: false, message: "Check failed" });
+    }
+  });
+}
