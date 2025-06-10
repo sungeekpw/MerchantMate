@@ -6,9 +6,9 @@ import { canAccessAnalytics, canAccessMerchants, canAccessAgents, canAccessTrans
 import { Button } from "@/components/ui/button";
 
 const navigation = [
-  { name: "Dashboard", href: "/", icon: BarChart3, requiresRole: ['admin', 'corporate', 'super_admin'] },
+  { name: "Dashboard", href: "/", icon: BarChart3, requiresRole: ['merchant', 'agent', 'admin', 'corporate', 'super_admin'] },
   { name: "Merchants", href: "/merchants", icon: Store, requiresRole: ['merchant', 'agent', 'admin', 'corporate', 'super_admin'] },
-  { name: "Agents", href: "/agents", icon: Users, requiresRole: ['agent', 'admin', 'corporate', 'super_admin'] },
+  { name: "Agents", href: "/agents", icon: Users, requiresRole: ['admin', 'corporate', 'super_admin'] },
   { name: "Transactions", href: "/transactions", icon: Receipt, requiresRole: ['merchant', 'agent', 'admin', 'corporate', 'super_admin'] },
   { name: "Users", href: "/users", icon: User, requiresRole: ['admin', 'corporate', 'super_admin'] },
   { name: "Reports", href: "/reports", icon: FileText, requiresRole: ['admin', 'corporate', 'super_admin'] },
