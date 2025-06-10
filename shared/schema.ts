@@ -188,3 +188,25 @@ export type UpsertUser = typeof users.$inferInsert;
 export type User = typeof users.$inferSelect;
 export type LoginAttempt = typeof loginAttempts.$inferSelect;
 export type TwoFactorCode = typeof twoFactorCodes.$inferSelect;
+
+// Widget preferences table
+export const userDashboardPreferences = pgTable("user_dashboard_preferences", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  userId: text("user_id").notNull(),
+  widgetId: text("widget_id").notNull(),
+  position: integer("position").notNull().default(0),
+  size: text("size").notNull().default("medium"), // small, medium, large
+  isVisible: boolean("is_visible").notNull().default(true),
+  configuration: jsonb("configuration").default({}),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertUserDashboardPreferenceSchema = createInsertSchema(userDashboardPreferences).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertUserDashboardPreference = z.infer<typeof insertUserDashboardPreferenceSchema>;
+export type UserDashboardPreference = typeof userDashboardPreferences.$inferSelect;
