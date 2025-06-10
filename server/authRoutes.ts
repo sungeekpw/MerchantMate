@@ -29,7 +29,9 @@ export function setupAuthRoutes(app: Express) {
   // User registration
   app.post('/api/auth/register', async (req, res) => {
     try {
+      console.log("Registration request body:", req.body);
       const validatedData = registerUserSchema.parse(req.body);
+      console.log("Validated data:", validatedData);
       const result = await authService.register(validatedData, req);
       
       if (result.success) {
@@ -38,11 +40,19 @@ export function setupAuthRoutes(app: Express) {
         res.status(400).json(result);
       }
     } catch (error) {
-      console.error("Registration error:", error);
-      res.status(400).json({ 
-        success: false, 
-        message: "Invalid registration data" 
-      });
+      console.error("Registration validation error:", error);
+      if (error.issues) {
+        res.status(400).json({ 
+          success: false, 
+          message: "Validation failed",
+          errors: error.issues
+        });
+      } else {
+        res.status(400).json({ 
+          success: false, 
+          message: "Invalid registration data" 
+        });
+      }
     }
   });
 
