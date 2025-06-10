@@ -80,7 +80,7 @@ export function setupAuthRoutes(app: Express) {
             console.error("Session save error:", err);
             return res.status(500).json({ success: false, message: "Session save failed" });
           }
-          console.log("Session saved successfully for user:", result.user.id);
+          console.log("Session saved successfully for user:", result.user!.id);
           res.json(result);
         });
       } else {

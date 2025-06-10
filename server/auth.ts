@@ -2,7 +2,7 @@ import bcrypt from "bcrypt";
 import speakeasy from "speakeasy";
 import crypto from "crypto";
 import { v4 as uuidv4 } from "uuid";
-import nodemailer from "nodemailer";
+import sgMail from "@sendgrid/mail";
 import { storage } from "./storage";
 import type { Request } from "express";
 import type { 
@@ -20,19 +20,9 @@ const LOCKOUT_TIME = 15 * 60 * 1000; // 15 minutes
 const PASSWORD_RESET_EXPIRES = 60 * 60 * 1000; // 1 hour
 const TWO_FACTOR_EXPIRES = 5 * 60 * 1000; // 5 minutes
 
-// Email configuration (will need SMTP credentials)
-let emailTransporter: nodemailer.Transporter | null = null;
-
-if (process.env.SMTP_USER && process.env.SMTP_PASS) {
-  emailTransporter = nodemailer.createTransport({
-    host: process.env.SMTP_HOST || "smtp.gmail.com",
-    port: parseInt(process.env.SMTP_PORT || "587"),
-    secure: false,
-    auth: {
-      user: process.env.SMTP_USER,
-      pass: process.env.SMTP_PASS,
-    },
-  });
+// SendGrid configuration
+if (process.env.SENDGRID_API_KEY) {
+  sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 }
 
 export class AuthService {
@@ -95,23 +85,25 @@ export class AuthService {
     });
   }
 
-  // Send email
+  // Send email using SendGrid
   async sendEmail(to: string, subject: string, html: string): Promise<void> {
-    if (!emailTransporter) {
+    if (!process.env.SENDGRID_API_KEY) {
       console.log("Email would be sent:", { to, subject, html });
       return;
     }
 
     try {
-      await emailTransporter.sendMail({
-        from: process.env.SMTP_FROM || process.env.SMTP_USER,
+      const msg = {
         to,
+        from: process.env.SENDGRID_FROM_EMAIL || 'noreply@corecrm.com',
         subject,
         html,
-      });
+      };
+
+      await sgMail.send(msg);
       console.log("Email sent successfully to:", to);
     } catch (error) {
-      console.error("Email sending failed:", error);
+      console.error("SendGrid email sending failed:", error);
       // Don't throw error to prevent app crash - just log it
     }
   }
@@ -154,7 +146,7 @@ export class AuthService {
         `
         <h2>Welcome to CoreCRM!</h2>
         <p>Please verify your email address by clicking the link below:</p>
-        <a href="${process.env.APP_URL || "http://localhost:5000"}/auth/verify-email?token=${emailVerificationToken}">
+        <a href="${process.env.APP_URL || "http://localhost:5000"}/api/auth/verify-email?token=${emailVerificationToken}">
           Verify Email Address
         </a>
         <p>This link will expire in 24 hours.</p>
