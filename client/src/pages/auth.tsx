@@ -23,18 +23,7 @@ const loginSchema = z.object({
   twoFactorCode: z.string().optional(),
 });
 
-const registerSchema = z.object({
-  username: z.string().min(3, "Username must be at least 3 characters"),
-  email: z.string().email("Invalid email address"),
-  password: z.string().min(8, "Password must be at least 8 characters"),
-  confirmPassword: z.string(),
-  firstName: z.string().min(1, "First name required"),
-  lastName: z.string().min(1, "Last name required"),
-  role: z.enum(["merchant", "agent", "admin", "corporate", "super_admin"]),
-}).refine((data) => data.password === data.confirmPassword, {
-  message: "Passwords don't match",
-  path: ["confirmPassword"],
-});
+
 
 const forgotPasswordSchema = z.object({
   usernameOrEmail: z.string().min(1, "Username or email required"),
@@ -50,7 +39,6 @@ const resetPasswordSchema = z.object({
 });
 
 type LoginForm = z.infer<typeof loginSchema>;
-type RegisterForm = z.infer<typeof registerSchema>;
 type ForgotPasswordForm = z.infer<typeof forgotPasswordSchema>;
 type ResetPasswordForm = z.infer<typeof resetPasswordSchema>;
 
@@ -73,19 +61,7 @@ export default function Auth() {
     },
   });
 
-  // Register form
-  const registerForm = useForm<RegisterForm>({
-    resolver: zodResolver(registerSchema),
-    defaultValues: {
-      username: "",
-      email: "",
-      password: "",
-      confirmPassword: "",
-      firstName: "",
-      lastName: "",
-      role: "merchant",
-    },
-  });
+
 
   // Forgot password form
   const forgotPasswordForm = useForm<ForgotPasswordForm>({
@@ -152,35 +128,7 @@ export default function Auth() {
     },
   });
 
-  // Register mutation
-  const registerMutation = useMutation({
-    mutationFn: async (data: RegisterForm) => {
-      const response = await apiRequest("POST", "/api/auth/register", data);
-      return response.json();
-    },
-    onSuccess: (data) => {
-      if (data.success) {
-        toast({
-          title: "Registration Successful",
-          description: data.message,
-        });
-        setActiveTab("login");
-      } else {
-        toast({
-          title: "Registration Failed",
-          description: data.message,
-          variant: "destructive",
-        });
-      }
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Registration Failed",
-        description: error.message,
-        variant: "destructive",
-      });
-    },
-  });
+
 
   // Forgot password mutation
   const forgotPasswordMutation = useMutation({
@@ -238,9 +186,7 @@ export default function Auth() {
     loginMutation.mutate(data);
   };
 
-  const onRegisterSubmit = (data: RegisterForm) => {
-    registerMutation.mutate(data);
-  };
+
 
   const onForgotPasswordSubmit = (data: ForgotPasswordForm) => {
     forgotPasswordMutation.mutate(data);
@@ -276,9 +222,8 @@ export default function Auth() {
 
         <CardContent>
           <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="grid w-full grid-cols-2">
+            <TabsList className="grid w-full grid-cols-1">
               <TabsTrigger value="login">Login</TabsTrigger>
-              <TabsTrigger value="register">Register</TabsTrigger>
             </TabsList>
 
             {/* Login Tab */}
@@ -370,136 +315,7 @@ export default function Auth() {
               </div>
             </TabsContent>
 
-            {/* Register Tab */}
-            <TabsContent value="register" className="space-y-4">
-              <form onSubmit={registerForm.handleSubmit(onRegisterSubmit)} className="space-y-4">
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="space-y-2">
-                    <Label htmlFor="firstName">First Name</Label>
-                    <Input
-                      id="firstName"
-                      placeholder="First name"
-                      {...registerForm.register("firstName")}
-                    />
-                    {registerForm.formState.errors.firstName && (
-                      <p className="text-sm text-red-500">
-                        {registerForm.formState.errors.firstName.message}
-                      </p>
-                    )}
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="lastName">Last Name</Label>
-                    <Input
-                      id="lastName"
-                      placeholder="Last name"
-                      {...registerForm.register("lastName")}
-                    />
-                    {registerForm.formState.errors.lastName && (
-                      <p className="text-sm text-red-500">
-                        {registerForm.formState.errors.lastName.message}
-                      </p>
-                    )}
-                  </div>
-                </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="username">Username</Label>
-                  <Input
-                    id="username"
-                    placeholder="Choose username"
-                    {...registerForm.register("username")}
-                  />
-                  {registerForm.formState.errors.username && (
-                    <p className="text-sm text-red-500">
-                      {registerForm.formState.errors.username.message}
-                    </p>
-                  )}
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
-                  <div className="relative">
-                    <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                    <Input
-                      id="email"
-                      type="email"
-                      placeholder="Enter email address"
-                      className="pl-10"
-                      {...registerForm.register("email")}
-                    />
-                  </div>
-                  {registerForm.formState.errors.email && (
-                    <p className="text-sm text-red-500">
-                      {registerForm.formState.errors.email.message}
-                    </p>
-                  )}
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="role">Account Type</Label>
-                  <Select
-                    value={registerForm.watch("role")}
-                    onValueChange={(value) => registerForm.setValue("role", value as any)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select account type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="merchant">Merchant</SelectItem>
-                      <SelectItem value="agent">Agent</SelectItem>
-                      <SelectItem value="admin">Administrator</SelectItem>
-                      <SelectItem value="corporate">Corporate Manager</SelectItem>
-                      <SelectItem value="super_admin">Super Administrator</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="registerPassword">Password</Label>
-                  <Input
-                    id="registerPassword"
-                    type="password"
-                    placeholder="Create password"
-                    {...registerForm.register("password")}
-                  />
-                  {registerForm.formState.errors.password && (
-                    <p className="text-sm text-red-500">
-                      {registerForm.formState.errors.password.message}
-                    </p>
-                  )}
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="confirmPassword">Confirm Password</Label>
-                  <Input
-                    id="confirmPassword"
-                    type="password"
-                    placeholder="Confirm password"
-                    {...registerForm.register("confirmPassword")}
-                  />
-                  {registerForm.formState.errors.confirmPassword && (
-                    <p className="text-sm text-red-500">
-                      {registerForm.formState.errors.confirmPassword.message}
-                    </p>
-                  )}
-                </div>
-
-                <Button
-                  type="submit"
-                  className="w-full"
-                  disabled={registerMutation.isPending}
-                >
-                  {registerMutation.isPending ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Creating account...
-                    </>
-                  ) : (
-                    "Create Account"
-                  )}
-                </Button>
-              </form>
-            </TabsContent>
 
             {/* Forgot Password Tab */}
             <TabsContent value="forgot" className="space-y-4">
