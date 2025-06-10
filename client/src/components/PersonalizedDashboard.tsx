@@ -41,9 +41,9 @@ export function PersonalizedDashboard() {
   }, [user]);
 
   // Fetch user's widget preferences
-  const { data: preferences = [], isLoading } = useQuery({
+  const { data: preferences = [], isLoading } = useQuery<UserWidgetPreference[]>({
     queryKey: ['/api/widgets/preferences'],
-    enabled: !!user?.id
+    enabled: !!(user as User)?.id
   });
 
   // Create default preferences for widgets not yet configured
@@ -57,7 +57,7 @@ export function PersonalizedDashboard() {
       } else {
         // Create default preference
         prefs.push({
-          userId: user?.id || '',
+          userId: (user as User)?.id || '',
           widgetId: widget.id,
           position: index,
           size: widget.defaultSize,
@@ -68,21 +68,15 @@ export function PersonalizedDashboard() {
     });
 
     return prefs.sort((a, b) => a.position - b.position);
-  }, [availableWidgets, preferences, user?.id]);
+  }, [availableWidgets, preferences, (user as User)?.id]);
 
   // Mutations for updating preferences
   const updatePreferenceMutation = useMutation({
     mutationFn: async ({ id, updates }: { id?: number; updates: Partial<UserWidgetPreference> }) => {
       if (id) {
-        return apiRequest(`/api/widgets/preferences/${id}`, {
-          method: 'PATCH',
-          body: updates
-        });
+        return await apiRequest('PATCH', `/api/widgets/preferences/${id}`, updates);
       } else {
-        return apiRequest('/api/widgets/preferences', {
-          method: 'POST',
-          body: { ...updates, userId: user?.id }
-        });
+        return await apiRequest('POST', '/api/widgets/preferences', { ...updates, userId: (user as User)?.id });
       }
     },
     onSuccess: () => {
