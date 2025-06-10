@@ -1,4 +1,4 @@
-import { merchants, agents, transactions, users, loginAttempts, twoFactorCodes, type Merchant, type Agent, type Transaction, type User, type InsertMerchant, type InsertAgent, type InsertTransaction, type UpsertUser, type MerchantWithAgent, type TransactionWithMerchant, type LoginAttempt, type TwoFactorCode } from "@shared/schema";
+import { merchants, agents, transactions, users, loginAttempts, twoFactorCodes, userDashboardPreferences, type Merchant, type Agent, type Transaction, type User, type InsertMerchant, type InsertAgent, type InsertTransaction, type UpsertUser, type MerchantWithAgent, type TransactionWithMerchant, type LoginAttempt, type TwoFactorCode, type UserDashboardPreference, type InsertUserDashboardPreference } from "@shared/schema";
 import { db } from "./db";
 import { eq, or, and, gte } from "drizzle-orm";
 
@@ -72,6 +72,12 @@ export interface IStorage {
   }>;
   getTopMerchants(): Promise<(Merchant & { transactionCount: number; totalVolume: string })[]>;
   getRecentTransactions(limit?: number): Promise<TransactionWithMerchant[]>;
+
+  // Widget preferences
+  getUserWidgetPreferences(userId: string): Promise<UserDashboardPreference[]>;
+  createWidgetPreference(preference: InsertUserDashboardPreference): Promise<UserDashboardPreference>;
+  updateWidgetPreference(id: number, updates: Partial<InsertUserDashboardPreference>): Promise<UserDashboardPreference | undefined>;
+  deleteWidgetPreference(id: number): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -499,6 +505,39 @@ export class DatabaseStorage implements IStorage {
     }
 
     return false;
+  }
+
+  // Widget preferences methods
+  async getUserWidgetPreferences(userId: string): Promise<UserDashboardPreference[]> {
+    return await db
+      .select()
+      .from(userDashboardPreferences)
+      .where(eq(userDashboardPreferences.userId, userId))
+      .orderBy(userDashboardPreferences.position);
+  }
+
+  async createWidgetPreference(preference: InsertUserDashboardPreference): Promise<UserDashboardPreference> {
+    const [created] = await db
+      .insert(userDashboardPreferences)
+      .values(preference)
+      .returning();
+    return created;
+  }
+
+  async updateWidgetPreference(id: number, updates: Partial<InsertUserDashboardPreference>): Promise<UserDashboardPreference | undefined> {
+    const [updated] = await db
+      .update(userDashboardPreferences)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(userDashboardPreferences.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteWidgetPreference(id: number): Promise<boolean> {
+    const result = await db
+      .delete(userDashboardPreferences)
+      .where(eq(userDashboardPreferences.id, id));
+    return (result.rowCount || 0) > 0;
   }
 }
 
