@@ -17,6 +17,7 @@ import { TransactionCountWidget } from "./widgets/TransactionCountWidget";
 import { RecentTransactionsWidget } from "./widgets/RecentTransactionsWidget";
 import { MyMerchantProfileWidget } from "./widgets/MyMerchantProfileWidget";
 import { WIDGET_DEFINITIONS, WidgetDefinition, UserWidgetPreference } from "./widgets/widget-types";
+import { User } from "@shared/schema";
 
 // Widget component registry
 const WIDGET_COMPONENTS: Record<string, React.ComponentType<any>> = {
@@ -115,26 +116,34 @@ export function PersonalizedDashboard() {
 
   if (isLoading) {
     return (
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {[1, 2, 3, 4, 5, 6].map(i => (
-          <Card key={i} className="animate-pulse">
-            <CardHeader>
-              <div className="h-4 bg-gray-200 rounded w-3/4"></div>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                <div className="h-8 bg-gray-200 rounded"></div>
-                <div className="h-4 bg-gray-200 rounded w-1/2"></div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+      <div className="p-6 space-y-6">
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
+            <p className="text-gray-600">Loading your personalized dashboard...</p>
+          </div>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {[1, 2, 3, 4, 5, 6].map(i => (
+            <Card key={i} className="animate-pulse">
+              <CardHeader>
+                <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  <div className="h-8 bg-gray-200 rounded"></div>
+                  <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
+    <div className="p-6 space-y-6">
       {/* Dashboard Header */}
       <div className="flex justify-between items-center">
         <div>
