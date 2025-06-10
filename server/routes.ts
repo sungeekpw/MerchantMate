@@ -13,26 +13,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Add cookie parser middleware
   app.use(cookieParser());
 
-  // Development session setup
-  if (process.env.NODE_ENV === 'development') {
-    const SessionStore = MemoryStore(session);
-    
-    app.use(session({
-      secret: 'dev-session-secret',
-      store: new SessionStore({
-        checkPeriod: 86400000 // prune expired entries every 24h
-      }),
-      resave: false,
-      saveUninitialized: true, // Changed to true for development
-      cookie: {
-        httpOnly: false, // Allow JavaScript access for development
-        secure: false,
-        maxAge: 24 * 60 * 60 * 1000,
-        sameSite: 'lax'
-      },
-      name: 'corecrm.session' // Custom session name
-    }));
-  }
+  // Session setup for authentication
+  const SessionStore = MemoryStore(session);
+  
+  app.use(session({
+    secret: process.env.SESSION_SECRET || 'corecrm-session-secret-key',
+    store: new SessionStore({
+      checkPeriod: 86400000 // prune expired entries every 24h
+    }),
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      maxAge: 24 * 60 * 60 * 1000,
+      sameSite: 'lax'
+    },
+    name: 'corecrm-session'
+  }));
+
+  // Setup authentication routes
+  setupAuthRoutes(app);
 
   // Development auth route for testing
   if (process.env.NODE_ENV === 'development') {

@@ -224,7 +224,7 @@ function AppContent() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {isAuthenticated ? <AuthenticatedApp /> : <Landing />}
+      {isAuthenticated ? <AuthenticatedApp /> : <Auth />}
     </div>
   );
 }
