@@ -14,6 +14,7 @@ import Transactions from "@/pages/transactions";
 import Reports from "@/pages/reports";
 import NotFound from "@/pages/not-found";
 import Landing from "@/pages/landing";
+import Auth from "@/pages/auth";
 import { useState, useEffect, createContext, useContext } from "react";
 import { useToast } from "@/hooks/use-toast";
 
