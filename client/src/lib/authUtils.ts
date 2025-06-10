@@ -11,7 +11,7 @@ export function canAccessMerchants(user: any): boolean {
 }
 
 export function canAccessAgents(user: any): boolean {
-  return hasRole(user, ['agent', 'merchant', 'admin', 'corporate', 'super_admin']);
+  return hasRole(user, ['agent', 'admin', 'corporate', 'super_admin']);
 }
 
 export function canAccessTransactions(user: any): boolean {
