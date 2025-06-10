@@ -104,14 +104,29 @@ export default function Auth() {
   // Login mutation
   const loginMutation = useMutation({
     mutationFn: async (data: LoginForm) => {
-      const response = await apiRequest("POST", "/api/auth/login", data);
-      return response.json();
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+        credentials: "include"
+      });
+      
+      const result = await response.json();
+      
+      if (!response.ok) {
+        if (result.requires2FA) {
+          return result; // Return the 2FA response even though it's technically an error
+        }
+        throw new Error(result.message || "Login failed");
+      }
+      
+      return result;
     },
     onSuccess: (data) => {
       if (data.requires2FA) {
         setRequires2FA(true);
         toast({
-          title: "2FA Required",
+          title: "Security Code Required",
           description: data.message,
         });
       } else if (data.success) {
@@ -120,6 +135,10 @@ export default function Auth() {
           title: "Login Successful",
           description: "Welcome to CoreCRM!",
         });
+        // Force page reload to ensure authentication state updates
+        setTimeout(() => {
+          window.location.reload();
+        }, 500);
       }
     },
     onError: (error: any) => {
