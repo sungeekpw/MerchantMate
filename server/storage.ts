@@ -73,6 +73,14 @@ export interface IStorage {
   getTopMerchants(): Promise<(Merchant & { transactionCount: number; totalVolume: string })[]>;
   getRecentTransactions(limit?: number): Promise<TransactionWithMerchant[]>;
 
+  // Agent-Merchant associations
+  getAgentMerchants(agentId: number): Promise<Merchant[]>;
+  getMerchantAgents(merchantId: number): Promise<Agent[]>;
+  assignAgentToMerchant(agentId: number, merchantId: number, assignedBy: string): Promise<AgentMerchant>;
+  unassignAgentFromMerchant(agentId: number, merchantId: number): Promise<boolean>;
+  getMerchantsForUser(userId: string): Promise<MerchantWithAgent[]>;
+  getTransactionsForUser(userId: string): Promise<TransactionWithMerchant[]>;
+
   // Widget preferences
   getUserWidgetPreferences(userId: string): Promise<UserDashboardPreference[]>;
   createWidgetPreference(preference: InsertUserDashboardPreference): Promise<UserDashboardPreference>;
@@ -545,6 +553,166 @@ export class DatabaseStorage implements IStorage {
       .delete(userDashboardPreferences)
       .where(eq(userDashboardPreferences.id, id));
     return (result.rowCount || 0) > 0;
+  }
+
+  // Agent-Merchant associations implementation
+  async getAgentMerchants(agentId: number): Promise<Merchant[]> {
+    const result = await db
+      .select({
+        id: merchants.id,
+        businessName: merchants.businessName,
+        businessType: merchants.businessType,
+        email: merchants.email,
+        phone: merchants.phone,
+        address: merchants.address,
+        agentId: merchants.agentId,
+        processingFee: merchants.processingFee,
+        status: merchants.status,
+        monthlyVolume: merchants.monthlyVolume,
+        createdAt: merchants.createdAt,
+      })
+      .from(merchants)
+      .innerJoin(agentMerchants, eq(merchants.id, agentMerchants.merchantId))
+      .where(eq(agentMerchants.agentId, agentId));
+    
+    return result;
+  }
+
+  async getMerchantAgents(merchantId: number): Promise<Agent[]> {
+    const result = await db
+      .select({
+        id: agents.id,
+        firstName: agents.firstName,
+        lastName: agents.lastName,
+        email: agents.email,
+        phone: agents.phone,
+        territory: agents.territory,
+        commissionRate: agents.commissionRate,
+        status: agents.status,
+        createdAt: agents.createdAt,
+      })
+      .from(agents)
+      .innerJoin(agentMerchants, eq(agents.id, agentMerchants.agentId))
+      .where(eq(agentMerchants.merchantId, merchantId));
+    
+    return result;
+  }
+
+  async assignAgentToMerchant(agentId: number, merchantId: number, assignedBy: string): Promise<AgentMerchant> {
+    const [result] = await db
+      .insert(agentMerchants)
+      .values({
+        agentId,
+        merchantId,
+        assignedBy
+      })
+      .returning();
+    
+    return result;
+  }
+
+  async unassignAgentFromMerchant(agentId: number, merchantId: number): Promise<boolean> {
+    const result = await db
+      .delete(agentMerchants)
+      .where(and(
+        eq(agentMerchants.agentId, agentId),
+        eq(agentMerchants.merchantId, merchantId)
+      ));
+    
+    return (result.rowCount || 0) > 0;
+  }
+
+  async getMerchantsForUser(userId: string): Promise<MerchantWithAgent[]> {
+    // Get user to check their role
+    const user = await this.getUser(userId);
+    if (!user) return [];
+
+    // If user is admin/corporate/super_admin, return all merchants
+    if (['admin', 'corporate', 'super_admin'].includes(user.role)) {
+      return this.getAllMerchants();
+    }
+
+    // If user is agent, return only assigned merchants
+    if (user.role === 'agent') {
+      // Find agent by user email
+      const agent = await this.getAgentByEmail(user.email);
+      if (!agent) return [];
+      
+      return this.getAgentMerchants(agent.id).then(merchants => 
+        merchants.map(merchant => ({ ...merchant, agent }))
+      );
+    }
+
+    // If user is merchant, return only their own merchant profile
+    if (user.role === 'merchant') {
+      const merchant = await this.getMerchantByEmail(user.email);
+      return merchant ? [merchant] : [];
+    }
+
+    return [];
+  }
+
+  async getTransactionsForUser(userId: string): Promise<TransactionWithMerchant[]> {
+    // Get user to check their role
+    const user = await this.getUser(userId);
+    if (!user) return [];
+
+    // If user is admin/corporate/super_admin, return all transactions
+    if (['admin', 'corporate', 'super_admin'].includes(user.role)) {
+      return this.getAllTransactions();
+    }
+
+    // If user is agent, return transactions for assigned merchants only
+    if (user.role === 'agent') {
+      const agent = await this.getAgentByEmail(user.email);
+      if (!agent) return [];
+      
+      const assignedMerchants = await this.getAgentMerchants(agent.id);
+      const merchantIds = assignedMerchants.map(m => m.id);
+      
+      if (merchantIds.length === 0) return [];
+
+      const result = await db
+        .select({
+          id: transactions.id,
+          transactionId: transactions.transactionId,
+          merchantId: transactions.merchantId,
+          amount: transactions.amount,
+          paymentMethod: transactions.paymentMethod,
+          status: transactions.status,
+          processingFee: transactions.processingFee,
+          netAmount: transactions.netAmount,
+          createdAt: transactions.createdAt,
+          merchant: {
+            id: merchants.id,
+            businessName: merchants.businessName,
+            businessType: merchants.businessType,
+            email: merchants.email,
+            phone: merchants.phone,
+            address: merchants.address,
+            agentId: merchants.agentId,
+            processingFee: merchants.processingFee,
+            status: merchants.status,
+            monthlyVolume: merchants.monthlyVolume,
+            createdAt: merchants.createdAt,
+          }
+        })
+        .from(transactions)
+        .leftJoin(merchants, eq(transactions.merchantId, merchants.id))
+        .where(eq(transactions.merchantId, merchantIds[0])); // Start with first merchant
+
+      return result;
+    }
+
+    // If user is merchant, return only their transactions
+    if (user.role === 'merchant') {
+      const merchant = await this.getMerchantByEmail(user.email);
+      if (!merchant) return [];
+      
+      return this.getTransactionsByMerchant(merchant.id);
+    }
+
+    return [];
   }
 }
 
