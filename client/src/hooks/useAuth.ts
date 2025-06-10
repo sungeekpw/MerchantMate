@@ -7,15 +7,16 @@ export function useAuth() {
     queryFn: getQueryFn({ on401: "returnNull" }),
     retry: false,
     refetchOnWindowFocus: true,
-    refetchOnMount: true,
+    refetchOnMount: "always",
     staleTime: 0,
     gcTime: 0,
+    refetchInterval: false,
   });
 
   return {
     user,
     isLoading,
-    isAuthenticated: !!user && !error,
+    isAuthenticated: !!user,
     refetch,
   };
 }
