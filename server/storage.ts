@@ -527,14 +527,7 @@ export class DatabaseStorage implements IStorage {
   async createWidgetPreference(preference: InsertUserDashboardPreference): Promise<UserDashboardPreference> {
     const [created] = await db
       .insert(userDashboardPreferences)
-      .values({
-        userId: preference.userId,
-        widgetId: preference.widgetId,
-        position: preference.position || 0,
-        size: preference.size || 'medium',
-        isVisible: preference.isVisible !== false,
-        configuration: preference.configuration || {}
-      })
+      .values(preference)
       .returning();
     return created;
   }
@@ -701,7 +694,10 @@ export class DatabaseStorage implements IStorage {
         .leftJoin(merchants, eq(transactions.merchantId, merchants.id))
         .where(eq(transactions.merchantId, merchantIds[0])); // Start with first merchant
 
-      return result;
+      return result.map(row => ({
+        ...row,
+        merchant: row.merchant || undefined
+      }));
     }
 
     // If user is merchant, return only their transactions
