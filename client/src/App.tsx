@@ -209,7 +209,14 @@ function AuthenticatedApp() {
 }
 
 function AppContent() {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { user, isAuthenticated, isLoading } = useAuth();
+  const [localUser, setLocalUser] = useState<any>(null);
+
+  useEffect(() => {
+    if (user) {
+      setLocalUser(user);
+    }
+  }, [user]);
 
   if (isLoading) {
     return (
@@ -223,9 +230,11 @@ function AppContent() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {isAuthenticated ? <AuthenticatedApp /> : <Auth />}
-    </div>
+    <AuthContext.Provider value={{ user: localUser, setUser: setLocalUser, isLoading }}>
+      <div className="min-h-screen bg-gray-50">
+        {isAuthenticated ? <AuthenticatedApp /> : <Auth />}
+      </div>
+    </AuthContext.Provider>
   );
 }
 

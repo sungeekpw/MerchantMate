@@ -134,18 +134,13 @@ export default function Auth() {
           description: data.message,
         });
       } else if (data.success) {
-        // Clear and refetch authentication state
-        queryClient.removeQueries({ queryKey: ["/api/auth/user"] });
-        await queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
-        await refetch();
-        
         toast({
           title: "Login Successful",
           description: "Welcome to CoreCRM!",
         });
         
-        // Navigate to dashboard
-        setLocation("/");
+        // Force complete page reload to ensure proper state management
+        window.location.href = "/";
       }
     },
     onError: (error: any) => {
