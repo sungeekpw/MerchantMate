@@ -10,6 +10,7 @@ const navigation = [
   { name: "Merchants", href: "/merchants", icon: Store, requiresRole: ['merchant', 'agent', 'admin', 'corporate', 'super_admin'] },
   { name: "Agents", href: "/agents", icon: Users, requiresRole: ['agent', 'admin', 'corporate', 'super_admin'] },
   { name: "Transactions", href: "/transactions", icon: Receipt, requiresRole: ['merchant', 'agent', 'admin', 'corporate', 'super_admin'] },
+  { name: "Users", href: "/users", icon: User, requiresRole: ['admin', 'corporate', 'super_admin'] },
   { name: "Reports", href: "/reports", icon: FileText, requiresRole: ['admin', 'corporate', 'super_admin'] },
 ];
 
