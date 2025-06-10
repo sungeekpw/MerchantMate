@@ -33,12 +33,35 @@ export interface IStorage {
   // User operations
   getUser(id: string): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
+  getUserByUsername(username: string): Promise<User | undefined>;
+  getUserByUsernameOrEmail(username: string, email: string): Promise<User | undefined>;
+  getUserByResetToken(token: string): Promise<User | undefined>;
+  getUserByEmailVerificationToken(token: string): Promise<User | undefined>;
   getAllUsers(): Promise<User[]>;
+  createUser(user: Partial<UpsertUser>): Promise<User>;
   upsertUser(user: UpsertUser): Promise<User>;
   updateUser(id: string, updates: Partial<UpsertUser>): Promise<User | undefined>;
   updateUserRole(id: string, role: string): Promise<User | undefined>;
   updateUserStatus(id: string, status: string): Promise<User | undefined>;
   updateUserPermissions(id: string, permissions: Record<string, boolean>): Promise<User | undefined>;
+
+  // Authentication operations
+  createLoginAttempt(attempt: {
+    username?: string | null;
+    email?: string | null;
+    ipAddress: string;
+    userAgent: string;
+    success: boolean;
+    failureReason?: string;
+  }): Promise<void>;
+  getRecentLoginAttempts(usernameOrEmail: string, ip: string, timeWindow: number): Promise<any[]>;
+  create2FACode(code: {
+    userId: string;
+    code: string;
+    type: string;
+    expiresAt: Date;
+  }): Promise<void>;
+  verify2FACode(userId: string, code: string): Promise<boolean>;
 
   // Analytics
   getDashboardMetrics(): Promise<{

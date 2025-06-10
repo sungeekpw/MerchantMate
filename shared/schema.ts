@@ -76,15 +76,48 @@ export type TransactionWithMerchant = Transaction & {
 // User management tables
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().notNull(),
-  email: varchar("email").unique(),
+  email: varchar("email").unique().notNull(),
+  username: varchar("username").unique().notNull(),
+  passwordHash: varchar("password_hash").notNull(),
   firstName: varchar("first_name"),
   lastName: varchar("last_name"),
   profileImageUrl: varchar("profile_image_url"),
   role: text("role").notNull().default("merchant"), // merchant, agent, admin, corporate, super_admin
   status: text("status").notNull().default("active"), // active, suspended, inactive
   permissions: jsonb("permissions").default("{}"),
+  lastLoginAt: timestamp("last_login_at"),
+  lastLoginIp: varchar("last_login_ip"),
+  twoFactorEnabled: boolean("two_factor_enabled").default(false),
+  twoFactorSecret: varchar("two_factor_secret"),
+  passwordResetToken: varchar("password_reset_token"),
+  passwordResetExpires: timestamp("password_reset_expires"),
+  emailVerified: boolean("email_verified").default(false),
+  emailVerificationToken: varchar("email_verification_token"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Login attempts table for security tracking
+export const loginAttempts = pgTable("login_attempts", {
+  id: serial("id").primaryKey(),
+  username: varchar("username"),
+  email: varchar("email"),
+  ipAddress: varchar("ip_address").notNull(),
+  userAgent: text("user_agent"),
+  success: boolean("success").notNull(),
+  failureReason: varchar("failure_reason"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Two-factor authentication codes table
+export const twoFactorCodes = pgTable("two_factor_codes", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  code: varchar("code", { length: 6 }).notNull(),
+  type: varchar("type").notNull(), // 'login', 'ip_change', 'password_reset'
+  expiresAt: timestamp("expires_at").notNull(),
+  used: boolean("used").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
 });
 
 // Session storage table
@@ -98,11 +131,65 @@ export const sessions = pgTable(
   (table) => [index("IDX_session_expire").on(table.expire)],
 );
 
+// Schema for user registration
+export const registerUserSchema = createInsertSchema(users).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  lastLoginAt: true,
+  lastLoginIp: true,
+  twoFactorSecret: true,
+  passwordResetToken: true,
+  passwordResetExpires: true,
+  emailVerificationToken: true,
+}).extend({
+  password: z.string().min(8, "Password must be at least 8 characters"),
+  confirmPassword: z.string(),
+}).refine((data) => data.password === data.confirmPassword, {
+  message: "Passwords don't match",
+  path: ["confirmPassword"],
+});
+
+// Schema for user login
+export const loginUserSchema = z.object({
+  usernameOrEmail: z.string().min(1, "Username or email required"),
+  password: z.string().min(1, "Password required"),
+  twoFactorCode: z.string().optional(),
+});
+
+// Schema for password reset request
+export const passwordResetRequestSchema = z.object({
+  usernameOrEmail: z.string().min(1, "Username or email required"),
+});
+
+// Schema for password reset
+export const passwordResetSchema = z.object({
+  token: z.string().min(1, "Reset token required"),
+  password: z.string().min(8, "Password must be at least 8 characters"),
+  confirmPassword: z.string(),
+}).refine((data) => data.password === data.confirmPassword, {
+  message: "Passwords don't match",
+  path: ["confirmPassword"],
+});
+
+// Schema for 2FA verification
+export const twoFactorVerifySchema = z.object({
+  code: z.string().length(6, "Code must be 6 digits"),
+  type: z.enum(["login", "ip_change", "password_reset"]),
+});
+
 export const insertUserSchema = createInsertSchema(users).omit({
   createdAt: true,
   updatedAt: true,
 });
 
+export type RegisterUser = z.infer<typeof registerUserSchema>;
+export type LoginUser = z.infer<typeof loginUserSchema>;
+export type PasswordResetRequest = z.infer<typeof passwordResetRequestSchema>;
+export type PasswordReset = z.infer<typeof passwordResetSchema>;
+export type TwoFactorVerify = z.infer<typeof twoFactorVerifySchema>;
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type UpsertUser = typeof users.$inferInsert;
 export type User = typeof users.$inferSelect;
+export type LoginAttempt = typeof loginAttempts.$inferSelect;
+export type TwoFactorCode = typeof twoFactorCodes.$inferSelect;
