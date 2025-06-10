@@ -12,6 +12,8 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Loader2, Eye, EyeOff, Shield, Mail, User, Lock } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useAuth } from "@/hooks/useAuth";
+import { useLocation } from "wouter";
 import { z } from "zod";
 
 // Form schemas
@@ -58,6 +60,8 @@ export default function Auth() {
   const [requires2FA, setRequires2FA] = useState(false);
   const [resetToken, setResetToken] = useState("");
   const { toast } = useToast();
+  const [, setLocation] = useLocation();
+  const { refetch } = useAuth();
 
   // Login form
   const loginForm = useForm<LoginForm>({
@@ -122,7 +126,7 @@ export default function Auth() {
       
       return result;
     },
-    onSuccess: (data) => {
+    onSuccess: async (data) => {
       if (data.requires2FA) {
         setRequires2FA(true);
         toast({
@@ -130,17 +134,18 @@ export default function Auth() {
           description: data.message,
         });
       } else if (data.success) {
-        // Clear cache and refetch user data immediately
+        // Clear and refetch authentication state
         queryClient.removeQueries({ queryKey: ["/api/auth/user"] });
-        queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+        await queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+        await refetch();
         
         toast({
           title: "Login Successful",
           description: "Welcome to CoreCRM!",
         });
         
-        // Force immediate page reload to update authentication state
-        window.location.reload();
+        // Navigate to dashboard
+        setLocation("/");
       }
     },
     onError: (error: any) => {

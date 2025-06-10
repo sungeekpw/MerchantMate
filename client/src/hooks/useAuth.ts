@@ -8,7 +8,6 @@ export function useAuth() {
     refetchOnMount: true,
     staleTime: 0,
     gcTime: 0,
-    refetchInterval: 1000, // Check auth status every second
   });
 
   return {
