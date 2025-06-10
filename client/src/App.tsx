@@ -11,6 +11,7 @@ import Dashboard from "@/pages/dashboard";
 import Merchants from "@/pages/merchants";
 import Agents from "@/pages/agents";
 import Transactions from "@/pages/transactions";
+import Users from "@/pages/users";
 import Reports from "@/pages/reports";
 import NotFound from "@/pages/not-found";
 import Landing from "@/pages/landing";
@@ -78,6 +79,11 @@ function AuthenticatedApp() {
         return {
           title: "Transactions",
           subtitle: "View and track all payment transactions"
+        };
+      case "/users":
+        return {
+          title: "User Management",
+          subtitle: "Manage user accounts, roles, and permissions"
         };
       case "/reports":
         return {
@@ -174,6 +180,24 @@ function AuthenticatedApp() {
                   />
                   <main className="flex-1 overflow-auto bg-gray-50">
                     <Transactions />
+                  </main>
+                </>
+              );
+            }}
+          </Route>
+          <Route path="/users">
+            {() => {
+              if (!canAccessAnalytics(user)) return <NotFound />;
+              const pageInfo = getPageInfo("/users");
+              return (
+                <>
+                  <Header 
+                    title={pageInfo.title} 
+                    subtitle={pageInfo.subtitle}
+                    onSearch={setGlobalSearch}
+                  />
+                  <main className="flex-1 overflow-auto bg-gray-50">
+                    <Users />
                   </main>
                 </>
               );
