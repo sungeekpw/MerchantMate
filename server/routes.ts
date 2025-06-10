@@ -192,72 +192,445 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Merchant routes with role-based access
   app.get("/api/merchants", devAuth, async (req: any, res) => {
     try {
-      const currentUser = req.dbUser;
+      const userId = req.user.claims.sub;
       const { search } = req.query;
-      let merchants: any[] = [];
 
-      // Role-based data filtering
-      if (currentUser.role === 'merchant') {
-        // Merchants can only see their own data
-        const merchant = await storage.getMerchantByEmail(currentUser.email);
-        merchants = merchant ? [{ ...merchant, agent: undefined }] : [];
-      } else if (currentUser.role === 'agent') {
-        // Agents can only see merchants assigned to them
-        const agent = await storage.getAgentByEmail(currentUser.email);
-        if (agent) {
-          const allMerchants = await storage.getAllMerchants();
-          merchants = allMerchants.filter(m => m.agentId === agent.id);
-        } else {
-          merchants = [];
-        }
-      } else {
-        // Admins, corporate, and super admins can see all merchants
-        if (search && typeof search === 'string') {
-          merchants = await storage.searchMerchants(search);
-        } else {
-          merchants = await storage.getAllMerchants();
-        }
-      }
+      // Use role-based filtering from storage layer
+      const merchants = await storage.getMerchantsForUser(userId);
 
-      // Apply search filter if needed for role-based results
-      if (search && typeof search === 'string' && (currentUser.role === 'merchant' || currentUser.role === 'agent')) {
-        const searchLower = search.toLowerCase();
-        merchants = merchants.filter(m => 
-          m.businessName.toLowerCase().includes(searchLower) ||
-          m.email.toLowerCase().includes(searchLower) ||
-          m.businessType.toLowerCase().includes(searchLower)
+      if (search) {
+        const filteredMerchants = merchants.filter(merchant =>
+          merchant.businessName.toLowerCase().includes(search.toLowerCase()) ||
+          merchant.email.toLowerCase().includes(search.toLowerCase())
         );
+        res.json(filteredMerchants);
+      } else {
+        res.json(merchants);
       }
-      
-      res.json(merchants);
     } catch (error) {
       console.error("Error fetching merchants:", error);
       res.status(500).json({ message: "Failed to fetch merchants" });
     }
   });
 
-  app.get("/api/merchants/:id", devAuth, async (req: any, res) => {
+  // Transaction routes with role-based access
+  app.get("/api/transactions", devAuth, async (req: any, res) => {
     try {
-      const currentUser = req.dbUser;
-      const id = parseInt(req.params.id);
-      const merchant = await storage.getMerchant(id);
+      const userId = req.user.claims.sub;
+      const { search } = req.query;
+
+      // Use role-based filtering from storage layer
+      const transactions = await storage.getTransactionsForUser(userId);
+
+      if (search) {
+        const filteredTransactions = transactions.filter(transaction =>
+          transaction.transactionId.toLowerCase().includes(search.toLowerCase()) ||
+          transaction.merchant?.businessName?.toLowerCase().includes(search.toLowerCase())
+        );
+        res.json(filteredTransactions);
+      } else {
+        res.json(transactions);
+      }
+    } catch (error) {
+      console.error("Error fetching transactions:", error);
+      res.status(500).json({ message: "Failed to fetch transactions" });
+    }
+  });
+
+  // Agent-merchant assignment routes (admin only)
+  app.post("/api/agents/:agentId/merchants/:merchantId", devRequireRole(['admin', 'corporate', 'super_admin']), async (req: any, res) => {
+    try {
+      const { agentId, merchantId } = req.params;
+      const userId = req.user.claims.sub;
+
+      const assignment = await storage.assignAgentToMerchant(
+        parseInt(agentId),
+        parseInt(merchantId),
+        userId
+      );
+
+      res.json(assignment);
+    } catch (error) {
+      console.error("Error assigning agent to merchant:", error);
+      res.status(500).json({ message: "Failed to assign agent to merchant" });
+    }
+  });
+
+  app.delete("/api/agents/:agentId/merchants/:merchantId", devRequireRole(['admin', 'corporate', 'super_admin']), async (req: any, res) => {
+    try {
+      const { agentId, merchantId } = req.params;
+
+      const success = await storage.unassignAgentFromMerchant(
+        parseInt(agentId),
+        parseInt(merchantId)
+      );
+
+      if (success) {
+        res.json({ success: true });
+      } else {
+        res.status(404).json({ message: "Assignment not found" });
+      }
+    } catch (error) {
+      console.error("Error unassigning agent from merchant:", error);
+      res.status(500).json({ message: "Failed to unassign agent from merchant" });
+    }
+  });
+
+  // Get merchants assigned to an agent
+  app.get("/api/agents/:agentId/merchants", devAuth, async (req: any, res) => {
+    try {
+      const { agentId } = req.params;
+      const userId = req.user.claims.sub;
+      const currentUser = await storage.getUser(userId);
+
+      // Only allow access if user is admin or is the agent themselves
+      if (!['admin', 'corporate', 'super_admin'].includes(currentUser?.role || '')) {
+        const agent = await storage.getAgentByEmail(currentUser?.email || '');
+        if (!agent || agent.id !== parseInt(agentId)) {
+          return res.status(403).json({ message: "Access denied" });
+        }
+      }
+
+      const merchants = await storage.getAgentMerchants(parseInt(agentId));
+      res.json(merchants);
+    } catch (error) {
+      console.error("Error fetching agent merchants:", error);
+      res.status(500).json({ message: "Failed to fetch agent merchants" });
+    }
+  });
+
+  // Get agents assigned to a merchant
+  app.get("/api/merchants/:merchantId/agents", devAuth, async (req: any, res) => {
+    try {
+      const { merchantId } = req.params;
+      const userId = req.user.claims.sub;
+      const currentUser = await storage.getUser(userId);
+
+      // Only allow access if user is admin or is the merchant themselves
+      if (!['admin', 'corporate', 'super_admin'].includes(currentUser?.role || '')) {
+        const merchant = await storage.getMerchantByEmail(currentUser?.email || '');
+        if (!merchant || merchant.id !== parseInt(merchantId)) {
+          return res.status(403).json({ message: "Access denied" });
+        }
+      }
+
+      const agents = await storage.getMerchantAgents(parseInt(merchantId));
+      res.json(agents);
+    } catch (error) {
+      console.error("Error fetching merchant agents:", error);
+      res.status(500).json({ message: "Failed to fetch merchant agents" });
+    }
+  });
+
+  // Keep existing merchant routes for admin access
+  app.get("/api/merchants/all", devRequireRole(['admin', 'corporate', 'super_admin']), async (req, res) => {
+    try {
+      const { search } = req.query;
       
+      if (search) {
+        const merchants = await storage.searchMerchants(search as string);
+        res.json(merchants);
+      } else {
+        const merchants = await storage.getAllMerchants();
+        res.json(merchants);
+      }
+    } catch (error) {
+      console.error("Error fetching all merchants:", error);
+      res.status(500).json({ message: "Failed to fetch all merchants" });
+    }
+  });
+
+  // Update merchant creation to be admin-only
+  app.post("/api/merchants", devRequireRole(['admin', 'corporate', 'super_admin']), async (req, res) => {
+    try {
+      const result = insertMerchantSchema.safeParse(req.body);
+      if (!result.success) {
+        return res.status(400).json({ message: "Invalid merchant data", errors: result.error.errors });
+      }
+
+      const merchant = await storage.createMerchant(result.data);
+      res.status(201).json(merchant);
+    } catch (error) {
+      console.error("Error creating merchant:", error);
+      res.status(500).json({ message: "Failed to create merchant" });
+    }
+  });
+
+  // Update remaining merchant routes to be admin-only for modifications
+  app.patch("/api/merchants/:id", devRequireRole(['admin', 'corporate', 'super_admin']), async (req, res) => {
+    try {
+      const merchantId = parseInt(req.params.id);
+      const updates = req.body;
+
+      const merchant = await storage.updateMerchant(merchantId, updates);
       if (!merchant) {
         return res.status(404).json({ message: "Merchant not found" });
       }
 
-      // Role-based access control
-      if (currentUser.role === 'merchant') {
-        const userMerchant = await storage.getMerchantByEmail(currentUser.email);
-        if (!userMerchant || userMerchant.id !== id) {
-          return res.status(403).json({ message: "Access denied" });
-        }
-      } else if (currentUser.role === 'agent') {
-        const agent = await storage.getAgentByEmail(currentUser.email);
-        if (!agent || merchant.agentId !== agent.id) {
-          return res.status(403).json({ message: "Access denied" });
-        }
+      res.json(merchant);
+    } catch (error) {
+      console.error("Error updating merchant:", error);
+      res.status(500).json({ message: "Failed to update merchant" });
+    }
+  });
+
+  app.delete("/api/merchants/:id", devRequireRole(['admin', 'corporate', 'super_admin']), async (req, res) => {
+    try {
+      const merchantId = parseInt(req.params.id);
+      const success = await storage.deleteMerchant(merchantId);
+      
+      if (success) {
+        res.json({ success: true });
+      } else {
+        res.status(404).json({ message: "Merchant not found" });
       }
+    } catch (error) {
+      console.error("Error deleting merchant:", error);
+      res.status(500).json({ message: "Failed to delete merchant" });
+    }
+  });
+
+  // Agent routes - continue with original implementation
+  app.get("/api/agents", devRequireRole(['admin', 'corporate', 'super_admin']), async (req, res) => {
+    try {
+      const { search } = req.query;
+      
+      if (search) {
+        const agents = await storage.searchAgents(search as string);
+        res.json(agents);
+      } else {
+        const agents = await storage.getAllAgents();
+        res.json(agents);
+      }
+    } catch (error) {
+      console.error("Error fetching agents:", error);
+      res.status(500).json({ message: "Failed to fetch agents" });
+    }
+  });
+
+  app.post("/api/agents", devRequireRole(['admin', 'corporate', 'super_admin']), async (req, res) => {
+    try {
+      const result = insertAgentSchema.safeParse(req.body);
+      if (!result.success) {
+        return res.status(400).json({ message: "Invalid agent data", errors: result.error.errors });
+      }
+
+      const agent = await storage.createAgent(result.data);
+      res.status(201).json(agent);
+    } catch (error) {
+      console.error("Error creating agent:", error);
+      res.status(500).json({ message: "Failed to create agent" });
+    }
+  });
+
+  app.get("/api/agents/:id", devAuth, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const agent = await storage.getAgent(id);
+      
+      if (!agent) {
+        return res.status(404).json({ message: "Agent not found" });
+      }
+
+      res.json(agent);
+    } catch (error) {
+      console.error("Error fetching agent:", error);
+      res.status(500).json({ message: "Failed to fetch agent" });
+    }
+  });
+
+  app.patch("/api/agents/:id", devRequireRole(['admin', 'corporate', 'super_admin']), async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const updates = req.body;
+
+      const agent = await storage.updateAgent(id, updates);
+      if (!agent) {
+        return res.status(404).json({ message: "Agent not found" });
+      }
+
+      res.json(agent);
+    } catch (error) {
+      console.error("Error updating agent:", error);
+      res.status(500).json({ message: "Failed to update agent" });
+    }
+  });
+
+  app.delete("/api/agents/:id", devRequireRole(['admin', 'corporate', 'super_admin']), async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const success = await storage.deleteAgent(id);
+      
+      if (success) {
+        res.json({ success: true });
+      } else {
+        res.status(404).json({ message: "Agent not found" });
+      }
+    } catch (error) {
+      console.error("Error deleting agent:", error);
+      res.status(500).json({ message: "Failed to delete agent" });
+    }
+  });
+
+  // Transaction routes (admin only for all operations)
+  app.get("/api/transactions/all", devRequireRole(['admin', 'corporate', 'super_admin']), async (req, res) => {
+    try {
+      const { search } = req.query;
+      
+      if (search) {
+        const transactions = await storage.searchTransactions(search as string);
+        res.json(transactions);
+      } else {
+        const transactions = await storage.getAllTransactions();
+        res.json(transactions);
+      }
+    } catch (error) {
+      console.error("Error fetching all transactions:", error);
+      res.status(500).json({ message: "Failed to fetch all transactions" });
+    }
+  });
+
+  app.post("/api/transactions", devRequireRole(['admin', 'corporate', 'super_admin']), async (req, res) => {
+    try {
+      const result = insertTransactionSchema.safeParse(req.body);
+      if (!result.success) {
+        return res.status(400).json({ message: "Invalid transaction data", errors: result.error.errors });
+      }
+
+      const transaction = await storage.createTransaction(result.data);
+      res.status(201).json(transaction);
+    } catch (error) {
+      console.error("Error creating transaction:", error);
+      res.status(500).json({ message: "Failed to create transaction" });
+    }
+  });
+
+  app.get("/api/transactions/:id", devAuth, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const transaction = await storage.getTransaction(id);
+      
+      if (!transaction) {
+        return res.status(404).json({ message: "Transaction not found" });
+      }
+
+      res.json(transaction);
+    } catch (error) {
+      console.error("Error fetching transaction:", error);
+      res.status(500).json({ message: "Failed to fetch transaction" });
+    }
+  });
+
+  app.patch("/api/transactions/:id", devRequireRole(['admin', 'corporate', 'super_admin']), async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const updates = req.body;
+
+      const transaction = await storage.updateTransaction(id, updates);
+      if (!transaction) {
+        return res.status(404).json({ message: "Transaction not found" });
+      }
+
+      res.json(transaction);
+    } catch (error) {
+      console.error("Error updating transaction:", error);
+      res.status(500).json({ message: "Failed to update transaction" });
+    }
+  });
+
+  // Analytics routes
+  app.get("/api/analytics/dashboard", devAuth, async (req, res) => {
+    try {
+      const metrics = await storage.getDashboardMetrics();
+      res.json(metrics);
+    } catch (error) {
+      console.error("Error fetching dashboard metrics:", error);
+      res.status(500).json({ message: "Failed to fetch dashboard metrics" });
+    }
+  });
+
+  app.get("/api/analytics/top-merchants", devAuth, async (req, res) => {
+    try {
+      const topMerchants = await storage.getTopMerchants();
+      res.json(topMerchants);
+    } catch (error) {
+      console.error("Error fetching top merchants:", error);
+      res.status(500).json({ message: "Failed to fetch top merchants" });
+    }
+  });
+
+  app.get("/api/analytics/recent-transactions", devAuth, async (req, res) => {
+    try {
+      const limit = req.query.limit ? parseInt(req.query.limit as string) : 10;
+      const recentTransactions = await storage.getRecentTransactions(limit);
+      res.json(recentTransactions);
+    } catch (error) {
+      console.error("Error fetching recent transactions:", error);
+      res.status(500).json({ message: "Failed to fetch recent transactions" });
+    }
+  });
+
+  // Widget preferences routes
+  app.get("/api/user/widgets", devAuth, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const preferences = await storage.getUserWidgetPreferences(userId);
+      res.json(preferences);
+    } catch (error) {
+      console.error("Error fetching widget preferences:", error);
+      res.status(500).json({ message: "Failed to fetch widget preferences" });
+    }
+  });
+
+  app.post("/api/user/widgets", devAuth, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const widgetData = { ...req.body, userId };
+      
+      const preference = await storage.createWidgetPreference(widgetData);
+      res.status(201).json(preference);
+    } catch (error) {
+      console.error("Error creating widget preference:", error);
+      res.status(500).json({ message: "Failed to create widget preference" });
+    }
+  });
+
+  app.patch("/api/user/widgets/:id", devAuth, async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const updates = req.body;
+
+      const preference = await storage.updateWidgetPreference(id, updates);
+      if (!preference) {
+        return res.status(404).json({ message: "Widget preference not found" });
+      }
+
+      res.json(preference);
+    } catch (error) {
+      console.error("Error updating widget preference:", error);
+      res.status(500).json({ message: "Failed to update widget preference" });
+    }
+  });
+
+  app.delete("/api/user/widgets/:id", devAuth, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const success = await storage.deleteWidgetPreference(id);
+      
+      if (success) {
+        res.json({ success: true });
+      } else {
+        res.status(404).json({ message: "Widget preference not found" });
+      }
+    } catch (error) {
+      console.error("Error deleting widget preference:", error);
+      res.status(500).json({ message: "Failed to delete widget preference" });
+    }
+  });
+
+  const httpServer = createServer(app);
+  return httpServer;
+}
       
       res.json(merchant);
     } catch (error) {
