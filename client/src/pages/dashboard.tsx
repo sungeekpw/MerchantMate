@@ -1,13 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Plus, DollarSign, Store, Receipt, Users, TrendingUp, Eye } from "lucide-react";
-import { analyticsApi } from "@/lib/api";
-import { useState } from "react";
-import { MerchantModal } from "@/components/modals/merchant-modal";
-import { AgentModal } from "@/components/modals/agent-modal";
+import { PersonalizedDashboard } from "@/components/PersonalizedDashboard";
 
 export default function Dashboard() {
   const [isMerchantModalOpen, setIsMerchantModalOpen] = useState(false);
