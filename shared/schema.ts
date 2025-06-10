@@ -132,19 +132,14 @@ export const sessions = pgTable(
 );
 
 // Schema for user registration
-export const registerUserSchema = createInsertSchema(users).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-  lastLoginAt: true,
-  lastLoginIp: true,
-  twoFactorSecret: true,
-  passwordResetToken: true,
-  passwordResetExpires: true,
-  emailVerificationToken: true,
-}).extend({
+export const registerUserSchema = z.object({
+  username: z.string().min(3, "Username must be at least 3 characters"),
+  email: z.string().email("Invalid email address"),
   password: z.string().min(8, "Password must be at least 8 characters"),
   confirmPassword: z.string(),
+  firstName: z.string().min(1, "First name required"),
+  lastName: z.string().min(1, "Last name required"),
+  role: z.string().default("merchant"),
 }).refine((data) => data.password === data.confirmPassword, {
   message: "Passwords don't match",
   path: ["confirmPassword"],
