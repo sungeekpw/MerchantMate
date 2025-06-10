@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, timestamp, decimal, varchar, jsonb, index } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, decimal, varchar, jsonb, index, unique } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -40,6 +40,15 @@ export const transactions = pgTable("transactions", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// Junction table for agent-merchant associations
+export const agentMerchants = pgTable("agent_merchants", {
+  id: serial("id").primaryKey(),
+  agentId: integer("agent_id").notNull(),
+  merchantId: integer("merchant_id").notNull(),
+  assignedAt: timestamp("assigned_at").defaultNow(),
+  assignedBy: text("assigned_by"), // user ID who made the assignment
+});
+
 export const insertMerchantSchema = createInsertSchema(merchants).omit({
   id: true,
   createdAt: true,
@@ -55,6 +64,11 @@ export const insertTransactionSchema = createInsertSchema(transactions).omit({
   createdAt: true,
 });
 
+export const insertAgentMerchantSchema = createInsertSchema(agentMerchants).omit({
+  id: true,
+  assignedAt: true,
+});
+
 export type InsertMerchant = z.infer<typeof insertMerchantSchema>;
 export type Merchant = typeof merchants.$inferSelect;
 
@@ -63,6 +77,9 @@ export type Agent = typeof agents.$inferSelect;
 
 export type InsertTransaction = z.infer<typeof insertTransactionSchema>;
 export type Transaction = typeof transactions.$inferSelect;
+
+export type InsertAgentMerchant = z.infer<typeof insertAgentMerchantSchema>;
+export type AgentMerchant = typeof agentMerchants.$inferSelect;
 
 // Extended types for API responses
 export type MerchantWithAgent = Merchant & {
