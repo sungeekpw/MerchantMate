@@ -93,17 +93,26 @@ export class AuthService {
     }
 
     try {
+      const fromEmail = process.env.SENDGRID_FROM_EMAIL || process.env.SENDGRID_VERIFIED_SENDER;
+      if (!fromEmail) {
+        console.error("No verified sender email configured for SendGrid");
+        return;
+      }
+
       const msg = {
         to,
-        from: process.env.SENDGRID_FROM_EMAIL || 'noreply@corecrm.com',
+        from: fromEmail,
         subject,
         html,
       };
 
       await sgMail.send(msg);
       console.log("Email sent successfully to:", to);
-    } catch (error) {
+    } catch (error: any) {
       console.error("SendGrid email sending failed:", error);
+      if (error.response?.body?.errors) {
+        console.error("SendGrid error details:", error.response.body.errors);
+      }
       // Don't throw error to prevent app crash - just log it
     }
   }
