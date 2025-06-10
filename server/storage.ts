@@ -519,7 +519,14 @@ export class DatabaseStorage implements IStorage {
   async createWidgetPreference(preference: InsertUserDashboardPreference): Promise<UserDashboardPreference> {
     const [created] = await db
       .insert(userDashboardPreferences)
-      .values(preference)
+      .values({
+        userId: preference.userId,
+        widgetId: preference.widgetId,
+        position: preference.position || 0,
+        size: preference.size || 'medium',
+        isVisible: preference.isVisible !== false,
+        configuration: preference.configuration || {}
+      })
       .returning();
     return created;
   }

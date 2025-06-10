@@ -605,6 +605,153 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Widget preferences endpoints
+  app.get("/api/widgets/preferences", devAuth, async (req: any, res) => {
+    try {
+      const userId = req.dbUser.id;
+      const preferences = await storage.getUserWidgetPreferences(userId);
+      res.json(preferences);
+    } catch (error) {
+      console.error("Failed to get widget preferences:", error);
+      res.status(500).json({ message: "Failed to get widget preferences" });
+    }
+  });
+
+  app.post("/api/widgets/preferences", devAuth, async (req: any, res) => {
+    try {
+      const userId = req.dbUser.id;
+      const preference = await storage.createWidgetPreference({
+        ...req.body,
+        userId
+      });
+      res.json(preference);
+    } catch (error) {
+      console.error("Failed to create widget preference:", error);
+      res.status(500).json({ message: "Failed to create widget preference" });
+    }
+  });
+
+  app.patch("/api/widgets/preferences/:id", devAuth, async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const preference = await storage.updateWidgetPreference(id, req.body);
+      
+      if (!preference) {
+        return res.status(404).json({ message: "Widget preference not found" });
+      }
+      
+      res.json(preference);
+    } catch (error) {
+      console.error("Failed to update widget preference:", error);
+      res.status(500).json({ message: "Failed to update widget preference" });
+    }
+  });
+
+  app.delete("/api/widgets/preferences/:id", devAuth, async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const success = await storage.deleteWidgetPreference(id);
+      
+      if (!success) {
+        return res.status(404).json({ message: "Widget preference not found" });
+      }
+      
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Failed to delete widget preference:", error);
+      res.status(500).json({ message: "Failed to delete widget preference" });
+    }
+  });
+
+  // Merchant profile endpoint for widgets
+  app.get("/api/merchants/profile", devAuth, async (req: any, res) => {
+    try {
+      const user = req.dbUser;
+      if (user.role !== 'merchant') {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const merchant = await storage.getMerchantByEmail(user.email);
+      if (!merchant) {
+        return res.status(404).json({ message: "Merchant profile not found" });
+      }
+
+      res.json(merchant);
+    } catch (error) {
+      console.error("Failed to get merchant profile:", error);
+      res.status(500).json({ message: "Failed to get merchant profile" });
+    }
+  });
+
+  // Dashboard metrics endpoint
+  app.get("/api/analytics/dashboard-metrics", devAuth, async (req: any, res) => {
+    try {
+      const user = req.dbUser;
+      
+      if (user.role === 'merchant') {
+        // For merchants, return limited metrics
+        const merchant = await storage.getMerchantByEmail(user.email);
+        if (!merchant) {
+          return res.json({
+            totalRevenue: "0",
+            activeMerchants: 0,
+            transactionsToday: 0,
+            activeAgents: 0
+          });
+        }
+        
+        const transactions = await storage.getTransactionsByMerchant(merchant.id);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        
+        const todayTransactions = transactions.filter(t => 
+          new Date(t.createdAt || '') >= today
+        );
+        
+        const totalRevenue = transactions
+          .filter(t => t.status === 'completed')
+          .reduce((sum, t) => sum + parseFloat(t.amount), 0);
+        
+        res.json({
+          totalRevenue: totalRevenue.toFixed(2),
+          activeMerchants: 1,
+          transactionsToday: todayTransactions.length,
+          activeAgents: 0
+        });
+      } else {
+        // For admins and agents, return full metrics
+        const metrics = await storage.getDashboardMetrics();
+        res.json(metrics);
+      }
+    } catch (error) {
+      console.error("Error fetching dashboard metrics:", error);
+      res.status(500).json({ message: "Failed to fetch dashboard metrics" });
+    }
+  });
+
+  // Recent transactions endpoint for widgets
+  app.get("/api/transactions/recent", devAuth, async (req: any, res) => {
+    try {
+      const limit = parseInt(req.query.limit as string) || 10;
+      const user = req.dbUser;
+      
+      if (user.role === 'merchant') {
+        const merchant = await storage.getMerchantByEmail(user.email);
+        if (!merchant) {
+          return res.json([]);
+        }
+        const transactions = await storage.getTransactionsByMerchant(merchant.id);
+        res.json(transactions.slice(0, limit));
+      } else {
+        const transactions = await storage.getRecentTransactions(limit);
+        res.json(transactions);
+      }
+    } catch (error) {
+      console.error("Failed to get recent transactions:", error);
+      res.status(500).json({ message: "Failed to get recent transactions" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
