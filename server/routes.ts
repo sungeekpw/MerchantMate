@@ -334,12 +334,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const agent = await storage.getAgentByEmail(currentUser.email);
         agents = agent ? [agent] : [];
       } else if (currentUser.role === 'merchant') {
-        // Merchants can see their assigned agent
-        const merchant = await storage.getMerchantByEmail(currentUser.email);
-        if (merchant && merchant.agentId) {
-          const agent = await storage.getAgent(merchant.agentId);
-          agents = agent ? [agent] : [];
-        }
+        // Merchants cannot see agents
+        agents = [];
       } else {
         // Admins, corporate, and super admins can see all agents
         if (search && typeof search === 'string') {
@@ -383,10 +379,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(403).json({ message: "Access denied" });
         }
       } else if (currentUser.role === 'merchant') {
-        const merchant = await storage.getMerchantByEmail(currentUser.email);
-        if (!merchant || merchant.agentId !== id) {
-          return res.status(403).json({ message: "Access denied" });
-        }
+        // Merchants cannot access agent details
+        return res.status(403).json({ message: "Access denied" });
       }
       
       res.json(agent);
