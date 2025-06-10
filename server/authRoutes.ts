@@ -46,9 +46,9 @@ export function setupAuthRoutes(app: Express) {
       } else {
         res.status(400).json(result);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Registration validation error:", error);
-      if (error.issues) {
+      if (error?.issues) {
         res.status(400).json({ 
           success: false, 
           message: "Validation failed",
