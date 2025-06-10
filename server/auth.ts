@@ -21,15 +21,19 @@ const PASSWORD_RESET_EXPIRES = 60 * 60 * 1000; // 1 hour
 const TWO_FACTOR_EXPIRES = 5 * 60 * 1000; // 5 minutes
 
 // Email configuration (will need SMTP credentials)
-const emailTransporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST || "smtp.gmail.com",
-  port: parseInt(process.env.SMTP_PORT || "587"),
-  secure: false,
-  auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS,
-  },
-});
+let emailTransporter: nodemailer.Transporter | null = null;
+
+if (process.env.SMTP_USER && process.env.SMTP_PASS) {
+  emailTransporter = nodemailer.createTransport({
+    host: process.env.SMTP_HOST || "smtp.gmail.com",
+    port: parseInt(process.env.SMTP_PORT || "587"),
+    secure: false,
+    auth: {
+      user: process.env.SMTP_USER,
+      pass: process.env.SMTP_PASS,
+    },
+  });
+}
 
 export class AuthService {
   // Hash password with bcrypt
@@ -93,17 +97,23 @@ export class AuthService {
 
   // Send email
   async sendEmail(to: string, subject: string, html: string): Promise<void> {
-    if (!process.env.SMTP_USER) {
+    if (!emailTransporter) {
       console.log("Email would be sent:", { to, subject, html });
       return;
     }
 
-    await emailTransporter.sendMail({
-      from: process.env.SMTP_FROM || process.env.SMTP_USER,
-      to,
-      subject,
-      html,
-    });
+    try {
+      await emailTransporter.sendMail({
+        from: process.env.SMTP_FROM || process.env.SMTP_USER,
+        to,
+        subject,
+        html,
+      });
+      console.log("Email sent successfully to:", to);
+    } catch (error) {
+      console.error("Email sending failed:", error);
+      // Don't throw error to prevent app crash - just log it
+    }
   }
 
   // Register new user
