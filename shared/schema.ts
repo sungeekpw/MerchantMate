@@ -59,6 +59,21 @@ export const agents = pgTable("agents", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+export const merchantProspects = pgTable("merchant_prospects", {
+  id: serial("id").primaryKey(),
+  firstName: text("first_name").notNull(),
+  lastName: text("last_name").notNull(),
+  email: text("email").notNull().unique(),
+  agentId: integer("agent_id").notNull().references(() => agents.id),
+  status: text("status").notNull().default("pending"), // pending, contacted, applied, approved, rejected
+  validationToken: text("validation_token").unique(), // Token for email validation
+  validatedAt: timestamp("validated_at"),
+  applicationStartedAt: timestamp("application_started_at"),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
 export const transactions = pgTable("transactions", {
   id: serial("id").primaryKey(),
   transactionId: text("transaction_id").notNull().unique(),
@@ -361,4 +376,23 @@ export type InsertPdfFormSubmission = z.infer<typeof insertPdfFormSubmissionSche
 
 export type PdfFormWithFields = PdfForm & {
   fields: PdfFormField[];
+};
+
+// Merchant Prospect schemas
+export const insertMerchantProspectSchema = createInsertSchema(merchantProspects).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  validationToken: true,
+  validatedAt: true,
+  applicationStartedAt: true,
+});
+
+// Merchant Prospect types
+export type MerchantProspect = typeof merchantProspects.$inferSelect;
+export type InsertMerchantProspect = z.infer<typeof insertMerchantProspectSchema>;
+
+// Extended types for prospect responses
+export type MerchantProspectWithAgent = MerchantProspect & {
+  agent?: Agent;
 };

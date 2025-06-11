@@ -1,4 +1,4 @@
-import { merchants, agents, transactions, users, loginAttempts, twoFactorCodes, userDashboardPreferences, agentMerchants, locations, addresses, pdfForms, pdfFormFields, pdfFormSubmissions, type Merchant, type Agent, type Transaction, type User, type InsertMerchant, type InsertAgent, type InsertTransaction, type UpsertUser, type MerchantWithAgent, type TransactionWithMerchant, type LoginAttempt, type TwoFactorCode, type UserDashboardPreference, type InsertUserDashboardPreference, type AgentMerchant, type InsertAgentMerchant, type Location, type InsertLocation, type Address, type InsertAddress, type LocationWithAddresses, type MerchantWithLocations, type PdfForm, type InsertPdfForm, type PdfFormField, type InsertPdfFormField, type PdfFormSubmission, type InsertPdfFormSubmission, type PdfFormWithFields } from "@shared/schema";
+import { merchants, agents, transactions, users, loginAttempts, twoFactorCodes, userDashboardPreferences, agentMerchants, locations, addresses, pdfForms, pdfFormFields, pdfFormSubmissions, merchantProspects, type Merchant, type Agent, type Transaction, type User, type InsertMerchant, type InsertAgent, type InsertTransaction, type UpsertUser, type MerchantWithAgent, type TransactionWithMerchant, type LoginAttempt, type TwoFactorCode, type UserDashboardPreference, type InsertUserDashboardPreference, type AgentMerchant, type InsertAgentMerchant, type Location, type InsertLocation, type Address, type InsertAddress, type LocationWithAddresses, type MerchantWithLocations, type PdfForm, type InsertPdfForm, type PdfFormField, type InsertPdfFormField, type PdfFormSubmission, type InsertPdfFormSubmission, type PdfFormWithFields, type MerchantProspect, type InsertMerchantProspect, type MerchantProspectWithAgent } from "@shared/schema";
 import { db } from "./db";
 import { eq, or, and, gte, sql, desc, inArray } from "drizzle-orm";
 
@@ -20,6 +20,17 @@ export interface IStorage {
   updateAgent(id: number, agent: Partial<InsertAgent>): Promise<Agent | undefined>;
   deleteAgent(id: number): Promise<boolean>;
   searchAgents(query: string): Promise<Agent[]>;
+
+  // Merchant Prospect operations
+  getMerchantProspect(id: number): Promise<MerchantProspect | undefined>;
+  getMerchantProspectByEmail(email: string): Promise<MerchantProspect | undefined>;
+  getMerchantProspectByToken(token: string): Promise<MerchantProspect | undefined>;
+  getAllMerchantProspects(): Promise<MerchantProspectWithAgent[]>;
+  getProspectsByAgent(agentId: number): Promise<MerchantProspectWithAgent[]>;
+  createMerchantProspect(prospect: InsertMerchantProspect): Promise<MerchantProspect>;
+  updateMerchantProspect(id: number, updates: Partial<MerchantProspect>): Promise<MerchantProspect | undefined>;
+  deleteMerchantProspect(id: number): Promise<boolean>;
+  searchMerchantProspects(query: string): Promise<MerchantProspectWithAgent[]>;
 
   // Transaction operations
   getTransaction(id: number): Promise<Transaction | undefined>;
