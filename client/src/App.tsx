@@ -25,6 +25,8 @@ import Transactions from "@/pages/transactions";
 import Users from "@/pages/users";
 import Reports from "@/pages/reports";
 import Security from "@/pages/security";
+import PdfForms from "@/pages/pdf-forms";
+import PdfFormWizard from "@/pages/pdf-form-wizard";
 import NotFound from "@/pages/not-found";
 import Landing from "@/pages/landing";
 import Auth from "@/pages/auth";
