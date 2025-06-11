@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, timestamp, decimal, varchar, jsonb, index, unique } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, decimal, varchar, jsonb, index, unique, real } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -8,11 +8,41 @@ export const merchants = pgTable("merchants", {
   businessType: text("business_type").notNull(),
   email: text("email").notNull().unique(),
   phone: text("phone").notNull(),
-  address: text("address"),
   agentId: integer("agent_id"),
   processingFee: decimal("processing_fee", { precision: 5, scale: 2 }).default("2.50").notNull(),
   status: text("status").notNull().default("active"), // active, pending, suspended
   monthlyVolume: decimal("monthly_volume", { precision: 12, scale: 2 }).default("0").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const locations = pgTable("locations", {
+  id: serial("id").primaryKey(),
+  merchantId: integer("merchant_id").notNull().references(() => merchants.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  type: text("type").notNull().default("store"), // store, warehouse, office, headquarters
+  phone: text("phone"),
+  email: text("email"),
+  status: text("status").notNull().default("active"), // active, inactive, temporarily_closed
+  operatingHours: jsonb("operating_hours"), // Store days/hours as JSON
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const addresses = pgTable("addresses", {
+  id: serial("id").primaryKey(),
+  locationId: integer("location_id").notNull().references(() => locations.id, { onDelete: "cascade" }),
+  type: text("type").notNull().default("primary"), // primary, billing, shipping, mailing
+  street1: text("street1").notNull(),
+  street2: text("street2"),
+  city: text("city").notNull(),
+  state: text("state").notNull(),
+  postalCode: text("postal_code").notNull(),
+  country: text("country").notNull().default("US"),
+  // Geolocation fields for mapping
+  latitude: real("latitude"), // GPS coordinates
+  longitude: real("longitude"), // GPS coordinates
+  geoAccuracy: real("geo_accuracy"), // Accuracy in meters
+  geocodedAt: timestamp("geocoded_at"), // When geolocation was last updated
+  timezone: text("timezone"), // e.g., "America/New_York"
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -69,6 +99,17 @@ export const insertAgentMerchantSchema = createInsertSchema(agentMerchants).omit
   assignedAt: true,
 });
 
+export const insertLocationSchema = createInsertSchema(locations).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertAddressSchema = createInsertSchema(addresses).omit({
+  id: true,
+  createdAt: true,
+  geocodedAt: true,
+});
+
 export type InsertMerchant = z.infer<typeof insertMerchantSchema>;
 export type Merchant = typeof merchants.$inferSelect;
 
@@ -81,6 +122,12 @@ export type Transaction = typeof transactions.$inferSelect;
 export type InsertAgentMerchant = z.infer<typeof insertAgentMerchantSchema>;
 export type AgentMerchant = typeof agentMerchants.$inferSelect;
 
+export type InsertLocation = z.infer<typeof insertLocationSchema>;
+export type Location = typeof locations.$inferSelect;
+
+export type InsertAddress = z.infer<typeof insertAddressSchema>;
+export type Address = typeof addresses.$inferSelect;
+
 // Extended types for API responses
 export type MerchantWithAgent = Merchant & {
   agent?: Agent;
@@ -88,6 +135,15 @@ export type MerchantWithAgent = Merchant & {
 
 export type TransactionWithMerchant = Transaction & {
   merchant?: Merchant;
+};
+
+export type LocationWithAddresses = Location & {
+  addresses: Address[];
+};
+
+export type MerchantWithLocations = Merchant & {
+  locations?: LocationWithAddresses[];
+  agent?: Agent;
 };
 
 // User management tables
