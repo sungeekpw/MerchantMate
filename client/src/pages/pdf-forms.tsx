@@ -9,7 +9,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Upload, FileText, CheckCircle, Clock, AlertCircle, Edit2, Check, X, Settings, Navigation } from "lucide-react";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Upload, FileText, CheckCircle, Clock, AlertCircle, Edit2, Check, X, Settings, Navigation, Mail, Copy } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 
@@ -48,6 +49,9 @@ export default function PdfFormsPage() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [editingFormId, setEditingFormId] = useState<number | null>(null);
+  const [emailDialogOpen, setEmailDialogOpen] = useState(false);
+  const [selectedFormForEmail, setSelectedFormForEmail] = useState<PdfForm | null>(null);
+  const [applicantEmail, setApplicantEmail] = useState("");
   const [editedTitle, setEditedTitle] = useState('');
   const [editedDescription, setEditedDescription] = useState('');
   const [showNavSettings, setShowNavSettings] = useState<number | null>(null);
@@ -205,6 +209,30 @@ export default function PdfFormsPage() {
       toast({
         title: "Update Failed",
         description: "There was an error updating navigation settings.",
+        variant: "destructive",
+      });
+    }
+  });
+
+  // Send submission link mutation
+  const sendSubmissionLinkMutation = useMutation({
+    mutationFn: async ({ formId, applicantEmail }: { formId: number; applicantEmail: string }) => {
+      const response = await apiRequest('POST', `/api/pdf-forms/${formId}/send-submission-link`, { applicantEmail });
+      return response.json();
+    },
+    onSuccess: (data) => {
+      toast({
+        title: "Submission Link Created",
+        description: `A unique form link has been created for ${applicantEmail}. Link: ${data.submissionUrl}`,
+      });
+      setEmailDialogOpen(false);
+      setApplicantEmail("");
+      setSelectedFormForEmail(null);
+    },
+    onError: (error) => {
+      toast({
+        title: "Failed to Send Link",
+        description: "There was an error creating the submission link.",
         variant: "destructive",
       });
     }
@@ -532,13 +560,24 @@ export default function PdfFormsPage() {
                           >
                             Open Form Wizard
                           </Button>
-                          <Button 
-                            variant="outline" 
-                            className="w-full"
-                            onClick={() => window.location.href = `/pdf-forms/${form.id}/submissions`}
-                          >
-                            View Submissions
-                          </Button>
+                          <div className="grid grid-cols-2 gap-2">
+                            <Button 
+                              variant="outline" 
+                              onClick={() => window.location.href = `/pdf-forms/${form.id}/submissions`}
+                            >
+                              View Submissions
+                            </Button>
+                            <Button 
+                              variant="outline" 
+                              onClick={() => {
+                                setSelectedFormForEmail(form);
+                                setEmailDialogOpen(true);
+                              }}
+                            >
+                              <Mail className="w-4 h-4 mr-2" />
+                              Send to Applicant
+                            </Button>
+                          </div>
                         </div>
                       </CardContent>
                     </Card>
@@ -565,6 +604,55 @@ export default function PdfFormsPage() {
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* Email Dialog for Sending Submission Links */}
+      <Dialog open={emailDialogOpen} onOpenChange={setEmailDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Send Form to Applicant</DialogTitle>
+            <DialogDescription>
+              Create a unique submission link for {selectedFormForEmail?.name} and send it to an applicant.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="applicant-email">Applicant Email Address</Label>
+              <Input
+                id="applicant-email"
+                type="email"
+                placeholder="applicant@example.com"
+                value={applicantEmail}
+                onChange={(e) => setApplicantEmail(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setEmailDialogOpen(false);
+                setApplicantEmail("");
+                setSelectedFormForEmail(null);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                if (selectedFormForEmail && applicantEmail) {
+                  sendSubmissionLinkMutation.mutate({
+                    formId: selectedFormForEmail.id,
+                    applicantEmail
+                  });
+                }
+              }}
+              disabled={!applicantEmail || sendSubmissionLinkMutation.isPending}
+            >
+              {sendSubmissionLinkMutation.isPending ? "Creating Link..." : "Create Submission Link"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
