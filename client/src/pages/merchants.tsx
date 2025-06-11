@@ -32,13 +32,38 @@ export default function Merchants() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingMerchant, setEditingMerchant] = useState<Merchant | undefined>();
+  const [expandedMerchants, setExpandedMerchants] = useState<Set<number>>(new Set());
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { user } = useAuth();
 
   const { data: merchants = [], isLoading } = useQuery({
     queryKey: ["/api/merchants", searchQuery],
     queryFn: () => merchantsApi.getAll(searchQuery || undefined),
+  });
+
+  // Fetch locations for expanded merchants
+  const expandedMerchantIds = Array.from(expandedMerchants);
+  const { data: locationsData = {} } = useQuery({
+    queryKey: ["/api/locations", expandedMerchantIds],
+    queryFn: async () => {
+      const results: Record<number, any[]> = {};
+      await Promise.all(
+        expandedMerchantIds.map(async (merchantId) => {
+          try {
+            const response = await fetch(`/api/merchants/${merchantId}/locations`);
+            if (response.ok) {
+              results[merchantId] = await response.json();
+            }
+          } catch (error) {
+            console.error(`Failed to fetch locations for merchant ${merchantId}:`, error);
+          }
+        })
+      );
+      return results;
+    },
+    enabled: expandedMerchantIds.length > 0
   });
 
   const deleteMutation = useMutation({
@@ -81,6 +106,29 @@ export default function Merchants() {
     setIsModalOpen(true);
   };
 
+  const toggleMerchantExpansion = (merchantId: number) => {
+    const newExpanded = new Set(expandedMerchants);
+    if (newExpanded.has(merchantId)) {
+      newExpanded.delete(merchantId);
+    } else {
+      newExpanded.add(merchantId);
+    }
+    setExpandedMerchants(newExpanded);
+  };
+
+  const getMerchantLocationCount = (merchantId: number) => {
+    const locations = locationsData[merchantId] || [];
+    return locations.length;
+  };
+
+  const formatCurrency = (amount: string | number) => {
+    const num = typeof amount === 'string' ? parseFloat(amount) : amount;
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+    }).format(isNaN(num) ? 0 : num);
+  };
+
   const handleCloseModal = () => {
     setIsModalOpen(false);
     setEditingMerchant(undefined);
@@ -93,13 +141,6 @@ export default function Merchants() {
       suspended: "corecrm-status-suspended",
     };
     return styles[status as keyof typeof styles] || "bg-gray-100 text-gray-800";
-  };
-
-  const formatCurrency = (amount: string) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-    }).format(parseFloat(amount));
   };
 
   return (
