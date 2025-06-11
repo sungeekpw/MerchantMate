@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -13,6 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Search, UserPlus, Settings, Shield, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+import { ensureDevAuth } from "@/lib/auth-helper";
 import { z } from "zod";
 
 // User registration schema
@@ -48,8 +49,22 @@ interface User {
 export default function Users() {
   const [searchQuery, setSearchQuery] = useState("");
   const [isRegisterOpen, setIsRegisterOpen] = useState(false);
+  const [authAttempted, setAuthAttempted] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  // Attempt development authentication on mount
+  useEffect(() => {
+    const setupAuth = async () => {
+      if (!authAttempted) {
+        await ensureDevAuth();
+        setAuthAttempted(true);
+        // Refetch users after authentication
+        queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+      }
+    };
+    setupAuth();
+  }, [authAttempted, queryClient]);
 
   // Registration form
   const registerForm = useForm<RegisterForm>({
