@@ -65,9 +65,27 @@ export default function Users() {
     },
   });
 
-  const { data: users = [], isLoading, error } = useQuery<User[]>({
+  const { data: users, isLoading, error } = useQuery<User[]>({
     queryKey: ["/api/users"],
   });
+
+  // Handle authentication failure - when query returns null due to 401
+  if (users === null) {
+    return (
+      <div className="space-y-6">
+        <div className="flex justify-between items-center">
+          <h1 className="text-3xl font-bold">Users</h1>
+        </div>
+        <Card>
+          <CardContent className="p-6">
+            <p className="text-muted-foreground">Please log in to view users.</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  const userList = users || [];
 
   // Register mutation
   const registerMutation = useMutation({
@@ -145,7 +163,7 @@ export default function Users() {
     },
   });
 
-  const filteredUsers = Array.isArray(users) ? users.filter((user: User) => {
+  const filteredUsers = userList.filter((user: User) => {
     const fullName = `${user.firstName || ''} ${user.lastName || ''}`.trim();
     const searchLower = searchQuery.toLowerCase();
     
@@ -153,7 +171,7 @@ export default function Users() {
            user.username.toLowerCase().includes(searchLower) ||
            user.email.toLowerCase().includes(searchLower) ||
            user.role.toLowerCase().includes(searchLower);
-  }) : [];
+  });
 
   const getRoleColor = (role: string) => {
     switch (role) {
@@ -352,7 +370,7 @@ export default function Users() {
             <Shield className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{Array.isArray(users) ? users.length : 0}</div>
+            <div className="text-2xl font-bold">{userList.length}</div>
           </CardContent>
         </Card>
         <Card>
@@ -362,7 +380,7 @@ export default function Users() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {Array.isArray(users) ? users.filter((u: User) => u.status === 'active').length : 0}
+              {userList.filter((u: User) => u.status === 'active').length}
             </div>
           </CardContent>
         </Card>
@@ -373,7 +391,7 @@ export default function Users() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {Array.isArray(users) ? users.filter((u: User) => ['admin', 'super_admin', 'corporate'].includes(u.role)).length : 0}
+              {userList.filter((u: User) => ['admin', 'super_admin', 'corporate'].includes(u.role)).length}
             </div>
           </CardContent>
         </Card>
@@ -384,7 +402,7 @@ export default function Users() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {Array.isArray(users) ? users.filter((u: User) => u.role === 'merchant').length : 0}
+              {userList.filter((u: User) => u.role === 'merchant').length}
             </div>
           </CardContent>
         </Card>
