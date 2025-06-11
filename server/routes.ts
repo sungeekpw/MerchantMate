@@ -832,12 +832,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/prospects", devRequireRole(['admin', 'corporate', 'super_admin']), async (req, res) => {
     try {
       const { insertMerchantProspectSchema } = await import("@shared/schema");
+      const { emailService } = await import("./emailService");
+      
       const result = insertMerchantProspectSchema.safeParse(req.body);
       if (!result.success) {
         return res.status(400).json({ message: "Invalid prospect data", errors: result.error.errors });
       }
 
-      const prospect = await storage.createMerchantProspect(result.data);
+      const { prospect, agent } = await storage.createMerchantProspect(result.data);
+      
+      // Send validation email if agent information is available
+      if (agent && prospect.validationToken) {
+        const emailSent = await emailService.sendProspectValidationEmail({
+          firstName: prospect.firstName,
+          lastName: prospect.lastName,
+          email: prospect.email,
+          validationToken: prospect.validationToken,
+          agentName: `${agent.firstName} ${agent.lastName}`,
+        });
+        
+        if (emailSent) {
+          console.log(`Validation email sent to prospect: ${prospect.email}`);
+        } else {
+          console.warn(`Failed to send validation email to prospect: ${prospect.email}`);
+        }
+      }
+      
       res.status(201).json(prospect);
     } catch (error) {
       console.error("Error creating prospect:", error);

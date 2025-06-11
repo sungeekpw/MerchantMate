@@ -164,6 +164,17 @@ export interface IStorage {
     activeUsers: number;
     alerts?: any[];
   }>;
+
+  // Merchant Prospect operations
+  getMerchantProspect(id: number): Promise<MerchantProspect | undefined>;
+  getMerchantProspectByEmail(email: string): Promise<MerchantProspect | undefined>;
+  getMerchantProspectByToken(token: string): Promise<MerchantProspect | undefined>;
+  getAllMerchantProspects(): Promise<MerchantProspectWithAgent[]>;
+  getProspectsByAgent(agentId: number): Promise<MerchantProspectWithAgent[]>;
+  createMerchantProspect(prospect: InsertMerchantProspect): Promise<MerchantProspect>;
+  updateMerchantProspect(id: number, updates: Partial<MerchantProspect>): Promise<MerchantProspect | undefined>;
+  deleteMerchantProspect(id: number): Promise<boolean>;
+  searchMerchantProspects(query: string): Promise<MerchantProspectWithAgent[]>;
 }
 
 export class DatabaseStorage implements IStorage {
