@@ -3,7 +3,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
-import { format } from "date-fns";
+import { formatDateInUserTimezone, getTimezoneAbbreviation } from "@/lib/timezone";
 
 interface HeaderProps {
   title: string;
@@ -21,17 +21,19 @@ export function Header({ title, subtitle, onSearch }: HeaderProps) {
     onSearch?.(query);
   };
 
-  const formatLastLogin = (lastLoginAt: string | null, lastLoginIp: string | null) => {
+  const formatLastLogin = (lastLoginAt: string | null, lastLoginIp: string | null, userTimezone?: string | null) => {
     if (!lastLoginAt) return null;
     
     try {
-      const date = new Date(lastLoginAt);
-      const formattedDate = format(date, "MMM dd, yyyy");
-      const formattedTime = format(date, "hh:mm a");
+      const timezone = userTimezone || user?.timezone || undefined;
+      const formattedDateTime = formatDateInUserTimezone(lastLoginAt, "MMM dd, yyyy 'at' hh:mm a", timezone);
+      const timezoneAbbr = getTimezoneAbbreviation(timezone);
+      
+      if (!formattedDateTime) return null;
       
       return {
-        date: formattedDate,
-        time: formattedTime,
+        dateTime: formattedDateTime,
+        timezone: timezoneAbbr,
         ip: lastLoginIp || "Unknown"
       };
     } catch (error) {
@@ -55,7 +57,7 @@ export function Header({ title, subtitle, onSearch }: HeaderProps) {
             <div className="flex items-center space-x-3 text-xs text-gray-500 border-r border-gray-200 pr-4">
               <div className="flex items-center space-x-1">
                 <Clock className="w-3 h-3" />
-                <span>Last login: {lastLoginInfo.date} at {lastLoginInfo.time}</span>
+                <span>Last login: {lastLoginInfo.dateTime} ({lastLoginInfo.timezone})</span>
               </div>
               <div className="flex items-center space-x-1">
                 <MapPin className="w-3 h-3" />

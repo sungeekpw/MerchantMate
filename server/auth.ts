@@ -276,11 +276,18 @@ export class AuthService {
         }
       }
 
-      // Update user login info
-      await storage.updateUser(user.id, {
+      // Update user login info with timezone if provided
+      const updateData: any = {
         lastLoginAt: new Date(),
         lastLoginIp: ip,
-      });
+      };
+      
+      // Update timezone if provided in login data
+      if (loginData.timezone) {
+        updateData.timezone = loginData.timezone;
+      }
+      
+      await storage.updateUser(user.id, updateData);
 
       // Log successful login
       await this.logLoginAttempt(loginData.usernameOrEmail, ip, userAgent, true);

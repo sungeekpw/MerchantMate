@@ -162,6 +162,7 @@ export const users = pgTable("users", {
   permissions: jsonb("permissions").default("{}"),
   lastLoginAt: timestamp("last_login_at"),
   lastLoginIp: varchar("last_login_ip"),
+  timezone: varchar("timezone").default("UTC"), // User's preferred timezone e.g., "America/New_York"
   twoFactorEnabled: boolean("two_factor_enabled").default(false),
   twoFactorSecret: varchar("two_factor_secret"),
   passwordResetToken: varchar("password_reset_token"),
@@ -225,6 +226,7 @@ export const loginUserSchema = z.object({
   usernameOrEmail: z.string().min(1, "Username or email required"),
   password: z.string().min(1, "Password required"),
   twoFactorCode: z.string().optional(),
+  timezone: z.string().optional(), // User's detected timezone
 });
 
 // Schema for password reset request
