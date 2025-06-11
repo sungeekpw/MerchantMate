@@ -884,6 +884,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.post("/api/prospects/:id/resend-invitation", devRequireRole(['admin', 'corporate', 'super_admin']), async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { emailService } = await import("./emailService");
+      
+      // Get prospect details
+      const prospect = await storage.getMerchantProspect(parseInt(id));
+      if (!prospect) {
+        return res.status(404).json({ message: "Prospect not found" });
+      }
+
+      // Get agent information
+      const agent = await storage.getAgent(prospect.agentId);
+      if (!agent) {
+        return res.status(404).json({ message: "Agent not found" });
+      }
+
+      // Send validation email
+      if (prospect.validationToken) {
+        const emailSent = await emailService.sendProspectValidationEmail({
+          firstName: prospect.firstName,
+          lastName: prospect.lastName,
+          email: prospect.email,
+          validationToken: prospect.validationToken,
+          agentName: `${agent.firstName} ${agent.lastName}`,
+        });
+        
+        if (emailSent) {
+          console.log(`Validation email resent to prospect: ${prospect.email}`);
+          res.json({ success: true, message: "Invitation email sent successfully" });
+        } else {
+          res.status(500).json({ message: "Failed to send invitation email" });
+        }
+      } else {
+        res.status(400).json({ message: "No validation token found for this prospect" });
+      }
+    } catch (error) {
+      console.error("Error resending invitation:", error);
+      res.status(500).json({ message: "Failed to resend invitation" });
+    }
+  });
+
   app.delete("/api/prospects/:id", devRequireRole(['admin', 'corporate', 'super_admin']), async (req, res) => {
     try {
       const { id } = req.params;
