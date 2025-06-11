@@ -4,7 +4,16 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useAuth } from "@/hooks/useAuth";
-import { isUnauthorizedError, canAccessAnalytics, canAccessMerchants, canAccessAgents, canAccessTransactions } from "@/lib/authUtils";
+import { isUnauthorizedError } from "@/lib/authUtils";
+import { 
+  canAccessUserManagement,
+  canAccessMerchantManagement, 
+  canAccessAgentManagement,
+  canAccessTransactionManagement,
+  canAccessLocationManagement,
+  canAccessAnalytics,
+  canAccessReports
+} from "@/lib/rbac";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Header } from "@/components/layout/header";
 import Dashboard from "@/pages/dashboard";
@@ -139,7 +148,7 @@ function AuthenticatedApp() {
           </Route>
           <Route path="/merchants">
             {() => {
-              if (!canAccessMerchants(user)) return <NotFound />;
+              if (!canAccessMerchantManagement(user)) return <NotFound />;
               const pageInfo = getPageInfo("/merchants");
               return (
                 <>
@@ -157,7 +166,7 @@ function AuthenticatedApp() {
           </Route>
           <Route path="/locations">
             {() => {
-              if (user?.role !== 'merchant') return <NotFound />;
+              if (!canAccessLocationManagement(user)) return <NotFound />;
               const pageInfo = getPageInfo("/locations");
               return (
                 <>
@@ -175,7 +184,7 @@ function AuthenticatedApp() {
           </Route>
           <Route path="/agents">
             {() => {
-              if (!canAccessAgents(user)) return <NotFound />;
+              if (!canAccessAgentManagement(user)) return <NotFound />;
               const pageInfo = getPageInfo("/agents");
               return (
                 <>
