@@ -28,6 +28,7 @@ import Security from "@/pages/security";
 import PdfForms from "@/pages/pdf-forms";
 import PdfFormWizard from "@/pages/pdf-form-wizard";
 import EnhancedPdfWizard from "@/pages/enhanced-pdf-wizard";
+import PublicForm from "@/pages/public-form";
 import NotFound from "@/pages/not-found";
 import Landing from "@/pages/landing";
 import Auth from "@/pages/auth";
@@ -363,7 +364,14 @@ function AppContent() {
   return (
     <AuthContext.Provider value={{ user, setUser: () => {}, isLoading }}>
       <div className="min-h-screen bg-gray-50">
-        {isAuthenticated ? <AuthenticatedApp /> : <Auth />}
+        <Switch>
+          <Route path="/form/:token">
+            {(params) => <PublicForm />}
+          </Route>
+          <Route>
+            {isAuthenticated ? <AuthenticatedApp /> : <Auth />}
+          </Route>
+        </Switch>
       </div>
     </AuthContext.Provider>
   );
