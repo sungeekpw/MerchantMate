@@ -69,10 +69,14 @@ export function setupAuthRoutes(app: Express) {
       const validatedData = loginUserSchema.parse(req.body);
       const result = await authService.login(validatedData, req);
       
-      if (result.success && result.user && result.sessionId) {
+      if (result.success && result.user) {
         // Store user session data
+        console.log("Login result:", result);
+        console.log("Storing userId in session:", result.user.id);
         req.session.userId = result.user.id;
-        req.session.sessionId = result.sessionId;
+        req.session.sessionId = result.sessionId || 'default-session';
+        
+        console.log("Session before save:", req.session);
         
         // Force session save before responding
         req.session.save((err: any) => {
@@ -81,6 +85,7 @@ export function setupAuthRoutes(app: Express) {
             return res.status(500).json({ success: false, message: "Session save failed" });
           }
           console.log("Session saved successfully for user:", result.user!.id);
+          console.log("Session after save:", req.session);
           res.json(result);
         });
       } else {
