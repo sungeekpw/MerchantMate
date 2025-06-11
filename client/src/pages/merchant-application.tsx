@@ -40,6 +40,22 @@ export default function MerchantApplicationPage() {
 
   // Get form ID from URL parameter or default to form 1
   const formId = id ? parseInt(id) : 1;
+  
+  // Check for prospect validation token in URL parameters
+  const urlParams = new URLSearchParams(window.location.search);
+  const prospectToken = urlParams.get('token');
+
+  // Fetch prospect data if token is present
+  const { data: prospectData } = useQuery({
+    queryKey: ['/api/prospects/token', prospectToken],
+    queryFn: async () => {
+      if (!prospectToken) return null;
+      const response = await fetch(`/api/prospects/token/${prospectToken}`);
+      if (!response.ok) throw new Error('Invalid prospect token');
+      return response.json();
+    },
+    enabled: !!prospectToken,
+  });
 
   // Fetch current user to check admin role
   const { data: currentUser } = useQuery({
