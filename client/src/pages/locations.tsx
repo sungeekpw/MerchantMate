@@ -16,19 +16,15 @@ import { insertLocationSchema, insertAddressSchema, type InsertLocation, type In
 
 // Revenue metrics component
 function LocationRevenue({ locationId }: { locationId: number }) {
-  const { data: revenue, isLoading, error } = useQuery({
+  const { data: revenue, isLoading, error } = useQuery<{
+    totalRevenue: string;
+    last24Hours: string;
+    monthToDate: string;
+    yearToDate: string;
+  }>({
     queryKey: [`/api/locations/${locationId}/revenue`],
     enabled: !!locationId
   });
-
-  console.log('Revenue query:', { locationId, revenue, isLoading, error });
-  
-  // Add a timeout to see if the query is hanging
-  setTimeout(() => {
-    if (isLoading) {
-      console.error('Revenue query timeout for location:', locationId);
-    }
-  }, 5000);
 
   if (isLoading) {
     return <div className="text-sm text-muted-foreground">Loading revenue...</div>;
