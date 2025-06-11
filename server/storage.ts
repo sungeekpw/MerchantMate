@@ -109,6 +109,23 @@ export interface IStorage {
     monthToDate: string;
     yearToDate: string;
   }>;
+
+  // Dashboard analytics methods
+  getDashboardRevenue(timeRange: string): Promise<{
+    current: string;
+    daily: string;
+    weekly: string;
+    monthly: string;
+    change?: number;
+  }>;
+  getTopLocations(limit: number, sortBy: string): Promise<any[]>;
+  getRecentActivity(): Promise<any[]>;
+  getAssignedMerchants(limit: number): Promise<any[]>;
+  getSystemOverview(): Promise<{
+    uptime: string;
+    activeUsers: number;
+    alerts?: any[];
+  }>;
 }
 
 export class DatabaseStorage implements IStorage {
