@@ -401,13 +401,6 @@ function AuthenticatedApp() {
               );
             }}
           </Route>
-          <Route path="/prospect-validation">
-            {() => (
-              <main className="flex-1 overflow-hidden">
-                <ProspectValidation />
-              </main>
-            )}
-          </Route>
           <Route>
             <div className="flex-1">
               <NotFound />
@@ -439,6 +432,13 @@ function AppContent() {
         <Switch>
           <Route path="/form/:token">
             {(params) => <PublicForm />}
+          </Route>
+          <Route path="/prospect-validation">
+            {() => (
+              <main className="flex-1 overflow-hidden">
+                <ProspectValidation />
+              </main>
+            )}
           </Route>
           <Route>
             {isAuthenticated ? <AuthenticatedApp /> : <Auth />}
