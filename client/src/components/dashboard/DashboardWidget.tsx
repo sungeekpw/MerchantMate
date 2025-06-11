@@ -13,7 +13,12 @@ import {
   CreditCard,
   BarChart3,
   Shield,
-  AlertTriangle
+  AlertTriangle,
+  Monitor,
+  Target,
+  Zap,
+  UserCheck,
+  X
 } from "lucide-react";
 import { WIDGET_TYPES, type WidgetType, type WidgetSize } from "@shared/widget-schema";
 import { type UserDashboardPreference } from "@shared/schema";
