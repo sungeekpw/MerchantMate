@@ -29,7 +29,7 @@ export default function LocationsPage() {
 
   const { data: locations = [], isLoading } = useQuery({
     queryKey: ['/api/merchants', merchantId, 'locations'],
-    queryFn: () => apiRequest(`/api/merchants/${merchantId}/locations`),
+    queryFn: () => fetch(`/api/merchants/${merchantId}/locations`).then(res => res.json()),
   });
 
   const locationForm = useForm<InsertLocation>({
@@ -61,10 +61,11 @@ export default function LocationsPage() {
   });
 
   const createLocationMutation = useMutation({
-    mutationFn: (data: InsertLocation) => apiRequest(`/api/merchants/${merchantId}/locations`, {
+    mutationFn: (data: InsertLocation) => fetch(`/api/merchants/${merchantId}/locations`, {
       method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
-    }),
+    }).then(res => res.json()),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/merchants', merchantId, 'locations'] });
       setIsLocationDialogOpen(false);
@@ -77,10 +78,11 @@ export default function LocationsPage() {
   });
 
   const createAddressMutation = useMutation({
-    mutationFn: (data: InsertAddress) => apiRequest(`/api/locations/${data.locationId}/addresses`, {
+    mutationFn: (data: InsertAddress) => fetch(`/api/locations/${data.locationId}/addresses`, {
       method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
-    }),
+    }).then(res => res.json()),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/merchants', merchantId, 'locations'] });
       setIsAddressDialogOpen(false);
