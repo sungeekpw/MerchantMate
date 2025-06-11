@@ -811,6 +811,133 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Merchant Prospect routes
+  app.get("/api/prospects", devRequireRole(['admin', 'corporate', 'super_admin']), async (req, res) => {
+    try {
+      const { search } = req.query;
+      
+      if (search) {
+        const prospects = await storage.searchMerchantProspects(search as string);
+        res.json(prospects);
+      } else {
+        const prospects = await storage.getAllMerchantProspects();
+        res.json(prospects);
+      }
+    } catch (error) {
+      console.error("Error fetching prospects:", error);
+      res.status(500).json({ message: "Failed to fetch prospects" });
+    }
+  });
+
+  app.post("/api/prospects", devRequireRole(['admin', 'corporate', 'super_admin']), async (req, res) => {
+    try {
+      const { insertMerchantProspectSchema } = await import("@shared/schema");
+      const result = insertMerchantProspectSchema.safeParse(req.body);
+      if (!result.success) {
+        return res.status(400).json({ message: "Invalid prospect data", errors: result.error.errors });
+      }
+
+      const prospect = await storage.createMerchantProspect(result.data);
+      res.status(201).json(prospect);
+    } catch (error) {
+      console.error("Error creating prospect:", error);
+      res.status(500).json({ message: "Failed to create prospect" });
+    }
+  });
+
+  app.put("/api/prospects/:id", devRequireRole(['admin', 'corporate', 'super_admin']), async (req, res) => {
+    try {
+      const { id } = req.params;
+      const prospect = await storage.updateMerchantProspect(parseInt(id), req.body);
+      
+      if (!prospect) {
+        return res.status(404).json({ message: "Prospect not found" });
+      }
+      
+      res.json(prospect);
+    } catch (error) {
+      console.error("Error updating prospect:", error);
+      res.status(500).json({ message: "Failed to update prospect" });
+    }
+  });
+
+  app.delete("/api/prospects/:id", devRequireRole(['admin', 'corporate', 'super_admin']), async (req, res) => {
+    try {
+      const { id } = req.params;
+      const success = await storage.deleteMerchantProspect(parseInt(id));
+      
+      if (success) {
+        res.json({ success: true });
+      } else {
+        res.status(404).json({ message: "Prospect not found" });
+      }
+    } catch (error) {
+      console.error("Error deleting prospect:", error);
+      res.status(500).json({ message: "Failed to delete prospect" });
+    }
+  });
+
+  // Prospect validation route (public, no auth required)
+  app.post("/api/prospects/validate", async (req, res) => {
+    try {
+      const { email } = req.body;
+      
+      if (!email) {
+        return res.status(400).json({ message: "Email is required" });
+      }
+
+      const prospect = await storage.getMerchantProspectByEmail(email);
+      
+      if (!prospect) {
+        return res.status(404).json({ message: "No prospect found with this email address" });
+      }
+
+      // Update validation timestamp
+      await storage.updateMerchantProspect(prospect.id, {
+        validatedAt: new Date(),
+        status: 'contacted'
+      });
+
+      res.json({
+        success: true,
+        prospect: {
+          id: prospect.id,
+          firstName: prospect.firstName,
+          lastName: prospect.lastName,
+          email: prospect.email,
+          agentId: prospect.agentId,
+          validationToken: prospect.validationToken
+        }
+      });
+    } catch (error) {
+      console.error("Error validating prospect:", error);
+      res.status(500).json({ message: "Failed to validate prospect" });
+    }
+  });
+
+  // Get prospect by token (for starting application)
+  app.get("/api/prospects/token/:token", async (req, res) => {
+    try {
+      const { token } = req.params;
+      const prospect = await storage.getMerchantProspectByToken(token);
+      
+      if (!prospect) {
+        return res.status(404).json({ message: "Invalid or expired token" });
+      }
+
+      // Get agent information
+      const agent = await storage.getAgent(prospect.agentId);
+
+      res.json({
+        prospect,
+        agent
+      });
+    } catch (error) {
+      console.error("Error fetching prospect by token:", error);
+      res.status(500).json({ message: "Failed to fetch prospect" });
+    }
+  });
+
   // Admin-only routes for merchants
   app.get("/api/merchants/all", devRequireRole(['admin', 'corporate', 'super_admin']), async (req, res) => {
     try {
