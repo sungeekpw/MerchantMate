@@ -8,6 +8,45 @@ import { z } from "zod";
 import session from "express-session";
 import connectPg from "connect-pg-simple";
 
+// Helper function to get default widgets for a user role
+function getDefaultWidgetsForRole(role: string) {
+  const baseWidgets = [
+    { id: "quick_stats", size: "medium", position: 0, configuration: {} },
+    { id: "recent_activity", size: "large", position: 1, configuration: {} }
+  ];
+
+  switch (role) {
+    case "super_admin":
+    case "admin":
+      return [
+        ...baseWidgets,
+        { id: "system_overview", size: "large", position: 2, configuration: {} },
+        { id: "user_management", size: "medium", position: 3, configuration: {} },
+        { id: "financial_summary", size: "medium", position: 4, configuration: {} }
+      ];
+    case "corporate":
+      return [
+        ...baseWidgets,
+        { id: "revenue_overview", size: "large", position: 2, configuration: {} },
+        { id: "performance_metrics", size: "medium", position: 3, configuration: {} }
+      ];
+    case "agent":
+      return [
+        ...baseWidgets,
+        { id: "assigned_merchants", size: "medium", position: 2, configuration: {} },
+        { id: "pipeline_overview", size: "medium", position: 3, configuration: {} }
+      ];
+    case "merchant":
+      return [
+        ...baseWidgets,
+        { id: "revenue_overview", size: "large", position: 2, configuration: {} },
+        { id: "location_performance", size: "medium", position: 3, configuration: {} }
+      ];
+    default:
+      return baseWidgets;
+  }
+}
+
 export async function registerRoutes(app: Express): Promise<Server> {
   // Session setup for authentication using PostgreSQL store
   const pgStore = connectPg(session);
