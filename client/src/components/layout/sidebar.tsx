@@ -1,13 +1,14 @@
 import { Link, useLocation } from "wouter";
-import { CreditCard, BarChart3, Store, Users, Receipt, FileText, LogOut, User } from "lucide-react";
+import { CreditCard, BarChart3, Store, Users, Receipt, FileText, LogOut, User, MapPin } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import { canAccessAnalytics, canAccessMerchants, canAccessAgents, canAccessTransactions } from "@/lib/authUtils";
 import { Button } from "@/components/ui/button";
 
-const navigation = [
+const baseNavigation = [
   { name: "Dashboard", href: "/", icon: BarChart3, requiresRole: ['merchant', 'agent', 'admin', 'corporate', 'super_admin'] },
-  { name: "Merchants", href: "/merchants", icon: Store, requiresRole: ['merchant', 'agent', 'admin', 'corporate', 'super_admin'] },
+  { name: "Merchants", href: "/merchants", icon: Store, requiresRole: ['agent', 'admin', 'corporate', 'super_admin'] },
+  { name: "Locations", href: "/locations", icon: MapPin, requiresRole: ['merchant'] },
   { name: "Agents", href: "/agents", icon: Users, requiresRole: ['admin', 'corporate', 'super_admin'] },
   { name: "Transactions", href: "/transactions", icon: Receipt, requiresRole: ['merchant', 'agent', 'admin', 'corporate', 'super_admin'] },
   { name: "Users", href: "/users", icon: User, requiresRole: ['admin', 'corporate', 'super_admin'] },
@@ -21,7 +22,7 @@ export function Sidebar() {
   const getFilteredNavigation = () => {
     if (!user) return [];
     
-    return navigation.filter(item => {
+    return baseNavigation.filter(item => {
       const userRole = (user as any)?.role;
       return item.requiresRole.includes(userRole);
     });
