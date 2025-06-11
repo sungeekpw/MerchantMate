@@ -262,6 +262,22 @@ export class DatabaseStorage implements IStorage {
     }));
   }
 
+  async getTransactionsByMID(mid: string): Promise<TransactionWithMerchant[]> {
+    const result = await db
+      .select({
+        transaction: transactions,
+        merchant: merchants,
+      })
+      .from(transactions)
+      .leftJoin(merchants, eq(transactions.merchantId, merchants.id))
+      .where(eq(transactions.mid, mid));
+
+    return result.map(row => ({
+      ...row.transaction,
+      merchant: row.merchant || undefined,
+    }));
+  }
+
   async createTransaction(insertTransaction: InsertTransaction): Promise<Transaction> {
     const [transaction] = await db
       .insert(transactions)
