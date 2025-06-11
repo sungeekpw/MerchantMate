@@ -575,6 +575,7 @@ function ProspectModal({ isOpen, onClose, prospect }: ProspectModalProps) {
                     <SelectContent>
                       <SelectItem value="pending">Pending</SelectItem>
                       <SelectItem value="contacted">Contacted</SelectItem>
+                      <SelectItem value="in_progress">In Progress</SelectItem>
                       <SelectItem value="applied">Applied</SelectItem>
                       <SelectItem value="approved">Approved</SelectItem>
                       <SelectItem value="rejected">Rejected</SelectItem>
