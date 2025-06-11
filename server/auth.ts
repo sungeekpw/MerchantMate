@@ -197,8 +197,11 @@ export class AuthService {
         };
       }
 
-      // Get user
-      const user = await storage.getUserByUsernameOrEmail(loginData.usernameOrEmail, loginData.usernameOrEmail);
+      // Get user by username or email
+      let user = await storage.getUserByUsername(loginData.usernameOrEmail);
+      if (!user) {
+        user = await storage.getUserByEmail(loginData.usernameOrEmail);
+      }
       if (!user) {
         await this.logLoginAttempt(loginData.usernameOrEmail, ip, userAgent, false, "user_not_found");
         return {
