@@ -60,14 +60,11 @@ export default function PdfFormWizard() {
   // Auto-save mutation
   const autoSaveMutation = useMutation({
     mutationFn: async (data: Record<string, any>) => {
-      const response = await apiRequest(`/api/pdf-forms/${id}/submissions`, {
-        method: 'POST',
-        body: JSON.stringify({
-          data: JSON.stringify(data),
-          status: 'draft'
-        }),
+      const response = await apiRequest('POST', `/api/pdf-forms/${id}/submissions`, {
+        data: JSON.stringify(data),
+        status: 'draft'
       });
-      return response;
+      return response.json();
     },
     onSuccess: () => {
       setLastSaved(new Date());
@@ -80,14 +77,11 @@ export default function PdfFormWizard() {
   // Submit mutation
   const submitMutation = useMutation({
     mutationFn: async (data: Record<string, any>) => {
-      const response = await apiRequest(`/api/pdf-forms/${id}/submissions`, {
-        method: 'POST',
-        body: JSON.stringify({
-          data: JSON.stringify(data),
-          status: 'submitted'
-        }),
+      const response = await apiRequest('POST', `/api/pdf-forms/${id}/submissions`, {
+        data: JSON.stringify(data),
+        status: 'submitted'
       });
-      return response;
+      return response.json();
     },
     onSuccess: () => {
       toast({
@@ -296,44 +290,38 @@ export default function PdfFormWizard() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      {/* Header */}
-      <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <div className="w-12 h-12 bg-blue-600 rounded-lg flex items-center justify-center">
-                <FileText className="w-6 h-6 text-white" />
-              </div>
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-                  {pdfForm.name}
-                </h1>
-                <p className="text-gray-600 dark:text-gray-400">
-                  {pdfForm.description}
-                </p>
-              </div>
+    <div className="container mx-auto py-6">
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-4">
+            <div className="w-12 h-12 bg-blue-600 rounded-lg flex items-center justify-center">
+              <FileText className="w-6 h-6 text-white" />
             </div>
-            <div className="text-right">
-              <div className="text-sm text-gray-500 dark:text-gray-400">Progress</div>
-              <div className="text-2xl font-bold text-blue-600">
-                {Math.round(progress)}%
-              </div>
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+                {pdfForm.name}
+              </h1>
+              <p className="text-gray-600 dark:text-gray-400">
+                {pdfForm.description}
+              </p>
             </div>
           </div>
-          
-          <div className="mt-6">
-            <Progress value={progress} className="h-2" />
+          <div className="text-right">
+            <div className="text-sm text-gray-500 dark:text-gray-400">Progress</div>
+            <div className="text-2xl font-bold text-blue-600">
+              {Math.round(progress)}%
+            </div>
           </div>
         </div>
-      </div>
+        
+        <Progress value={progress} className="h-2" />
 
-      {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+        {/* Main Content */}
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           {/* Sidebar Navigation */}
           <div className="lg:col-span-1">
-            <Card className="sticky top-8">
+            <Card className="sticky top-6">
               <CardHeader>
                 <CardTitle className="text-lg">Form Sections</CardTitle>
                 <CardDescription>Navigate through different sections</CardDescription>
