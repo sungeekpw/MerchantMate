@@ -31,6 +31,8 @@ import EnhancedPdfWizard from "@/pages/enhanced-pdf-wizard";
 import PublicForm from "@/pages/public-form";
 import MerchantApplication from "@/pages/merchant-application";
 import FormApplication from "@/pages/form-application";
+import Prospects from "@/pages/prospects";
+import ProspectValidation from "@/pages/prospect-validation";
 import NotFound from "@/pages/not-found";
 import Landing from "@/pages/landing";
 import Auth from "@/pages/auth";
@@ -380,6 +382,31 @@ function AuthenticatedApp() {
                 </>
               );
             }}
+          </Route>
+          <Route path="/prospects">
+            {() => {
+              if (!canAccessAgentManagement(user)) return <NotFound />;
+              const pageInfo = { title: "Merchant Prospects", subtitle: "Manage merchant prospects and leads" };
+              return (
+                <>
+                  <Header 
+                    title={pageInfo.title} 
+                    subtitle={pageInfo.subtitle}
+                    onSearch={setGlobalSearch}
+                  />
+                  <main className="flex-1 overflow-auto bg-gray-50">
+                    <Prospects />
+                  </main>
+                </>
+              );
+            }}
+          </Route>
+          <Route path="/prospect-validation">
+            {() => (
+              <main className="flex-1 overflow-hidden">
+                <ProspectValidation />
+              </main>
+            )}
           </Route>
           <Route>
             <div className="flex-1">

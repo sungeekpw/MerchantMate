@@ -1412,6 +1412,112 @@ export class DatabaseStorage implements IStorage {
     const [submission] = await db.select().from(pdfFormSubmissions).where(eq(pdfFormSubmissions.id, id));
     return submission || undefined;
   }
+
+  // Merchant Prospect operations
+  async getMerchantProspect(id: number): Promise<MerchantProspect | undefined> {
+    const [prospect] = await db.select().from(merchantProspects).where(eq(merchantProspects.id, id));
+    return prospect || undefined;
+  }
+
+  async getMerchantProspectByEmail(email: string): Promise<MerchantProspect | undefined> {
+    const [prospect] = await db.select().from(merchantProspects).where(eq(merchantProspects.email, email));
+    return prospect || undefined;
+  }
+
+  async getMerchantProspectByToken(token: string): Promise<MerchantProspect | undefined> {
+    const [prospect] = await db.select().from(merchantProspects).where(eq(merchantProspects.validationToken, token));
+    return prospect || undefined;
+  }
+
+  async getAllMerchantProspects(): Promise<MerchantProspectWithAgent[]> {
+    const result = await db
+      .select({
+        prospect: merchantProspects,
+        agent: agents,
+      })
+      .from(merchantProspects)
+      .leftJoin(agents, eq(merchantProspects.agentId, agents.id))
+      .orderBy(desc(merchantProspects.createdAt));
+
+    return result.map(row => ({
+      ...row.prospect,
+      agent: row.agent || undefined,
+    }));
+  }
+
+  async getProspectsByAgent(agentId: number): Promise<MerchantProspectWithAgent[]> {
+    const result = await db
+      .select({
+        prospect: merchantProspects,
+        agent: agents,
+      })
+      .from(merchantProspects)
+      .leftJoin(agents, eq(merchantProspects.agentId, agents.id))
+      .where(eq(merchantProspects.agentId, agentId))
+      .orderBy(desc(merchantProspects.createdAt));
+
+    return result.map(row => ({
+      ...row.prospect,
+      agent: row.agent || undefined,
+    }));
+  }
+
+  async createMerchantProspect(prospect: InsertMerchantProspect): Promise<MerchantProspect> {
+    // Generate validation token
+    const validationToken = 'prospect_' + Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+    
+    const [newProspect] = await db
+      .insert(merchantProspects)
+      .values({
+        ...prospect,
+        validationToken,
+        updatedAt: new Date(),
+      })
+      .returning();
+    
+    return newProspect;
+  }
+
+  async updateMerchantProspect(id: number, updates: Partial<MerchantProspect>): Promise<MerchantProspect | undefined> {
+    const [prospect] = await db
+      .update(merchantProspects)
+      .set({
+        ...updates,
+        updatedAt: new Date(),
+      })
+      .where(eq(merchantProspects.id, id))
+      .returning();
+    
+    return prospect || undefined;
+  }
+
+  async deleteMerchantProspect(id: number): Promise<boolean> {
+    const result = await db.delete(merchantProspects).where(eq(merchantProspects.id, id));
+    return (result.rowCount || 0) > 0;
+  }
+
+  async searchMerchantProspects(query: string): Promise<MerchantProspectWithAgent[]> {
+    const result = await db
+      .select({
+        prospect: merchantProspects,
+        agent: agents,
+      })
+      .from(merchantProspects)
+      .leftJoin(agents, eq(merchantProspects.agentId, agents.id));
+
+    // Filter results in memory for now - can be optimized with SQL LIKE
+    return result
+      .map(row => ({
+        ...row.prospect,
+        agent: row.agent || undefined,
+      }))
+      .filter(prospect => 
+        prospect.firstName.toLowerCase().includes(query.toLowerCase()) ||
+        prospect.lastName.toLowerCase().includes(query.toLowerCase()) ||
+        prospect.email.toLowerCase().includes(query.toLowerCase()) ||
+        prospect.status.toLowerCase().includes(query.toLowerCase())
+      );
+  }
 }
 
 export const storage = new DatabaseStorage();
