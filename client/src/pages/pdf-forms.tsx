@@ -7,7 +7,9 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
-import { Upload, FileText, CheckCircle, Clock, AlertCircle, Edit2, Check, X } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Upload, FileText, CheckCircle, Clock, AlertCircle, Edit2, Check, X, Settings, Navigation } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 
@@ -21,6 +23,9 @@ interface PdfForm {
   createdAt: string;
   updatedAt: string;
   uploadedBy: string;
+  showInNavigation: boolean;
+  navigationTitle: string | null;
+  allowedRoles: string[];
 }
 
 interface FormField {
@@ -45,6 +50,7 @@ export default function PdfFormsPage() {
   const [editingFormId, setEditingFormId] = useState<number | null>(null);
   const [editedTitle, setEditedTitle] = useState('');
   const [editedDescription, setEditedDescription] = useState('');
+  const [showNavSettings, setShowNavSettings] = useState<number | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
