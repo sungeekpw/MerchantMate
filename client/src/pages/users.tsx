@@ -57,10 +57,15 @@ export default function Users() {
   useEffect(() => {
     const setupAuth = async () => {
       if (!authAttempted) {
-        await ensureDevAuth();
+        console.log('Setting up authentication...');
+        const success = await ensureDevAuth();
+        console.log('Authentication setup result:', success);
         setAuthAttempted(true);
-        // Refetch users after authentication
-        queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+        // Small delay to ensure session is fully established
+        setTimeout(() => {
+          console.log('Invalidating queries after auth...');
+          queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+        }, 100);
       }
     };
     setupAuth();
@@ -83,6 +88,19 @@ export default function Users() {
   const { data: users, isLoading, error } = useQuery<User[]>({
     queryKey: ["/api/users"],
     enabled: authAttempted, // Only run query after auth is attempted
+    onSuccess: (data) => {
+      console.log('Users query successful, received data:', data);
+    },
+    onError: (error) => {
+      console.log('Users query error:', error);
+    },
+  });
+
+  console.log('Users component state:', { 
+    authAttempted, 
+    isLoading, 
+    usersCount: users?.length, 
+    error: error?.message 
   });
 
   // Handle authentication failure - when query returns null due to 401
