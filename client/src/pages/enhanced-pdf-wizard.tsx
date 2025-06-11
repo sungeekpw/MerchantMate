@@ -113,7 +113,15 @@ export default function EnhancedPdfWizard() {
         { id: 4, fieldName: 'companyPhone', fieldType: 'phone', fieldLabel: 'Company Phone', isRequired: true, options: null, defaultValue: null, validation: null, position: 4, section: 'Merchant Information' },
         { id: 5, fieldName: 'address', fieldType: 'text', fieldLabel: 'Business Address', isRequired: true, options: null, defaultValue: null, validation: null, position: 5, section: 'Merchant Information' },
         { id: 6, fieldName: 'city', fieldType: 'text', fieldLabel: 'City', isRequired: true, options: null, defaultValue: null, validation: null, position: 6, section: 'Merchant Information' },
-        { id: 7, fieldName: 'state', fieldType: 'text', fieldLabel: 'State', isRequired: true, options: null, defaultValue: null, validation: null, position: 7, section: 'Merchant Information' },
+        { id: 7, fieldName: 'state', fieldType: 'select', fieldLabel: 'State', isRequired: true, options: [
+          'Alabama', 'Alaska', 'Arizona', 'Arkansas', 'California', 'Colorado', 'Connecticut', 'Delaware', 
+          'Florida', 'Georgia', 'Hawaii', 'Idaho', 'Illinois', 'Indiana', 'Iowa', 'Kansas', 'Kentucky', 
+          'Louisiana', 'Maine', 'Maryland', 'Massachusetts', 'Michigan', 'Minnesota', 'Mississippi', 
+          'Missouri', 'Montana', 'Nebraska', 'Nevada', 'New Hampshire', 'New Jersey', 'New Mexico', 
+          'New York', 'North Carolina', 'North Dakota', 'Ohio', 'Oklahoma', 'Oregon', 'Pennsylvania', 
+          'Rhode Island', 'South Carolina', 'South Dakota', 'Tennessee', 'Texas', 'Utah', 'Vermont', 
+          'Virginia', 'Washington', 'West Virginia', 'Wisconsin', 'Wyoming'
+        ], defaultValue: null, validation: null, position: 7, section: 'Merchant Information' },
         { id: 8, fieldName: 'zipCode', fieldType: 'text', fieldLabel: 'ZIP Code', isRequired: true, options: null, defaultValue: null, validation: null, position: 8, section: 'Merchant Information' },
       ]
     },
