@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { CreditCard, BarChart3, Store, Users, Receipt, FileText, LogOut, User, MapPin, Shield } from "lucide-react";
+import { CreditCard, BarChart3, Store, Users, Receipt, FileText, LogOut, User, MapPin, Shield, Upload } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import { canAccessAnalytics, canAccessMerchants, canAccessAgents, canAccessTransactions } from "@/lib/authUtils";
@@ -11,6 +11,7 @@ const baseNavigation = [
   { name: "Locations", href: "/locations", icon: MapPin, requiresRole: ['merchant'] },
   { name: "Agents", href: "/agents", icon: Users, requiresRole: ['admin', 'corporate', 'super_admin'] },
   { name: "Transactions", href: "/transactions", icon: Receipt, requiresRole: ['merchant', 'agent', 'admin', 'corporate', 'super_admin'] },
+  { name: "PDF Forms", href: "/pdf-forms", icon: Upload, requiresRole: ['agent', 'admin', 'corporate', 'super_admin'] },
   { name: "Users", href: "/users", icon: User, requiresRole: ['admin', 'corporate', 'super_admin'] },
   { name: "Reports", href: "/reports", icon: FileText, requiresRole: ['admin', 'corporate', 'super_admin'] },
   { name: "Security", href: "/security", icon: Shield, requiresRole: ['admin', 'super_admin'] },
