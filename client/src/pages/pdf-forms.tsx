@@ -174,6 +174,42 @@ export default function PdfFormsPage() {
     }
   });
 
+  // Update navigation settings mutation
+  const updateNavigationMutation = useMutation({
+    mutationFn: async ({ 
+      id, 
+      showInNavigation, 
+      navigationTitle, 
+      allowedRoles 
+    }: { 
+      id: number; 
+      showInNavigation: boolean; 
+      navigationTitle: string | null; 
+      allowedRoles: string[] 
+    }) => {
+      const response = await apiRequest('PATCH', `/api/pdf-forms/${id}`, {
+        showInNavigation,
+        navigationTitle,
+        allowedRoles
+      });
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Navigation Updated",
+        description: "Navigation settings have been updated successfully.",
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/pdf-forms'] });
+    },
+    onError: (error) => {
+      toast({
+        title: "Update Failed",
+        description: "There was an error updating navigation settings.",
+        variant: "destructive",
+      });
+    }
+  });
+
   // Edit handlers
   const handleEdit = (form: PdfForm) => {
     setEditingFormId(form.id);
@@ -396,6 +432,99 @@ export default function PdfFormsPage() {
                             </span>
                           </div>
                         </div>
+                        {/* Navigation Settings (Admin Only) */}
+                        {isAdmin && (
+                          <div className="mt-4 p-3 border rounded-lg bg-gray-50 dark:bg-gray-800">
+                            <div className="flex items-center justify-between mb-3">
+                              <h4 className="text-sm font-medium flex items-center gap-2">
+                                <Navigation className="w-4 h-4" />
+                                Navigation Settings
+                              </h4>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => setShowNavSettings(showNavSettings === form.id ? null : form.id)}
+                              >
+                                <Settings className="w-4 h-4" />
+                              </Button>
+                            </div>
+                            
+                            {showNavSettings === form.id && (
+                              <div className="space-y-3">
+                                <div className="flex items-center space-x-2">
+                                  <Checkbox
+                                    id={`nav-${form.id}`}
+                                    checked={form.showInNavigation || false}
+                                    onCheckedChange={(checked) => {
+                                      updateNavigationMutation.mutate({
+                                        id: form.id,
+                                        showInNavigation: checked as boolean,
+                                        navigationTitle: form.navigationTitle,
+                                        allowedRoles: form.allowedRoles || ['admin']
+                                      });
+                                    }}
+                                  />
+                                  <Label htmlFor={`nav-${form.id}`} className="text-sm">
+                                    Show in sidebar navigation
+                                  </Label>
+                                </div>
+                                
+                                {form.showInNavigation && (
+                                  <>
+                                    <div>
+                                      <Label htmlFor={`nav-title-${form.id}`} className="text-xs text-gray-600">
+                                        Navigation Title (optional)
+                                      </Label>
+                                      <Input
+                                        id={`nav-title-${form.id}`}
+                                        placeholder={form.name}
+                                        defaultValue={form.navigationTitle || ''}
+                                        onBlur={(e) => {
+                                          updateNavigationMutation.mutate({
+                                            id: form.id,
+                                            showInNavigation: form.showInNavigation,
+                                            navigationTitle: e.target.value || null,
+                                            allowedRoles: form.allowedRoles || ['admin']
+                                          });
+                                        }}
+                                        className="mt-1"
+                                      />
+                                    </div>
+                                    
+                                    <div>
+                                      <Label className="text-xs text-gray-600">
+                                        Allowed Roles
+                                      </Label>
+                                      <Select
+                                        defaultValue={form.allowedRoles?.join(',') || 'admin'}
+                                        onValueChange={(value) => {
+                                          const roles = value.split(',');
+                                          updateNavigationMutation.mutate({
+                                            id: form.id,
+                                            showInNavigation: form.showInNavigation,
+                                            navigationTitle: form.navigationTitle,
+                                            allowedRoles: roles
+                                          });
+                                        }}
+                                      >
+                                        <SelectTrigger className="mt-1">
+                                          <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                          <SelectItem value="admin">Admin Only</SelectItem>
+                                          <SelectItem value="admin,agent">Admin & Agent</SelectItem>
+                                          <SelectItem value="admin,agent,merchant">Admin, Agent & Merchant</SelectItem>
+                                          <SelectItem value="admin,agent,merchant,corporate">All Roles</SelectItem>
+                                        </SelectContent>
+                                      </Select>
+                                    </div>
+                                  </>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        )}
+
                         <div className="mt-4 space-y-2">
                           <Button 
                             className="w-full" 

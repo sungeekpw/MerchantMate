@@ -1303,15 +1303,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.patch("/api/pdf-forms/:id", devAuth, requireRole(['admin', 'super_admin']), async (req: any, res) => {
     try {
       const formId = parseInt(req.params.id);
-      const { name, description } = req.body;
+      const { name, description, showInNavigation, navigationTitle, allowedRoles } = req.body;
       
-      if (!name && !description) {
+      if (!name && !description && showInNavigation === undefined && navigationTitle === undefined && !allowedRoles) {
         return res.status(400).json({ message: "No update data provided" });
       }
 
       const updateData: any = {};
       if (name !== undefined) updateData.name = name;
       if (description !== undefined) updateData.description = description;
+      if (showInNavigation !== undefined) updateData.showInNavigation = showInNavigation;
+      if (navigationTitle !== undefined) updateData.navigationTitle = navigationTitle;
+      if (allowedRoles !== undefined) updateData.allowedRoles = allowedRoles;
       
       const updatedForm = await storage.updatePdfForm(formId, updateData);
       
