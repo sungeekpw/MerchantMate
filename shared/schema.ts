@@ -312,6 +312,7 @@ export const pdfFormFields = pgTable("pdf_form_fields", {
   defaultValue: text("default_value"),
   validation: text("validation"), // JSON string for validation rules
   position: integer("position").notNull(), // field order
+  section: text("section"), // section grouping for fields
   createdAt: timestamp("created_at").defaultNow()
 });
 
