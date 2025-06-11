@@ -311,12 +311,12 @@ function ProspectModal({ isOpen, onClose, prospect }: ProspectModalProps) {
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      firstName: "",
-      lastName: "",
-      email: "",
-      agentId: 0,
-      status: "pending",
-      notes: "",
+      firstName: prospect?.firstName || "",
+      lastName: prospect?.lastName || "",
+      email: prospect?.email || "",
+      agentId: prospect?.agentId || 1,
+      status: prospect?.status || "pending",
+      notes: prospect?.notes || "",
     },
   });
 
