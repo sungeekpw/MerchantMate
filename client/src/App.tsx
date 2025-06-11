@@ -336,6 +336,15 @@ function AuthenticatedApp() {
               );
             }}
           </Route>
+          <Route path="/form-wizard/:id">
+            {(params) => {
+              return (
+                <main className="flex-1 overflow-hidden">
+                  <EnhancedPdfWizard />
+                </main>
+              );
+            }}
+          </Route>
           <Route>
             <div className="flex-1">
               <NotFound />

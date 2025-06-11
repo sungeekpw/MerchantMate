@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import { canAccessAnalytics, canAccessMerchants, canAccessAgents, canAccessTransactions } from "@/lib/authUtils";
 import { Button } from "@/components/ui/button";
+import { useQuery } from "@tanstack/react-query";
 
 const baseNavigation = [
   { name: "Dashboard", href: "/", icon: BarChart3, requiresRole: ['merchant', 'agent', 'admin', 'corporate', 'super_admin'] },
@@ -21,13 +22,43 @@ export function Sidebar() {
   const [location] = useLocation();
   const { user, logout } = useAuth();
 
+  // Fetch PDF forms that should appear in navigation
+  const { data: pdfForms = [] } = useQuery({
+    queryKey: ['/api/pdf-forms'],
+    queryFn: async () => {
+      const response = await fetch('/api/pdf-forms', {
+        credentials: 'include'
+      });
+      if (!response.ok) return [];
+      return response.json();
+    },
+    enabled: !!user
+  });
+
   const getFilteredNavigation = () => {
     if (!user) return [];
     
-    return baseNavigation.filter(item => {
-      const userRole = (user as any)?.role;
+    const userRole = (user as any)?.role;
+    
+    // Filter base navigation
+    const filteredBase = baseNavigation.filter(item => {
       return item.requiresRole.includes(userRole);
     });
+
+    // Add dynamic PDF form navigation items
+    const dynamicNavItems = pdfForms
+      .filter((form: any) => 
+        form.showInNavigation && 
+        form.allowedRoles.includes(userRole)
+      )
+      .map((form: any) => ({
+        name: form.navigationTitle || form.name,
+        href: `/form-wizard/${form.id}`,
+        icon: FileText,
+        requiresRole: form.allowedRoles
+      }));
+
+    return [...filteredBase, ...dynamicNavItems];
   };
 
   return (
