@@ -11,9 +11,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Upload, FileText, CheckCircle, Clock, AlertCircle, Edit2, Check, X, Settings, Navigation } from "lucide-react";
+import { Upload, FileText, CheckCircle, Clock, AlertCircle, Edit2, Check, X, Settings, Navigation, Shield } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+import { useAuth } from "@/hooks/useAuth";
 
 interface PdfForm {
   id: number;
@@ -48,6 +49,33 @@ interface PdfFormWithFields extends PdfForm {
 
 export default function PdfFormsPage() {
   const [location] = useLocation();
+  const { user } = useAuth();
+
+  // Check if user has admin access
+  const userRole = (user as any)?.role;
+  const hasAdminAccess = userRole === 'admin' || userRole === 'super_admin';
+
+  // If user doesn't have admin access, show access denied
+  if (!hasAdminAccess) {
+    return (
+      <div className="container mx-auto py-8">
+        <Card className="max-w-md mx-auto">
+          <CardContent className="pt-6">
+            <div className="flex flex-col items-center space-y-4">
+              <Shield className="h-12 w-12 text-red-500" />
+              <h2 className="text-xl font-semibold text-center">Access Denied</h2>
+              <p className="text-sm text-muted-foreground text-center">
+                You need administrator privileges to access PDF Forms management.
+              </p>
+              <Button onClick={() => window.history.back()} variant="outline">
+                Go Back
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [activeTab, setActiveTab] = useState("upload");
