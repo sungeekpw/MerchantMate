@@ -94,16 +94,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Development authentication middleware
   const devAuth = async (req: any, res: any, next: any) => {
     if (process.env.NODE_ENV === 'development') {
+      console.log('DevAuth - Session:', req.session);
+      console.log('DevAuth - Session ID:', req.sessionID);
       const userId = (req.session as any)?.userId;
+      console.log('DevAuth - UserId from session:', userId);
       if (!userId) {
+        console.log('DevAuth - No userId in session, returning unauthorized');
         return res.status(401).json({ message: "Unauthorized" });
       }
       const user = await storage.getUser(userId);
       if (!user) {
+        console.log('DevAuth - User not found in database:', userId);
         return res.status(401).json({ message: "User not found" });
       }
       req.user = { claims: { sub: userId } };
       req.dbUser = user;
+      console.log('DevAuth - Authentication successful for user:', userId);
       return next();
     }
     return isAuthenticated(req, res, next);
@@ -255,6 +261,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/locations/:locationId/revenue", devAuth, async (req: any, res) => {
     try {
       const { locationId } = req.params;
+      console.log('Revenue endpoint - session:', req.session);
+      console.log('Revenue endpoint - user:', req.user);
       const userId = req.user.claims.sub;
       const user = await storage.getUser(userId);
       
