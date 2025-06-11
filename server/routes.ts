@@ -954,10 +954,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const prospect = await storage.getMerchantProspectByEmail(email);
       
       if (!prospect) {
-        return res.status(404).json({ message: "No prospect found with this email address" });
+        return res.status(404).json({ message: "No invitation found for this email address. Please check that you entered the correct email address that received the invitation." });
       }
 
-      // Update validation timestamp
+      // Verify the prospect has a validation token (was actually invited)
+      if (!prospect.validationToken) {
+        return res.status(400).json({ message: "This prospect was not properly invited. Please contact your agent." });
+      }
+
+      // Check if already validated
+      if (prospect.validatedAt) {
+        // Allow re-access if already validated
+        return res.json({
+          success: true,
+          prospect: {
+            id: prospect.id,
+            firstName: prospect.firstName,
+            lastName: prospect.lastName,
+            email: prospect.email,
+            agentId: prospect.agentId,
+            validationToken: prospect.validationToken
+          }
+        });
+      }
+
+      // Update validation timestamp for first-time validation
       await storage.updateMerchantProspect(prospect.id, {
         validatedAt: new Date(),
         status: 'contacted'

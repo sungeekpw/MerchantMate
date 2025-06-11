@@ -149,7 +149,7 @@ export default function ProspectValidation() {
               Verify Your Email
             </CardTitle>
             <p className="text-sm text-gray-600 mt-2">
-              Enter your email address to start your merchant application process
+              Enter the exact email address that received the invitation from your agent
             </p>
           </CardHeader>
           <CardContent>
@@ -164,12 +164,15 @@ export default function ProspectValidation() {
                       <FormControl>
                         <Input
                           type="email"
-                          placeholder="Enter your email address"
+                          placeholder="Enter the email that received the invitation"
                           disabled={validationState === 'validating'}
                           {...field}
                         />
                       </FormControl>
                       <FormMessage />
+                      <p className="text-xs text-gray-500 mt-1">
+                        This must be the exact email address your agent sent the invitation to
+                      </p>
                     </FormItem>
                   )}
                 />
