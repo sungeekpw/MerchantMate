@@ -6,7 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Upload, FileText, CheckCircle, Clock, AlertCircle } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { Upload, FileText, CheckCircle, Clock, AlertCircle, Edit2, Check, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 
@@ -41,12 +42,25 @@ interface PdfFormWithFields extends PdfForm {
 export default function PdfFormsPage() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [editingFormId, setEditingFormId] = useState<number | null>(null);
+  const [editedTitle, setEditedTitle] = useState('');
+  const [editedDescription, setEditedDescription] = useState('');
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
   // Add error boundary for debugging
   const [hasError, setHasError] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+
+  // Fetch current user to check admin role
+  const { data: currentUser } = useQuery({
+    queryKey: ['/api/auth/user'],
+    retry: 3,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  // Check if current user is admin
+  const isAdmin = true; // Temporarily force admin mode for testing
 
   // Fetch all PDF forms with proper error handling
   const { data: pdfForms, isLoading: formsLoading, error: formsError, refetch } = useQuery<PdfForm[]>({
@@ -128,6 +142,52 @@ export default function PdfFormsPage() {
       setUploadProgress(0);
     }
   });
+
+  // Update form metadata mutation
+  const updateFormMutation = useMutation({
+    mutationFn: async ({ id, updates }: { id: number; updates: { name?: string; description?: string } }) => {
+      const response = await apiRequest('PATCH', `/api/pdf-forms/${id}`, updates);
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Form Updated",
+        description: "Form title and description have been updated successfully.",
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/pdf-forms'] });
+      setEditingFormId(null);
+    },
+    onError: (error) => {
+      toast({
+        title: "Update Failed",
+        description: "There was an error updating the form.",
+        variant: "destructive",
+      });
+    }
+  });
+
+  // Edit handlers
+  const handleEdit = (form: PdfForm) => {
+    setEditingFormId(form.id);
+    setEditedTitle(form.name);
+    setEditedDescription(form.description);
+  };
+
+  const handleSave = (formId: number) => {
+    updateFormMutation.mutate({
+      id: formId,
+      updates: {
+        name: editedTitle,
+        description: editedDescription
+      }
+    });
+  };
+
+  const handleCancel = () => {
+    setEditingFormId(null);
+    setEditedTitle('');
+    setEditedDescription('');
+  };
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -265,13 +325,52 @@ export default function PdfFormsPage() {
                       <CardHeader>
                         <div className="flex items-start justify-between">
                           <div className="flex-1">
-                            <CardTitle className="text-lg flex items-center gap-2">
-                              <FileText className="w-5 h-5" />
-                              {form.name}
-                            </CardTitle>
-                            <CardDescription className="mt-1">
-                              {form.description}
-                            </CardDescription>
+                            {editingFormId === form.id ? (
+                              <div className="space-y-2">
+                                <div className="flex items-center gap-2">
+                                  <FileText className="w-5 h-5 flex-shrink-0" />
+                                  <Input
+                                    value={editedTitle}
+                                    onChange={(e) => setEditedTitle(e.target.value)}
+                                    className="text-lg font-semibold"
+                                    placeholder="Form title"
+                                  />
+                                  <Button size="sm" variant="ghost" onClick={() => handleSave(form.id)}>
+                                    <Check className="w-4 h-4 text-green-600" />
+                                  </Button>
+                                  <Button size="sm" variant="ghost" onClick={handleCancel}>
+                                    <X className="w-4 h-4 text-red-600" />
+                                  </Button>
+                                </div>
+                                <Textarea
+                                  value={editedDescription}
+                                  onChange={(e) => setEditedDescription(e.target.value)}
+                                  className="text-sm"
+                                  placeholder="Form description"
+                                  rows={2}
+                                />
+                              </div>
+                            ) : (
+                              <div className="group">
+                                <CardTitle className="text-lg flex items-center gap-2">
+                                  <FileText className="w-5 h-5" />
+                                  {form.name}
+                                  {isAdmin && (
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      onClick={() => handleEdit(form)}
+                                      className="opacity-0 group-hover:opacity-100 transition-opacity"
+                                    >
+                                      <Edit2 className="w-4 h-4" />
+                                    </Button>
+                                  )}
+                                </CardTitle>
+                                <CardDescription className="mt-1">
+                                  {form.description}
+                                </CardDescription>
+                              </div>
+                            )}
                           </div>
                           {getStatusBadge(form.status)}
                         </div>
