@@ -149,32 +149,38 @@ export default function EnhancedPdfWizard() {
   ];
 
   // Create enhanced sections with descriptions and icons
-  const sections: FormSection[] = isProspectMode ? prospectFormSections : (pdfForm?.fields ? [
-    {
-      name: 'Merchant Information',
-      description: 'Basic business details, contact information, and location data',
-      icon: Building,
-      fields: pdfForm.fields.filter(f => f.section === 'Merchant Information').sort((a, b) => a.position - b.position)
-    },
-    {
-      name: 'Business Type & Tax Information', 
-      description: 'Business structure, tax identification, and regulatory compliance',
-      icon: FileText,
-      fields: pdfForm.fields.filter(f => f.section === 'Business Type & Tax Information').sort((a, b) => a.position - b.position)
-    },
-    {
-      name: 'Products, Services & Processing',
-      description: 'Business operations, products sold, and payment processing preferences',
-      icon: CheckCircle,
-      fields: pdfForm.fields.filter(f => f.section === 'Products, Services & Processing').sort((a, b) => a.position - b.position)
-    },
-    {
-      name: 'Transaction Information',
-      description: 'Financial data, volume estimates, and transaction processing details',
-      icon: ArrowRight,
-      fields: pdfForm.fields.filter(f => f.section === 'Transaction Information').sort((a, b) => a.position - b.position)
-    }
-  ].filter(section => section.fields.length > 0) : []);
+  let sections: FormSection[] = [];
+  
+  if (isProspectMode) {
+    sections = prospectFormSections;
+  } else if (pdfForm?.fields) {
+    sections = [
+      {
+        name: 'Merchant Information',
+        description: 'Basic business details, contact information, and location data',
+        icon: Building,
+        fields: pdfForm.fields.filter(f => f.section === 'Merchant Information').sort((a, b) => a.position - b.position)
+      },
+      {
+        name: 'Business Type & Tax Information', 
+        description: 'Business structure, tax identification, and regulatory compliance',
+        icon: FileText,
+        fields: pdfForm.fields.filter(f => f.section === 'Business Type & Tax Information').sort((a, b) => a.position - b.position)
+      },
+      {
+        name: 'Products, Services & Processing',
+        description: 'Business operations, products sold, and payment processing preferences',
+        icon: CheckCircle,
+        fields: pdfForm.fields.filter(f => f.section === 'Products, Services & Processing').sort((a, b) => a.position - b.position)
+      },
+      {
+        name: 'Transaction Information',
+        description: 'Financial data, volume estimates, and transaction processing details',
+        icon: ArrowRight,
+        fields: pdfForm.fields.filter(f => f.section === 'Transaction Information').sort((a, b) => a.position - b.position)
+      }
+    ].filter(section => section.fields.length > 0);
+  }
 
   // Auto-save mutation
   const autoSaveMutation = useMutation({
