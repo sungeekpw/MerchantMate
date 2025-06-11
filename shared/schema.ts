@@ -287,3 +287,68 @@ export const insertUserDashboardPreferenceSchema = createInsertSchema(userDashbo
 
 export type InsertUserDashboardPreference = z.infer<typeof insertUserDashboardPreferenceSchema>;
 export type UserDashboardPreference = typeof userDashboardPreferences.$inferSelect;
+
+// PDF Form schemas
+export const pdfForms = pgTable("pdf_forms", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  description: text("description"),
+  fileName: text("file_name").notNull(),
+  fileSize: integer("file_size").notNull(),
+  uploadedBy: text("uploaded_by").notNull().references(() => users.id, { onDelete: "cascade" }),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow()
+});
+
+export const pdfFormFields = pgTable("pdf_form_fields", {
+  id: serial("id").primaryKey(),
+  formId: integer("form_id").notNull().references(() => pdfForms.id, { onDelete: "cascade" }),
+  fieldName: text("field_name").notNull(),
+  fieldType: text("field_type").notNull(), // text, number, date, select, checkbox, textarea
+  fieldLabel: text("field_label").notNull(),
+  isRequired: boolean("is_required").default(false),
+  options: text("options").array(), // for select/radio fields
+  defaultValue: text("default_value"),
+  validation: text("validation"), // JSON string for validation rules
+  position: integer("position").notNull(), // field order
+  createdAt: timestamp("created_at").defaultNow()
+});
+
+export const pdfFormSubmissions = pgTable("pdf_form_submissions", {
+  id: serial("id").primaryKey(),
+  formId: integer("form_id").notNull().references(() => pdfForms.id, { onDelete: "cascade" }),
+  submittedBy: text("submitted_by").notNull().references(() => users.id, { onDelete: "cascade" }),
+  data: text("data").notNull(), // JSON string of form data
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow()
+});
+
+// Drizzle schemas for PDF forms
+export const insertPdfFormSchema = createInsertSchema(pdfForms).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true
+});
+
+export const insertPdfFormFieldSchema = createInsertSchema(pdfFormFields).omit({
+  id: true,
+  createdAt: true
+});
+
+export const insertPdfFormSubmissionSchema = createInsertSchema(pdfFormSubmissions).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true
+});
+
+// Types for PDF forms
+export type PdfForm = typeof pdfForms.$inferSelect;
+export type InsertPdfForm = z.infer<typeof insertPdfFormSchema>;
+export type PdfFormField = typeof pdfFormFields.$inferSelect;
+export type InsertPdfFormField = z.infer<typeof insertPdfFormFieldSchema>;
+export type PdfFormSubmission = typeof pdfFormSubmissions.$inferSelect;
+export type InsertPdfFormSubmission = z.infer<typeof insertPdfFormSubmissionSchema>;
+
+export type PdfFormWithFields = PdfForm & {
+  fields: PdfFormField[];
+};

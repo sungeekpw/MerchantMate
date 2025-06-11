@@ -1,4 +1,4 @@
-import { merchants, agents, transactions, users, loginAttempts, twoFactorCodes, userDashboardPreferences, agentMerchants, locations, addresses, type Merchant, type Agent, type Transaction, type User, type InsertMerchant, type InsertAgent, type InsertTransaction, type UpsertUser, type MerchantWithAgent, type TransactionWithMerchant, type LoginAttempt, type TwoFactorCode, type UserDashboardPreference, type InsertUserDashboardPreference, type AgentMerchant, type InsertAgentMerchant, type Location, type InsertLocation, type Address, type InsertAddress, type LocationWithAddresses, type MerchantWithLocations } from "@shared/schema";
+import { merchants, agents, transactions, users, loginAttempts, twoFactorCodes, userDashboardPreferences, agentMerchants, locations, addresses, pdfForms, pdfFormFields, pdfFormSubmissions, type Merchant, type Agent, type Transaction, type User, type InsertMerchant, type InsertAgent, type InsertTransaction, type UpsertUser, type MerchantWithAgent, type TransactionWithMerchant, type LoginAttempt, type TwoFactorCode, type UserDashboardPreference, type InsertUserDashboardPreference, type AgentMerchant, type InsertAgentMerchant, type Location, type InsertLocation, type Address, type InsertAddress, type LocationWithAddresses, type MerchantWithLocations, type PdfForm, type InsertPdfForm, type PdfFormField, type InsertPdfFormField, type PdfFormSubmission, type InsertPdfFormSubmission, type PdfFormWithFields } from "@shared/schema";
 import { db } from "./db";
 import { eq, or, and, gte, sql, desc, inArray } from "drizzle-orm";
 
@@ -73,6 +73,25 @@ export interface IStorage {
   }>;
   getTopMerchants(): Promise<(Merchant & { transactionCount: number; totalVolume: string })[]>;
   getRecentTransactions(limit?: number): Promise<TransactionWithMerchant[]>;
+
+  // PDF Form operations
+  getPdfForm(id: number): Promise<PdfForm | undefined>;
+  getPdfFormWithFields(id: number): Promise<PdfFormWithFields | undefined>;
+  getAllPdfForms(userId?: string): Promise<PdfForm[]>;
+  createPdfForm(form: InsertPdfForm): Promise<PdfForm>;
+  updatePdfForm(id: number, updates: Partial<InsertPdfForm>): Promise<PdfForm | undefined>;
+  deletePdfForm(id: number): Promise<boolean>;
+  
+  // PDF Form Field operations
+  createPdfFormField(field: InsertPdfFormField): Promise<PdfFormField>;
+  updatePdfFormField(id: number, updates: Partial<InsertPdfFormField>): Promise<PdfFormField | undefined>;
+  deletePdfFormField(id: number): Promise<boolean>;
+  getPdfFormFields(formId: number): Promise<PdfFormField[]>;
+  
+  // PDF Form Submission operations
+  createPdfFormSubmission(submission: InsertPdfFormSubmission): Promise<PdfFormSubmission>;
+  getPdfFormSubmissions(formId: number): Promise<PdfFormSubmission[]>;
+  getPdfFormSubmission(id: number): Promise<PdfFormSubmission | undefined>;
 
   // Agent-Merchant associations
   getAgentMerchants(agentId: number): Promise<Merchant[]>;
@@ -1225,6 +1244,93 @@ export class DatabaseStorage implements IStorage {
         { message: "Database optimization recommended", severity: "medium" }
       ]
     };
+  }
+
+  // PDF Form operations
+  async getPdfForm(id: number): Promise<PdfForm | undefined> {
+    const [form] = await db.select().from(pdfForms).where(eq(pdfForms.id, id));
+    return form || undefined;
+  }
+
+  async getPdfFormWithFields(id: number): Promise<PdfFormWithFields | undefined> {
+    const form = await this.getPdfForm(id);
+    if (!form) return undefined;
+
+    const fields = await this.getPdfFormFields(id);
+    return { ...form, fields };
+  }
+
+  async getAllPdfForms(userId?: string): Promise<PdfForm[]> {
+    if (userId) {
+      return await db.select().from(pdfForms).where(eq(pdfForms.uploadedBy, userId));
+    }
+    return await db.select().from(pdfForms);
+  }
+
+  async createPdfForm(insertForm: InsertPdfForm): Promise<PdfForm> {
+    const [form] = await db.insert(pdfForms).values(insertForm).returning();
+    return form;
+  }
+
+  async updatePdfForm(id: number, updates: Partial<InsertPdfForm>): Promise<PdfForm | undefined> {
+    const [form] = await db
+      .update(pdfForms)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(pdfForms.id, id))
+      .returning();
+    return form || undefined;
+  }
+
+  async deletePdfForm(id: number): Promise<boolean> {
+    const result = await db.delete(pdfForms).where(eq(pdfForms.id, id));
+    return result.rowCount !== null && result.rowCount > 0;
+  }
+
+  // PDF Form Field operations
+  async createPdfFormField(insertField: InsertPdfFormField): Promise<PdfFormField> {
+    const [field] = await db.insert(pdfFormFields).values(insertField).returning();
+    return field;
+  }
+
+  async updatePdfFormField(id: number, updates: Partial<InsertPdfFormField>): Promise<PdfFormField | undefined> {
+    const [field] = await db
+      .update(pdfFormFields)
+      .set(updates)
+      .where(eq(pdfFormFields.id, id))
+      .returning();
+    return field || undefined;
+  }
+
+  async deletePdfFormField(id: number): Promise<boolean> {
+    const result = await db.delete(pdfFormFields).where(eq(pdfFormFields.id, id));
+    return result.rowCount !== null && result.rowCount > 0;
+  }
+
+  async getPdfFormFields(formId: number): Promise<PdfFormField[]> {
+    return await db
+      .select()
+      .from(pdfFormFields)
+      .where(eq(pdfFormFields.formId, formId))
+      .orderBy(pdfFormFields.position);
+  }
+
+  // PDF Form Submission operations
+  async createPdfFormSubmission(insertSubmission: InsertPdfFormSubmission): Promise<PdfFormSubmission> {
+    const [submission] = await db.insert(pdfFormSubmissions).values(insertSubmission).returning();
+    return submission;
+  }
+
+  async getPdfFormSubmissions(formId: number): Promise<PdfFormSubmission[]> {
+    return await db
+      .select()
+      .from(pdfFormSubmissions)
+      .where(eq(pdfFormSubmissions.formId, formId))
+      .orderBy(desc(pdfFormSubmissions.createdAt));
+  }
+
+  async getPdfFormSubmission(id: number): Promise<PdfFormSubmission | undefined> {
+    const [submission] = await db.select().from(pdfFormSubmissions).where(eq(pdfFormSubmissions.id, id));
+    return submission || undefined;
   }
 }
 
