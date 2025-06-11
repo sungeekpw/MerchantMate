@@ -255,7 +255,7 @@ export default function PdfFormsPage() {
                         <div className="mt-4 space-y-2">
                           <Button 
                             className="w-full" 
-                            onClick={() => window.location.href = `/pdf-forms/${form.id}/wizard`}
+                            onClick={() => window.location.href = `/pdf-form-wizard/${form.id}`}
                           >
                             Open Form Wizard
                           </Button>
