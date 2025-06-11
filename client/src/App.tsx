@@ -202,7 +202,7 @@ function AuthenticatedApp() {
           </Route>
           <Route path="/transactions">
             {() => {
-              if (!canAccessTransactions(user)) return <NotFound />;
+              if (!canAccessTransactionManagement(user)) return <NotFound />;
               const pageInfo = getPageInfo("/transactions");
               return (
                 <>
@@ -220,7 +220,7 @@ function AuthenticatedApp() {
           </Route>
           <Route path="/users">
             {() => {
-              if (!canAccessAnalytics(user)) return <NotFound />;
+              if (!canAccessUserManagement(user)) return <NotFound />;
               const pageInfo = getPageInfo("/users");
               return (
                 <>
@@ -238,7 +238,7 @@ function AuthenticatedApp() {
           </Route>
           <Route path="/reports">
             {() => {
-              if (!canAccessAnalytics(user)) return <NotFound />;
+              if (!canAccessReports(user)) return <NotFound />;
               const pageInfo = getPageInfo("/reports");
               return (
                 <>

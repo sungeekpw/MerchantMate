@@ -858,6 +858,153 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Dashboard widget endpoints
+  app.get('/api/dashboard/widgets', devAuth, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const widgets = await storage.getUserWidgetPreferences(userId);
+      res.json(widgets);
+    } catch (error) {
+      console.error("Error fetching dashboard widgets:", error);
+      res.status(500).json({ message: "Failed to fetch dashboard widgets" });
+    }
+  });
+
+  app.post('/api/dashboard/widgets', devAuth, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const widgetData = { ...req.body, userId };
+      const widget = await storage.createWidgetPreference(widgetData);
+      res.json(widget);
+    } catch (error) {
+      console.error("Error creating dashboard widget:", error);
+      res.status(500).json({ message: "Failed to create dashboard widget" });
+    }
+  });
+
+  app.put('/api/dashboard/widgets/:id', devAuth, async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const widget = await storage.updateWidgetPreference(id, req.body);
+      if (!widget) {
+        return res.status(404).json({ message: "Widget not found" });
+      }
+      res.json(widget);
+    } catch (error) {
+      console.error("Error updating dashboard widget:", error);
+      res.status(500).json({ message: "Failed to update dashboard widget" });
+    }
+  });
+
+  app.delete('/api/dashboard/widgets/:id', devAuth, async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const success = await storage.deleteWidgetPreference(id);
+      if (!success) {
+        return res.status(404).json({ message: "Widget not found" });
+      }
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting dashboard widget:", error);
+      res.status(500).json({ message: "Failed to delete dashboard widget" });
+    }
+  });
+
+  app.post('/api/dashboard/initialize', devAuth, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Create default widgets based on user role
+      const defaultWidgets = getDefaultWidgetsForRole(user.role);
+      
+      for (const widget of defaultWidgets) {
+        await storage.createWidgetPreference({
+          userId,
+          widgetId: widget.id,
+          size: widget.size,
+          position: widget.position,
+          isVisible: true,
+          configuration: widget.configuration || {}
+        });
+      }
+
+      res.json({ success: true, message: "Dashboard initialized with default widgets" });
+    } catch (error) {
+      console.error("Error initializing dashboard:", error);
+      res.status(500).json({ message: "Failed to initialize dashboard" });
+    }
+  });
+
+  // Dashboard analytics endpoints
+  app.get('/api/dashboard/metrics', devAuth, async (req: any, res) => {
+    try {
+      const metrics = await storage.getDashboardMetrics();
+      res.json(metrics);
+    } catch (error) {
+      console.error("Error fetching dashboard metrics:", error);
+      res.status(500).json({ message: "Failed to fetch dashboard metrics" });
+    }
+  });
+
+  app.get('/api/dashboard/revenue', devAuth, async (req: any, res) => {
+    try {
+      const timeRange = req.query.timeRange as string || 'daily';
+      const revenue = await storage.getDashboardRevenue(timeRange);
+      res.json(revenue);
+    } catch (error) {
+      console.error("Error fetching dashboard revenue:", error);
+      res.status(500).json({ message: "Failed to fetch dashboard revenue" });
+    }
+  });
+
+  app.get('/api/dashboard/top-locations', devAuth, async (req: any, res) => {
+    try {
+      const limit = parseInt(req.query.limit as string) || 5;
+      const sortBy = req.query.sortBy as string || 'revenue';
+      const locations = await storage.getTopLocations(limit, sortBy);
+      res.json(locations);
+    } catch (error) {
+      console.error("Error fetching top locations:", error);
+      res.status(500).json({ message: "Failed to fetch top locations" });
+    }
+  });
+
+  app.get('/api/dashboard/recent-activity', devAuth, async (req: any, res) => {
+    try {
+      const activity = await storage.getRecentActivity();
+      res.json(activity);
+    } catch (error) {
+      console.error("Error fetching recent activity:", error);
+      res.status(500).json({ message: "Failed to fetch recent activity" });
+    }
+  });
+
+  app.get('/api/dashboard/assigned-merchants', devAuth, async (req: any, res) => {
+    try {
+      const limit = parseInt(req.query.limit as string) || 5;
+      const merchants = await storage.getAssignedMerchants(limit);
+      res.json(merchants);
+    } catch (error) {
+      console.error("Error fetching assigned merchants:", error);
+      res.status(500).json({ message: "Failed to fetch assigned merchants" });
+    }
+  });
+
+  app.get('/api/dashboard/system-overview', devAuth, async (req: any, res) => {
+    try {
+      const overview = await storage.getSystemOverview();
+      res.json(overview);
+    } catch (error) {
+      console.error("Error fetching system overview:", error);
+      res.status(500).json({ message: "Failed to fetch system overview" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
