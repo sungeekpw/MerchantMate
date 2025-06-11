@@ -68,6 +68,34 @@ export default function Merchants() {
     enabled: merchants.length > 0
   });
 
+  // Fetch location revenue data for expanded merchants
+  const expandedMerchantIds = Array.from(expandedMerchants);
+  const { data: locationRevenueData = {} } = useQuery({
+    queryKey: ["/api/locations/revenue", expandedMerchantIds],
+    queryFn: async () => {
+      const results: Record<number, any> = {};
+      await Promise.all(
+        expandedMerchantIds.map(async (merchantId) => {
+          const locations = allLocationsData[merchantId] || [];
+          await Promise.all(
+            locations.map(async (location: any) => {
+              try {
+                const response = await fetch(`/api/locations/${location.id}/revenue`);
+                if (response.ok) {
+                  results[location.id] = await response.json();
+                }
+              } catch (error) {
+                console.error(`Failed to fetch revenue for location ${location.id}:`, error);
+              }
+            })
+          );
+        })
+      );
+      return results;
+    },
+    enabled: expandedMerchantIds.length > 0 && Object.keys(allLocationsData).length > 0
+  });
+
   const deleteMutation = useMutation({
     mutationFn: (id: number) => merchantsApi.delete(id),
     onSuccess: () => {
