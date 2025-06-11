@@ -68,6 +68,31 @@ export default function Merchants() {
     enabled: merchants.length > 0
   });
 
+  // Fetch MTD revenue for all merchants (for agent view)
+  const { data: merchantMTDData = {} } = useQuery({
+    queryKey: ["/api/merchants/mtd-revenue"],
+    queryFn: async () => {
+      const results: Record<number, { mtdRevenue: string }> = {};
+      await Promise.all(
+        merchants.map(async (merchant) => {
+          try {
+            const response = await fetch(`/api/merchants/${merchant.id}/mtd-revenue`);
+            if (response.ok) {
+              results[merchant.id] = await response.json();
+            } else {
+              results[merchant.id] = { mtdRevenue: "0.00" };
+            }
+          } catch (error) {
+            console.error(`Failed to fetch MTD revenue for merchant ${merchant.id}:`, error);
+            results[merchant.id] = { mtdRevenue: "0.00" };
+          }
+        })
+      );
+      return results;
+    },
+    enabled: merchants.length > 0 && user?.role === 'agent'
+  });
+
   // Fetch location revenue data for expanded merchants
   const expandedMerchantIds = Array.from(expandedMerchants);
   const { data: locationRevenueData = {}, isLoading: revenueLoading } = useQuery({
@@ -222,7 +247,7 @@ export default function Merchants() {
                   <TableHead>Business Type</TableHead>
                   <TableHead>Monthly Volume</TableHead>
                   <TableHead>Agent</TableHead>
-                  <TableHead>Status</TableHead>
+                  <TableHead>{user?.role === 'agent' ? 'MTD Revenue' : 'Status'}</TableHead>
                   <TableHead className="w-32">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -300,9 +325,15 @@ export default function Merchants() {
                           {merchant.agent ? `${merchant.agent.firstName} ${merchant.agent.lastName}` : "Unassigned"}
                         </TableCell>
                         <TableCell>
-                          <Badge className={`corecrm-status-badge ${getStatusBadge(merchant.status)}`}>
-                            {merchant.status.charAt(0).toUpperCase() + merchant.status.slice(1)}
-                          </Badge>
+                          {user?.role === 'agent' ? (
+                            <div className="font-semibold text-green-600">
+                              ${merchantMTDData[merchant.id]?.mtdRevenue || '0.00'}
+                            </div>
+                          ) : (
+                            <Badge className={`corecrm-status-badge ${getStatusBadge(merchant.status)}`}>
+                              {merchant.status.charAt(0).toUpperCase() + merchant.status.slice(1)}
+                            </Badge>
+                          )}
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center space-x-2">

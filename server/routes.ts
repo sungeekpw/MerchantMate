@@ -84,6 +84,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Merchant MTD revenue endpoint (placed early to avoid auth middleware)
+  app.get("/api/merchants/:merchantId/mtd-revenue", async (req: any, res) => {
+    try {
+      const { merchantId } = req.params;
+      console.log('MTD Revenue endpoint - fetching MTD revenue for merchant:', merchantId);
+      
+      // Get all locations for this merchant
+      const locations = await storage.getLocationsByMerchant(parseInt(merchantId));
+      
+      // Calculate total MTD revenue across all locations
+      let totalMTD = 0;
+      for (const location of locations) {
+        const revenue = await storage.getLocationRevenue(location.id);
+        totalMTD += parseFloat(revenue.monthToDate || '0');
+      }
+      
+      res.json({ mtdRevenue: totalMTD.toFixed(2) });
+    } catch (error) {
+      console.error("Error fetching merchant MTD revenue:", error);
+      res.status(500).json({ message: "Failed to fetch merchant MTD revenue" });
+    }
+  });
+
   // Dashboard API endpoints (placed early to avoid auth middleware for development)
   app.get("/api/dashboard/metrics", async (req: any, res) => {
     try {
