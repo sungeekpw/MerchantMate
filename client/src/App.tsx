@@ -331,15 +331,7 @@ function AuthenticatedApp() {
               );
             }}
           </Route>
-          <Route path="/enhanced-pdf-wizard/:id">
-            {(params) => {
-              return (
-                <main className="flex-1 overflow-hidden">
-                  <EnhancedPdfWizard />
-                </main>
-              );
-            }}
-          </Route>
+
           <Route path="/form-wizard/:id">
             {(params) => {
               return (
@@ -428,6 +420,13 @@ function AppContent() {
             {() => (
               <main className="flex-1 overflow-hidden">
                 <MerchantApplication />
+              </main>
+            )}
+          </Route>
+          <Route path="/enhanced-pdf-wizard/:id">
+            {() => (
+              <main className="flex-1 overflow-hidden">
+                <EnhancedPdfWizard />
               </main>
             )}
           </Route>

@@ -193,6 +193,68 @@ export default function MerchantApplicationPage() {
     }
   };
 
+  // For prospect mode, show simplified interface
+  if (isProspectMode) {
+    if (!prospectData) {
+      return (
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+          <div className="max-w-md w-full">
+            <Card className="border-0 shadow-lg">
+              <CardHeader className="text-center pb-6">
+                <div className="mx-auto w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mb-4">
+                  <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                </div>
+                <CardTitle className="text-xl font-semibold text-gray-900">
+                  Loading Application
+                </CardTitle>
+                <p className="text-sm text-gray-600 mt-2">
+                  Please wait while we prepare your merchant application...
+                </p>
+              </CardHeader>
+            </Card>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <div className="max-w-4xl mx-auto py-8 px-4">
+          <div className="mb-8">
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">Merchant Processing Application</h1>
+            <p className="text-gray-600">
+              Welcome {prospectData.prospect.firstName} {prospectData.prospect.lastName}! 
+              Complete your merchant application below.
+            </p>
+          </div>
+          
+          <Card className="shadow-lg">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <FileText className="w-5 h-5" />
+                Merchant Processing Application
+              </CardTitle>
+              <CardDescription>
+                Please fill out all required fields to complete your merchant application.
+              </CardDescription>
+            </CardHeader>
+            
+            <CardContent className="p-6">
+              <Button 
+                onClick={() => setLocation(`/enhanced-pdf-wizard/1?token=${prospectToken}`)}
+                className="w-full"
+                size="lg"
+              >
+                <Play className="w-4 h-4 mr-2" />
+                Start Application
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
+  }
+
   if (formLoading) {
     return (
       <div className="p-6 space-y-6">

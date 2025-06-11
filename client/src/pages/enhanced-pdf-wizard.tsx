@@ -53,6 +53,7 @@ export default function EnhancedPdfWizard() {
   // Check for prospect validation token in URL parameters
   const urlParams = new URLSearchParams(window.location.search);
   const prospectToken = urlParams.get('token');
+  const isProspectMode = !!prospectToken;
 
   // Fetch prospect data if token is present
   const { data: prospectData } = useQuery({
@@ -84,7 +85,7 @@ export default function EnhancedPdfWizard() {
     },
   });
 
-  // Fetch PDF form with fields
+  // Fetch PDF form with fields (disable for prospect mode)
   const { data: pdfForm, isLoading, error } = useQuery<PdfForm>({
     queryKey: ['/api/pdf-forms', id, 'with-fields'],
     queryFn: async () => {
@@ -96,11 +97,59 @@ export default function EnhancedPdfWizard() {
       }
       return response.json();
     },
-    enabled: !!id
+    enabled: !!id && !isProspectMode
   });
 
+  // Create hardcoded form sections for prospect mode
+  const prospectFormSections: FormSection[] = [
+    {
+      name: 'Merchant Information',
+      description: 'Basic business details, contact information, and location data',
+      icon: Building,
+      fields: [
+        { id: 1, fieldName: 'companyName', fieldType: 'text', fieldLabel: 'Company Name', isRequired: true, options: null, defaultValue: null, validation: null, position: 1, section: 'Merchant Information' },
+        { id: 2, fieldName: 'companyEmail', fieldType: 'email', fieldLabel: 'Company Email', isRequired: true, options: null, defaultValue: null, validation: null, position: 2, section: 'Merchant Information' },
+        { id: 3, fieldName: 'companyPhone', fieldType: 'phone', fieldLabel: 'Company Phone', isRequired: true, options: null, defaultValue: null, validation: null, position: 3, section: 'Merchant Information' },
+        { id: 4, fieldName: 'address', fieldType: 'text', fieldLabel: 'Business Address', isRequired: true, options: null, defaultValue: null, validation: null, position: 4, section: 'Merchant Information' },
+        { id: 5, fieldName: 'city', fieldType: 'text', fieldLabel: 'City', isRequired: true, options: null, defaultValue: null, validation: null, position: 5, section: 'Merchant Information' },
+        { id: 6, fieldName: 'state', fieldType: 'text', fieldLabel: 'State', isRequired: true, options: null, defaultValue: null, validation: null, position: 6, section: 'Merchant Information' },
+        { id: 7, fieldName: 'zipCode', fieldType: 'text', fieldLabel: 'ZIP Code', isRequired: true, options: null, defaultValue: null, validation: null, position: 7, section: 'Merchant Information' },
+      ]
+    },
+    {
+      name: 'Business Type & Tax Information',
+      description: 'Business structure, tax identification, and regulatory compliance',
+      icon: FileText,
+      fields: [
+        { id: 8, fieldName: 'federalTaxId', fieldType: 'text', fieldLabel: 'Federal Tax ID (EIN)', isRequired: true, options: null, defaultValue: null, validation: null, position: 8, section: 'Business Type & Tax Information' },
+        { id: 9, fieldName: 'businessType', fieldType: 'select', fieldLabel: 'Business Type', isRequired: true, options: ['Corporation', 'LLC', 'Partnership', 'Sole Proprietorship'], defaultValue: null, validation: null, position: 9, section: 'Business Type & Tax Information' },
+        { id: 10, fieldName: 'yearsInBusiness', fieldType: 'number', fieldLabel: 'Years in Business', isRequired: true, options: null, defaultValue: null, validation: null, position: 10, section: 'Business Type & Tax Information' },
+      ]
+    },
+    {
+      name: 'Products, Services & Processing',
+      description: 'Business operations, products sold, and payment processing preferences',
+      icon: CheckCircle,
+      fields: [
+        { id: 11, fieldName: 'businessDescription', fieldType: 'textarea', fieldLabel: 'Business Description', isRequired: true, options: null, defaultValue: null, validation: null, position: 11, section: 'Products, Services & Processing' },
+        { id: 12, fieldName: 'productsServices', fieldType: 'textarea', fieldLabel: 'Products/Services Sold', isRequired: true, options: null, defaultValue: null, validation: null, position: 12, section: 'Products, Services & Processing' },
+        { id: 13, fieldName: 'processingMethod', fieldType: 'select', fieldLabel: 'Primary Processing Method', isRequired: true, options: ['In-Person (Card Present)', 'Online (Card Not Present)', 'Both'], defaultValue: null, validation: null, position: 13, section: 'Products, Services & Processing' },
+      ]
+    },
+    {
+      name: 'Transaction Information',
+      description: 'Financial data, volume estimates, and transaction processing details',
+      icon: ArrowRight,
+      fields: [
+        { id: 14, fieldName: 'monthlyVolume', fieldType: 'number', fieldLabel: 'Expected Monthly Processing Volume ($)', isRequired: true, options: null, defaultValue: null, validation: null, position: 14, section: 'Transaction Information' },
+        { id: 15, fieldName: 'averageTicket', fieldType: 'number', fieldLabel: 'Average Transaction Amount ($)', isRequired: true, options: null, defaultValue: null, validation: null, position: 15, section: 'Transaction Information' },
+        { id: 16, fieldName: 'highestTicket', fieldType: 'number', fieldLabel: 'Highest Single Transaction ($)', isRequired: true, options: null, defaultValue: null, validation: null, position: 16, section: 'Transaction Information' },
+      ]
+    }
+  ];
+
   // Create enhanced sections with descriptions and icons
-  const sections: FormSection[] = pdfForm?.fields ? [
+  const sections: FormSection[] = isProspectMode ? prospectFormSections : (pdfForm?.fields ? [
     {
       name: 'Merchant Information',
       description: 'Basic business details, contact information, and location data',
@@ -125,7 +174,7 @@ export default function EnhancedPdfWizard() {
       icon: ArrowRight,
       fields: pdfForm.fields.filter(f => f.section === 'Transaction Information').sort((a, b) => a.position - b.position)
     }
-  ].filter(section => section.fields.length > 0) : [];
+  ].filter(section => section.fields.length > 0) : []);
 
   // Auto-save mutation
   const autoSaveMutation = useMutation({
