@@ -1337,9 +1337,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const submissionData = {
         formId,
-        submittedBy: req.user.id,
+        submittedBy: req.user?.id || null,
         data: typeof data === 'string' ? data : JSON.stringify(data),
-        status
+        status,
+        submissionToken: storage.generateSubmissionToken(),
+        isPublic: false
       };
       
       const submission = await storage.createPdfFormSubmission(submissionData);
@@ -1358,8 +1360,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const submissionData = {
         formId,
-        submittedBy: req.user.id,
-        data: JSON.stringify(formData)
+        submittedBy: req.user?.id || null,
+        data: JSON.stringify(formData),
+        submissionToken: storage.generateSubmissionToken(),
+        status: 'submitted',
+        isPublic: false
       };
       
       const submission = await storage.createPdfFormSubmission(submissionData);
@@ -1379,6 +1384,85 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching form submissions:", error);
       res.status(500).json({ message: "Failed to fetch form submissions" });
+    }
+  });
+
+  // Create a new public form submission and return the unique token
+  app.post("/api/pdf-forms/:id/create-submission", async (req: any, res) => {
+    try {
+      const formId = parseInt(req.params.id);
+      const { applicantEmail } = req.body;
+      
+      // Create a new submission with unique token for public access
+      const submissionData = {
+        formId,
+        submittedBy: null, // Public submission, no authenticated user
+        applicantEmail,
+        data: JSON.stringify({}), // Empty initial data
+        status: 'draft',
+        isPublic: true,
+        submissionToken: storage.generateSubmissionToken()
+      };
+      
+      const submission = await storage.createPdfFormSubmission(submissionData);
+      res.status(201).json({ 
+        submissionToken: submission.submissionToken,
+        submissionId: submission.id 
+      });
+    } catch (error) {
+      console.error("Error creating public form submission:", error);
+      res.status(500).json({ message: "Failed to create form submission" });
+    }
+  });
+
+  // Get public form submission by token (no authentication required)
+  app.get("/api/submissions/:token", async (req: any, res) => {
+    try {
+      const { token } = req.params;
+      const submission = await storage.getPdfFormSubmissionByToken(token);
+      
+      if (!submission) {
+        return res.status(404).json({ message: "Form submission not found" });
+      }
+      
+      // Also get the form details
+      const form = await storage.getPdfForm(submission.formId);
+      if (!form) {
+        return res.status(404).json({ message: "Form not found" });
+      }
+      
+      res.json({
+        submission,
+        form
+      });
+    } catch (error) {
+      console.error("Error fetching public form submission:", error);
+      res.status(500).json({ message: "Failed to fetch form submission" });
+    }
+  });
+
+  // Update public form submission by token (no authentication required)
+  app.put("/api/submissions/:token", async (req: any, res) => {
+    try {
+      const { token } = req.params;
+      const { data, status = 'draft' } = req.body;
+      
+      const updateData = {
+        data: typeof data === 'string' ? data : JSON.stringify(data),
+        status,
+        updatedAt: new Date()
+      };
+      
+      const submission = await storage.updatePdfFormSubmissionByToken(token, updateData);
+      
+      if (!submission) {
+        return res.status(404).json({ message: "Form submission not found" });
+      }
+      
+      res.json(submission);
+    } catch (error) {
+      console.error("Error updating public form submission:", error);
+      res.status(500).json({ message: "Failed to update form submission" });
     }
   });
 

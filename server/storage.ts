@@ -1314,10 +1314,34 @@ export class DatabaseStorage implements IStorage {
       .orderBy(pdfFormFields.position);
   }
 
+  // Helper to generate unique submission token
+  generateSubmissionToken(): string {
+    return 'sub_' + Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+  }
+
   // PDF Form Submission operations
   async createPdfFormSubmission(insertSubmission: InsertPdfFormSubmission): Promise<PdfFormSubmission> {
+    // Generate unique token if not provided
+    if (!insertSubmission.submissionToken) {
+      insertSubmission.submissionToken = this.generateSubmissionToken();
+    }
+    
     const [submission] = await db.insert(pdfFormSubmissions).values(insertSubmission).returning();
     return submission;
+  }
+
+  async getPdfFormSubmissionByToken(token: string): Promise<PdfFormSubmission | undefined> {
+    const [submission] = await db.select().from(pdfFormSubmissions).where(eq(pdfFormSubmissions.submissionToken, token));
+    return submission || undefined;
+  }
+
+  async updatePdfFormSubmissionByToken(token: string, updateData: any): Promise<PdfFormSubmission | undefined> {
+    const [submission] = await db
+      .update(pdfFormSubmissions)
+      .set(updateData)
+      .where(eq(pdfFormSubmissions.submissionToken, token))
+      .returning();
+    return submission || undefined;
   }
 
   async getPdfFormSubmissions(formId: number): Promise<PdfFormSubmission[]> {
