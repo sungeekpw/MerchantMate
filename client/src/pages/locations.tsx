@@ -27,9 +27,15 @@ export default function LocationsPage() {
   // Get merchant ID for the current user
   const merchantId = user?.role === 'merchant' ? 1 : 1; // TODO: Get actual merchant ID from user
 
-  const { data: locations = [], isLoading } = useQuery({
+  const { data: locations = [], isLoading } = useQuery<LocationWithAddresses[]>({
     queryKey: ['/api/merchants', merchantId, 'locations'],
-    queryFn: () => fetch(`/api/merchants/${merchantId}/locations`).then(res => res.json()),
+    queryFn: async () => {
+      const res = await fetch(`/api/merchants/${merchantId}/locations`);
+      if (!res.ok) {
+        throw new Error('Failed to fetch locations');
+      }
+      return res.json();
+    },
   });
 
   const locationForm = useForm<InsertLocation>({
@@ -201,7 +207,7 @@ export default function LocationsPage() {
                       <FormItem>
                         <FormLabel>Email</FormLabel>
                         <FormControl>
-                          <Input placeholder="store@example.com" {...field} />
+                          <Input placeholder="store@example.com" {...field} value={field.value || ""} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -348,7 +354,7 @@ export default function LocationsPage() {
                   <FormItem>
                     <FormLabel>Street Address 2 (Optional)</FormLabel>
                     <FormControl>
-                      <Input placeholder="Suite 100" {...field} />
+                      <Input placeholder="Suite 100" {...field} value={field.value || ""} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
