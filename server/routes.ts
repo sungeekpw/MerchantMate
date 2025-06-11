@@ -1209,8 +1209,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // PDF Form Upload and Processing Routes
-  app.post("/api/pdf-forms/upload", isAuthenticated, upload.single('pdf'), async (req: any, res) => {
+  // PDF Form Upload and Processing Routes (admin only)
+  app.post("/api/pdf-forms/upload", devAuth, requireRole(['admin', 'super_admin']), upload.single('pdf'), async (req: any, res) => {
     try {
       if (!req.file) {
         return res.status(400).json({ message: "No PDF file uploaded" });
@@ -1254,8 +1254,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get all PDF forms
-  app.get("/api/pdf-forms", devAuth, async (req: any, res) => {
+  // Get all PDF forms (admin only)
+  app.get("/api/pdf-forms", devAuth, requireRole(['admin', 'super_admin']), async (req: any, res) => {
     try {
       const forms = await storage.getAllPdfForms();
       res.json(forms);
@@ -1265,8 +1265,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get specific PDF form with fields
-  app.get("/api/pdf-forms/:id", devAuth, async (req: any, res) => {
+  // Get specific PDF form with fields (admin only)
+  app.get("/api/pdf-forms/:id", devAuth, requireRole(['admin', 'super_admin']), async (req: any, res) => {
     try {
       const formId = parseInt(req.params.id);
       const form = await storage.getPdfFormWithFields(formId);
