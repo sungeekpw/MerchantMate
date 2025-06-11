@@ -226,7 +226,7 @@ export default function Merchants() {
                   filteredMerchants.flatMap((merchant) => {
                     const locationCount = getMerchantLocationCount(merchant.id);
                     const isExpanded = expandedMerchants.has(merchant.id);
-                    const showExpandButton = user?.role === 'agent' && locationCount > 1;
+                    const showExpandButton = locationCount > 1;
                     
                     const rows = [
                       <TableRow key={merchant.id}>
