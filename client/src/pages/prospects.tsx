@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -108,6 +108,14 @@ export default function Prospects() {
   };
 
   const handleEdit = (prospect: MerchantProspectWithAgent) => {
+    if (prospect.status !== 'pending') {
+      toast({
+        title: "Cannot Edit",
+        description: "Only prospects with 'pending' status can be edited.",
+        variant: "destructive",
+      });
+      return;
+    }
     setEditingProspect(prospect);
     setIsModalOpen(true);
   };
@@ -288,6 +296,8 @@ export default function Prospects() {
                             variant="ghost"
                             size="sm"
                             onClick={() => handleEdit(prospect)}
+                            disabled={prospect.status !== 'pending'}
+                            title={prospect.status !== 'pending' ? 'Can only edit prospects with pending status' : 'Edit prospect'}
                           >
                             <Edit className="w-4 h-4" />
                           </Button>
@@ -349,14 +359,37 @@ function ProspectModal({ isOpen, onClose, prospect }: ProspectModalProps) {
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      firstName: prospect?.firstName || "",
-      lastName: prospect?.lastName || "",
-      email: prospect?.email || "",
-      agentId: prospect?.agentId || 1,
-      status: prospect?.status || "pending",
-      notes: prospect?.notes || "",
+      firstName: "",
+      lastName: "",
+      email: "",
+      agentId: 1,
+      status: "pending",
+      notes: "",
     },
   });
+
+  // Reset form when prospect data changes
+  useEffect(() => {
+    if (prospect) {
+      form.reset({
+        firstName: prospect.firstName,
+        lastName: prospect.lastName,
+        email: prospect.email,
+        agentId: prospect.agentId,
+        status: prospect.status,
+        notes: prospect.notes || "",
+      });
+    } else {
+      form.reset({
+        firstName: "",
+        lastName: "",
+        email: "",
+        agentId: 1,
+        status: "pending",
+        notes: "",
+      });
+    }
+  }, [prospect, form]);
 
   // Fetch agents for the dropdown
   const { data: agents = [] } = useQuery({
