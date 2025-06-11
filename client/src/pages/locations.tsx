@@ -151,7 +151,7 @@ export default function LocationsPage() {
                     <FormItem>
                       <FormLabel>MID (Merchant ID)</FormLabel>
                       <FormControl>
-                        <Input placeholder="MID-STORE-001" {...field} />
+                        <Input placeholder="MID-STORE-001" {...field} value={field.value || ""} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -188,7 +188,7 @@ export default function LocationsPage() {
                       <FormItem>
                         <FormLabel>Phone</FormLabel>
                         <FormControl>
-                          <Input placeholder="555-0123" {...field} />
+                          <Input placeholder="555-0123" {...field} value={field.value || ""} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>

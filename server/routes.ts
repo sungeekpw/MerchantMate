@@ -264,7 +264,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Check if user has access to this merchant
-      if (user?.role === 'merchant' && user.merchantId !== location.merchantId) {
+      if (user?.role === 'merchant' && location.merchantId !== 1) {
         return res.status(403).json({ message: "Access denied" });
       }
       
@@ -295,7 +295,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Check if user has access to this merchant
-      if (user?.role === 'merchant' && user.merchantId !== location.merchantId) {
+      if (user?.role === 'merchant' && location.merchantId !== 1) {
         return res.status(403).json({ message: "Access denied" });
       }
       
@@ -325,7 +325,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Check if user has access to this merchant
-      if (user?.role === 'merchant' && user.merchantId !== location.merchantId) {
+      if (user?.role === 'merchant' && location.merchantId !== 1) {
         return res.status(403).json({ message: "Access denied" });
       }
       
@@ -350,7 +350,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Check if user has access to this merchant
-      if (user?.role === 'merchant' && user.merchantId !== location.merchantId) {
+      if (user?.role === 'merchant' && location.merchantId !== 1) {
         return res.status(403).json({ message: "Access denied" });
       }
       
@@ -385,7 +385,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Check if user has access to this merchant
-      if (user?.role === 'merchant' && user.merchantId !== location.merchantId) {
+      if (user?.role === 'merchant' && location.merchantId !== 1) {
         return res.status(403).json({ message: "Access denied" });
       }
       
@@ -421,7 +421,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Check if user has access to this merchant
-      if (user?.role === 'merchant' && user.merchantId !== location.merchantId) {
+      if (user?.role === 'merchant' && location.merchantId !== 1) {
         return res.status(403).json({ message: "Access denied" });
       }
       
@@ -477,7 +477,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Check if user has access to this merchant
-      if (user?.role === 'merchant' && user.merchantId !== location.merchantId) {
+      if (user?.role === 'merchant' && location.merchantId !== 1) {
         return res.status(403).json({ message: "Access denied" });
       }
       
