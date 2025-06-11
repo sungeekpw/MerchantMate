@@ -1,6 +1,6 @@
 import { merchants, agents, transactions, users, loginAttempts, twoFactorCodes, userDashboardPreferences, agentMerchants, locations, addresses, type Merchant, type Agent, type Transaction, type User, type InsertMerchant, type InsertAgent, type InsertTransaction, type UpsertUser, type MerchantWithAgent, type TransactionWithMerchant, type LoginAttempt, type TwoFactorCode, type UserDashboardPreference, type InsertUserDashboardPreference, type AgentMerchant, type InsertAgentMerchant, type Location, type InsertLocation, type Address, type InsertAddress, type LocationWithAddresses, type MerchantWithLocations } from "@shared/schema";
 import { db } from "./db";
-import { eq, or, and, gte } from "drizzle-orm";
+import { eq, or, and, gte, sql } from "drizzle-orm";
 
 export interface IStorage {
   // Merchant operations
@@ -101,6 +101,14 @@ export interface IStorage {
   createWidgetPreference(preference: InsertUserDashboardPreference): Promise<UserDashboardPreference>;
   updateWidgetPreference(id: number, updates: Partial<InsertUserDashboardPreference>): Promise<UserDashboardPreference | undefined>;
   deleteWidgetPreference(id: number): Promise<boolean>;
+
+  // Location revenue metrics
+  getLocationRevenue(locationId: number): Promise<{
+    totalRevenue: string;
+    last24Hours: string;
+    monthToDate: string;
+    yearToDate: string;
+  }>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -830,6 +838,71 @@ export class DatabaseStorage implements IStorage {
     }
 
     return [];
+  }
+
+  async getLocationRevenue(locationId: number): Promise<{
+    totalRevenue: string;
+    last24Hours: string;
+    monthToDate: string;
+    yearToDate: string;
+  }> {
+    // Get location to find its MID
+    const location = await this.getLocation(locationId);
+    if (!location || !location.mid) {
+      return {
+        totalRevenue: "0.00",
+        last24Hours: "0.00",
+        monthToDate: "0.00",
+        yearToDate: "0.00"
+      };
+    }
+
+    const now = new Date();
+    const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const yearStart = new Date(now.getFullYear(), 0, 1);
+
+    // Get all completed transactions for this location's MID
+    const allTransactions = await db
+      .select({
+        amount: transactions.amount,
+        createdAt: transactions.createdAt
+      })
+      .from(transactions)
+      .where(and(
+        eq(transactions.mid, location.mid),
+        eq(transactions.status, 'completed')
+      ));
+
+    // Calculate revenue metrics
+    let totalRevenue = 0;
+    let last24Hours = 0;
+    let monthToDate = 0;
+    let yearToDate = 0;
+
+    allTransactions.forEach(tx => {
+      const amount = parseFloat(tx.amount);
+      totalRevenue += amount;
+
+      if (tx.createdAt && tx.createdAt >= yesterday) {
+        last24Hours += amount;
+      }
+
+      if (tx.createdAt && tx.createdAt >= monthStart) {
+        monthToDate += amount;
+      }
+
+      if (tx.createdAt && tx.createdAt >= yearStart) {
+        yearToDate += amount;
+      }
+    });
+
+    return {
+      totalRevenue: totalRevenue.toFixed(2),
+      last24Hours: last24Hours.toFixed(2),
+      monthToDate: monthToDate.toFixed(2),
+      yearToDate: yearToDate.toFixed(2)
+    };
   }
 }
 
