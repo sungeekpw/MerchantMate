@@ -935,7 +935,7 @@ export class DatabaseStorage implements IStorage {
       }));
     }
 
-    // If user is merchant, return only their transactions
+    // If user is merchant, return only transactions for their location MIDs
     if (user.role === 'merchant') {
       console.log(`Merchant user filtering - User email: ${user.email}, User role: ${user.role}`);
       const merchant = await this.getMerchantByEmail(user.email);
@@ -945,10 +945,54 @@ export class DatabaseStorage implements IStorage {
         return [];
       }
       
-      console.log(`Getting transactions for merchant ID: ${merchant.id}`);
-      const transactions = await this.getTransactionsByMerchant(merchant.id);
-      console.log(`Merchant ${merchant.id} has ${transactions.length} transactions`);
-      return transactions;
+      // Get all locations for this merchant to find their MIDs
+      const locations = await this.getLocationsByMerchant(merchant.id);
+      const mids = locations.map(loc => loc.mid).filter(mid => mid !== null);
+      console.log(`Merchant ${merchant.id} has MIDs:`, mids);
+      
+      if (mids.length === 0) {
+        console.log(`No MIDs found for merchant ${merchant.id}`);
+        return [];
+      }
+      
+      // Get transactions for these specific MIDs
+      const result = await db
+        .select({
+          id: transactions.id,
+          transactionId: transactions.transactionId,
+          merchantId: transactions.merchantId,
+          mid: transactions.mid,
+          amount: transactions.amount,
+          paymentMethod: transactions.paymentMethod,
+          status: transactions.status,
+          processingFee: transactions.processingFee,
+          netAmount: transactions.netAmount,
+          createdAt: transactions.createdAt,
+          merchant: {
+            id: merchants.id,
+            businessName: merchants.businessName,
+            businessType: merchants.businessType,
+            email: merchants.email,
+            phone: merchants.phone,
+            agentId: merchants.agentId,
+            processingFee: merchants.processingFee,
+            status: merchants.status,
+            monthlyVolume: merchants.monthlyVolume,
+            createdAt: merchants.createdAt,
+          }
+        })
+        .from(transactions)
+        .leftJoin(merchants, eq(transactions.merchantId, merchants.id))
+        .where(inArray(transactions.mid, mids))
+        .orderBy(desc(transactions.createdAt));
+
+      const filteredTransactions = result.map(row => ({
+        ...row,
+        merchant: row.merchant || undefined
+      }));
+      
+      console.log(`Merchant ${merchant.id} has ${filteredTransactions.length} transactions for their MIDs`);
+      return filteredTransactions;
     }
 
     return [];
