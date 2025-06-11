@@ -21,16 +21,17 @@ import {
 } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Search, Edit, Trash2 } from "lucide-react";
+import { Plus, Search, Edit, Trash2, ChevronDown, ChevronRight, Building2, Mail, Phone, MapPin } from "lucide-react";
 import { agentsApi } from "@/lib/api";
 import { AgentModal } from "@/components/modals/agent-modal";
-import type { Agent } from "@shared/schema";
+import type { Agent, Merchant } from "@shared/schema";
 
 export default function Agents() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingAgent, setEditingAgent] = useState<Agent | undefined>();
+  const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -93,6 +94,29 @@ export default function Agents() {
     return styles[status as keyof typeof styles] || "bg-gray-100 text-gray-800";
   };
 
+  const toggleRowExpansion = (agentId: number) => {
+    const newExpandedRows = new Set(expandedRows);
+    if (newExpandedRows.has(agentId)) {
+      newExpandedRows.delete(agentId);
+    } else {
+      newExpandedRows.add(agentId);
+    }
+    setExpandedRows(newExpandedRows);
+  };
+
+  // Hook to fetch merchants for an expanded agent
+  const useAgentMerchants = (agentId: number, enabled: boolean) => {
+    return useQuery({
+      queryKey: ["/api/agents", agentId, "merchants"],
+      queryFn: async () => {
+        const response = await fetch(`/api/agents/${agentId}/merchants`);
+        if (!response.ok) throw new Error('Failed to fetch agent merchants');
+        return response.json() as Promise<Merchant[]>;
+      },
+      enabled,
+    });
+  };
+
   return (
     <div className="p-6 space-y-6">
       <Card className="corecrm-card">
@@ -137,6 +161,7 @@ export default function Agents() {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-12"></TableHead>
                   <TableHead>Agent</TableHead>
                   <TableHead>Email</TableHead>
                   <TableHead>Phone</TableHead>
