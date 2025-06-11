@@ -29,6 +29,7 @@ import PdfForms from "@/pages/pdf-forms";
 import PdfFormWizard from "@/pages/pdf-form-wizard";
 import EnhancedPdfWizard from "@/pages/enhanced-pdf-wizard";
 import PublicForm from "@/pages/public-form";
+import MerchantApplication from "@/pages/merchant-application";
 import NotFound from "@/pages/not-found";
 import Landing from "@/pages/landing";
 import Auth from "@/pages/auth";
@@ -342,6 +343,23 @@ function AuthenticatedApp() {
                 <main className="flex-1 overflow-hidden">
                   <EnhancedPdfWizard />
                 </main>
+              );
+            }}
+          </Route>
+          <Route path="/merchant-application/:id?">
+            {(params) => {
+              const pageInfo = { title: "Merchant Application", subtitle: "Wells Fargo Merchant Processing Application" };
+              return (
+                <>
+                  <Header 
+                    title={pageInfo.title} 
+                    subtitle={pageInfo.subtitle}
+                    onSearch={setGlobalSearch}
+                  />
+                  <main className="flex-1 overflow-auto bg-gray-50">
+                    <MerchantApplication />
+                  </main>
+                </>
               );
             }}
           </Route>
