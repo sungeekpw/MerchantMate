@@ -23,19 +23,34 @@ function LocationRevenue({ locationId }: { locationId: number }) {
     yearToDate: string;
   }>({
     queryKey: [`/api/locations/${locationId}/revenue`],
-    enabled: !!locationId
+    enabled: !!locationId,
+    retry: 1,
+    refetchOnWindowFocus: false,
+    queryFn: async () => {
+      const res = await fetch(`/api/locations/${locationId}/revenue`, {
+        credentials: "include",
+        mode: "cors"
+      });
+      if (!res.ok) {
+        throw new Error(`HTTP error! status: ${res.status}`);
+      }
+      return await res.json();
+    }
   });
+
+  console.log('Revenue debug:', { locationId, revenue, isLoading, error, hasData: !!revenue });
 
   if (isLoading) {
     return <div className="text-sm text-muted-foreground">Loading revenue...</div>;
   }
 
-  if (error && Object.keys(error).length > 0) {
+  if (error) {
     console.error('Revenue API error:', error);
     return <div className="text-sm text-muted-foreground">Error loading revenue data</div>;
   }
 
-  if (!revenue) {
+  if (!revenue || !revenue.totalRevenue) {
+    console.log('No revenue data received for location:', locationId);
     return <div className="text-sm text-muted-foreground">No revenue data</div>;
   }
 
