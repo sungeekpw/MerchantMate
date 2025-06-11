@@ -45,8 +45,44 @@ export default function EnhancedPdfWizard() {
   const [currentStep, setCurrentStep] = useState(0);
   const [formData, setFormData] = useState<Record<string, any>>({});
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
+  const [formStarted, setFormStarted] = useState(false);
+  const [fieldsInteracted, setFieldsInteracted] = useState(new Set<string>());
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  // Check for prospect validation token in URL parameters
+  const urlParams = new URLSearchParams(window.location.search);
+  const prospectToken = urlParams.get('token');
+
+  // Fetch prospect data if token is present
+  const { data: prospectData } = useQuery({
+    queryKey: ['/api/prospects/token', prospectToken],
+    queryFn: async () => {
+      if (!prospectToken) return null;
+      const response = await fetch(`/api/prospects/token/${prospectToken}`);
+      if (!response.ok) throw new Error('Invalid prospect token');
+      return response.json();
+    },
+    enabled: !!prospectToken,
+  });
+
+  // Mutation to update prospect status to "in progress"
+  const updateProspectStatusMutation = useMutation({
+    mutationFn: async (prospectId: number) => {
+      const response = await fetch(`/api/prospects/${prospectId}/start-application`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to update prospect status');
+      }
+      
+      return response.json();
+    },
+  });
 
   // Fetch PDF form with fields
   const { data: pdfForm, isLoading, error } = useQuery<PdfForm>({
@@ -153,10 +189,33 @@ export default function EnhancedPdfWizard() {
     }
   });
 
+  // Track when user starts filling out the form and update prospect status
+  const handleFieldInteraction = (fieldName: string, value: any) => {
+    if (prospectData?.prospect && !formStarted) {
+      const newFieldsInteracted = new Set(fieldsInteracted);
+      newFieldsInteracted.add(fieldName);
+      setFieldsInteracted(newFieldsInteracted);
+
+      // Check if user has interacted with the first 3 required fields
+      const requiredFirstFields = ['legalBusinessName', 'federalTaxId', 'companyEmail'];
+      const hasInteractedWithFirstThree = requiredFirstFields.every(field => 
+        newFieldsInteracted.has(field)
+      );
+
+      if (hasInteractedWithFirstThree && !formStarted) {
+        setFormStarted(true);
+        updateProspectStatusMutation.mutate(prospectData.prospect.id);
+      }
+    }
+  };
+
   // Handle field changes with auto-save
   const handleFieldChange = (fieldName: string, value: any) => {
     const newFormData = { ...formData, [fieldName]: value };
     setFormData(newFormData);
+    
+    // Track field interaction for prospect status update
+    handleFieldInteraction(fieldName, value);
     
     // Auto-save after 2 seconds of no changes
     const timeoutId = setTimeout(() => {
