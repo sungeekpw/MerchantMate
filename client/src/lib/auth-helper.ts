@@ -7,15 +7,19 @@ export async function ensureDevAuth(): Promise<boolean> {
   }
 
   try {
+    console.log('Checking authentication...');
     // First check if we're already authenticated
     const authCheck = await fetch('/api/auth/user', { 
       credentials: 'include' 
     });
     
+    console.log('Auth check response:', authCheck.status);
     if (authCheck.ok) {
+      console.log('Already authenticated');
       return true; // Already authenticated
     }
 
+    console.log('Not authenticated, attempting dev login bypass...');
     // If not authenticated, use the development login bypass
     const loginResponse = await fetch('/api/auth/dev-login-bypass', {
       method: 'POST',
@@ -26,7 +30,14 @@ export async function ensureDevAuth(): Promise<boolean> {
       credentials: 'include'
     });
 
-    return loginResponse.ok;
+    console.log('Dev login response:', loginResponse.status);
+    if (loginResponse.ok) {
+      console.log('Dev authentication successful');
+      return true;
+    } else {
+      console.log('Dev authentication failed');
+      return false;
+    }
   } catch (error) {
     console.error('Development authentication failed:', error);
     return false;

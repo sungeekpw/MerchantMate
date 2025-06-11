@@ -154,8 +154,12 @@ export async function setupAuth(app: Express) {
 export const isAuthenticated: RequestHandler = async (req, res, next) => {
   // Development mode: use session-based auth
   if (process.env.NODE_ENV === 'development') {
+    console.log('isAuthenticated - Session ID:', req.sessionID);
+    console.log('isAuthenticated - Session data:', req.session);
     const userId = (req.session as any)?.userId;
+    console.log('isAuthenticated - UserId from session:', userId);
     if (!userId) {
+      console.log('isAuthenticated - No userId found, returning 401');
       return res.status(401).json({ message: "Unauthorized" });
     }
     
