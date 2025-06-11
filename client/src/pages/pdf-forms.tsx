@@ -48,10 +48,25 @@ export default function PdfFormsPage() {
   const [hasError, setHasError] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
-  // Fetch all PDF forms
-  const { data: pdfForms, isLoading: formsLoading, error: formsError } = useQuery<PdfForm[]>({
+  // Fetch all PDF forms with proper error handling
+  const { data: pdfForms, isLoading: formsLoading, error: formsError, refetch } = useQuery<PdfForm[]>({
     queryKey: ['/api/pdf-forms'],
-    retry: false
+    queryFn: async () => {
+      const response = await fetch('/api/pdf-forms', {
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      
+      return response.json();
+    },
+    retry: 1,
+    retryDelay: 1000
   });
 
   // Handle query effects and force refresh
@@ -64,10 +79,17 @@ export default function PdfFormsPage() {
     }
     if (formsError) {
       console.error('PDF Forms query error:', formsError);
+      console.error('Error details:', formsError.message);
       setErrorMessage(`Failed to load PDF forms: ${formsError.message || 'Unknown error'}`);
       setHasError(true);
     }
   }, [pdfForms, formsError]);
+
+  // Add refresh button for debugging
+  const handleRefresh = () => {
+    console.log('Manually refreshing PDF forms...');
+    refetch();
+  };
 
   // Upload PDF form mutation
   const uploadMutation = useMutation({
