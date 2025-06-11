@@ -66,32 +66,58 @@ export default function EnhancedPdfWizard() {
   });
 
   // Create enhanced sections with descriptions and icons
-  const sections: FormSection[] = pdfForm?.fields ? [
-    {
-      name: 'Merchant Information',
-      description: 'Basic business details, contact information, and location data',
-      icon: Building,
-      fields: pdfForm.fields.filter(f => f.section === 'Merchant Information').sort((a, b) => a.position - b.position)
-    },
-    {
-      name: 'Business Type & Tax Information', 
-      description: 'Business structure, tax identification, and regulatory compliance',
-      icon: FileText,
-      fields: pdfForm.fields.filter(f => f.section === 'Business Type & Tax Information').sort((a, b) => a.position - b.position)
-    },
-    {
-      name: 'Products, Services & Processing',
-      description: 'Business operations, products sold, and payment processing preferences',
-      icon: CheckCircle,
-      fields: pdfForm.fields.filter(f => f.section === 'Products, Services & Processing').sort((a, b) => a.position - b.position)
-    },
-    {
-      name: 'Transaction Information',
-      description: 'Financial data, volume estimates, and transaction processing details',
-      icon: ArrowRight,
-      fields: pdfForm.fields.filter(f => f.section === 'Transaction Information').sort((a, b) => a.position - b.position)
-    }
-  ].filter(section => section.fields.length > 0) : [];
+  const sections: FormSection[] = pdfForm?.fields ? (() => {
+    // Debug: Log unique sections to understand the data structure
+    const uniqueSections = [...new Set(pdfForm.fields.map(f => f.section))].filter(Boolean);
+    console.log('Available sections:', uniqueSections);
+    console.log('Total fields:', pdfForm.fields.length);
+    console.log('Sample field:', pdfForm.fields[0]);
+    
+    // Group fields by section dynamically based on actual data
+    const fieldsBySection = pdfForm.fields.reduce((acc: any, field: any) => {
+      const section = field.section || 'General';
+      if (!acc[section]) acc[section] = [];
+      acc[section].push(field);
+      return acc;
+    }, {});
+    
+    console.log('Fields by section:', Object.keys(fieldsBySection).map(s => `${s}: ${fieldsBySection[s].length} fields`));
+    
+    // Create sections based on actual data, with fallback names
+    const sectionConfigs = [
+      {
+        name: 'Merchant Information',
+        description: 'Basic business details, contact information, and location data',
+        icon: Building,
+        key: 'Merchant Information'
+      },
+      {
+        name: 'Business Type & Tax Information', 
+        description: 'Business structure, tax identification, and regulatory compliance',
+        icon: FileText,
+        key: 'Business Type & Tax Information'
+      },
+      {
+        name: 'Products, Services & Processing',
+        description: 'Business operations, products sold, and payment processing preferences',
+        icon: CheckCircle,
+        key: 'Products, Services & Processing'
+      },
+      {
+        name: 'Transaction Information',
+        description: 'Financial data, volume estimates, and transaction processing details',
+        icon: ArrowRight,
+        key: 'Transaction Information'
+      }
+    ];
+    
+    return sectionConfigs.map(config => ({
+      name: config.name,
+      description: config.description,
+      icon: config.icon,
+      fields: (fieldsBySection[config.key] || []).sort((a: any, b: any) => a.position - b.position)
+    })).filter(section => section.fields.length > 0);
+  })() : [];
 
   // Auto-save mutation
   const autoSaveMutation = useMutation({
