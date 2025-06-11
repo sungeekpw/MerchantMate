@@ -6,26 +6,30 @@ import { insertMerchantSchema, insertAgentSchema, insertTransactionSchema, inser
 import { setupAuth, isAuthenticated, requireRole, requirePermission } from "./replitAuth";
 import { z } from "zod";
 import session from "express-session";
-import MemoryStore from "memorystore";
+import connectPg from "connect-pg-simple";
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Session setup for authentication
-  const SessionStore = MemoryStore(session);
+  // Session setup for authentication using PostgreSQL store
+  const pgStore = connectPg(session);
+  const sessionStore = new pgStore({
+    conString: process.env.DATABASE_URL,
+    createTableIfMissing: true,
+    ttl: 7 * 24 * 60 * 60, // 1 week in seconds
+    tableName: "sessions",
+  });
   
   app.use(session({
     secret: process.env.SESSION_SECRET || 'corecrm-session-secret-key',
-    store: new SessionStore({
-      checkPeriod: 86400000 // prune expired entries every 24h
-    }),
+    store: sessionStore,
     resave: false,
     saveUninitialized: false,
     cookie: {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      maxAge: 24 * 60 * 60 * 1000,
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 1 week
       sameSite: 'lax'
     },
-    name: 'corecrm-session'
+    name: 'connect.sid'
   }));
 
   // Location revenue metrics endpoint (placed early to avoid auth middleware)
@@ -268,19 +272,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // User management routes (admin and super admin only)
   app.get("/api/users", async (req: any, res) => {
     try {
+      console.log("Users endpoint - Session:", req.session);
+      console.log("Users endpoint - Session ID:", req.sessionID);
+      console.log("Users endpoint - Cookies:", req.headers.cookie);
+      
       // Check session authentication
       const userId = (req.session as any)?.userId;
+      console.log("Users endpoint - UserId from session:", userId);
+      
       if (!userId) {
+        console.log("Users endpoint - No userId in session, returning unauthorized");
         return res.status(401).json({ message: "Authentication required" });
       }
       
       // Get current user and check role
       const currentUser = await storage.getUser(userId);
+      console.log("Users endpoint - Current user:", currentUser?.username, currentUser?.role);
+      
       if (!currentUser || !['admin', 'corporate', 'super_admin'].includes(currentUser.role)) {
+        console.log("Users endpoint - Access denied for role:", currentUser?.role);
         return res.status(403).json({ message: "Access denied. Admin role required." });
       }
       
       const users = await storage.getAllUsers();
+      console.log("Users endpoint - Found users:", users.length);
       res.json(users);
     } catch (error) {
       console.error("Error fetching users:", error);
