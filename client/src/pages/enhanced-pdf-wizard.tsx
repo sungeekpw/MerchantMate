@@ -453,26 +453,41 @@ export default function EnhancedPdfWizard() {
     }
   };
 
-  if (isLoading) {
+  // For prospect mode, show loading if prospect data isn't loaded yet
+  if (isProspectMode && !prospectData) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading form...</p>
+          <p className="text-gray-600">Loading application...</p>
         </div>
       </div>
     );
   }
 
-  if (error || !pdfForm) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-red-600 mb-4">Failed to load form</p>
-          <Button onClick={() => setLocation('/pdf-forms')}>Back to Forms</Button>
+  // For authenticated mode, show loading and error states for PDF form
+  if (!isProspectMode) {
+    if (isLoading) {
+      return (
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+          <div className="text-center">
+            <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+            <p className="text-gray-600">Loading form...</p>
+          </div>
         </div>
-      </div>
-    );
+      );
+    }
+
+    if (error || !pdfForm) {
+      return (
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+          <div className="text-center">
+            <p className="text-red-600 mb-4">Failed to load form</p>
+            <Button onClick={() => setLocation('/pdf-forms')}>Back to Forms</Button>
+          </div>
+        </div>
+      );
+    }
   }
 
   return (
@@ -487,10 +502,13 @@ export default function EnhancedPdfWizard() {
               </div>
               <div>
                 <h1 className="text-2xl font-bold text-gray-900">
-                  {pdfForm.name}
+                  {isProspectMode ? 'Merchant Processing Application' : (pdfForm?.name || 'Form')}
                 </h1>
                 <p className="text-gray-600">
-                  {pdfForm.description} - All changes are saved automatically
+                  {isProspectMode 
+                    ? `Welcome ${prospectData?.prospect?.firstName || ''}! Complete your merchant application below - All changes are saved automatically`
+                    : `${pdfForm?.description || 'Form'} - All changes are saved automatically`
+                  }
                 </p>
               </div>
             </div>
