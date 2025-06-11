@@ -9,6 +9,7 @@ import { Sidebar } from "@/components/layout/sidebar";
 import { Header } from "@/components/layout/header";
 import Dashboard from "@/pages/dashboard";
 import Merchants from "@/pages/merchants";
+import Locations from "@/pages/locations";
 import Agents from "@/pages/agents";
 import Transactions from "@/pages/transactions";
 import Users from "@/pages/users";
@@ -69,6 +70,11 @@ function AuthenticatedApp() {
         return {
           title: "Merchants",
           subtitle: "Manage merchant profiles and settings"
+        };
+      case "/locations":
+        return {
+          title: "Locations",
+          subtitle: "Manage your business locations and addresses"
         };
       case "/agents":
         return {
@@ -144,6 +150,24 @@ function AuthenticatedApp() {
                   />
                   <main className="flex-1 overflow-auto bg-gray-50">
                     <Merchants />
+                  </main>
+                </>
+              );
+            }}
+          </Route>
+          <Route path="/locations">
+            {() => {
+              if (user?.role !== 'merchant') return <NotFound />;
+              const pageInfo = getPageInfo("/locations");
+              return (
+                <>
+                  <Header 
+                    title={pageInfo.title} 
+                    subtitle={pageInfo.subtitle}
+                    onSearch={setGlobalSearch}
+                  />
+                  <main className="flex-1 overflow-auto bg-gray-50">
+                    <Locations />
                   </main>
                 </>
               );
