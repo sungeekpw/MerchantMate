@@ -571,7 +571,6 @@ export class DatabaseStorage implements IStorage {
         businessType: merchants.businessType,
         email: merchants.email,
         phone: merchants.phone,
-        address: merchants.address,
         agentId: merchants.agentId,
         processingFee: merchants.processingFee,
         status: merchants.status,
@@ -626,6 +625,98 @@ export class DatabaseStorage implements IStorage {
         eq(agentMerchants.merchantId, merchantId)
       ));
     
+    return (result.rowCount || 0) > 0;
+  }
+
+  // Location operations
+  async getLocation(id: number): Promise<Location | undefined> {
+    const [location] = await db.select().from(locations).where(eq(locations.id, id));
+    return location || undefined;
+  }
+
+  async getLocationsByMerchant(merchantId: number): Promise<LocationWithAddresses[]> {
+    const result = await db
+      .select({
+        location: locations,
+        address: addresses
+      })
+      .from(locations)
+      .leftJoin(addresses, eq(locations.id, addresses.locationId))
+      .where(eq(locations.merchantId, merchantId));
+
+    const locationMap = new Map<number, LocationWithAddresses>();
+    
+    result.forEach(row => {
+      if (!locationMap.has(row.location.id)) {
+        locationMap.set(row.location.id, {
+          ...row.location,
+          addresses: []
+        });
+      }
+      
+      if (row.address) {
+        locationMap.get(row.location.id)!.addresses.push(row.address);
+      }
+    });
+
+    return Array.from(locationMap.values());
+  }
+
+  async createLocation(insertLocation: InsertLocation): Promise<Location> {
+    const [location] = await db
+      .insert(locations)
+      .values(insertLocation)
+      .returning();
+    return location;
+  }
+
+  async updateLocation(id: number, updates: Partial<InsertLocation>): Promise<Location | undefined> {
+    const [updated] = await db
+      .update(locations)
+      .set(updates)
+      .where(eq(locations.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteLocation(id: number): Promise<boolean> {
+    const result = await db
+      .delete(locations)
+      .where(eq(locations.id, id));
+    return (result.rowCount || 0) > 0;
+  }
+
+  // Address operations
+  async getAddress(id: number): Promise<Address | undefined> {
+    const [address] = await db.select().from(addresses).where(eq(addresses.id, id));
+    return address || undefined;
+  }
+
+  async getAddressesByLocation(locationId: number): Promise<Address[]> {
+    return await db.select().from(addresses).where(eq(addresses.locationId, locationId));
+  }
+
+  async createAddress(insertAddress: InsertAddress): Promise<Address> {
+    const [address] = await db
+      .insert(addresses)
+      .values(insertAddress)
+      .returning();
+    return address;
+  }
+
+  async updateAddress(id: number, updates: Partial<InsertAddress>): Promise<Address | undefined> {
+    const [updated] = await db
+      .update(addresses)
+      .set(updates)
+      .where(eq(addresses.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteAddress(id: number): Promise<boolean> {
+    const result = await db
+      .delete(addresses)
+      .where(eq(addresses.id, id));
     return (result.rowCount || 0) > 0;
   }
 
@@ -696,7 +787,6 @@ export class DatabaseStorage implements IStorage {
             businessType: merchants.businessType,
             email: merchants.email,
             phone: merchants.phone,
-            address: merchants.address,
             agentId: merchants.agentId,
             processingFee: merchants.processingFee,
             status: merchants.status,
