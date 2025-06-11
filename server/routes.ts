@@ -165,6 +165,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Users API endpoint - requires authentication
+  app.get("/api/users", isAuthenticated, async (req: any, res) => {
+    try {
+      console.log('Users endpoint - Session ID:', req.sessionID);
+      console.log('Users endpoint - User from session:', req.user);
+      const users = await storage.getAllUsers();
+      console.log('Users endpoint - Fetched users count:', users.length);
+      res.json(users);
+    } catch (error) {
+      console.error("Error fetching users:", error);
+      res.status(500).json({ message: "Failed to fetch users" });
+    }
+  });
+
   // Setup authentication routes AFTER session middleware
   setupAuthRoutes(app);
 
