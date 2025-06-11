@@ -817,6 +817,7 @@ export class DatabaseStorage implements IStorage {
           id: transactions.id,
           transactionId: transactions.transactionId,
           merchantId: transactions.merchantId,
+          mid: transactions.mid,
           amount: transactions.amount,
           paymentMethod: transactions.paymentMethod,
           status: transactions.status,
