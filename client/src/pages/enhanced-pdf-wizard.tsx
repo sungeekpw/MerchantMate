@@ -276,6 +276,33 @@ export default function EnhancedPdfWizard() {
     }
   };
 
+  // Format phone number to (XXX) XXX-XXXX format
+  const formatPhoneNumber = (value: string): string => {
+    // Remove all non-digits
+    const cleaned = value.replace(/\D/g, '');
+    
+    // Format based on length
+    if (cleaned.length === 10) {
+      return `(${cleaned.slice(0, 3)}) ${cleaned.slice(3, 6)}-${cleaned.slice(6)}`;
+    } else if (cleaned.length === 11 && cleaned[0] === '1') {
+      return `+1 (${cleaned.slice(1, 4)}) ${cleaned.slice(4, 7)}-${cleaned.slice(7)}`;
+    }
+    
+    // Return original if not a valid format
+    return value;
+  };
+
+  // Handle phone number formatting on blur
+  const handlePhoneBlur = (fieldName: string, value: string) => {
+    if (fieldName === 'companyPhone') {
+      const formatted = formatPhoneNumber(value);
+      if (formatted !== value) {
+        const newFormData = { ...formData, [fieldName]: formatted };
+        setFormData(newFormData);
+      }
+    }
+  };
+
   // Handle field changes with auto-save
   const handleFieldChange = (fieldName: string, value: any) => {
     const newFormData = { ...formData, [fieldName]: value };
@@ -391,6 +418,7 @@ export default function EnhancedPdfWizard() {
               type={field.fieldType === 'number' ? 'number' : 'text'}
               value={value}
               onChange={(e) => handleFieldChange(field.fieldName, e.target.value)}
+              onBlur={(e) => handlePhoneBlur(field.fieldName, e.target.value)}
               className={hasError ? 'border-red-500' : (isProspectMode && field.fieldName === 'companyEmail' ? 'bg-gray-50 cursor-not-allowed' : '')}
               placeholder={field.fieldType === 'email' ? 'Enter email address' : 
                           field.fieldType === 'phone' ? 'Enter phone number' : 
