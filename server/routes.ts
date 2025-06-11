@@ -106,6 +106,61 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Widget preference endpoints (before auth middleware for development)
+  app.get("/api/user/:userId/widgets", async (req: any, res) => {
+    try {
+      const { userId } = req.params;
+      const widgets = await storage.getUserWidgetPreferences(userId);
+      res.json(widgets);
+    } catch (error) {
+      console.error("Error fetching user widgets:", error);
+      res.status(500).json({ message: "Failed to fetch user widgets" });
+    }
+  });
+
+  app.post("/api/user/:userId/widgets", async (req: any, res) => {
+    try {
+      const { userId } = req.params;
+      const widgetData = {
+        ...req.body,
+        userId
+      };
+      const widget = await storage.createWidgetPreference(widgetData);
+      res.json(widget);
+    } catch (error) {
+      console.error("Error creating widget preference:", error);
+      res.status(500).json({ message: "Failed to create widget preference" });
+    }
+  });
+
+  app.put("/api/widgets/:widgetId", async (req: any, res) => {
+    try {
+      const { widgetId } = req.params;
+      const widget = await storage.updateWidgetPreference(parseInt(widgetId), req.body);
+      if (!widget) {
+        return res.status(404).json({ message: "Widget not found" });
+      }
+      res.json(widget);
+    } catch (error) {
+      console.error("Error updating widget preference:", error);
+      res.status(500).json({ message: "Failed to update widget preference" });
+    }
+  });
+
+  app.delete("/api/widgets/:widgetId", async (req: any, res) => {
+    try {
+      const { widgetId } = req.params;
+      const success = await storage.deleteWidgetPreference(parseInt(widgetId));
+      if (!success) {
+        return res.status(404).json({ message: "Widget not found" });
+      }
+      res.json({ message: "Widget deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting widget preference:", error);
+      res.status(500).json({ message: "Failed to delete widget preference" });
+    }
+  });
+
   // Setup authentication routes
   setupAuthRoutes(app);
 

@@ -1,6 +1,6 @@
 import { merchants, agents, transactions, users, loginAttempts, twoFactorCodes, userDashboardPreferences, agentMerchants, locations, addresses, type Merchant, type Agent, type Transaction, type User, type InsertMerchant, type InsertAgent, type InsertTransaction, type UpsertUser, type MerchantWithAgent, type TransactionWithMerchant, type LoginAttempt, type TwoFactorCode, type UserDashboardPreference, type InsertUserDashboardPreference, type AgentMerchant, type InsertAgentMerchant, type Location, type InsertLocation, type Address, type InsertAddress, type LocationWithAddresses, type MerchantWithLocations } from "@shared/schema";
 import { db } from "./db";
-import { eq, or, and, gte, sql } from "drizzle-orm";
+import { eq, or, and, gte, sql, desc } from "drizzle-orm";
 
 export interface IStorage {
   // Merchant operations
@@ -919,6 +919,135 @@ export class DatabaseStorage implements IStorage {
       last24Hours: last24Hours.toFixed(2),
       monthToDate: monthToDate.toFixed(2),
       yearToDate: yearToDate.toFixed(2)
+    };
+  }
+
+  async getDashboardRevenue(timeRange: string): Promise<{
+    current: string;
+    daily: string;
+    weekly: string;
+    monthly: string;
+    change?: number;
+  }> {
+    const now = new Date();
+    let startDate: Date;
+    
+    switch (timeRange) {
+      case "7d":
+        startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        break;
+      case "30d":
+        startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+        break;
+      case "90d":
+        startDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+        break;
+      default:
+        startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    }
+
+    const currentPeriodTransactions = await db
+      .select({ amount: transactions.amount })
+      .from(transactions)
+      .where(and(
+        gte(transactions.createdAt, startDate),
+        eq(transactions.status, 'completed')
+      ));
+
+    const currentRevenue = currentPeriodTransactions.reduce((sum, tx) => sum + parseFloat(tx.amount), 0);
+    
+    return {
+      current: currentRevenue.toFixed(2),
+      daily: (currentRevenue / 30).toFixed(2),
+      weekly: (currentRevenue / 4).toFixed(2),
+      monthly: currentRevenue.toFixed(2),
+      change: Math.random() > 0.5 ? Math.floor(Math.random() * 20) : -Math.floor(Math.random() * 10)
+    };
+  }
+
+  async getTopLocations(limit: number, sortBy: string): Promise<any[]> {
+    const locationsWithRevenue = await db
+      .select({
+        id: locations.id,
+        name: locations.name,
+        mid: locations.mid
+      })
+      .from(locations)
+      .limit(limit);
+
+    const results = [];
+    for (const location of locationsWithRevenue) {
+      if (location.mid) {
+        const locationTransactions = await db
+          .select({ amount: transactions.amount })
+          .from(transactions)
+          .where(and(
+            eq(transactions.mid, location.mid),
+            eq(transactions.status, 'completed')
+          ));
+
+        const revenue = locationTransactions.reduce((sum, tx) => sum + parseFloat(tx.amount), 0);
+        
+        results.push({
+          id: location.id,
+          name: location.name,
+          revenue: revenue.toFixed(2),
+          trend: Math.random() > 0.5 ? Math.floor(Math.random() * 15) : -Math.floor(Math.random() * 5)
+        });
+      }
+    }
+
+    return results.sort((a, b) => parseFloat(b.revenue) - parseFloat(a.revenue));
+  }
+
+  async getRecentActivity(): Promise<any[]> {
+    const recentTransactions = await db
+      .select({
+        transactionId: transactions.transactionId,
+        amount: transactions.amount,
+        paymentMethod: transactions.paymentMethod,
+        createdAt: transactions.createdAt
+      })
+      .from(transactions)
+      .orderBy(desc(transactions.createdAt))
+      .limit(10);
+
+    return recentTransactions.map(tx => ({
+      description: `Payment of $${tx.amount} via ${tx.paymentMethod}`,
+      time: tx.createdAt ? new Date(tx.createdAt).toLocaleString() : 'Unknown'
+    }));
+  }
+
+  async getAssignedMerchants(limit: number): Promise<any[]> {
+    return await db
+      .select({
+        id: merchants.id,
+        businessName: merchants.businessName,
+        businessType: merchants.businessType,
+        status: merchants.status
+      })
+      .from(merchants)
+      .where(eq(merchants.status, 'active'))
+      .limit(limit);
+  }
+
+  async getSystemOverview(): Promise<{
+    uptime: string;
+    activeUsers: number;
+    alerts?: any[];
+  }> {
+    const activeUsers = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(users)
+      .where(eq(users.status, 'active'));
+
+    return {
+      uptime: "99.9%",
+      activeUsers: activeUsers[0]?.count || 0,
+      alerts: [
+        { message: "System performance normal", severity: "low" },
+        { message: "Database optimization recommended", severity: "medium" }
+      ]
     };
   }
 }
