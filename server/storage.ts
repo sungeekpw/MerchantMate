@@ -1,4 +1,4 @@
-import { merchants, agents, transactions, users, loginAttempts, twoFactorCodes, userDashboardPreferences, agentMerchants, type Merchant, type Agent, type Transaction, type User, type InsertMerchant, type InsertAgent, type InsertTransaction, type UpsertUser, type MerchantWithAgent, type TransactionWithMerchant, type LoginAttempt, type TwoFactorCode, type UserDashboardPreference, type InsertUserDashboardPreference, type AgentMerchant, type InsertAgentMerchant } from "@shared/schema";
+import { merchants, agents, transactions, users, loginAttempts, twoFactorCodes, userDashboardPreferences, agentMerchants, locations, addresses, type Merchant, type Agent, type Transaction, type User, type InsertMerchant, type InsertAgent, type InsertTransaction, type UpsertUser, type MerchantWithAgent, type TransactionWithMerchant, type LoginAttempt, type TwoFactorCode, type UserDashboardPreference, type InsertUserDashboardPreference, type AgentMerchant, type InsertAgentMerchant, type Location, type InsertLocation, type Address, type InsertAddress, type LocationWithAddresses, type MerchantWithLocations } from "@shared/schema";
 import { db } from "./db";
 import { eq, or, and, gte } from "drizzle-orm";
 
@@ -80,6 +80,20 @@ export interface IStorage {
   unassignAgentFromMerchant(agentId: number, merchantId: number): Promise<boolean>;
   getMerchantsForUser(userId: string): Promise<MerchantWithAgent[]>;
   getTransactionsForUser(userId: string): Promise<TransactionWithMerchant[]>;
+
+  // Location operations
+  getLocation(id: number): Promise<Location | undefined>;
+  getLocationsByMerchant(merchantId: number): Promise<LocationWithAddresses[]>;
+  createLocation(location: InsertLocation): Promise<Location>;
+  updateLocation(id: number, updates: Partial<InsertLocation>): Promise<Location | undefined>;
+  deleteLocation(id: number): Promise<boolean>;
+
+  // Address operations
+  getAddress(id: number): Promise<Address | undefined>;
+  getAddressesByLocation(locationId: number): Promise<Address[]>;
+  createAddress(address: InsertAddress): Promise<Address>;
+  updateAddress(id: number, updates: Partial<InsertAddress>): Promise<Address | undefined>;
+  deleteAddress(id: number): Promise<boolean>;
 
   // Widget preferences
   getUserWidgetPreferences(userId: string): Promise<UserDashboardPreference[]>;
