@@ -54,15 +54,17 @@ export default function PdfFormsPage() {
     retry: false
   });
 
-  // Handle query effects
+  // Handle query effects and force refresh
   React.useEffect(() => {
     if (pdfForms) {
       console.log('PDF Forms data loaded:', pdfForms);
       console.log('Number of forms:', pdfForms.length);
+      setHasError(false);
+      setErrorMessage('');
     }
     if (formsError) {
       console.error('PDF Forms query error:', formsError);
-      setErrorMessage(`Failed to load PDF forms: ${formsError.message}`);
+      setErrorMessage(`Failed to load PDF forms: ${formsError.message || 'Unknown error'}`);
       setHasError(true);
     }
   }, [pdfForms, formsError]);
