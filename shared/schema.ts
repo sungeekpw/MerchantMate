@@ -295,6 +295,7 @@ export const pdfForms = pgTable("pdf_forms", {
   description: text("description"),
   fileName: text("file_name").notNull(),
   fileSize: integer("file_size").notNull(),
+  status: text("status").default("active"), // active, inactive
   uploadedBy: text("uploaded_by").notNull().references(() => users.id, { onDelete: "cascade" }),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow()
