@@ -1,4 +1,5 @@
 import { PdfFormField } from '@shared/schema';
+import { getWellsFargoMPAForm } from './wellsFargoMPA';
 
 interface ParsedFormField {
   fieldName: string;
@@ -36,6 +37,28 @@ export class PDFFormParser {
   }
 
   private parseWellsFargoMPA(text: string): ParsedFormSection[] {
+    // Use the enhanced Wells Fargo form structure
+    const enhancedSections = getWellsFargoMPAForm();
+    
+    // Convert enhanced sections to ParsedFormSection format
+    return enhancedSections.map(section => ({
+      title: section.title,
+      order: section.order,
+      fields: section.fields.map(field => ({
+        fieldName: field.fieldName,
+        fieldType: field.fieldType,
+        fieldLabel: field.fieldLabel,
+        isRequired: field.isRequired,
+        options: field.options,
+        defaultValue: field.defaultValue,
+        validation: field.validation,
+        position: field.position,
+        section: field.section
+      }))
+    }));
+  }
+
+  private parseWellsFargoMPALegacy(text: string): ParsedFormSection[] {
     const sections: ParsedFormSection[] = [
       {
         title: "Merchant Information",
