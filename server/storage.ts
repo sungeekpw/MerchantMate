@@ -937,10 +937,18 @@ export class DatabaseStorage implements IStorage {
 
     // If user is merchant, return only their transactions
     if (user.role === 'merchant') {
+      console.log(`Merchant user filtering - User email: ${user.email}, User role: ${user.role}`);
       const merchant = await this.getMerchantByEmail(user.email);
-      if (!merchant) return [];
+      console.log(`Found merchant:`, merchant);
+      if (!merchant) {
+        console.log(`No merchant found for email: ${user.email}`);
+        return [];
+      }
       
-      return this.getTransactionsByMerchant(merchant.id);
+      console.log(`Getting transactions for merchant ID: ${merchant.id}`);
+      const transactions = await this.getTransactionsByMerchant(merchant.id);
+      console.log(`Merchant ${merchant.id} has ${transactions.length} transactions`);
+      return transactions;
     }
 
     return [];
