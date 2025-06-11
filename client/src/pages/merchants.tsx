@@ -76,10 +76,16 @@ export default function Merchants() {
       await Promise.all(
         merchants.map(async (merchant) => {
           try {
-            const response = await fetch(`/api/merchants/${merchant.id}/mtd-revenue`);
+            const response = await fetch(`/api/merchants/${merchant.id}/mtd-revenue`, {
+              credentials: "include",
+              mode: "cors"
+            });
             if (response.ok) {
-              results[merchant.id] = await response.json();
+              const data = await response.json();
+              console.log(`MTD revenue data for merchant ${merchant.id}:`, data);
+              results[merchant.id] = data;
             } else {
+              console.error(`MTD revenue API error for merchant ${merchant.id}:`, response.status);
               results[merchant.id] = { mtdRevenue: "0.00" };
             }
           } catch (error) {
