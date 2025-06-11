@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuthRoutes } from "./authRoutes";
-import { insertMerchantSchema, insertAgentSchema, insertTransactionSchema } from "@shared/schema";
+import { insertMerchantSchema, insertAgentSchema, insertTransactionSchema, insertLocationSchema, insertAddressSchema } from "@shared/schema";
 import { setupAuth, isAuthenticated, requireRole, requirePermission } from "./replitAuth";
 import { z } from "zod";
 import session from "express-session";
@@ -198,6 +198,236 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching merchants:", error);
       res.status(500).json({ message: "Failed to fetch merchants" });
+    }
+  });
+
+  // Location routes with role-based access
+  app.get("/api/merchants/:merchantId/locations", devAuth, async (req: any, res) => {
+    try {
+      const { merchantId } = req.params;
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      // Check if user has access to this merchant
+      if (user?.role === 'merchant' && user.merchantId !== parseInt(merchantId)) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const locations = await storage.getLocationsByMerchant(parseInt(merchantId));
+      res.json(locations);
+    } catch (error) {
+      console.error("Error fetching locations:", error);
+      res.status(500).json({ message: "Failed to fetch locations" });
+    }
+  });
+
+  app.post("/api/merchants/:merchantId/locations", devAuth, async (req: any, res) => {
+    try {
+      const { merchantId } = req.params;
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      // Check if user has access to this merchant
+      if (user?.role === 'merchant' && user.merchantId !== parseInt(merchantId)) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const validatedData = insertLocationSchema.parse({
+        ...req.body,
+        merchantId: parseInt(merchantId)
+      });
+      
+      const location = await storage.createLocation(validatedData);
+      res.json(location);
+    } catch (error) {
+      console.error("Error creating location:", error);
+      res.status(500).json({ message: "Failed to create location" });
+    }
+  });
+
+  app.put("/api/locations/:locationId", devAuth, async (req: any, res) => {
+    try {
+      const { locationId } = req.params;
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      // Get location to check merchant ownership
+      const location = await storage.getLocation(parseInt(locationId));
+      if (!location) {
+        return res.status(404).json({ message: "Location not found" });
+      }
+      
+      // Check if user has access to this merchant
+      if (user?.role === 'merchant' && user.merchantId !== location.merchantId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const validatedData = insertLocationSchema.partial().parse(req.body);
+      const updatedLocation = await storage.updateLocation(parseInt(locationId), validatedData);
+      
+      if (!updatedLocation) {
+        return res.status(404).json({ message: "Location not found" });
+      }
+      
+      res.json(updatedLocation);
+    } catch (error) {
+      console.error("Error updating location:", error);
+      res.status(500).json({ message: "Failed to update location" });
+    }
+  });
+
+  app.delete("/api/locations/:locationId", devAuth, async (req: any, res) => {
+    try {
+      const { locationId } = req.params;
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      // Get location to check merchant ownership
+      const location = await storage.getLocation(parseInt(locationId));
+      if (!location) {
+        return res.status(404).json({ message: "Location not found" });
+      }
+      
+      // Check if user has access to this merchant
+      if (user?.role === 'merchant' && user.merchantId !== location.merchantId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const success = await storage.deleteLocation(parseInt(locationId));
+      if (!success) {
+        return res.status(404).json({ message: "Location not found" });
+      }
+      
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting location:", error);
+      res.status(500).json({ message: "Failed to delete location" });
+    }
+  });
+
+  // Address routes with role-based access and geolocation support
+  app.get("/api/locations/:locationId/addresses", devAuth, async (req: any, res) => {
+    try {
+      const { locationId } = req.params;
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      // Get location to check merchant ownership
+      const location = await storage.getLocation(parseInt(locationId));
+      if (!location) {
+        return res.status(404).json({ message: "Location not found" });
+      }
+      
+      // Check if user has access to this merchant
+      if (user?.role === 'merchant' && user.merchantId !== location.merchantId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const addresses = await storage.getAddressesByLocation(parseInt(locationId));
+      res.json(addresses);
+    } catch (error) {
+      console.error("Error fetching addresses:", error);
+      res.status(500).json({ message: "Failed to fetch addresses" });
+    }
+  });
+
+  app.post("/api/locations/:locationId/addresses", devAuth, async (req: any, res) => {
+    try {
+      const { locationId } = req.params;
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      // Get location to check merchant ownership
+      const location = await storage.getLocation(parseInt(locationId));
+      if (!location) {
+        return res.status(404).json({ message: "Location not found" });
+      }
+      
+      // Check if user has access to this merchant
+      if (user?.role === 'merchant' && user.merchantId !== location.merchantId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const validatedData = insertAddressSchema.parse({
+        ...req.body,
+        locationId: parseInt(locationId)
+      });
+      
+      const address = await storage.createAddress(validatedData);
+      res.json(address);
+    } catch (error) {
+      console.error("Error creating address:", error);
+      res.status(500).json({ message: "Failed to create address" });
+    }
+  });
+
+  app.put("/api/addresses/:addressId", devAuth, async (req: any, res) => {
+    try {
+      const { addressId } = req.params;
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      // Get address and location to check merchant ownership
+      const address = await storage.getAddress(parseInt(addressId));
+      if (!address) {
+        return res.status(404).json({ message: "Address not found" });
+      }
+      
+      const location = await storage.getLocation(address.locationId);
+      if (!location) {
+        return res.status(404).json({ message: "Location not found" });
+      }
+      
+      // Check if user has access to this merchant
+      if (user?.role === 'merchant' && user.merchantId !== location.merchantId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const validatedData = insertAddressSchema.partial().parse(req.body);
+      const updatedAddress = await storage.updateAddress(parseInt(addressId), validatedData);
+      
+      if (!updatedAddress) {
+        return res.status(404).json({ message: "Address not found" });
+      }
+      
+      res.json(updatedAddress);
+    } catch (error) {
+      console.error("Error updating address:", error);
+      res.status(500).json({ message: "Failed to update address" });
+    }
+  });
+
+  app.delete("/api/addresses/:addressId", devAuth, async (req: any, res) => {
+    try {
+      const { addressId } = req.params;
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      // Get address and location to check merchant ownership
+      const address = await storage.getAddress(parseInt(addressId));
+      if (!address) {
+        return res.status(404).json({ message: "Address not found" });
+      }
+      
+      const location = await storage.getLocation(address.locationId);
+      if (!location) {
+        return res.status(404).json({ message: "Location not found" });
+      }
+      
+      // Check if user has access to this merchant
+      if (user?.role === 'merchant' && user.merchantId !== location.merchantId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const success = await storage.deleteAddress(parseInt(addressId));
+      if (!success) {
+        return res.status(404).json({ message: "Address not found" });
+      }
+      
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting address:", error);
+      res.status(500).json({ message: "Failed to delete address" });
     }
   });
 
