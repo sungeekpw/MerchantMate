@@ -60,7 +60,9 @@ export default function PdfFormsPage() {
   });
 
   // Check if current user is admin
-  const isAdmin = true; // Temporarily force admin mode for testing
+  const isAdmin = currentUser?.role === 'admin' || 
+                  currentUser?.role === 'super_admin' ||
+                  (currentUser?.id && currentUser.id.includes('admin'));
 
   // Fetch all PDF forms with proper error handling
   const { data: pdfForms, isLoading: formsLoading, error: formsError, refetch } = useQuery<PdfForm[]>({
