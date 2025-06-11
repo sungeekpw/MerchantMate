@@ -168,6 +168,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Setup authentication routes AFTER session middleware
   setupAuthRoutes(app);
 
+  // Development login bypass for testing
+  if (process.env.NODE_ENV === 'development') {
+    app.post('/api/auth/dev-login-bypass', async (req, res) => {
+      try {
+        const { userId } = req.body;
+        const user = await storage.getUser(userId || 'admin-demo-123');
+        if (user) {
+          (req.session as any).userId = user.id;
+          res.json({ success: true, user });
+        } else {
+          res.status(401).json({ message: "User not found" });
+        }
+      } catch (error) {
+        console.error("Error during dev login:", error);
+        res.status(500).json({ message: "Login failed" });
+      }
+    });
+  }
+
   // Use production auth setup for all environments
   await setupAuth(app);
 
