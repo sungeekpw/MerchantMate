@@ -107,13 +107,14 @@ export default function EnhancedPdfWizard() {
       description: 'Basic business details, contact information, and location data',
       icon: Building,
       fields: [
-        { id: 1, fieldName: 'companyName', fieldType: 'text', fieldLabel: 'Company Name', isRequired: true, options: null, defaultValue: null, validation: null, position: 1, section: 'Merchant Information' },
-        { id: 2, fieldName: 'companyEmail', fieldType: 'email', fieldLabel: 'Company Email', isRequired: true, options: null, defaultValue: null, validation: null, position: 2, section: 'Merchant Information' },
-        { id: 3, fieldName: 'companyPhone', fieldType: 'phone', fieldLabel: 'Company Phone', isRequired: true, options: null, defaultValue: null, validation: null, position: 3, section: 'Merchant Information' },
-        { id: 4, fieldName: 'address', fieldType: 'text', fieldLabel: 'Business Address', isRequired: true, options: null, defaultValue: null, validation: null, position: 4, section: 'Merchant Information' },
-        { id: 5, fieldName: 'city', fieldType: 'text', fieldLabel: 'City', isRequired: true, options: null, defaultValue: null, validation: null, position: 5, section: 'Merchant Information' },
-        { id: 6, fieldName: 'state', fieldType: 'text', fieldLabel: 'State', isRequired: true, options: null, defaultValue: null, validation: null, position: 6, section: 'Merchant Information' },
-        { id: 7, fieldName: 'zipCode', fieldType: 'text', fieldLabel: 'ZIP Code', isRequired: true, options: null, defaultValue: null, validation: null, position: 7, section: 'Merchant Information' },
+        { id: 1, fieldName: 'assignedAgent', fieldType: 'readonly', fieldLabel: 'Assigned Agent', isRequired: false, options: null, defaultValue: null, validation: null, position: 1, section: 'Merchant Information' },
+        { id: 2, fieldName: 'companyName', fieldType: 'text', fieldLabel: 'Company Name', isRequired: true, options: null, defaultValue: null, validation: null, position: 2, section: 'Merchant Information' },
+        { id: 3, fieldName: 'companyEmail', fieldType: 'email', fieldLabel: 'Company Email', isRequired: true, options: null, defaultValue: null, validation: null, position: 3, section: 'Merchant Information' },
+        { id: 4, fieldName: 'companyPhone', fieldType: 'phone', fieldLabel: 'Company Phone', isRequired: true, options: null, defaultValue: null, validation: null, position: 4, section: 'Merchant Information' },
+        { id: 5, fieldName: 'address', fieldType: 'text', fieldLabel: 'Business Address', isRequired: true, options: null, defaultValue: null, validation: null, position: 5, section: 'Merchant Information' },
+        { id: 6, fieldName: 'city', fieldType: 'text', fieldLabel: 'City', isRequired: true, options: null, defaultValue: null, validation: null, position: 6, section: 'Merchant Information' },
+        { id: 7, fieldName: 'state', fieldType: 'text', fieldLabel: 'State', isRequired: true, options: null, defaultValue: null, validation: null, position: 7, section: 'Merchant Information' },
+        { id: 8, fieldName: 'zipCode', fieldType: 'text', fieldLabel: 'ZIP Code', isRequired: true, options: null, defaultValue: null, validation: null, position: 8, section: 'Merchant Information' },
       ]
     },
     {
@@ -121,9 +122,9 @@ export default function EnhancedPdfWizard() {
       description: 'Business structure, tax identification, and regulatory compliance',
       icon: FileText,
       fields: [
-        { id: 8, fieldName: 'federalTaxId', fieldType: 'text', fieldLabel: 'Federal Tax ID (EIN)', isRequired: true, options: null, defaultValue: null, validation: null, position: 8, section: 'Business Type & Tax Information' },
-        { id: 9, fieldName: 'businessType', fieldType: 'select', fieldLabel: 'Business Type', isRequired: true, options: ['Corporation', 'LLC', 'Partnership', 'Sole Proprietorship'], defaultValue: null, validation: null, position: 9, section: 'Business Type & Tax Information' },
-        { id: 10, fieldName: 'yearsInBusiness', fieldType: 'number', fieldLabel: 'Years in Business', isRequired: true, options: null, defaultValue: null, validation: null, position: 10, section: 'Business Type & Tax Information' },
+        { id: 9, fieldName: 'federalTaxId', fieldType: 'text', fieldLabel: 'Federal Tax ID (EIN)', isRequired: true, options: null, defaultValue: null, validation: null, position: 9, section: 'Business Type & Tax Information' },
+        { id: 10, fieldName: 'businessType', fieldType: 'select', fieldLabel: 'Business Type', isRequired: true, options: ['Corporation', 'LLC', 'Partnership', 'Sole Proprietorship'], defaultValue: null, validation: null, position: 10, section: 'Business Type & Tax Information' },
+        { id: 11, fieldName: 'yearsInBusiness', fieldType: 'number', fieldLabel: 'Years in Business', isRequired: true, options: null, defaultValue: null, validation: null, position: 11, section: 'Business Type & Tax Information' },
       ]
     },
     {
@@ -131,9 +132,9 @@ export default function EnhancedPdfWizard() {
       description: 'Business operations, products sold, and payment processing preferences',
       icon: CheckCircle,
       fields: [
-        { id: 11, fieldName: 'businessDescription', fieldType: 'textarea', fieldLabel: 'Business Description', isRequired: true, options: null, defaultValue: null, validation: null, position: 11, section: 'Products, Services & Processing' },
-        { id: 12, fieldName: 'productsServices', fieldType: 'textarea', fieldLabel: 'Products/Services Sold', isRequired: true, options: null, defaultValue: null, validation: null, position: 12, section: 'Products, Services & Processing' },
-        { id: 13, fieldName: 'processingMethod', fieldType: 'select', fieldLabel: 'Primary Processing Method', isRequired: true, options: ['In-Person (Card Present)', 'Online (Card Not Present)', 'Both'], defaultValue: null, validation: null, position: 13, section: 'Products, Services & Processing' },
+        { id: 12, fieldName: 'businessDescription', fieldType: 'textarea', fieldLabel: 'Business Description', isRequired: true, options: null, defaultValue: null, validation: null, position: 12, section: 'Products, Services & Processing' },
+        { id: 13, fieldName: 'productsServices', fieldType: 'textarea', fieldLabel: 'Products/Services Sold', isRequired: true, options: null, defaultValue: null, validation: null, position: 13, section: 'Products, Services & Processing' },
+        { id: 14, fieldName: 'processingMethod', fieldType: 'select', fieldLabel: 'Primary Processing Method', isRequired: true, options: ['In-Person (Card Present)', 'Online (Card Not Present)', 'Both'], defaultValue: null, validation: null, position: 14, section: 'Products, Services & Processing' },
       ]
     },
     {
@@ -141,9 +142,9 @@ export default function EnhancedPdfWizard() {
       description: 'Financial data, volume estimates, and transaction processing details',
       icon: ArrowRight,
       fields: [
-        { id: 14, fieldName: 'monthlyVolume', fieldType: 'number', fieldLabel: 'Expected Monthly Processing Volume ($)', isRequired: true, options: null, defaultValue: null, validation: null, position: 14, section: 'Transaction Information' },
-        { id: 15, fieldName: 'averageTicket', fieldType: 'number', fieldLabel: 'Average Transaction Amount ($)', isRequired: true, options: null, defaultValue: null, validation: null, position: 15, section: 'Transaction Information' },
-        { id: 16, fieldName: 'highestTicket', fieldType: 'number', fieldLabel: 'Highest Single Transaction ($)', isRequired: true, options: null, defaultValue: null, validation: null, position: 16, section: 'Transaction Information' },
+        { id: 15, fieldName: 'monthlyVolume', fieldType: 'number', fieldLabel: 'Expected Monthly Processing Volume ($)', isRequired: true, options: null, defaultValue: null, validation: null, position: 15, section: 'Transaction Information' },
+        { id: 16, fieldName: 'averageTicket', fieldType: 'number', fieldLabel: 'Average Transaction Amount ($)', isRequired: true, options: null, defaultValue: null, validation: null, position: 16, section: 'Transaction Information' },
+        { id: 17, fieldName: 'highestTicket', fieldType: 'number', fieldLabel: 'Highest Single Transaction ($)', isRequired: true, options: null, defaultValue: null, validation: null, position: 17, section: 'Transaction Information' },
       ]
     }
   ];
@@ -243,6 +244,16 @@ export default function EnhancedPdfWizard() {
       });
     }
   });
+
+  // Initialize form data with agent information for prospects
+  useEffect(() => {
+    if (isProspectMode && prospectData?.prospect && prospectData?.agent) {
+      setFormData(prev => ({
+        ...prev,
+        assignedAgent: `${prospectData.agent.firstName} ${prospectData.agent.lastName} (${prospectData.agent.email})`
+      }));
+    }
+  }, [isProspectMode, prospectData]);
 
   // Track when user starts filling out the form and update prospect status
   const handleFieldInteraction = (fieldName: string, value: any) => {
@@ -445,6 +456,23 @@ export default function EnhancedPdfWizard() {
               className={hasError ? 'border-red-500' : ''}
             />
             {hasError && <p className="text-xs text-red-500">{hasError}</p>}
+          </div>
+        );
+
+      case 'readonly':
+        return (
+          <div className="space-y-2">
+            <Label htmlFor={field.fieldName} className="text-sm font-medium text-gray-700">
+              {field.fieldLabel}
+            </Label>
+            <Input
+              id={field.fieldName}
+              type="text"
+              value={value}
+              readOnly
+              className="bg-gray-50 cursor-not-allowed"
+              placeholder="Loading agent information..."
+            />
           </div>
         );
 
