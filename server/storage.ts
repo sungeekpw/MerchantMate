@@ -1,6 +1,6 @@
 import { merchants, agents, transactions, users, loginAttempts, twoFactorCodes, userDashboardPreferences, agentMerchants, locations, addresses, type Merchant, type Agent, type Transaction, type User, type InsertMerchant, type InsertAgent, type InsertTransaction, type UpsertUser, type MerchantWithAgent, type TransactionWithMerchant, type LoginAttempt, type TwoFactorCode, type UserDashboardPreference, type InsertUserDashboardPreference, type AgentMerchant, type InsertAgentMerchant, type Location, type InsertLocation, type Address, type InsertAddress, type LocationWithAddresses, type MerchantWithLocations } from "@shared/schema";
 import { db } from "./db";
-import { eq, or, and, gte, sql, desc } from "drizzle-orm";
+import { eq, or, and, gte, sql, desc, inArray } from "drizzle-orm";
 
 export interface IStorage {
   // Merchant operations
@@ -109,6 +109,14 @@ export interface IStorage {
     monthToDate: string;
     yearToDate: string;
   }>;
+  
+  // Bulk location revenue for multiple locations
+  getMultipleLocationRevenue(locationIds: number[]): Promise<Record<number, {
+    totalRevenue: string;
+    last24Hours: string;
+    monthToDate: string;
+    yearToDate: string;
+  }>>;
 
   // Dashboard analytics methods
   getDashboardRevenue(timeRange: string): Promise<{
@@ -981,6 +989,113 @@ export class DatabaseStorage implements IStorage {
       monthToDate: monthToDate.toFixed(2),
       yearToDate: yearToDate.toFixed(2)
     };
+  }
+
+  async getMultipleLocationRevenue(locationIds: number[]): Promise<Record<number, {
+    totalRevenue: string;
+    last24Hours: string;
+    monthToDate: string;
+    yearToDate: string;
+  }>> {
+    if (locationIds.length === 0) return {};
+
+    const now = new Date();
+    const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const yearStart = new Date(now.getFullYear(), 0, 1);
+
+    // Get all locations with their MIDs
+    const locationsWithMids = await db
+      .select({
+        id: locations.id,
+        mid: locations.mid
+      })
+      .from(locations)
+      .where(sql`${locations.id} = ANY(${locationIds})`);
+
+    // Get all transactions for these MIDs
+    const mids = locationsWithMids.map(loc => loc.mid).filter(mid => mid !== null);
+    
+    const allTransactions = await db
+      .select({
+        amount: transactions.amount,
+        createdAt: transactions.createdAt,
+        mid: transactions.mid
+      })
+      .from(transactions)
+      .where(and(
+        sql`${transactions.mid} = ANY(${mids})`,
+        eq(transactions.status, 'completed')
+      ));
+
+    // Create MID to location ID mapping
+    const midToLocationId = new Map<string, number>();
+    locationsWithMids.forEach(loc => {
+      if (loc.mid) {
+        midToLocationId.set(loc.mid, loc.id);
+      }
+    });
+
+    // Group transactions by location ID
+    const locationTransactions: Record<number, Array<{ amount: string; createdAt: Date | null }>> = {};
+    
+    allTransactions.forEach(transaction => {
+      if (transaction.mid) {
+        const locationId = midToLocationId.get(transaction.mid);
+        if (locationId) {
+          if (!locationTransactions[locationId]) {
+            locationTransactions[locationId] = [];
+          }
+          locationTransactions[locationId].push({
+            amount: transaction.amount,
+            createdAt: transaction.createdAt
+          });
+        }
+      }
+    });
+
+    // Calculate revenue for each location
+    const result: Record<number, {
+      totalRevenue: string;
+      last24Hours: string;
+      monthToDate: string;
+      yearToDate: string;
+    }> = {};
+
+    locationIds.forEach(locationId => {
+      const transactions = locationTransactions[locationId] || [];
+      
+      let totalRevenue = 0;
+      let last24Hours = 0;
+      let monthToDate = 0;
+      let yearToDate = 0;
+
+      transactions.forEach(tx => {
+        const amount = parseFloat(tx.amount);
+        totalRevenue += amount;
+
+        if (tx.createdAt && tx.createdAt >= yesterday) {
+          last24Hours += amount;
+        }
+
+        if (tx.createdAt && tx.createdAt >= monthStart) {
+          monthToDate += amount;
+        }
+
+        if (tx.createdAt && tx.createdAt >= yearStart) {
+          yearToDate += amount;
+        }
+      });
+
+      result[locationId] = {
+        totalRevenue: totalRevenue.toFixed(2),
+        last24Hours: last24Hours.toFixed(2),
+        monthToDate: monthToDate.toFixed(2),
+        yearToDate: yearToDate.toFixed(2)
+      };
+    });
+
+    return result;
   }
 
   async getDashboardRevenue(timeRange: string): Promise<{
