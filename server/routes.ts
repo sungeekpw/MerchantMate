@@ -1225,10 +1225,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Create the PDF form record
       const formData = {
         name: originalname.replace('.pdf', ''),
-        description: `Merchant Application Form - ${originalname}`,
+        fileName: originalname,
+        fileSize: buffer.length,
         uploadedBy: req.user.id,
-        originalFilename: originalname,
-        status: 'active' as const
+        description: `Merchant Application Form - ${originalname}`
       };
 
       const pdfForm = await storage.createPdfForm(formData);
@@ -1248,9 +1248,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         sections: parseResult.sections,
         totalFields: parseResult.totalFields
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error uploading PDF form:", error);
-      res.status(500).json({ message: "Failed to process PDF form", error: error.message });
+      res.status(500).json({ message: "Failed to process PDF form", error: error?.message || 'Unknown error' });
     }
   });
 
@@ -1291,8 +1291,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const submissionData = {
         formId,
         submittedBy: req.user.id,
-        formData: JSON.stringify(formData),
-        status: 'draft' as const
+        data: JSON.stringify(formData)
       };
       
       const submission = await storage.createPdfFormSubmission(submissionData);
