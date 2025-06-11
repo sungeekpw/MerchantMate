@@ -1300,6 +1300,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Update PDF form metadata (admin only)
+  app.patch("/api/pdf-forms/:id", devAuth, requireRole(['admin', 'super_admin']), async (req: any, res) => {
+    try {
+      const formId = parseInt(req.params.id);
+      const { name, description } = req.body;
+      
+      if (!name && !description) {
+        return res.status(400).json({ message: "No update data provided" });
+      }
+
+      const updateData: any = {};
+      if (name !== undefined) updateData.name = name;
+      if (description !== undefined) updateData.description = description;
+      
+      const updatedForm = await storage.updatePdfForm(formId, updateData);
+      
+      if (!updatedForm) {
+        return res.status(404).json({ message: "PDF form not found" });
+      }
+      
+      res.json(updatedForm);
+    } catch (error) {
+      console.error("Error updating PDF form:", error);
+      res.status(500).json({ message: "Failed to update PDF form" });
+    }
+  });
+
   // Handle form submissions (auto-save and final submit)
   app.post("/api/pdf-forms/:id/submissions", isAuthenticated, async (req: any, res) => {
     try {

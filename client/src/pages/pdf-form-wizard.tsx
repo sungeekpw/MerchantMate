@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, ArrowRight, Save, FileText, CheckCircle, Building, Clock, Users } from "lucide-react";
+import { ArrowLeft, ArrowRight, Save, FileText, CheckCircle, Building, Clock, Users, Edit2, Check, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 
@@ -48,8 +48,17 @@ export default function PdfFormWizard() {
   const [currentSection, setCurrentSection] = useState(0);
   const [formData, setFormData] = useState<Record<string, any>>({});
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [isEditingDescription, setIsEditingDescription] = useState(false);
+  const [editedTitle, setEditedTitle] = useState('');
+  const [editedDescription, setEditedDescription] = useState('');
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  // Fetch current user to check admin role
+  const { data: currentUser } = useQuery({
+    queryKey: ['/api/auth/user'],
+  });
 
   // Fetch PDF form with fields
   const { data: pdfForm, isLoading, error } = useQuery<PdfForm>({
@@ -99,6 +108,28 @@ export default function PdfFormWizard() {
     }
   });
 
+  // Update form metadata mutation
+  const updateFormMutation = useMutation({
+    mutationFn: async (updates: { name?: string; description?: string }) => {
+      const response = await apiRequest('PATCH', `/api/pdf-forms/${id}`, updates);
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Form Updated",
+        description: "Form title and description have been updated successfully.",
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/pdf-forms', id, 'with-fields'] });
+    },
+    onError: (error) => {
+      toast({
+        title: "Update Failed",
+        description: "There was an error updating the form.",
+        variant: "destructive",
+      });
+    }
+  });
+
   // Group fields by section with icons and descriptions
   const sections: FormSection[] = pdfForm?.fields ? [
     {
@@ -127,6 +158,17 @@ export default function PdfFormWizard() {
     }
   ].filter(section => section.fields.length > 0) : [];
 
+  // Check if current user is admin
+  const isAdmin = currentUser?.role === 'admin' || currentUser?.role === 'super_admin';
+
+  // Initialize edit states when form loads
+  useEffect(() => {
+    if (pdfForm) {
+      setEditedTitle(pdfForm.name);
+      setEditedDescription(pdfForm.description);
+    }
+  }, [pdfForm]);
+
   // Handle field changes with auto-save
   const handleFieldChange = (fieldName: string, value: any) => {
     const newFormData = { ...formData, [fieldName]: value };
@@ -136,6 +178,42 @@ export default function PdfFormWizard() {
     setTimeout(() => {
       autoSaveMutation.mutate(newFormData);
     }, 1000);
+  };
+
+  // Handle title editing
+  const handleTitleEdit = () => {
+    setIsEditingTitle(true);
+    setEditedTitle(pdfForm?.name || '');
+  };
+
+  const handleTitleSave = () => {
+    if (editedTitle.trim() && editedTitle !== pdfForm?.name) {
+      updateFormMutation.mutate({ name: editedTitle.trim() });
+    }
+    setIsEditingTitle(false);
+  };
+
+  const handleTitleCancel = () => {
+    setEditedTitle(pdfForm?.name || '');
+    setIsEditingTitle(false);
+  };
+
+  // Handle description editing
+  const handleDescriptionEdit = () => {
+    setIsEditingDescription(true);
+    setEditedDescription(pdfForm?.description || '');
+  };
+
+  const handleDescriptionSave = () => {
+    if (editedDescription.trim() && editedDescription !== pdfForm?.description) {
+      updateFormMutation.mutate({ description: editedDescription.trim() });
+    }
+    setIsEditingDescription(false);
+  };
+
+  const handleDescriptionCancel = () => {
+    setEditedDescription(pdfForm?.description || '');
+    setIsEditingDescription(false);
   };
 
   const handleNext = () => {
@@ -298,13 +376,89 @@ export default function PdfFormWizard() {
             <div className="w-12 h-12 bg-blue-600 rounded-lg flex items-center justify-center">
               <FileText className="w-6 h-6 text-white" />
             </div>
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-                {pdfForm.name}
-              </h1>
-              <p className="text-gray-600 dark:text-gray-400">
-                {pdfForm.description}
-              </p>
+            <div className="flex-1">
+              {/* Editable Title */}
+              <div className="flex items-center space-x-2 group">
+                {isEditingTitle ? (
+                  <div className="flex items-center space-x-2 flex-1">
+                    <Input
+                      value={editedTitle}
+                      onChange={(e) => setEditedTitle(e.target.value)}
+                      className="text-3xl font-bold border-none shadow-none p-0 h-auto focus-visible:ring-0"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') handleTitleSave();
+                        if (e.key === 'Escape') handleTitleCancel();
+                      }}
+                      autoFocus
+                    />
+                    <Button size="sm" variant="ghost" onClick={handleTitleSave}>
+                      <Check className="w-4 h-4 text-green-600" />
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={handleTitleCancel}>
+                      <X className="w-4 h-4 text-red-600" />
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="flex items-center space-x-2">
+                    <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+                      {pdfForm.name}
+                    </h1>
+                    {isAdmin && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={handleTitleEdit}
+                        className="opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <Edit2 className="w-4 h-4" />
+                      </Button>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Editable Description */}
+              <div className="flex items-center space-x-2 group mt-1">
+                {isEditingDescription ? (
+                  <div className="flex items-center space-x-2 flex-1">
+                    <Textarea
+                      value={editedDescription}
+                      onChange={(e) => setEditedDescription(e.target.value)}
+                      className="border-none shadow-none p-0 resize-none focus-visible:ring-0 min-h-0"
+                      rows={2}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && e.ctrlKey) handleDescriptionSave();
+                        if (e.key === 'Escape') handleDescriptionCancel();
+                      }}
+                      autoFocus
+                    />
+                    <div className="flex flex-col space-y-1">
+                      <Button size="sm" variant="ghost" onClick={handleDescriptionSave}>
+                        <Check className="w-4 h-4 text-green-600" />
+                      </Button>
+                      <Button size="sm" variant="ghost" onClick={handleDescriptionCancel}>
+                        <X className="w-4 h-4 text-red-600" />
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-center space-x-2">
+                    <p className="text-gray-600 dark:text-gray-400">
+                      {pdfForm.description}
+                    </p>
+                    {isAdmin && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={handleDescriptionEdit}
+                        className="opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <Edit2 className="w-4 h-4" />
+                      </Button>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
           <div className="text-right">
