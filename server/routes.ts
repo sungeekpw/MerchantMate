@@ -165,7 +165,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Setup authentication routes
+  // Setup authentication routes AFTER session middleware
   setupAuthRoutes(app);
 
   // Development auth route for testing
@@ -274,6 +274,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       // Check session authentication
       const userId = (req.session as any)?.userId;
+      console.log("Users endpoint - Session:", req.session);
+      console.log("Users endpoint - UserId:", userId);
       
       if (!userId) {
         return res.status(401).json({ message: "Authentication required" });
