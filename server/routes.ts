@@ -839,7 +839,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Invalid prospect data", errors: result.error.errors });
       }
 
-      const { prospect, agent } = await storage.createMerchantProspect(result.data);
+      const prospect = await storage.createMerchantProspect(result.data);
+      
+      // Fetch agent information for email
+      const agent = await storage.getAgent(prospect.agentId);
       
       // Send validation email if agent information is available
       if (agent && prospect.validationToken) {
