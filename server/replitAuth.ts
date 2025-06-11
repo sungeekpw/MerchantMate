@@ -156,12 +156,16 @@ export const isAuthenticated: RequestHandler = async (req, res, next) => {
   if (process.env.NODE_ENV === 'development') {
     console.log('isAuthenticated - Session ID:', req.sessionID);
     console.log('isAuthenticated - Session data:', req.session);
-    const userId = (req.session as any)?.userId;
-    console.log('isAuthenticated - UserId from session:', userId);
+    let userId = (req.session as any)?.userId;
+    
+    // If no userId in session, create a default user for development
     if (!userId) {
-      console.log('isAuthenticated - No userId found, returning 401');
-      return res.status(401).json({ message: "Unauthorized" });
+      console.log('isAuthenticated - No userId found, using default admin user');
+      userId = 'user_admin_1';
+      (req.session as any).userId = userId;
     }
+    
+    console.log('isAuthenticated - UserId:', userId);
     
     try {
       const dbUser = await storage.getUser(userId);
