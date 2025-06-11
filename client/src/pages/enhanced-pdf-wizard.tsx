@@ -285,6 +285,7 @@ export default function EnhancedPdfWizard() {
         );
 
       case 'select':
+        const selectOptions = (field.options || []).filter(option => option && option.trim() !== '');
         return (
           <div className="space-y-2">
             <Label htmlFor={field.fieldName} className="text-sm font-medium text-gray-700">
@@ -296,7 +297,7 @@ export default function EnhancedPdfWizard() {
                 <SelectValue placeholder={`Select ${field.fieldLabel.toLowerCase()}`} />
               </SelectTrigger>
               <SelectContent>
-                {field.options?.map((option, index) => (
+                {selectOptions.map((option, index) => (
                   <SelectItem key={index} value={option}>
                     {option}
                   </SelectItem>

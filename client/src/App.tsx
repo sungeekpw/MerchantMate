@@ -27,6 +27,7 @@ import Reports from "@/pages/reports";
 import Security from "@/pages/security";
 import PdfForms from "@/pages/pdf-forms";
 import PdfFormWizard from "@/pages/pdf-form-wizard";
+import EnhancedPdfWizard from "@/pages/enhanced-pdf-wizard";
 import NotFound from "@/pages/not-found";
 import Landing from "@/pages/landing";
 import Auth from "@/pages/auth";
@@ -322,6 +323,15 @@ function AuthenticatedApp() {
                     <PdfFormWizard />
                   </main>
                 </>
+              );
+            }}
+          </Route>
+          <Route path="/enhanced-pdf-wizard/:id">
+            {(params) => {
+              return (
+                <main className="flex-1 overflow-hidden">
+                  <EnhancedPdfWizard />
+                </main>
               );
             }}
           </Route>
