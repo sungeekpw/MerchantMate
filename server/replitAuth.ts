@@ -152,6 +152,30 @@ export async function setupAuth(app: Express) {
 }
 
 export const isAuthenticated: RequestHandler = async (req, res, next) => {
+  // Development mode: use session-based auth
+  if (process.env.NODE_ENV === 'development') {
+    const userId = (req.session as any)?.userId;
+    if (!userId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+    
+    try {
+      const dbUser = await storage.getUser(userId);
+      if (!dbUser) {
+        return res.status(401).json({ message: "User not found" });
+      }
+      
+      // Set up user object similar to production
+      req.user = { claims: { sub: userId } };
+      (req as any).currentUser = dbUser;
+      return next();
+    } catch (error) {
+      console.error("Error fetching user data:", error);
+      return res.status(401).json({ message: "Authentication error" });
+    }
+  }
+
+  // Production mode: use Passport authentication
   if (!req.isAuthenticated()) {
     return res.status(401).json({ message: "Unauthorized" });
   }
