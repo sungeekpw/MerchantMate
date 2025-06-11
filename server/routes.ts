@@ -41,6 +41,71 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Dashboard API endpoints (placed early to avoid auth middleware for development)
+  app.get("/api/dashboard/metrics", async (req: any, res) => {
+    try {
+      const metrics = await storage.getDashboardMetrics();
+      res.json(metrics);
+    } catch (error) {
+      console.error("Error fetching dashboard metrics:", error);
+      res.status(500).json({ message: "Failed to fetch dashboard metrics" });
+    }
+  });
+
+  app.get("/api/dashboard/revenue", async (req: any, res) => {
+    try {
+      const timeRange = req.query.timeRange as string || "30d";
+      const revenue = await storage.getDashboardRevenue(timeRange);
+      res.json(revenue);
+    } catch (error) {
+      console.error("Error fetching dashboard revenue:", error);
+      res.status(500).json({ message: "Failed to fetch dashboard revenue" });
+    }
+  });
+
+  app.get("/api/dashboard/top-locations", async (req: any, res) => {
+    try {
+      const limit = parseInt(req.query.limit as string) || 5;
+      const sortBy = req.query.sortBy as string || "revenue";
+      const locations = await storage.getTopLocations(limit, sortBy);
+      res.json(locations);
+    } catch (error) {
+      console.error("Error fetching top locations:", error);
+      res.status(500).json({ message: "Failed to fetch top locations" });
+    }
+  });
+
+  app.get("/api/dashboard/recent-activity", async (req: any, res) => {
+    try {
+      const activities = await storage.getRecentActivity();
+      res.json(activities);
+    } catch (error) {
+      console.error("Error fetching recent activity:", error);
+      res.status(500).json({ message: "Failed to fetch recent activity" });
+    }
+  });
+
+  app.get("/api/dashboard/assigned-merchants", async (req: any, res) => {
+    try {
+      const limit = parseInt(req.query.limit as string) || 10;
+      const merchants = await storage.getAssignedMerchants(limit);
+      res.json(merchants);
+    } catch (error) {
+      console.error("Error fetching assigned merchants:", error);
+      res.status(500).json({ message: "Failed to fetch assigned merchants" });
+    }
+  });
+
+  app.get("/api/dashboard/system-overview", async (req: any, res) => {
+    try {
+      const systemData = await storage.getSystemOverview();
+      res.json(systemData);
+    } catch (error) {
+      console.error("Error fetching system overview:", error);
+      res.status(500).json({ message: "Failed to fetch system overview" });
+    }
+  });
+
   // Setup authentication routes
   setupAuthRoutes(app);
 
