@@ -212,6 +212,13 @@ export function canAccessSystemAdmin(user: User | null): boolean {
   ]);
 }
 
+export function canAccessSecurityDashboard(user: User | null): boolean {
+  return hasAnyPermission(user, [
+    PERMISSIONS.VIEW_SYSTEM_LOGS,
+    PERMISSIONS.MANAGE_SYSTEM,
+  ]);
+}
+
 // Data filtering functions based on user role
 export function shouldFilterByUser(user: User | null): boolean {
   if (!user) return true;

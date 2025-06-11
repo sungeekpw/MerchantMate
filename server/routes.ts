@@ -1095,6 +1095,80 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Security endpoints - admin only
+  app.get("/api/security/login-attempts", isAuthenticated, requireRole(["admin", "super_admin"]), async (req, res) => {
+    try {
+      const { db } = await import("./db");
+      const { loginAttempts } = await import("@shared/schema");
+      const { desc } = await import("drizzle-orm");
+      
+      const attempts = await db.select().from(loginAttempts)
+        .orderBy(desc(loginAttempts.createdAt))
+        .limit(100);
+      
+      res.json(attempts);
+    } catch (error) {
+      console.error("Failed to fetch login attempts:", error);
+      res.status(500).json({ message: "Failed to fetch login attempts" });
+    }
+  });
+
+  app.get("/api/security/metrics", isAuthenticated, requireRole(["admin", "super_admin"]), async (req, res) => {
+    try {
+      const { db } = await import("./db");
+      const { loginAttempts } = await import("@shared/schema");
+      const { count, gte, and, eq } = await import("drizzle-orm");
+      
+      const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+      const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+
+      // Get total attempts in last 30 days
+      const totalAttempts = await db.select({ count: count() })
+        .from(loginAttempts)
+        .where(gte(loginAttempts.createdAt, thirtyDaysAgo));
+
+      // Get successful logins in last 30 days
+      const successfulLogins = await db.select({ count: count() })
+        .from(loginAttempts)
+        .where(and(
+          gte(loginAttempts.createdAt, thirtyDaysAgo),
+          eq(loginAttempts.success, true)
+        ));
+
+      // Get failed logins in last 30 days
+      const failedLogins = await db.select({ count: count() })
+        .from(loginAttempts)
+        .where(and(
+          gte(loginAttempts.createdAt, thirtyDaysAgo),
+          eq(loginAttempts.success, false)
+        ));
+
+      // Get unique IPs in last 30 days
+      const uniqueIPs = await db.selectDistinct({ ipAddress: loginAttempts.ipAddress })
+        .from(loginAttempts)
+        .where(gte(loginAttempts.createdAt, thirtyDaysAgo));
+
+      // Get recent failed attempts (last 24 hours)
+      const recentFailedAttempts = await db.select({ count: count() })
+        .from(loginAttempts)
+        .where(and(
+          gte(loginAttempts.createdAt, twentyFourHoursAgo),
+          eq(loginAttempts.success, false)
+        ));
+
+      res.json({
+        totalLoginAttempts: totalAttempts[0]?.count || 0,
+        successfulLogins: successfulLogins[0]?.count || 0,
+        failedLogins: failedLogins[0]?.count || 0,
+        uniqueIPs: uniqueIPs.length || 0,
+        recentFailedAttempts: recentFailedAttempts[0]?.count || 0
+      });
+    } catch (error) {
+      console.error("Failed to fetch security metrics:", error);
+      res.status(500).json({ message: "Failed to fetch security metrics" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
