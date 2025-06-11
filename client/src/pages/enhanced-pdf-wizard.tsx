@@ -52,7 +52,7 @@ export default function EnhancedPdfWizard() {
 
   // Fetch PDF form with fields
   const { data: pdfForm, isLoading, error } = useQuery<PdfForm>({
-    queryKey: ['/api/pdf-forms', id, 'with-fields'],
+    queryKey: [`/api/pdf-forms/${id}/with-fields`],
     enabled: !!id
   });
 
