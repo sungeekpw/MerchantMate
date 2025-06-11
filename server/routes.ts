@@ -1466,6 +1466,58 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Send email with submission link
+  app.post("/api/pdf-forms/:id/send-submission-link", isAuthenticated, async (req: any, res) => {
+    try {
+      const formId = parseInt(req.params.id);
+      const { applicantEmail } = req.body;
+      
+      if (!applicantEmail) {
+        return res.status(400).json({ message: "Applicant email is required" });
+      }
+      
+      // Get form details
+      const form = await storage.getPdfForm(formId);
+      if (!form) {
+        return res.status(404).json({ message: "Form not found" });
+      }
+      
+      // Create new submission
+      const submissionData = {
+        formId,
+        submittedBy: null,
+        applicantEmail,
+        data: JSON.stringify({}),
+        status: 'draft',
+        isPublic: true,
+        submissionToken: storage.generateSubmissionToken()
+      };
+      
+      const submission = await storage.createPdfFormSubmission(submissionData);
+      
+      // Generate the submission URL
+      const baseUrl = process.env.NODE_ENV === 'production' 
+        ? `https://${process.env.REPLIT_DOMAIN || 'localhost:5000'}` 
+        : 'http://localhost:5000';
+      const submissionUrl = `${baseUrl}/form/${submission.submissionToken}`;
+      
+      // Send email (using placeholder for now - will implement with SendGrid)
+      console.log(`Email would be sent to: ${applicantEmail}`);
+      console.log(`Subject: Complete your ${form.name}`);
+      console.log(`Link: ${submissionUrl}`);
+      
+      res.json({ 
+        success: true, 
+        submissionToken: submission.submissionToken,
+        submissionUrl,
+        message: `Submission link created for ${applicantEmail}` 
+      });
+    } catch (error) {
+      console.error("Error sending submission link:", error);
+      res.status(500).json({ message: "Failed to send submission link" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
