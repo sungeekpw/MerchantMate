@@ -453,9 +453,9 @@ export default function EnhancedPdfWizard() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white border-b border-gray-200 px-4 py-6">
+    <div className="h-screen bg-gray-50 flex flex-col">
+      {/* Header - Fixed */}
+      <div className="bg-white border-b border-gray-200 px-4 py-6 flex-shrink-0">
         <div className="max-w-6xl mx-auto">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
@@ -489,14 +489,15 @@ export default function EnhancedPdfWizard() {
         </div>
       </div>
 
-      {/* Main Content */}
-      <div className="max-w-6xl mx-auto px-4 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-          {/* Section Navigation */}
-          <div className="lg:col-span-1">
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 sticky top-8">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Application Sections</h3>
-              <nav className="space-y-2">
+      {/* Main Content - Scrollable */}
+      <div className="flex-1 overflow-hidden">
+        <div className="max-w-6xl mx-auto px-4 py-8 h-full">
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-8 h-full">
+            {/* Section Navigation - Fixed Height */}
+            <div className="lg:col-span-1">
+              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 h-fit sticky top-0">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Application Sections</h3>
+                <nav className="space-y-2">
                 {sections.map((section, index) => {
                   const IconComponent = section.icon;
                   return (
@@ -547,8 +548,8 @@ export default function EnhancedPdfWizard() {
             </div>
           </div>
 
-          {/* Form Content */}
-          <div className="lg:col-span-3">
+          {/* Form Content - Scrollable */}
+          <div className="lg:col-span-3 h-full overflow-y-auto">
             {sections[currentStep] && (
               <Card className="p-8">
                 <CardHeader className="pb-6">
