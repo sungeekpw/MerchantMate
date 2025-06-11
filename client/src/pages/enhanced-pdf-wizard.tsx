@@ -305,7 +305,7 @@ export default function EnhancedPdfWizard() {
                 <SelectValue placeholder={`Select ${field.fieldLabel.toLowerCase()}`} />
               </SelectTrigger>
               <SelectContent>
-                {field.options?.map((option) => (
+                {field.options?.filter(option => option && option.trim() !== '').map((option) => (
                   <SelectItem key={option} value={option}>
                     {option}
                   </SelectItem>
