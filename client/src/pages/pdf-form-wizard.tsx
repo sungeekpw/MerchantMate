@@ -198,7 +198,7 @@ export default function PdfFormWizard() {
         );
       
       case 'select':
-        const options = field.options || [];
+        const options = (field.options || []).filter(option => option && option.trim() !== '');
         return (
           <Select value={value} onValueChange={(val) => handleFieldChange(field.fieldName, val)}>
             <SelectTrigger>
