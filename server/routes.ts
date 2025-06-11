@@ -1282,6 +1282,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get specific PDF form with fields (wizard endpoint)
+  app.get("/api/pdf-forms/:id/with-fields", isAuthenticated, async (req: any, res) => {
+    try {
+      const formId = parseInt(req.params.id);
+      const form = await storage.getPdfFormWithFields(formId);
+      
+      if (!form) {
+        return res.status(404).json({ message: "PDF form not found" });
+      }
+      
+      res.json(form);
+    } catch (error) {
+      console.error("Error fetching PDF form with fields:", error);
+      res.status(500).json({ message: "Failed to fetch PDF form with fields" });
+    }
+  });
+
+  // Handle form submissions (auto-save and final submit)
+  app.post("/api/pdf-forms/:id/submissions", isAuthenticated, async (req: any, res) => {
+    try {
+      const formId = parseInt(req.params.id);
+      const { data, status = 'draft' } = req.body;
+      
+      const submissionData = {
+        formId,
+        submittedBy: req.user.id,
+        data: typeof data === 'string' ? data : JSON.stringify(data),
+        status
+      };
+      
+      const submission = await storage.createPdfFormSubmission(submissionData);
+      res.status(201).json(submission);
+    } catch (error) {
+      console.error("Error creating form submission:", error);
+      res.status(500).json({ message: "Failed to save form submission" });
+    }
+  });
+
   // Submit PDF form data (auto-save functionality)
   app.post("/api/pdf-forms/:id/submit", isAuthenticated, async (req: any, res) => {
     try {
