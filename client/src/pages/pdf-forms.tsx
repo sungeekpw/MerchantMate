@@ -49,7 +49,7 @@ export default function PdfFormsPage() {
   const [errorMessage, setErrorMessage] = useState('');
 
   // Fetch all PDF forms
-  const { data: pdfForms, isLoading: formsLoading, error: formsError } = useQuery({
+  const { data: pdfForms, isLoading: formsLoading, error: formsError } = useQuery<PdfForm[]>({
     queryKey: ['/api/pdf-forms'],
     retry: false
   });
@@ -202,7 +202,7 @@ export default function PdfFormsPage() {
               <div className="flex justify-between items-center">
                 <h2 className="text-xl font-semibold">Your PDF Forms</h2>
                 <Badge variant="outline">
-                  {pdfForms?.length || 0} forms
+                  {pdfForms ? pdfForms.length : 0} forms
                 </Badge>
               </div>
 
@@ -221,7 +221,7 @@ export default function PdfFormsPage() {
                     </Card>
                   ))}
                 </div>
-              ) : pdfForms?.length > 0 ? (
+              ) : pdfForms && Array.isArray(pdfForms) && pdfForms.length > 0 ? (
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                   {pdfForms.map((form: PdfForm) => (
                     <Card key={form.id} className="hover:shadow-md transition-shadow">
