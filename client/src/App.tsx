@@ -107,6 +107,11 @@ function AuthenticatedApp() {
           title: "Reports",
           subtitle: "Generate detailed analytics and reports"
         };
+      case "/security":
+        return {
+          title: "Security Dashboard",
+          subtitle: "Monitor login attempts and security metrics"
+        };
       default:
         return {
           title: "Dashboard",
@@ -251,6 +256,24 @@ function AuthenticatedApp() {
                   />
                   <main className="flex-1 overflow-auto bg-gray-50">
                     <Reports />
+                  </main>
+                </>
+              );
+            }}
+          </Route>
+          <Route path="/security">
+            {() => {
+              if (!canAccessSecurityDashboard(user)) return <NotFound />;
+              const pageInfo = getPageInfo("/security");
+              return (
+                <>
+                  <Header 
+                    title={pageInfo.title} 
+                    subtitle={pageInfo.subtitle}
+                    onSearch={setGlobalSearch}
+                  />
+                  <main className="flex-1 overflow-auto bg-gray-50">
+                    <Security />
                   </main>
                 </>
               );
