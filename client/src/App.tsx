@@ -114,6 +114,16 @@ function AuthenticatedApp() {
           title: "Security Dashboard",
           subtitle: "Monitor login attempts and security metrics"
         };
+      case "/pdf-forms":
+        return {
+          title: "PDF Forms",
+          subtitle: "Upload and manage merchant application forms"
+        };
+      case "/pdf-form-wizard":
+        return {
+          title: "Form Wizard",
+          subtitle: "Complete merchant application step by step"
+        };
       default:
         return {
           title: "Dashboard",
@@ -276,6 +286,40 @@ function AuthenticatedApp() {
                   />
                   <main className="flex-1 overflow-auto bg-gray-50">
                     <Security />
+                  </main>
+                </>
+              );
+            }}
+          </Route>
+          <Route path="/pdf-forms">
+            {() => {
+              const pageInfo = getPageInfo("/pdf-forms");
+              return (
+                <>
+                  <Header 
+                    title={pageInfo.title} 
+                    subtitle={pageInfo.subtitle}
+                    onSearch={setGlobalSearch}
+                  />
+                  <main className="flex-1 overflow-auto bg-gray-50">
+                    <PdfForms />
+                  </main>
+                </>
+              );
+            }}
+          </Route>
+          <Route path="/pdf-form-wizard/:id">
+            {(params) => {
+              const pageInfo = getPageInfo("/pdf-form-wizard");
+              return (
+                <>
+                  <Header 
+                    title={pageInfo.title} 
+                    subtitle={pageInfo.subtitle}
+                    onSearch={setGlobalSearch}
+                  />
+                  <main className="flex-1 overflow-auto bg-gray-50">
+                    <PdfFormWizard />
                   </main>
                 </>
               );
