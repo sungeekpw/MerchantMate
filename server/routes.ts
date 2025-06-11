@@ -1003,6 +1003,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Update prospect status to "in progress" when they start filling out the form
+  app.post("/api/prospects/:id/start-application", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const prospectId = parseInt(id);
+      
+      const prospect = await storage.getMerchantProspect(prospectId);
+      if (!prospect) {
+        return res.status(404).json({ message: "Prospect not found" });
+      }
+
+      // Only update if status is 'contacted' (validated email)
+      if (prospect.status === 'contacted') {
+        const updatedProspect = await storage.updateMerchantProspect(prospectId, {
+          status: 'in_progress',
+          applicationStartedAt: new Date(),
+        });
+        res.json(updatedProspect);
+      } else {
+        res.json(prospect); // Return existing prospect if already in progress or further along
+      }
+    } catch (error) {
+      console.error("Error updating prospect status:", error);
+      res.status(500).json({ message: "Failed to update prospect status" });
+    }
+  });
+
   // Admin-only routes for merchants
   app.get("/api/merchants/all", devRequireRole(['admin', 'corporate', 'super_admin']), async (req, res) => {
     try {
