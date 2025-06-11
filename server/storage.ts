@@ -926,7 +926,8 @@ export class DatabaseStorage implements IStorage {
         })
         .from(transactions)
         .leftJoin(merchants, eq(transactions.merchantId, merchants.id))
-        .where(eq(transactions.merchantId, merchantIds[0])); // Start with first merchant
+        .where(inArray(transactions.merchantId, merchantIds))
+        .orderBy(desc(transactions.createdAt));
 
       return result.map(row => ({
         ...row,
