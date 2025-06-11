@@ -687,7 +687,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // For merchants, only show their own transactions
       if (user.role === 'merchant') {
+        console.log(`Merchant transaction request - User: ${userId}, Email: ${user.email}, Role: ${user.role}`);
         const transactions = await storage.getTransactionsForUser(userId);
+        console.log(`Returning ${transactions.length} transactions for merchant`);
         
         if (search) {
           const filteredTransactions = transactions.filter(t => 
