@@ -21,9 +21,10 @@ import {
 } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Search, Eye, Edit, Trash2, Filter } from "lucide-react";
+import { Plus, Search, Eye, Edit, Trash2, Filter, ChevronDown, ChevronRight, MapPin } from "lucide-react";
 import { merchantsApi } from "@/lib/api";
 import { MerchantModal } from "@/components/modals/merchant-modal";
+import { useAuth } from "@/hooks/useAuth";
 import type { Merchant } from "@shared/schema";
 
 export default function Merchants() {
