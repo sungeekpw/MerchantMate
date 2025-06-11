@@ -18,12 +18,15 @@ export const WIDGET_TYPES = {
   MERCHANT_PERFORMANCE: "merchant_performance",
   COMMISSION_TRACKING: "commission_tracking",
   AGENT_LEADERBOARD: "agent_leaderboard",
+  PIPELINE_OVERVIEW: "pipeline_overview",
   
   // Admin-specific widgets
   SYSTEM_OVERVIEW: "system_overview",
   USER_MANAGEMENT: "user_management",
   COMPLIANCE_MONITOR: "compliance_monitor",
   FINANCIAL_SUMMARY: "financial_summary",
+  ALERTS_CENTER: "alerts_center",
+  PERFORMANCE_METRICS: "performance_metrics",
 } as const;
 
 export type WidgetType = typeof WIDGET_TYPES[keyof typeof WIDGET_TYPES];
@@ -57,6 +60,7 @@ export const ROLE_WIDGET_PERMISSIONS = {
     WIDGET_TYPES.MERCHANT_PERFORMANCE,
     WIDGET_TYPES.COMMISSION_TRACKING,
     WIDGET_TYPES.AGENT_LEADERBOARD,
+    WIDGET_TYPES.PIPELINE_OVERVIEW,
   ],
   admin: [
     WIDGET_TYPES.QUICK_STATS,
@@ -68,6 +72,10 @@ export const ROLE_WIDGET_PERMISSIONS = {
     WIDGET_TYPES.FINANCIAL_SUMMARY,
     WIDGET_TYPES.REVENUE_OVERVIEW,
     WIDGET_TYPES.LOCATION_PERFORMANCE,
+    WIDGET_TYPES.ALERTS_CENTER,
+    WIDGET_TYPES.PERFORMANCE_METRICS,
+    WIDGET_TYPES.PIPELINE_OVERVIEW,
+    WIDGET_TYPES.AGENT_LEADERBOARD,
   ],
   corporate: [
     WIDGET_TYPES.QUICK_STATS,
