@@ -1,28 +1,27 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, MapPin, Edit, Trash2, Eye } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
-import { useToast } from "@/hooks/use-toast";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { insertLocationSchema, insertAddressSchema, type LocationWithAddresses, type InsertLocation, type InsertAddress } from "@shared/schema";
-import { apiRequest } from "@/lib/queryClient";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useToast } from "@/hooks/use-toast";
+import { MapPin, Plus, Phone, Mail } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { insertLocationSchema, insertAddressSchema, type InsertLocation, type InsertAddress, type LocationWithAddresses } from "@shared/schema";
 
 export default function LocationsPage() {
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [selectedLocation, setSelectedLocation] = useState<LocationWithAddresses | null>(null);
+  
   const [isLocationDialogOpen, setIsLocationDialogOpen] = useState(false);
   const [isAddressDialogOpen, setIsAddressDialogOpen] = useState(false);
+  const [selectedLocation, setSelectedLocation] = useState<LocationWithAddresses | null>(null);
 
   // Get merchant ID for the current user
   const merchantId = user?.role === 'merchant' ? 1 : 1; // TODO: Get actual merchant ID from user
@@ -44,9 +43,9 @@ export default function LocationsPage() {
       merchantId,
       name: "",
       type: "store",
+      mid: "",
       phone: "",
       email: "",
-      status: "active",
     },
   });
 
@@ -54,12 +53,12 @@ export default function LocationsPage() {
     resolver: zodResolver(insertAddressSchema),
     defaultValues: {
       locationId: 0,
-      type: "primary",
+      type: "billing",
       street1: "",
       street2: "",
       city: "",
       state: "",
-      postalCode: "",
+      zipCode: "",
       country: "US",
       latitude: undefined,
       longitude: undefined,
@@ -76,9 +75,9 @@ export default function LocationsPage() {
       queryClient.invalidateQueries({ queryKey: ['/api/merchants', merchantId, 'locations'] });
       setIsLocationDialogOpen(false);
       locationForm.reset();
-      toast({ title: "Location created successfully" });
+      toast({ title: "Success", description: "Location created successfully" });
     },
-    onError: (error) => {
+    onError: (error: any) => {
       toast({ title: "Error creating location", description: error.message, variant: "destructive" });
     },
   });
@@ -93,9 +92,9 @@ export default function LocationsPage() {
       queryClient.invalidateQueries({ queryKey: ['/api/merchants', merchantId, 'locations'] });
       setIsAddressDialogOpen(false);
       addressForm.reset();
-      toast({ title: "Address added successfully" });
+      toast({ title: "Success", description: "Address added successfully" });
     },
-    onError: (error) => {
+    onError: (error: any) => {
       toast({ title: "Error adding address", description: error.message, variant: "destructive" });
     },
   });
@@ -128,175 +127,166 @@ export default function LocationsPage() {
                 </Button>
               </DialogTrigger>
               <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Add New Location</DialogTitle>
-              <DialogDescription>
-                Create a new business location with a unique MID for transaction tracking.
-              </DialogDescription>
-            </DialogHeader>
-            <Form {...locationForm}>
-              <form onSubmit={locationForm.handleSubmit(onLocationSubmit)} className="space-y-4">
-                <FormField
-                  control={locationForm.control}
-                  name="name"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Location Name</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Main Store, Downtown Branch, etc." {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={locationForm.control}
-                  name="mid"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>MID (Merchant ID)</FormLabel>
-                      <FormControl>
-                        <Input placeholder="MID-STORE-001" {...field} value={field.value || ""} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={locationForm.control}
-                  name="type"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Type</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select location type" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="store">Store</SelectItem>
-                          <SelectItem value="warehouse">Warehouse</SelectItem>
-                          <SelectItem value="office">Office</SelectItem>
-                          <SelectItem value="headquarters">Headquarters</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <div className="grid grid-cols-2 gap-4">
-                  <FormField
-                    control={locationForm.control}
-                    name="phone"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Phone</FormLabel>
-                        <FormControl>
-                          <Input placeholder="555-0123" {...field} value={field.value || ""} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={locationForm.control}
-                    name="email"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Email</FormLabel>
-                        <FormControl>
-                          <Input placeholder="store@example.com" {...field} value={field.value || ""} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-                <DialogFooter>
-                  <Button type="submit" disabled={createLocationMutation.isPending}>
-                    {createLocationMutation.isPending ? "Creating..." : "Create Location"}
-                  </Button>
-                </DialogFooter>
-              </form>
-            </Form>
-          </DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Add New Location</DialogTitle>
+                  <DialogDescription>
+                    Create a new business location with a unique MID for transaction tracking.
+                  </DialogDescription>
+                </DialogHeader>
+                <Form {...locationForm}>
+                  <form onSubmit={locationForm.handleSubmit(onLocationSubmit)} className="space-y-4">
+                    <FormField
+                      control={locationForm.control}
+                      name="name"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Location Name</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Main Store" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={locationForm.control}
+                      name="type"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Location Type</FormLabel>
+                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select type" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="store">Store</SelectItem>
+                              <SelectItem value="warehouse">Warehouse</SelectItem>
+                              <SelectItem value="office">Office</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={locationForm.control}
+                      name="mid"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>MID (Merchant ID)</FormLabel>
+                          <FormControl>
+                            <Input placeholder="MID-STORE-001" {...field} value={field.value || ""} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <div className="grid grid-cols-2 gap-4">
+                      <FormField
+                        control={locationForm.control}
+                        name="phone"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Phone</FormLabel>
+                            <FormControl>
+                              <Input placeholder="555-0123" {...field} value={field.value || ""} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={locationForm.control}
+                        name="email"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Email</FormLabel>
+                            <FormControl>
+                              <Input placeholder="store@example.com" {...field} value={field.value || ""} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                    <DialogFooter>
+                      <Button type="submit" disabled={createLocationMutation.isPending}>
+                        {createLocationMutation.isPending ? "Creating..." : "Create Location"}
+                      </Button>
+                    </DialogFooter>
+                  </form>
+                </Form>
+              </DialogContent>
             </Dialog>
           </div>
         </CardHeader>
         <CardContent>
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             {locations.map((location: LocationWithAddresses) => (
-          <Card key={location.id} className="relative">
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle className="flex items-center gap-2">
-                  <MapPin className="w-5 h-5" />
-                  {location.name}
-                </CardTitle>
-                <Badge variant={location.status === "active" ? "default" : "secondary"}>
-                  {location.status}
-                </Badge>
-              </div>
-              <CardDescription>
-                {location.type} • MID: {location.mid || "Not assigned"}
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2 text-sm">
-                {location.phone && (
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium">Phone:</span>
-                    <span>{location.phone}</span>
+              <Card key={location.id} className="relative">
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="flex items-center gap-2">
+                      <MapPin className="w-5 h-5" />
+                      {location.name}
+                    </CardTitle>
+                    <Badge variant={location.status === "active" ? "default" : "secondary"}>
+                      {location.status}
+                    </Badge>
                   </div>
-                )}
-                {location.email && (
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium">Email:</span>
-                    <span>{location.email}</span>
+                  <CardDescription>
+                    {location.type} • MID: {location.mid || "Not assigned"}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2 text-sm">
+                    {location.phone && (
+                      <div className="flex items-center gap-2">
+                        <Phone className="w-4 h-4" />
+                        <span>{location.phone}</span>
+                      </div>
+                    )}
+                    {location.email && (
+                      <div className="flex items-center gap-2">
+                        <Mail className="w-4 h-4" />
+                        <span>{location.email}</span>
+                      </div>
+                    )}
                   </div>
-                )}
-                <div className="flex items-center gap-2">
-                  <span className="font-medium">Addresses:</span>
-                  <span>{location.addresses?.length || 0}</span>
-                </div>
-              </div>
-              
-              <div className="flex gap-2 mt-4">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    setSelectedLocation(location);
-                    setIsAddressDialogOpen(true);
-                  }}
-                >
-                  <Plus className="w-4 h-4 mr-1" />
-                  Add Address
-                </Button>
-                <Button variant="outline" size="sm">
-                  <Eye className="w-4 h-4 mr-1" />
-                  View
-                </Button>
-              </div>
-
-              {location.addresses && location.addresses.length > 0 && (
-                <div className="mt-4 pt-4 border-t">
-                  <h4 className="font-medium mb-2">Addresses:</h4>
-                  {location.addresses.map((address) => (
-                    <div key={address.id} className="text-sm text-muted-foreground mb-2">
-                      <div>{address.street1}</div>
-                      {address.street2 && <div>{address.street2}</div>}
-                      <div>{address.city}, {address.state} {address.postalCode}</div>
-                      {address.latitude && address.longitude && (
-                        <div className="text-xs">📍 {address.latitude}, {address.longitude}</div>
-                      )}
+                  
+                  <div className="mt-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-medium">Addresses</span>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          setSelectedLocation(location);
+                          setIsAddressDialogOpen(true);
+                        }}
+                      >
+                        <Plus className="w-3 h-3 mr-1" />
+                        Add
+                      </Button>
                     </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+                    {location.addresses && location.addresses.length > 0 ? (
+                      <div className="space-y-2">
+                        {location.addresses.map((address) => (
+                          <div key={address.id} className="p-2 bg-gray-50 rounded text-xs">
+                            <div className="font-medium">{address.type}</div>
+                            <div>{address.street1}</div>
+                            <div>{address.city}, {address.state} {address.zipCode}</div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-gray-500">No addresses added</p>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
             ))}
           </div>
         </CardContent>
@@ -322,14 +312,13 @@ export default function LocationsPage() {
                     <Select onValueChange={field.onChange} defaultValue={field.value}>
                       <FormControl>
                         <SelectTrigger>
-                          <SelectValue placeholder="Select address type" />
+                          <SelectValue placeholder="Select type" />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="primary">Primary</SelectItem>
                         <SelectItem value="billing">Billing</SelectItem>
                         <SelectItem value="shipping">Shipping</SelectItem>
-                        <SelectItem value="mailing">Mailing</SelectItem>
+                        <SelectItem value="physical">Physical</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormMessage />
@@ -370,7 +359,7 @@ export default function LocationsPage() {
                     <FormItem>
                       <FormLabel>City</FormLabel>
                       <FormControl>
-                        <Input placeholder="San Francisco" {...field} />
+                        <Input placeholder="New York" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -383,7 +372,7 @@ export default function LocationsPage() {
                     <FormItem>
                       <FormLabel>State</FormLabel>
                       <FormControl>
-                        <Input placeholder="CA" {...field} />
+                        <Input placeholder="NY" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -393,12 +382,12 @@ export default function LocationsPage() {
               <div className="grid grid-cols-2 gap-4">
                 <FormField
                   control={addressForm.control}
-                  name="postalCode"
+                  name="zipCode"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Postal Code</FormLabel>
+                      <FormLabel>ZIP Code</FormLabel>
                       <FormControl>
-                        <Input placeholder="94102" {...field} />
+                        <Input placeholder="10001" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -429,9 +418,9 @@ export default function LocationsPage() {
                         <Input 
                           type="number" 
                           step="any" 
-                          placeholder="37.7749" 
+                          placeholder="40.7128" 
                           {...field} 
-                          value={field.value || ""}
+                          value={field.value || ""} 
                           onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)}
                         />
                       </FormControl>
@@ -449,9 +438,9 @@ export default function LocationsPage() {
                         <Input 
                           type="number" 
                           step="any" 
-                          placeholder="-122.4194" 
+                          placeholder="-74.0060" 
                           {...field} 
-                          value={field.value || ""}
+                          value={field.value || ""} 
                           onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)}
                         />
                       </FormControl>
