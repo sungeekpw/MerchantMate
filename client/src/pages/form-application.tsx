@@ -136,10 +136,12 @@ export default function FormApplicationPage() {
   // Loading state
   if (formLoading) {
     return (
-      <div className="container mx-auto py-6">
-        <div className="animate-pulse">
-          <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded w-1/3 mb-4"></div>
-          <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-2/3 mb-8"></div>
+      <div className="p-6 space-y-6">
+        <div className="animate-pulse space-y-6">
+          <div>
+            <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded w-1/3 mb-2"></div>
+            <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-2/3"></div>
+          </div>
           <Card>
             <CardHeader>
               <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded w-1/2 mb-2"></div>
@@ -158,7 +160,7 @@ export default function FormApplicationPage() {
   // Error or not found state
   if (formError || !pdfForm || !formId) {
     return (
-      <div className="container mx-auto py-6">
+      <div className="p-6 space-y-6">
         <div className="text-center">
           <h1 className="text-2xl font-bold mb-4">Application Form Not Found</h1>
           <p className="text-gray-600 mb-4">The requested application form could not be found.</p>
@@ -186,16 +188,8 @@ export default function FormApplicationPage() {
   };
 
   return (
-    <div className="container mx-auto py-6">
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold">{getPageTitle()}</h1>
-          <p className="text-gray-600 dark:text-gray-400">
-            {getPageSubtitle()}
-          </p>
-        </div>
-
-        <Card className="hover:shadow-md transition-shadow">
+    <div className="p-6 space-y-6">
+      <Card className="hover:shadow-md transition-shadow">
           <CardHeader>
             <div className="flex items-start justify-between">
               <div className="flex-1">
@@ -313,7 +307,6 @@ export default function FormApplicationPage() {
             </div>
           </CardContent>
         </Card>
-      </div>
     </div>
   );
 }
