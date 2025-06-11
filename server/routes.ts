@@ -621,20 +621,71 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/transactions", devAuth, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
       const { search } = req.query;
 
-      // Use role-based filtering from storage layer
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // For agents, only show transactions for their assigned merchants
+      if (user.role === 'agent') {
+        const transactions = await storage.getTransactionsForUser(userId);
+        
+        if (search) {
+          const filteredTransactions = transactions.filter(t => 
+            t.transactionId.toLowerCase().includes(search.toString().toLowerCase()) ||
+            t.merchant?.businessName?.toLowerCase().includes(search.toString().toLowerCase()) ||
+            t.amount.toString().includes(search.toString()) ||
+            t.paymentMethod.toLowerCase().includes(search.toString().toLowerCase())
+          );
+          return res.json(filteredTransactions);
+        }
+        
+        return res.json(transactions);
+      }
+
+      // For merchants, only show their own transactions
+      if (user.role === 'merchant') {
+        const transactions = await storage.getTransactionsForUser(userId);
+        
+        if (search) {
+          const filteredTransactions = transactions.filter(t => 
+            t.transactionId.toLowerCase().includes(search.toString().toLowerCase()) ||
+            t.amount.toString().includes(search.toString()) ||
+            t.paymentMethod.toLowerCase().includes(search.toString().toLowerCase())
+          );
+          return res.json(filteredTransactions);
+        }
+        
+        return res.json(transactions);
+      }
+
+      // For admin/corporate/super_admin, show all transactions
+      if (['admin', 'corporate', 'super_admin'].includes(user.role)) {
+        if (search) {
+          const transactions = await storage.searchTransactions(search as string);
+          return res.json(transactions);
+        } else {
+          const transactions = await storage.getAllTransactions();
+          return res.json(transactions);
+        }
+      }
+
+      // Default fallback - use role-based filtering from storage layer
       const transactions = await storage.getTransactionsForUser(userId);
 
       if (search) {
         const filteredTransactions = transactions.filter(transaction =>
-          transaction.transactionId.toLowerCase().includes(search.toLowerCase()) ||
-          transaction.merchant?.businessName?.toLowerCase().includes(search.toLowerCase())
+          transaction.transactionId.toLowerCase().includes(search.toString().toLowerCase()) ||
+          transaction.merchant?.businessName?.toLowerCase().includes(search.toString().toLowerCase()) ||
+          transaction.amount.toString().includes(search.toString()) ||
+          transaction.paymentMethod.toLowerCase().includes(search.toString().toLowerCase())
         );
-        res.json(filteredTransactions);
-      } else {
-        res.json(transactions);
+        return res.json(filteredTransactions);
       }
+
+      res.json(transactions);
     } catch (error) {
       console.error("Error fetching transactions:", error);
       res.status(500).json({ message: "Failed to fetch transactions" });
