@@ -158,7 +158,7 @@ export default function MerchantApplicationPage() {
 
   if (formError || !pdfForm) {
     return (
-      <div className="container mx-auto py-6">
+      <div className="p-6 space-y-6">
         <div className="text-center">
           <h1 className="text-2xl font-bold mb-4">Merchant Application Not Found</h1>
           <p className="text-gray-600 mb-4">The requested merchant application form could not be found.</p>
@@ -171,16 +171,15 @@ export default function MerchantApplicationPage() {
   }
 
   return (
-    <div className="container mx-auto py-6">
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold">Merchant Application</h1>
-          <p className="text-gray-600 dark:text-gray-400">
-            Wells Fargo Merchant Processing Application Form
-          </p>
-        </div>
+    <div className="p-6 space-y-6">
+      <div>
+        <h1 className="text-3xl font-bold">Merchant Application</h1>
+        <p className="text-gray-600 dark:text-gray-400">
+          Wells Fargo Merchant Processing Application Form
+        </p>
+      </div>
 
-        <Card className="hover:shadow-md transition-shadow">
+      <Card className="hover:shadow-md transition-shadow">
           <CardHeader>
             <div className="flex items-start justify-between">
               <div className="flex-1">
@@ -298,7 +297,6 @@ export default function MerchantApplicationPage() {
             </div>
           </CardContent>
         </Card>
-      </div>
     </div>
   );
 }
