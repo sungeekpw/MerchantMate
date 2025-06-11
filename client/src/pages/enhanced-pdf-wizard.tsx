@@ -373,10 +373,10 @@ export default function EnhancedPdfWizard() {
               </div>
               <div>
                 <h1 className="text-2xl font-bold text-gray-900">
-                  Wells Fargo Merchant Processing Application
+                  {pdfForm.name}
                 </h1>
                 <p className="text-gray-600">
-                  Complete your merchant account application - All changes are saved automatically
+                  {pdfForm.description} - All changes are saved automatically
                 </p>
               </div>
             </div>
