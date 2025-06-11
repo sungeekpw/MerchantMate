@@ -34,20 +34,20 @@ export class EmailService {
         <html>
         <head>
           <meta charset="utf-8">
-          <title>Wells Fargo Merchant Application - Email Verification</title>
+          <title>Merchant Application - Email Verification</title>
           <style>
             body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
             .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-            .header { background-color: #c41e3a; color: white; padding: 20px; text-align: center; }
+            .header { background-color: #2563eb; color: white; padding: 20px; text-align: center; }
             .content { padding: 30px 20px; background-color: #f9f9f9; }
-            .button { display: inline-block; background-color: #c41e3a; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; margin: 20px 0; }
+            .button { display: inline-block; background-color: #2563eb; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; margin: 20px 0; }
             .footer { background-color: #333; color: #ccc; padding: 20px; text-align: center; font-size: 12px; }
           </style>
         </head>
         <body>
           <div class="container">
             <div class="header">
-              <h1>Wells Fargo Merchant Processing</h1>
+              <h1>Merchant Processing Application</h1>
               <p>Email Verification Required</p>
             </div>
             
@@ -80,7 +80,7 @@ export class EmailService {
             </div>
             
             <div class="footer">
-              <p>Wells Fargo Merchant Services</p>
+              <p>Merchant Processing Services</p>
               <p>This is an automated message. Please do not reply to this email.</p>
             </div>
           </div>
@@ -108,14 +108,14 @@ What happens next?
 
 If you have any questions, please contact your assigned agent directly.
 
-Wells Fargo Merchant Services
+Merchant Processing Services
 This is an automated message. Please do not reply to this email.
       `;
 
       await mailService.send({
         to: data.email,
         from: process.env.SENDGRID_FROM_EMAIL!,
-        subject: 'Wells Fargo Merchant Application - Email Verification Required',
+        subject: 'Merchant Application - Email Verification Required',
         text: textContent,
         html: htmlContent,
       });
