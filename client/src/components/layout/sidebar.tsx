@@ -45,7 +45,7 @@ export function Sidebar() {
       return item.requiresRole.includes(userRole);
     });
 
-    // Add dynamic PDF form navigation items
+    // Add dynamic PDF form navigation items - automatically creates dedicated pages
     const dynamicNavItems = pdfForms
       .filter((form: any) => 
         form.showInNavigation && 
@@ -53,7 +53,7 @@ export function Sidebar() {
       )
       .map((form: any) => ({
         name: form.navigationTitle || form.name,
-        href: `/merchant-application/${form.id}`,
+        href: `/form-application/${form.id}`,
         icon: FileText,
         requiresRole: form.allowedRoles
       }));
