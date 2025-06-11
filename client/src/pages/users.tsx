@@ -87,13 +87,22 @@ export default function Users() {
 
   const { data: users, isLoading, error } = useQuery<User[]>({
     queryKey: ["/api/users"],
-    enabled: authAttempted, // Only run query after auth is attempted
-    onSuccess: (data) => {
+    queryFn: async () => {
+      console.log('Executing users query...');
+      const response = await fetch('/api/users', {
+        credentials: 'include',
+        mode: 'cors',
+      });
+      
+      if (!response.ok) {
+        throw new Error(`${response.status}: ${response.statusText}`);
+      }
+      
+      const data = await response.json();
       console.log('Users query successful, received data:', data);
+      return data;
     },
-    onError: (error) => {
-      console.log('Users query error:', error);
-    },
+    enabled: authAttempted, // Only run query after auth is attempted
   });
 
   console.log('Users component state:', { 
