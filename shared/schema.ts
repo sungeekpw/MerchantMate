@@ -323,8 +323,12 @@ export const pdfFormFields = pgTable("pdf_form_fields", {
 export const pdfFormSubmissions = pgTable("pdf_form_submissions", {
   id: serial("id").primaryKey(),
   formId: integer("form_id").notNull().references(() => pdfForms.id, { onDelete: "cascade" }),
-  submittedBy: text("submitted_by").notNull().references(() => users.id, { onDelete: "cascade" }),
+  submittedBy: text("submitted_by").references(() => users.id, { onDelete: "cascade" }), // Make nullable for public submissions
+  submissionToken: text("submission_token").notNull().unique(), // Unique token for public access
+  applicantEmail: text("applicant_email"), // Email of the applicant for public submissions
   data: text("data").notNull(), // JSON string of form data
+  status: text("status").default("draft"), // draft, submitted, under_review, approved, rejected
+  isPublic: boolean("is_public").default(false), // Whether this is a public submission
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow()
 });
