@@ -455,6 +455,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get transactions by MID (location-specific transactions)
+  app.get("/api/transactions/mid/:mid", devAuth, async (req: any, res) => {
+    try {
+      const { mid } = req.params;
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      // Get location by MID to check access permissions
+      const locations = await storage.getLocationsByMerchant(0); // Get all locations first
+      const location = locations.find(loc => loc.mid === mid);
+      
+      if (!location) {
+        return res.status(404).json({ message: "Location not found" });
+      }
+      
+      // Check if user has access to this merchant
+      if (user?.role === 'merchant' && user.merchantId !== location.merchantId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const transactions = await storage.getTransactionsByMID(mid);
+      res.json(transactions);
+    } catch (error) {
+      console.error("Error fetching transactions by MID:", error);
+      res.status(500).json({ message: "Failed to fetch transactions" });
+    }
+  });
+
   // Agent-merchant assignment routes (admin only)
   app.post("/api/agents/:agentId/merchants/:merchantId", devRequireRole(['admin', 'corporate', 'super_admin']), async (req: any, res) => {
     try {
