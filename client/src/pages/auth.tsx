@@ -14,6 +14,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/useAuth";
 import { useLocation } from "wouter";
 import { z } from "zod";
+import { getUserTimezone } from "@/lib/timezone";
 
 // Form schemas
 const loginSchema = z.object({
@@ -83,10 +84,16 @@ export default function Auth() {
   // Login mutation
   const loginMutation = useMutation({
     mutationFn: async (data: LoginForm) => {
+      // Automatically include user's timezone
+      const loginData = {
+        ...data,
+        timezone: getUserTimezone()
+      };
+      
       const response = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
+        body: JSON.stringify(loginData),
         credentials: "include"
       });
       
