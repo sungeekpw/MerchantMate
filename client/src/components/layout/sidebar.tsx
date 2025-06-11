@@ -53,7 +53,7 @@ export function Sidebar() {
       )
       .map((form: any) => ({
         name: form.navigationTitle || form.name,
-        href: `/form-wizard/${form.id}`,
+        href: `/pdf-forms?formId=${form.id}`,
         icon: FileText,
         requiresRole: form.allowedRoles
       }));
