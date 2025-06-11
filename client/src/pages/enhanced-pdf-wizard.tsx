@@ -52,7 +52,16 @@ export default function EnhancedPdfWizard() {
 
   // Fetch PDF form with fields
   const { data: pdfForm, isLoading, error } = useQuery<PdfForm>({
-    queryKey: [`/api/pdf-forms/${id}/with-fields`],
+    queryKey: ['/api/pdf-forms', id, 'with-fields'],
+    queryFn: async () => {
+      const response = await fetch(`/api/pdf-forms/${id}/with-fields`, {
+        credentials: 'include'
+      });
+      if (!response.ok) {
+        throw new Error('Failed to fetch form');
+      }
+      return response.json();
+    },
     enabled: !!id
   });
 
@@ -87,10 +96,20 @@ export default function EnhancedPdfWizard() {
   // Auto-save mutation
   const autoSaveMutation = useMutation({
     mutationFn: async (data: Record<string, any>) => {
-      const response = await apiRequest('POST', `/api/pdf-forms/${id}/submissions`, {
-        formData: data,
-        isComplete: false
+      const response = await fetch(`/api/pdf-forms/${id}/submissions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          data: JSON.stringify(data),
+          status: 'draft'
+        }),
+        credentials: 'include'
       });
+      if (!response.ok) {
+        throw new Error('Auto-save failed');
+      }
       return response.json();
     },
     onSuccess: () => {
@@ -104,10 +123,20 @@ export default function EnhancedPdfWizard() {
   // Final submission mutation
   const finalSubmitMutation = useMutation({
     mutationFn: async (data: Record<string, any>) => {
-      const response = await apiRequest('POST', `/api/pdf-forms/${id}/submissions`, {
-        formData: data,
-        isComplete: true
+      const response = await fetch(`/api/pdf-forms/${id}/submissions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          data: JSON.stringify(data),
+          status: 'submitted'
+        }),
+        credentials: 'include'
       });
+      if (!response.ok) {
+        throw new Error('Submission failed');
+      }
       return response.json();
     },
     onSuccess: () => {
