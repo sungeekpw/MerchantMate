@@ -26,6 +26,7 @@ export interface IStorage {
   getTransactionByTransactionId(transactionId: string): Promise<Transaction | undefined>;
   getAllTransactions(): Promise<TransactionWithMerchant[]>;
   getTransactionsByMerchant(merchantId: number): Promise<TransactionWithMerchant[]>;
+  getTransactionsByMID(mid: string): Promise<TransactionWithMerchant[]>;
   createTransaction(transaction: InsertTransaction): Promise<Transaction>;
   updateTransaction(id: number, transaction: Partial<InsertTransaction>): Promise<Transaction | undefined>;
   searchTransactions(query: string): Promise<TransactionWithMerchant[]>;

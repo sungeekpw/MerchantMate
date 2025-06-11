@@ -18,6 +18,7 @@ export const merchants = pgTable("merchants", {
 export const locations = pgTable("locations", {
   id: serial("id").primaryKey(),
   merchantId: integer("merchant_id").notNull().references(() => merchants.id, { onDelete: "cascade" }),
+  mid: varchar("mid", { length: 50 }).unique(), // Merchant ID for tracking transactions to locations
   name: text("name").notNull(),
   type: text("type").notNull().default("store"), // store, warehouse, office, headquarters
   phone: text("phone"),
@@ -62,6 +63,7 @@ export const transactions = pgTable("transactions", {
   id: serial("id").primaryKey(),
   transactionId: text("transaction_id").notNull().unique(),
   merchantId: integer("merchant_id").notNull(),
+  mid: varchar("mid", { length: 50 }), // Merchant location ID for tracking transactions to specific locations
   amount: decimal("amount", { precision: 12, scale: 2 }).notNull(),
   paymentMethod: text("payment_method").notNull(), // visa, mastercard, amex, apple_pay, google_pay
   status: text("status").notNull(), // completed, pending, failed, refunded
