@@ -175,6 +175,7 @@ export default function Agents() {
                 {isLoading ? (
                   Array.from({ length: 5 }).map((_, i) => (
                     <TableRow key={i}>
+                      <TableCell><Skeleton className="h-4 w-6" /></TableCell>
                       <TableCell>
                         <div className="flex items-center space-x-3">
                           <Skeleton className="w-8 h-8 rounded-full" />
@@ -191,54 +192,23 @@ export default function Agents() {
                   ))
                 ) : filteredAgents.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8 text-gray-500">
+                    <TableCell colSpan={8} className="text-center py-8 text-gray-500">
                       {searchQuery || statusFilter !== "all" ? "No agents found matching your filters" : "No agents found"}
                     </TableCell>
                   </TableRow>
                 ) : (
                   filteredAgents.map((agent) => (
-                    <TableRow key={agent.id}>
-                      <TableCell>
-                        <div className="flex items-center space-x-3">
-                          <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">
-                            <span className="text-purple-600 font-medium text-sm">
-                              {agent.firstName.charAt(0)}{agent.lastName.charAt(0)}
-                            </span>
-                          </div>
-                          <div className="font-medium text-gray-900">
-                            {agent.firstName} {agent.lastName}
-                          </div>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-gray-500">{agent.email}</TableCell>
-                      <TableCell className="text-gray-500">{agent.phone}</TableCell>
-                      <TableCell className="text-gray-500">{agent.territory || "—"}</TableCell>
-                      <TableCell className="font-medium">{agent.commissionRate}%</TableCell>
-                      <TableCell>
-                        <Badge className={`corecrm-status-badge ${getStatusBadge(agent.status)}`}>
-                          {agent.status.charAt(0).toUpperCase() + agent.status.slice(1)}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center space-x-2">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleEdit(agent)}
-                          >
-                            <Edit className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleDelete(agent)}
-                            disabled={deleteMutation.isPending}
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
+                    <AgentRowWithMerchants 
+                      key={agent.id} 
+                      agent={agent}
+                      isExpanded={expandedRows.has(agent.id)}
+                      onToggleExpand={() => toggleRowExpansion(agent.id)}
+                      onEdit={() => handleEdit(agent)}
+                      onDelete={() => handleDelete(agent)}
+                      getStatusBadge={getStatusBadge}
+                      useAgentMerchants={useAgentMerchants}
+                      isDeleting={deleteMutation.isPending}
+                    />
                   ))
                 )}
               </TableBody>
@@ -262,5 +232,160 @@ export default function Agents() {
         agent={editingAgent}
       />
     </div>
+  );
+}
+
+// Component for expandable agent rows
+interface AgentRowWithMerchantsProps {
+  agent: Agent;
+  isExpanded: boolean;
+  onToggleExpand: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
+  getStatusBadge: (status: string) => string;
+  useAgentMerchants: (agentId: number, enabled: boolean) => any;
+  isDeleting: boolean;
+}
+
+function AgentRowWithMerchants({
+  agent,
+  isExpanded,
+  onToggleExpand,
+  onEdit,
+  onDelete,
+  getStatusBadge,
+  useAgentMerchants,
+  isDeleting
+}: AgentRowWithMerchantsProps) {
+  const { data: merchants = [], isLoading: merchantsLoading } = useAgentMerchants(agent.id, isExpanded);
+
+  return (
+    <>
+      <TableRow>
+        <TableCell>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onToggleExpand}
+            className="p-1"
+          >
+            {isExpanded ? (
+              <ChevronDown className="w-4 h-4" />
+            ) : (
+              <ChevronRight className="w-4 h-4" />
+            )}
+          </Button>
+        </TableCell>
+        <TableCell>
+          <div className="flex items-center space-x-3">
+            <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">
+              <span className="text-purple-600 font-medium text-sm">
+                {agent.firstName.charAt(0)}{agent.lastName.charAt(0)}
+              </span>
+            </div>
+            <div className="font-medium text-gray-900">
+              {agent.firstName} {agent.lastName}
+            </div>
+          </div>
+        </TableCell>
+        <TableCell className="text-gray-500">{agent.email}</TableCell>
+        <TableCell className="text-gray-500">{agent.phone}</TableCell>
+        <TableCell className="text-gray-500">{agent.territory || "—"}</TableCell>
+        <TableCell className="font-medium">{agent.commissionRate}%</TableCell>
+        <TableCell>
+          <Badge className={`corecrm-status-badge ${getStatusBadge(agent.status)}`}>
+            {agent.status.charAt(0).toUpperCase() + agent.status.slice(1)}
+          </Badge>
+        </TableCell>
+        <TableCell>
+          <div className="flex items-center space-x-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onEdit}
+            >
+              <Edit className="w-4 h-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onDelete}
+              disabled={isDeleting}
+            >
+              <Trash2 className="w-4 h-4" />
+            </Button>
+          </div>
+        </TableCell>
+      </TableRow>
+      
+      {isExpanded && (
+        <TableRow>
+          <TableCell colSpan={8} className="p-0">
+            <div className="bg-gray-50 border-t px-6 py-4">
+              <div className="mb-3">
+                <h4 className="text-sm font-semibold text-gray-900 flex items-center">
+                  <Building2 className="w-4 h-4 mr-2" />
+                  Associated Merchants ({merchants.length})
+                </h4>
+              </div>
+              
+              {merchantsLoading ? (
+                <div className="space-y-2">
+                  {Array.from({ length: 2 }).map((_, i) => (
+                    <div key={i} className="flex items-center space-x-3">
+                      <Skeleton className="h-4 w-48" />
+                      <Skeleton className="h-4 w-32" />
+                    </div>
+                  ))}
+                </div>
+              ) : merchants.length === 0 ? (
+                <p className="text-sm text-gray-500">No merchants assigned to this agent</p>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {merchants.map((merchant) => (
+                    <div key={merchant.id} className="bg-white rounded-lg border p-4">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <h5 className="text-sm font-medium text-gray-900 mb-1">
+                            {merchant.businessName}
+                          </h5>
+                          <div className="text-xs text-gray-500 space-y-1">
+                            <div className="flex items-center">
+                              <Mail className="w-3 h-3 mr-1" />
+                              {merchant.email}
+                            </div>
+                            <div className="flex items-center">
+                              <Phone className="w-3 h-3 mr-1" />
+                              {merchant.phone}
+                            </div>
+                            <div className="flex items-center">
+                              <Building2 className="w-3 h-3 mr-1" />
+                              {merchant.businessType}
+                            </div>
+                          </div>
+                        </div>
+                        <Badge className={`text-xs ${getStatusBadge(merchant.status)}`}>
+                          {merchant.status}
+                        </Badge>
+                      </div>
+                      <div className="mt-3 pt-3 border-t border-gray-100">
+                        <div className="flex justify-between text-xs">
+                          <span className="text-gray-500">Monthly Volume:</span>
+                          <span className="font-medium">${merchant.monthlyVolume}</span>
+                        </div>
+                        <div className="flex justify-between text-xs mt-1">
+                          <span className="text-gray-500">Processing Fee:</span>
+                          <span className="font-medium">{merchant.processingFee}%</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </TableCell>
+        </TableRow>
+      )}
+    </>
   );
 }
