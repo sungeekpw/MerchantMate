@@ -161,7 +161,9 @@ export default function PdfFormWizard() {
   ].filter(section => section.fields.length > 0) : [];
 
   // Check if current user is admin - handle different user data structures
-  const isAdmin = true; // Temporarily force admin mode for testing
+  const isAdmin = currentUser?.role === 'admin' || 
+                  currentUser?.role === 'super_admin' ||
+                  (currentUser?.id && currentUser.id.includes('admin'));
 
   // Initialize edit states when form loads
   useEffect(() => {
@@ -349,14 +351,14 @@ export default function PdfFormWizard() {
 
   if (error || !pdfForm) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+      <div className="min-h-screen bg-background flex items-center justify-center">
         <Card className="w-full max-w-md">
           <CardContent className="flex flex-col items-center justify-center py-12">
-            <FileText className="w-12 h-12 text-gray-400 mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">
+            <FileText className="w-12 h-12 text-muted-foreground mb-4" />
+            <h3 className="text-lg font-medium mb-2">
               Form Not Found
             </h3>
-            <p className="text-gray-600 dark:text-gray-400 text-center mb-4">
+            <p className="text-muted-foreground text-center mb-4">
               The requested PDF form could not be found.
             </p>
             <Button onClick={() => setLocation('/pdf-forms')}>
@@ -402,7 +404,7 @@ export default function PdfFormWizard() {
                   </div>
                 ) : (
                   <div className="flex items-center space-x-2">
-                    <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+                    <h1 className="text-3xl font-bold">
                       {pdfForm.name}
                     </h1>
                     {isAdmin && (
@@ -445,7 +447,7 @@ export default function PdfFormWizard() {
                   </div>
                 ) : (
                   <div className="flex items-center space-x-2">
-                    <p className="text-gray-600 dark:text-gray-400">
+                    <p className="text-muted-foreground">
                       {pdfForm.description}
                     </p>
                     {isAdmin && (
@@ -489,27 +491,27 @@ export default function PdfFormWizard() {
                     <button
                       key={index}
                       onClick={() => setCurrentSection(index)}
-                      className={`w-full text-left p-3 rounded-lg transition-colors ${
+                      className={`w-full text-left p-3 rounded-lg transition-colors border ${
                         currentSection === index
-                          ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300'
-                          : 'bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
-                      } border`}
+                          ? 'bg-primary/5 border-primary/20 text-primary'
+                          : 'bg-muted/50 border-border hover:bg-muted'
+                      }`}
                     >
                       <div className="flex items-center space-x-3">
                         <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
                           currentSection === index 
-                            ? 'bg-blue-100 dark:bg-blue-800' 
-                            : 'bg-gray-200 dark:bg-gray-600'
+                            ? 'bg-primary/10' 
+                            : 'bg-muted'
                         }`}>
                           <IconComponent className={`w-4 h-4 ${
                             currentSection === index 
-                              ? 'text-blue-600 dark:text-blue-300' 
-                              : 'text-gray-600 dark:text-gray-300'
+                              ? 'text-primary' 
+                              : 'text-muted-foreground'
                           }`} />
                         </div>
                         <div className="flex-1">
                           <div className="font-medium text-sm">{section.name}</div>
-                          <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                          <div className="text-xs text-muted-foreground mt-1">
                             {section.fields.length} fields
                           </div>
                         </div>
@@ -519,24 +521,24 @@ export default function PdfFormWizard() {
                 })}
 
                 {/* Auto-save Status */}
-                <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
+                <div className="mt-6 pt-6 border-t border-border">
                   <div className="flex items-center text-sm">
                     {autoSaveMutation.isPending ? (
                       <>
-                        <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mr-2"></div>
-                        <span className="text-blue-600">Saving...</span>
+                        <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin mr-2"></div>
+                        <span className="text-primary">Saving...</span>
                       </>
                     ) : lastSaved ? (
                       <>
                         <CheckCircle className="w-4 h-4 text-green-500 mr-2" />
-                        <span className="text-gray-600 dark:text-gray-400">
+                        <span className="text-muted-foreground">
                           Saved {lastSaved.toLocaleTimeString()}
                         </span>
                       </>
                     ) : (
                       <>
-                        <Clock className="w-4 h-4 text-gray-400 mr-2" />
-                        <span className="text-gray-500 dark:text-gray-400">No changes yet</span>
+                        <Clock className="w-4 h-4 text-muted-foreground mr-2" />
+                        <span className="text-muted-foreground">No changes yet</span>
                       </>
                     )}
                   </div>
