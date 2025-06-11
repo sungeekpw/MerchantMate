@@ -2,11 +2,13 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuthRoutes } from "./authRoutes";
-import { insertMerchantSchema, insertAgentSchema, insertTransactionSchema, insertLocationSchema, insertAddressSchema } from "@shared/schema";
+import { insertMerchantSchema, insertAgentSchema, insertTransactionSchema, insertLocationSchema, insertAddressSchema, insertPdfFormSchema } from "@shared/schema";
 import { setupAuth, isAuthenticated, requireRole, requirePermission } from "./replitAuth";
 import { z } from "zod";
 import session from "express-session";
 import connectPg from "connect-pg-simple";
+import multer from "multer";
+import { pdfFormParser } from "./pdfParser";
 
 // Helper function to get default widgets for a user role
 function getDefaultWidgetsForRole(role: string) {
@@ -48,6 +50,21 @@ function getDefaultWidgetsForRole(role: string) {
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Multer configuration for PDF uploads
+  const upload = multer({
+    storage: multer.memoryStorage(),
+    limits: {
+      fileSize: 10 * 1024 * 1024, // 10MB limit
+    },
+    fileFilter: (req, file, cb) => {
+      if (file.mimetype === 'application/pdf') {
+        cb(null, true);
+      } else {
+        cb(new Error('Only PDF files are allowed'));
+      }
+    }
+  });
+
   // Session setup for authentication using PostgreSQL store
   const pgStore = connectPg(session);
   const sessionStore = new pgStore({
@@ -1189,6 +1206,112 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Failed to fetch security metrics:", error);
       res.status(500).json({ message: "Failed to fetch security metrics" });
+    }
+  });
+
+  // PDF Form Upload and Processing Routes
+  app.post("/api/pdf-forms/upload", isAuthenticated, upload.single('pdf'), async (req: any, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ message: "No PDF file uploaded" });
+      }
+
+      const { originalname } = req.file;
+      const buffer = req.file.buffer;
+      
+      // Parse the PDF to extract form structure
+      const parseResult = await pdfFormParser.parsePDF(buffer);
+      
+      // Create the PDF form record
+      const formData = {
+        name: originalname.replace('.pdf', ''),
+        description: `Merchant Application Form - ${originalname}`,
+        uploadedBy: req.user.id,
+        originalFilename: originalname,
+        status: 'active' as const
+      };
+
+      const pdfForm = await storage.createPdfForm(formData);
+      
+      // Create form fields from parsed data
+      const fieldData = pdfFormParser.convertToDbFields(parseResult.sections, pdfForm.id);
+      
+      for (const field of fieldData) {
+        await storage.createPdfFormField(field);
+      }
+      
+      // Return the complete form with fields
+      const formWithFields = await storage.getPdfFormWithFields(pdfForm.id);
+      
+      res.status(201).json({
+        form: formWithFields,
+        sections: parseResult.sections,
+        totalFields: parseResult.totalFields
+      });
+    } catch (error) {
+      console.error("Error uploading PDF form:", error);
+      res.status(500).json({ message: "Failed to process PDF form", error: error.message });
+    }
+  });
+
+  // Get all PDF forms
+  app.get("/api/pdf-forms", isAuthenticated, async (req: any, res) => {
+    try {
+      const forms = await storage.getAllPdfForms(req.user.id);
+      res.json(forms);
+    } catch (error) {
+      console.error("Error fetching PDF forms:", error);
+      res.status(500).json({ message: "Failed to fetch PDF forms" });
+    }
+  });
+
+  // Get specific PDF form with fields
+  app.get("/api/pdf-forms/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const formId = parseInt(req.params.id);
+      const form = await storage.getPdfFormWithFields(formId);
+      
+      if (!form) {
+        return res.status(404).json({ message: "PDF form not found" });
+      }
+      
+      res.json(form);
+    } catch (error) {
+      console.error("Error fetching PDF form:", error);
+      res.status(500).json({ message: "Failed to fetch PDF form" });
+    }
+  });
+
+  // Submit PDF form data (auto-save functionality)
+  app.post("/api/pdf-forms/:id/submit", isAuthenticated, async (req: any, res) => {
+    try {
+      const formId = parseInt(req.params.id);
+      const { formData } = req.body;
+      
+      const submissionData = {
+        formId,
+        submittedBy: req.user.id,
+        formData: JSON.stringify(formData),
+        status: 'draft' as const
+      };
+      
+      const submission = await storage.createPdfFormSubmission(submissionData);
+      res.status(201).json(submission);
+    } catch (error) {
+      console.error("Error submitting PDF form:", error);
+      res.status(500).json({ message: "Failed to submit PDF form" });
+    }
+  });
+
+  // Get form submissions
+  app.get("/api/pdf-forms/:id/submissions", isAuthenticated, async (req: any, res) => {
+    try {
+      const formId = parseInt(req.params.id);
+      const submissions = await storage.getPdfFormSubmissions(formId);
+      res.json(submissions);
+    } catch (error) {
+      console.error("Error fetching form submissions:", error);
+      res.status(500).json({ message: "Failed to fetch form submissions" });
     }
   });
 
