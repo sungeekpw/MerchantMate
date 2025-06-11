@@ -258,48 +258,108 @@ export class DatabaseStorage implements IStorage {
   async getAllTransactions(): Promise<TransactionWithMerchant[]> {
     const result = await db
       .select({
-        transaction: transactions,
-        merchant: merchants,
+        id: transactions.id,
+        transactionId: transactions.transactionId,
+        merchantId: transactions.merchantId,
+        mid: transactions.mid,
+        amount: transactions.amount,
+        paymentMethod: transactions.paymentMethod,
+        status: transactions.status,
+        processingFee: transactions.processingFee,
+        netAmount: transactions.netAmount,
+        createdAt: transactions.createdAt,
+        merchant: {
+          id: merchants.id,
+          businessName: merchants.businessName,
+          businessType: merchants.businessType,
+          email: merchants.email,
+          phone: merchants.phone,
+          agentId: merchants.agentId,
+          processingFee: merchants.processingFee,
+          status: merchants.status,
+          monthlyVolume: merchants.monthlyVolume,
+          createdAt: merchants.createdAt,
+        }
       })
       .from(transactions)
       .leftJoin(merchants, eq(transactions.merchantId, merchants.id))
       .orderBy(transactions.createdAt);
 
     return result.map(row => ({
-      ...row.transaction,
-      merchant: row.merchant || undefined,
+      ...row,
+      merchant: row.merchant?.id ? row.merchant : undefined,
     }));
   }
 
   async getTransactionsByMerchant(merchantId: number): Promise<TransactionWithMerchant[]> {
     const result = await db
       .select({
-        transaction: transactions,
-        merchant: merchants,
+        id: transactions.id,
+        transactionId: transactions.transactionId,
+        merchantId: transactions.merchantId,
+        mid: transactions.mid,
+        amount: transactions.amount,
+        paymentMethod: transactions.paymentMethod,
+        status: transactions.status,
+        processingFee: transactions.processingFee,
+        netAmount: transactions.netAmount,
+        createdAt: transactions.createdAt,
+        merchant: {
+          id: merchants.id,
+          businessName: merchants.businessName,
+          businessType: merchants.businessType,
+          email: merchants.email,
+          phone: merchants.phone,
+          agentId: merchants.agentId,
+          processingFee: merchants.processingFee,
+          status: merchants.status,
+          monthlyVolume: merchants.monthlyVolume,
+          createdAt: merchants.createdAt,
+        }
       })
       .from(transactions)
       .leftJoin(merchants, eq(transactions.merchantId, merchants.id))
       .where(eq(transactions.merchantId, merchantId));
 
     return result.map(row => ({
-      ...row.transaction,
-      merchant: row.merchant || undefined,
+      ...row,
+      merchant: row.merchant?.id ? row.merchant : undefined,
     }));
   }
 
   async getTransactionsByMID(mid: string): Promise<TransactionWithMerchant[]> {
     const result = await db
       .select({
-        transaction: transactions,
-        merchant: merchants,
+        id: transactions.id,
+        transactionId: transactions.transactionId,
+        merchantId: transactions.merchantId,
+        mid: transactions.mid,
+        amount: transactions.amount,
+        paymentMethod: transactions.paymentMethod,
+        status: transactions.status,
+        processingFee: transactions.processingFee,
+        netAmount: transactions.netAmount,
+        createdAt: transactions.createdAt,
+        merchant: {
+          id: merchants.id,
+          businessName: merchants.businessName,
+          businessType: merchants.businessType,
+          email: merchants.email,
+          phone: merchants.phone,
+          agentId: merchants.agentId,
+          processingFee: merchants.processingFee,
+          status: merchants.status,
+          monthlyVolume: merchants.monthlyVolume,
+          createdAt: merchants.createdAt,
+        }
       })
       .from(transactions)
       .leftJoin(merchants, eq(transactions.merchantId, merchants.id))
       .where(eq(transactions.mid, mid));
 
     return result.map(row => ({
-      ...row.transaction,
-      merchant: row.merchant || undefined,
+      ...row,
+      merchant: row.merchant?.id ? row.merchant : undefined,
     }));
   }
 
