@@ -43,9 +43,10 @@ export default function PdfFormsPage() {
   const queryClient = useQueryClient();
 
   // Fetch all PDF forms
-  const { data: pdfForms, isLoading: formsLoading } = useQuery({
+  const { data: pdfForms, isLoading: formsLoading, error: formsError } = useQuery({
     queryKey: ['/api/pdf-forms'],
-    queryFn: () => apiRequest('/api/pdf-forms')
+    queryFn: () => apiRequest('/api/pdf-forms'),
+    retry: false
   });
 
   // Upload PDF form mutation
