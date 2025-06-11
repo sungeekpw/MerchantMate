@@ -115,20 +115,19 @@ export default function LocationsPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Locations</h1>
-          <p className="text-muted-foreground">Manage your business locations and addresses</p>
-        </div>
-        <Dialog open={isLocationDialogOpen} onOpenChange={setIsLocationDialogOpen}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="w-4 h-4 mr-2" />
-              Add Location
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
+    <div className="p-6 space-y-6">
+      <Card className="corecrm-card">
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-lg font-semibold">Locations</CardTitle>
+            <Dialog open={isLocationDialogOpen} onOpenChange={setIsLocationDialogOpen}>
+              <DialogTrigger asChild>
+                <Button>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add Location
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
             <DialogHeader>
               <DialogTitle>Add New Location</DialogTitle>
               <DialogDescription>
@@ -222,11 +221,12 @@ export default function LocationsPage() {
               </form>
             </Form>
           </DialogContent>
-        </Dialog>
-      </div>
-
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {locations.map((location: LocationWithAddresses) => (
+            </Dialog>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {locations.map((location: LocationWithAddresses) => (
           <Card key={location.id} className="relative">
             <CardHeader>
               <div className="flex items-center justify-between">
@@ -297,8 +297,10 @@ export default function LocationsPage() {
               )}
             </CardContent>
           </Card>
-        ))}
-      </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Add Address Dialog */}
       <Dialog open={isAddressDialogOpen} onOpenChange={setIsAddressDialogOpen}>
