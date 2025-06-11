@@ -65,8 +65,9 @@ export default function Users() {
     },
   });
 
-  const { data: users = [], isLoading } = useQuery<User[]>({
+  const { data: users = [], isLoading, error } = useQuery<User[]>({
     queryKey: ["/api/users"],
+    retry: 1,
   });
 
   // Register mutation
