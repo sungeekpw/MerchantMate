@@ -245,12 +245,13 @@ export default function EnhancedPdfWizard() {
     }
   });
 
-  // Initialize form data with agent information for prospects
+  // Initialize form data with agent and prospect information for prospects
   useEffect(() => {
     if (isProspectMode && prospectData?.prospect && prospectData?.agent) {
       setFormData(prev => ({
         ...prev,
-        assignedAgent: `${prospectData.agent.firstName} ${prospectData.agent.lastName} (${prospectData.agent.email})`
+        assignedAgent: `${prospectData.agent.firstName} ${prospectData.agent.lastName} (${prospectData.agent.email})`,
+        companyEmail: prospectData.prospect.email
       }));
     }
   }, [isProspectMode, prospectData]);
@@ -283,12 +284,12 @@ export default function EnhancedPdfWizard() {
     // Track field interaction for prospect status update
     handleFieldInteraction(fieldName, value);
     
-    // Auto-save after 2 seconds of no changes
-    const timeoutId = setTimeout(() => {
-      autoSaveMutation.mutate(newFormData);
-    }, 2000);
-    
-    return () => clearTimeout(timeoutId);
+    // Auto-save after 2 seconds of no changes (only for authenticated users, not prospects)
+    if (!isProspectMode) {
+      setTimeout(() => {
+        autoSaveMutation.mutate(newFormData);
+      }, 2000);
+    }
   };
 
   // Validation function
@@ -390,10 +391,11 @@ export default function EnhancedPdfWizard() {
               type={field.fieldType === 'number' ? 'number' : 'text'}
               value={value}
               onChange={(e) => handleFieldChange(field.fieldName, e.target.value)}
-              className={hasError ? 'border-red-500' : ''}
+              className={hasError ? 'border-red-500' : (isProspectMode && field.fieldName === 'companyEmail' ? 'bg-gray-50 cursor-not-allowed' : '')}
               placeholder={field.fieldType === 'email' ? 'Enter email address' : 
                           field.fieldType === 'phone' ? 'Enter phone number' : 
                           `Enter ${field.fieldLabel.toLowerCase()}`}
+              readOnly={isProspectMode && field.fieldName === 'companyEmail'}
             />
             {hasError && <p className="text-xs text-red-500">{hasError}</p>}
           </div>
