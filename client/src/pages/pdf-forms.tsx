@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { useLocation } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -46,8 +47,10 @@ interface PdfFormWithFields extends PdfForm {
 }
 
 export default function PdfFormsPage() {
+  const [location] = useLocation();
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [activeTab, setActiveTab] = useState("upload");
   const [editingFormId, setEditingFormId] = useState<number | null>(null);
   const [editedTitle, setEditedTitle] = useState('');
   const [editedDescription, setEditedDescription] = useState('');
@@ -107,6 +110,15 @@ export default function PdfFormsPage() {
       setHasError(true);
     }
   }, [pdfForms, formsError]);
+
+  // Handle formId query parameter to auto-switch to forms tab
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const formId = urlParams.get('formId');
+    if (formId) {
+      setActiveTab('forms');
+    }
+  }, [location]);
 
   // Add refresh button for debugging
   const handleRefresh = () => {
@@ -277,7 +289,7 @@ export default function PdfFormsPage() {
           </p>
         </div>
 
-        <Tabs defaultValue="upload" className="space-y-6">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
           <TabsList>
             <TabsTrigger value="upload">Upload Wells Fargo MPA</TabsTrigger>
             <TabsTrigger value="forms">Application Forms</TabsTrigger>
