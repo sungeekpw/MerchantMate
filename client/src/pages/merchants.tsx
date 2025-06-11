@@ -70,7 +70,7 @@ export default function Merchants() {
 
   // Fetch location revenue data for expanded merchants
   const expandedMerchantIds = Array.from(expandedMerchants);
-  const { data: locationRevenueData = {} } = useQuery({
+  const { data: locationRevenueData = {}, isLoading: revenueLoading } = useQuery({
     queryKey: ["/api/locations/revenue", expandedMerchantIds],
     queryFn: async () => {
       const results: Record<number, any> = {};
@@ -343,8 +343,16 @@ export default function Merchants() {
                                   </div>
                                 </div>
                                 <div className="text-right">
+                                  <div className="flex items-center gap-2 mb-1">
+                                    <span className={`w-2 h-2 rounded-full ${location.status === 'active' ? 'bg-green-500' : 'bg-gray-400'}`} />
+                                    <span className="text-xs text-gray-500 capitalize">{location.status || 'active'}</span>
+                                  </div>
                                   <div className="text-sm font-medium text-green-600">
-                                    MTD: {revenue ? formatCurrency(revenue.monthToDate) : '$0.00'}
+                                    MTD: {revenueLoading && !revenue ? (
+                                      <span className="text-gray-400">Loading...</span>
+                                    ) : (
+                                      formatCurrency(revenue?.monthToDate || '0.00')
+                                    )}
                                   </div>
                                   <div className="text-xs text-gray-500">
                                     {location.addresses?.length || 0} address{location.addresses?.length !== 1 ? 'es' : ''}
