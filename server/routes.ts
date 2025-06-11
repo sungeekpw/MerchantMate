@@ -251,6 +251,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Location revenue metrics endpoint
+  app.get("/api/locations/:locationId/revenue", devAuth, async (req: any, res) => {
+    try {
+      const { locationId } = req.params;
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      // Get location to verify access permissions
+      const location = await storage.getLocation(parseInt(locationId));
+      if (!location) {
+        return res.status(404).json({ message: "Location not found" });
+      }
+      
+      // For merchant users, only allow access to their own locations
+      if (user?.role === 'merchant') {
+        // For now, we'll allow merchant users to access merchant ID 1 locations
+        // TODO: Implement proper merchant-user association
+        if (location.merchantId !== 1) {
+          return res.status(403).json({ message: "Access denied" });
+        }
+      }
+      
+      const revenue = await storage.getLocationRevenue(parseInt(locationId));
+      res.json(revenue);
+    } catch (error) {
+      console.error("Error fetching location revenue:", error);
+      res.status(500).json({ message: "Failed to fetch location revenue" });
+    }
+  });
+
   app.put("/api/locations/:locationId", devAuth, async (req: any, res) => {
     try {
       const { locationId } = req.params;
