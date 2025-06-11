@@ -1,17 +1,15 @@
-import { useState, useEffect } from "react";
-import { useParams, useLocation } from "wouter";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Progress } from "@/components/ui/progress";
-import { ArrowLeft, ArrowRight, CheckCircle, FileText, Building } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
-import { apiRequest } from "@/lib/queryClient";
+import { useState, useEffect } from 'react';
+import { useParams, useLocation } from 'wouter';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Progress } from '@/components/ui/progress';
+import { useToast } from '@/hooks/use-toast';
+import { Building, FileText, CheckCircle, ArrowLeft, ArrowRight } from 'lucide-react';
 
 interface FormField {
   id: number;
@@ -160,53 +158,62 @@ export default function EnhancedPdfWizard() {
     const newFormData = { ...formData, [fieldName]: value };
     setFormData(newFormData);
     
-    // Clear validation error for this field
-    if (validationErrors[fieldName]) {
-      setValidationErrors(prev => ({ ...prev, [fieldName]: '' }));
-    }
-    
-    // Auto-save after 1 second delay
-    setTimeout(() => {
+    // Auto-save after 2 seconds of no changes
+    const timeoutId = setTimeout(() => {
       autoSaveMutation.mutate(newFormData);
-    }, 1000);
+    }, 2000);
+    
+    return () => clearTimeout(timeoutId);
+  };
+
+  // Validation function
+  const validateField = (field: FormField, value: any): string | null => {
+    if (field.isRequired && (!value || value.toString().trim() === '')) {
+      return `${field.fieldLabel} is required`;
+    }
+
+    if (value && field.validation) {
+      const patterns = {
+        email: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
+        phone: /^\(?([0-9]{3})\)?[-. ]?([0-9]{3})[-. ]?([0-9]{4})$/,
+        zip: /^\d{5}(-\d{4})?$/,
+        ein: /^\d{2}-\d{7}$/,
+        ssn: /^\d{3}-\d{2}-\d{4}$/
+      };
+
+      if (field.validation.includes('email') && !patterns.email.test(value)) {
+        return 'Please enter a valid email address';
+      }
+      if (field.validation.includes('phone') && !patterns.phone.test(value)) {
+        return 'Please enter a valid phone number';
+      }
+      if (field.validation.includes('zip') && !patterns.zip.test(value)) {
+        return 'Please enter a valid ZIP code';
+      }
+      if (field.validation.includes('ein') && !patterns.ein.test(value)) {
+        return 'Please enter a valid EIN (XX-XXXXXXX)';
+      }
+      if (field.validation.includes('ssn') && !patterns.ssn.test(value)) {
+        return 'Please enter a valid SSN (XXX-XX-XXXX)';
+      }
+    }
+
+    return null;
   };
 
   // Validate current section
   const validateCurrentSection = (): boolean => {
-    const currentSectionFields = sections[currentStep]?.fields || [];
-    const errors: Record<string, string> = {};
+    if (!sections[currentStep]) return true;
+    
     let isValid = true;
+    const errors: Record<string, string> = {};
 
-    currentSectionFields.forEach(field => {
+    sections[currentStep].fields.forEach(field => {
       const value = formData[field.fieldName];
-      
-      if (field.isRequired && (!value || value === '')) {
-        errors[field.fieldName] = 'This field is required';
+      const error = validateField(field, value);
+      if (error) {
+        errors[field.fieldName] = error;
         isValid = false;
-      }
-      
-      // Additional validation based on field type
-      if (value && field.validation) {
-        try {
-          const validation = JSON.parse(field.validation);
-          
-          if (validation.pattern && !new RegExp(validation.pattern).test(value)) {
-            errors[field.fieldName] = 'Invalid format';
-            isValid = false;
-          }
-          
-          if (validation.minLength && value.length < validation.minLength) {
-            errors[field.fieldName] = `Minimum ${validation.minLength} characters required`;
-            isValid = false;
-          }
-          
-          if (validation.maxLength && value.length > validation.maxLength) {
-            errors[field.fieldName] = `Maximum ${validation.maxLength} characters allowed`;
-            isValid = false;
-          }
-        } catch (e) {
-          // Ignore invalid validation JSON
-        }
       }
     });
 
@@ -214,84 +221,38 @@ export default function EnhancedPdfWizard() {
     return isValid;
   };
 
-  // Enhanced field rendering
+  // Handle navigation
+  const handleNext = () => {
+    if (validateCurrentSection()) {
+      setCurrentStep(Math.min(sections.length - 1, currentStep + 1));
+    } else {
+      toast({
+        title: "Validation Error",
+        description: "Please fix the errors in the current section before proceeding.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handlePrevious = () => {
+    setCurrentStep(Math.max(0, currentStep - 1));
+  };
+
+  const handleSubmit = () => {
+    if (validateCurrentSection()) {
+      finalSubmitMutation.mutate(formData);
+    }
+  };
+
+  // Render form field
   const renderField = (field: FormField) => {
     const value = formData[field.fieldName] || field.defaultValue || '';
     const hasError = validationErrors[field.fieldName];
-    
-    // Get enhanced field properties
-    const getFieldProperties = (fieldName: string) => {
-      const properties: { placeholder?: string; helpText?: string } = {};
-      
-      switch (fieldName) {
-        case 'legalBusinessName':
-          properties.placeholder = 'Enter legal business name as filed with IRS';
-          properties.helpText = 'Must match IRS records exactly';
-          break;
-        case 'taxId':
-          properties.placeholder = '12-3456789';
-          properties.helpText = 'Federal Employer Identification Number';
-          break;
-        case 'companyPhone':
-        case 'descriptorPhone':
-        case 'mobilePhone':
-        case 'faxNumber':
-          properties.placeholder = '(555) 123-4567';
-          break;
-        case 'companyEmail':
-          properties.placeholder = 'business@company.com';
-          break;
-        case 'companyWebsite':
-          properties.placeholder = 'https://www.example.com';
-          break;
-        case 'locationZipCode':
-        case 'mailingZipCode':
-          properties.placeholder = '12345 or 12345-6789';
-          break;
-        case 'merchantSells':
-          properties.placeholder = 'Describe the products and/or services your business sells';
-          break;
-        case 'avgMonthlyVolume':
-          properties.placeholder = '10000';
-          properties.helpText = 'Average monthly credit card processing volume in dollars';
-          break;
-        case 'foreignEntity':
-          properties.helpText = 'Check if applicable and attach IRS Form W-8';
-          break;
-        default:
-          properties.placeholder = `Enter ${field.fieldLabel.toLowerCase()}`;
-      }
-      
-      return properties;
-    };
-
-    const { placeholder, helpText } = getFieldProperties(field.fieldName);
-    const commonClasses = `w-full transition-colors ${hasError ? 'border-red-500 focus:border-red-500' : 'focus:border-blue-500'}`;
 
     switch (field.fieldType) {
       case 'text':
       case 'email':
       case 'phone':
-      case 'url':
-        return (
-          <div className="space-y-2">
-            <Label htmlFor={field.fieldName} className="text-sm font-medium text-gray-700">
-              {field.fieldLabel}
-              {field.isRequired && <span className="text-red-500 ml-1">*</span>}
-            </Label>
-            <Input
-              id={field.fieldName}
-              type={field.fieldType === 'email' ? 'email' : field.fieldType === 'url' ? 'url' : field.fieldType === 'phone' ? 'tel' : 'text'}
-              value={value}
-              onChange={(e) => handleFieldChange(field.fieldName, e.target.value)}
-              placeholder={placeholder}
-              className={commonClasses}
-            />
-            {helpText && <p className="text-xs text-gray-500">{helpText}</p>}
-            {hasError && <p className="text-xs text-red-500">{hasError}</p>}
-          </div>
-        );
-
       case 'number':
         return (
           <div className="space-y-2">
@@ -301,39 +262,14 @@ export default function EnhancedPdfWizard() {
             </Label>
             <Input
               id={field.fieldName}
-              type="number"
+              type={field.fieldType === 'number' ? 'number' : 'text'}
               value={value}
-              onChange={(e) => handleFieldChange(field.fieldName, parseFloat(e.target.value) || 0)}
-              placeholder={placeholder}
-              className={commonClasses}
-              step="0.01"
+              onChange={(e) => handleFieldChange(field.fieldName, e.target.value)}
+              className={hasError ? 'border-red-500' : ''}
+              placeholder={field.fieldType === 'email' ? 'Enter email address' : 
+                          field.fieldType === 'phone' ? 'Enter phone number' : 
+                          `Enter ${field.fieldLabel.toLowerCase()}`}
             />
-            {helpText && <p className="text-xs text-gray-500">{helpText}</p>}
-            {hasError && <p className="text-xs text-red-500">{hasError}</p>}
-          </div>
-        );
-
-      case 'select':
-        const selectOptions = (field.options || []).filter(option => option && option.trim() !== '');
-        return (
-          <div className="space-y-2">
-            <Label htmlFor={field.fieldName} className="text-sm font-medium text-gray-700">
-              {field.fieldLabel}
-              {field.isRequired && <span className="text-red-500 ml-1">*</span>}
-            </Label>
-            <Select value={value} onValueChange={(val) => handleFieldChange(field.fieldName, val)}>
-              <SelectTrigger className={hasError ? 'border-red-500' : ''}>
-                <SelectValue placeholder={`Select ${field.fieldLabel.toLowerCase()}`} />
-              </SelectTrigger>
-              <SelectContent>
-                {selectOptions.map((option, index) => (
-                  <SelectItem key={index} value={option}>
-                    {option}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {helpText && <p className="text-xs text-gray-500">{helpText}</p>}
             {hasError && <p className="text-xs text-red-500">{hasError}</p>}
           </div>
         );
@@ -349,33 +285,33 @@ export default function EnhancedPdfWizard() {
               id={field.fieldName}
               value={value}
               onChange={(e) => handleFieldChange(field.fieldName, e.target.value)}
-              placeholder={placeholder}
-              className={`${commonClasses} min-h-[120px]`}
-              rows={5}
+              className={hasError ? 'border-red-500' : ''}
+              placeholder={`Enter ${field.fieldLabel.toLowerCase()}`}
+              rows={3}
             />
-            {helpText && <p className="text-xs text-gray-500">{helpText}</p>}
             {hasError && <p className="text-xs text-red-500">{hasError}</p>}
           </div>
         );
 
-      case 'checkbox':
+      case 'select':
         return (
           <div className="space-y-2">
-            <div className="flex items-start space-x-3">
-              <Checkbox
-                id={field.fieldName}
-                checked={value === 'true' || value === true}
-                onCheckedChange={(checked) => handleFieldChange(field.fieldName, checked)}
-                className="mt-1"
-              />
-              <div className="space-y-1">
-                <Label htmlFor={field.fieldName} className="text-sm font-medium text-gray-700 cursor-pointer leading-relaxed">
-                  {field.fieldLabel}
-                  {field.isRequired && <span className="text-red-500 ml-1">*</span>}
-                </Label>
-                {helpText && <p className="text-xs text-gray-500">{helpText}</p>}
-              </div>
-            </div>
+            <Label htmlFor={field.fieldName} className="text-sm font-medium text-gray-700">
+              {field.fieldLabel}
+              {field.isRequired && <span className="text-red-500 ml-1">*</span>}
+            </Label>
+            <Select value={value} onValueChange={(val) => handleFieldChange(field.fieldName, val)}>
+              <SelectTrigger className={hasError ? 'border-red-500' : ''}>
+                <SelectValue placeholder={`Select ${field.fieldLabel.toLowerCase()}`} />
+              </SelectTrigger>
+              <SelectContent>
+                {field.options?.map((option) => (
+                  <SelectItem key={option} value={option}>
+                    {option}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             {hasError && <p className="text-xs text-red-500">{hasError}</p>}
           </div>
         );
@@ -392,9 +328,8 @@ export default function EnhancedPdfWizard() {
               type="date"
               value={value}
               onChange={(e) => handleFieldChange(field.fieldName, e.target.value)}
-              className={commonClasses}
+              className={hasError ? 'border-red-500' : ''}
             />
-            {helpText && <p className="text-xs text-gray-500">{helpText}</p>}
             {hasError && <p className="text-xs text-red-500">{hasError}</p>}
           </div>
         );
@@ -404,49 +339,23 @@ export default function EnhancedPdfWizard() {
     }
   };
 
-  // Navigate to next step
-  const handleNext = () => {
-    if (validateCurrentSection()) {
-      setCurrentStep(Math.min(sections.length - 1, currentStep + 1));
-    } else {
-      toast({
-        title: "Validation Error",
-        description: "Please fix the errors in the current section before proceeding.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  // Navigate to previous step
-  const handlePrevious = () => {
-    setCurrentStep(Math.max(0, currentStep - 1));
-  };
-
-  // Submit final application
-  const handleSubmit = () => {
-    if (validateCurrentSection()) {
-      finalSubmitMutation.mutate(formData);
-    }
-  };
-
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <div className="text-lg text-gray-600">Loading Wells Fargo Merchant Application...</div>
+          <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading form...</p>
         </div>
       </div>
     );
   }
 
-  if (error) {
+  if (error || !pdfForm) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="bg-red-50 border border-red-200 rounded-lg p-6 max-w-md">
-          <div className="text-red-800">
-            Error loading form: {(error as Error).message}
-          </div>
+        <div className="text-center">
+          <p className="text-red-600 mb-4">Failed to load form</p>
+          <Button onClick={() => setLocation('/pdf-forms')}>Back to Forms</Button>
         </div>
       </div>
     );
@@ -498,129 +407,131 @@ export default function EnhancedPdfWizard() {
               <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 h-fit sticky top-0">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">Application Sections</h3>
                 <nav className="space-y-2">
-                {sections.map((section, index) => {
-                  const IconComponent = section.icon;
-                  return (
-                    <button
-                      key={index}
-                      onClick={() => setCurrentStep(index)}
-                      className={`w-full text-left p-4 rounded-lg text-sm transition-colors ${
-                        index === currentStep
-                          ? 'bg-blue-50 text-blue-700 border border-blue-200'
-                          : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-                      }`}
-                    >
-                      <div className="flex items-center space-x-3">
-                        <IconComponent className="w-5 h-5" />
-                        <div className="flex-1">
-                          <div className="font-medium">{section.name}</div>
-                          <div className="text-xs text-gray-500 mt-1">{section.description}</div>
+                  {sections.map((section, index) => {
+                    const IconComponent = section.icon;
+                    return (
+                      <button
+                        key={index}
+                        onClick={() => setCurrentStep(index)}
+                        className={`w-full text-left p-3 rounded-lg transition-colors ${
+                          currentStep === index
+                            ? 'bg-blue-50 border-blue-200 text-blue-700'
+                            : 'bg-gray-50 border-gray-200 text-gray-700 hover:bg-gray-100'
+                        } border`}
+                      >
+                        <div className="flex items-center space-x-3">
+                          <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+                            currentStep === index ? 'bg-blue-100' : 'bg-gray-200'
+                          }`}>
+                            <IconComponent className={`w-4 h-4 ${
+                              currentStep === index ? 'text-blue-600' : 'text-gray-600'
+                            }`} />
+                          </div>
+                          <div className="flex-1">
+                            <div className="font-medium text-sm">{section.name}</div>
+                            <div className="text-xs text-gray-500 mt-1">
+                              {section.fields.length} fields
+                            </div>
+                          </div>
                         </div>
-                        <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs ${
-                          index === currentStep
-                            ? 'bg-blue-100 text-blue-700'
-                            : 'bg-gray-100 text-gray-500'
-                        }`}>
-                          {index + 1}
-                        </span>
-                      </div>
-                    </button>
-                  );
-                })}
-              </nav>
-              
-              {/* Auto-save Status */}
-              <div className="mt-6 pt-6 border-t border-gray-200">
-                <div className="flex items-center text-sm">
-                  {autoSaveMutation.isPending ? (
-                    <>
-                      <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mr-2"></div>
-                      <span className="text-blue-600">Saving...</span>
-                    </>
-                  ) : (
-                    <>
-                      <CheckCircle className="w-4 h-4 text-green-500 mr-2" />
-                      <span className="text-gray-600">All changes saved</span>
-                    </>
-                  )}
+                      </button>
+                    );
+                  })}
+                </nav>
+                
+                {/* Auto-save Status */}
+                <div className="mt-6 pt-6 border-t border-gray-200">
+                  <div className="flex items-center text-sm">
+                    {autoSaveMutation.isPending ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mr-2"></div>
+                        <span className="text-blue-600">Saving...</span>
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle className="w-4 h-4 text-green-500 mr-2" />
+                        <span className="text-gray-600">All changes saved</span>
+                      </>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
 
-          {/* Form Content - Scrollable */}
-          <div className="lg:col-span-3 h-full overflow-y-auto">
-            {sections[currentStep] && (
-              <Card className="p-8">
-                <CardHeader className="pb-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <CardTitle className="text-2xl font-bold text-gray-900 mb-2">
-                        {sections[currentStep].name}
-                      </CardTitle>
-                      <p className="text-gray-600">
-                        {sections[currentStep].description}
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-sm text-gray-500 mb-1">Step</div>
-                      <div className="text-2xl font-bold text-blue-600">
-                        {currentStep + 1} of {sections.length}
+            {/* Form Content - Scrollable */}
+            <div className="lg:col-span-3 h-full overflow-y-auto">
+              {sections[currentStep] && (
+                <Card className="mb-8">
+                  <CardHeader className="pb-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <CardTitle className="text-2xl font-bold text-gray-900 mb-2">
+                          {sections[currentStep].name}
+                        </CardTitle>
+                        <p className="text-gray-600">
+                          {sections[currentStep].description}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-sm text-gray-500 mb-1">Step</div>
+                        <div className="text-2xl font-bold text-blue-600">
+                          {currentStep + 1} of {sections.length}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </CardHeader>
-                
-                <CardContent>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {sections[currentStep].fields.map((field) => (
-                      <div 
-                        key={field.fieldName} 
-                        className={field.fieldType === 'textarea' ? 'md:col-span-2' : ''}
-                      >
-                        {renderField(field)}
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-
-                {/* Navigation */}
-                <div className="mt-8 pt-6 border-t border-gray-200">
-                  <div className="flex justify-between items-center">
-                    <Button
-                      variant="outline"
-                      onClick={handlePrevious}
-                      disabled={currentStep === 0}
-                      className="px-6"
-                    >
-                      <ArrowLeft className="w-4 h-4 mr-2" />
-                      Previous
-                    </Button>
-
-                    <div className="flex space-x-4">
-                      {currentStep < sections.length - 1 ? (
-                        <Button
-                          onClick={handleNext}
-                          className="bg-blue-600 hover:bg-blue-700 text-white px-8"
+                  </CardHeader>
+                  
+                  <CardContent className="space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      {sections[currentStep].fields.map((field) => (
+                        <div 
+                          key={field.fieldName} 
+                          className={field.fieldType === 'textarea' ? 'md:col-span-2' : ''}
                         >
-                          Next Section
-                          <ArrowRight className="w-4 h-4 ml-2" />
-                        </Button>
-                      ) : (
-                        <Button
-                          onClick={handleSubmit}
-                          disabled={finalSubmitMutation.isPending}
-                          className="bg-green-600 hover:bg-green-700 text-white px-8"
-                        >
-                          {finalSubmitMutation.isPending ? 'Submitting...' : 'Submit Application'}
-                          <CheckCircle className="w-4 h-4 ml-2" />
-                        </Button>
-                      )}
+                          {renderField(field)}
+                        </div>
+                      ))}
                     </div>
-                  </div>
-                </div>
-              </Card>
-            )}
+
+                    {/* Navigation */}
+                    <div className="mt-8 pt-6 border-t border-gray-200">
+                      <div className="flex justify-between items-center">
+                        <Button
+                          variant="outline"
+                          onClick={handlePrevious}
+                          disabled={currentStep === 0}
+                          className="px-6"
+                        >
+                          <ArrowLeft className="w-4 h-4 mr-2" />
+                          Previous
+                        </Button>
+
+                        <div className="flex space-x-4">
+                          {currentStep < sections.length - 1 ? (
+                            <Button
+                              onClick={handleNext}
+                              className="bg-blue-600 hover:bg-blue-700 text-white px-8"
+                            >
+                              Next Section
+                              <ArrowRight className="w-4 h-4 ml-2" />
+                            </Button>
+                          ) : (
+                            <Button
+                              onClick={handleSubmit}
+                              disabled={finalSubmitMutation.isPending}
+                              className="bg-green-600 hover:bg-green-700 text-white px-8"
+                            >
+                              {finalSubmitMutation.isPending ? 'Submitting...' : 'Submit Application'}
+                              <CheckCircle className="w-4 h-4 ml-2" />
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
           </div>
         </div>
       </div>
