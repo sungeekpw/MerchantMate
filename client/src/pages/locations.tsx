@@ -30,7 +30,7 @@ function LocationRevenue({ locationId }: { locationId: number }) {
     return <div className="text-sm text-muted-foreground">Loading revenue...</div>;
   }
 
-  if (error) {
+  if (error && Object.keys(error).length > 0) {
     console.error('Revenue API error:', error);
     return <div className="text-sm text-muted-foreground">Error loading revenue data</div>;
   }
