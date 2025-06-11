@@ -10,9 +10,52 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { MapPin, Plus, Phone, Mail } from "lucide-react";
+import { MapPin, Plus, Phone, Mail, DollarSign, TrendingUp } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { insertLocationSchema, insertAddressSchema, type InsertLocation, type InsertAddress, type LocationWithAddresses } from "@shared/schema";
+
+// Revenue metrics component
+function LocationRevenue({ locationId }: { locationId: number }) {
+  const { data: revenue, isLoading } = useQuery({
+    queryKey: ['/api/locations', locationId, 'revenue'],
+    enabled: !!locationId
+  });
+
+  if (isLoading) {
+    return <div className="text-sm text-muted-foreground">Loading revenue...</div>;
+  }
+
+  if (!revenue) {
+    return <div className="text-sm text-muted-foreground">No revenue data</div>;
+  }
+
+  return (
+    <div className="space-y-3 mt-4 pt-4 border-t">
+      <div className="flex items-center gap-2 text-sm font-medium">
+        <DollarSign className="h-4 w-4" />
+        Revenue Metrics
+      </div>
+      <div className="grid grid-cols-2 gap-3 text-sm">
+        <div>
+          <div className="text-muted-foreground">Total Revenue</div>
+          <div className="font-semibold">${revenue.totalRevenue}</div>
+        </div>
+        <div>
+          <div className="text-muted-foreground">Last 24 Hours</div>
+          <div className="font-semibold text-green-600">${revenue.last24Hours}</div>
+        </div>
+        <div>
+          <div className="text-muted-foreground">Month to Date</div>
+          <div className="font-semibold">${revenue.monthToDate}</div>
+        </div>
+        <div>
+          <div className="text-muted-foreground">Year to Date</div>
+          <div className="font-semibold">${revenue.yearToDate}</div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function LocationsPage() {
   const { user } = useAuth();
@@ -255,6 +298,9 @@ export default function LocationsPage() {
                       </div>
                     )}
                   </div>
+                  
+                  {/* Revenue Metrics Section */}
+                  <LocationRevenue locationId={location.id} />
                   
                   <div className="mt-4">
                     <div className="flex items-center justify-between mb-2">
