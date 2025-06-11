@@ -46,6 +46,7 @@ export default function MerchantApplicationPage() {
   // Check for prospect validation token in URL parameters
   const urlParams = new URLSearchParams(window.location.search);
   const prospectToken = urlParams.get('token');
+  const isProspectMode = !!prospectToken;
 
   // Fetch prospect data if token is present
   const { data: prospectData } = useQuery({
@@ -59,11 +60,12 @@ export default function MerchantApplicationPage() {
     enabled: !!prospectToken,
   });
 
-  // Fetch current user to check admin role
+  // Fetch current user to check admin role (only if not a prospect)
   const { data: currentUser } = useQuery({
     queryKey: ['/api/auth/user'],
     retry: 3,
     staleTime: 5 * 60 * 1000,
+    enabled: !isProspectMode, // Only fetch user data if not accessing as prospect
   });
 
   // Check if current user is admin
@@ -71,7 +73,7 @@ export default function MerchantApplicationPage() {
                   (currentUser as any)?.role === 'super_admin' ||
                   ((currentUser as any)?.id && (currentUser as any).id.includes('admin'));
 
-  // Fetch the specific PDF form
+  // Fetch the specific PDF form (only for authenticated users, not prospects)
   const { data: pdfForm, isLoading: formLoading, error: formError } = useQuery<PdfForm>({
     queryKey: ['/api/pdf-forms', formId],
     queryFn: async () => {
@@ -83,7 +85,7 @@ export default function MerchantApplicationPage() {
       }
       return response.json();
     },
-    enabled: !!formId
+    enabled: false // Disable this query entirely for now since we're handling prospect mode
   });
 
   // Mutation to update prospect status to "in progress"

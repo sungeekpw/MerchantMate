@@ -349,23 +349,7 @@ function AuthenticatedApp() {
               );
             }}
           </Route>
-          <Route path="/merchant-application/:id?">
-            {(params) => {
-              const pageInfo = { title: "Merchant Application", subtitle: "Wells Fargo Merchant Processing Application" };
-              return (
-                <>
-                  <Header 
-                    title={pageInfo.title} 
-                    subtitle={pageInfo.subtitle}
-                    onSearch={setGlobalSearch}
-                  />
-                  <main className="flex-1 overflow-auto bg-gray-50">
-                    <MerchantApplication />
-                  </main>
-                </>
-              );
-            }}
-          </Route>
+
           <Route path="/form-application/:id">
             {(params) => {
               const pageInfo = { title: "Application Form", subtitle: "Dynamic form application page" };
@@ -437,6 +421,13 @@ function AppContent() {
             {() => (
               <main className="flex-1 overflow-hidden">
                 <ProspectValidation />
+              </main>
+            )}
+          </Route>
+          <Route path="/merchant-application">
+            {() => (
+              <main className="flex-1 overflow-hidden">
+                <MerchantApplication />
               </main>
             )}
           </Route>
