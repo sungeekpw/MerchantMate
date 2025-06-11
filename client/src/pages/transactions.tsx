@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -26,6 +26,8 @@ import { transactionsApi } from "@/lib/api";
 export default function Transactions() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   const { data: transactions = [], isLoading } = useQuery({
     queryKey: ["/api/transactions", searchQuery],
@@ -33,9 +35,44 @@ export default function Transactions() {
   });
 
   const filteredTransactions = transactions.filter((transaction) => {
-    if (statusFilter === "all") return true;
-    return transaction.status === statusFilter;
+    const matchesSearch = !searchQuery || 
+      transaction.transactionId.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      transaction.merchant?.businessName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      transaction.amount.toString().includes(searchQuery) ||
+      (transaction.mid && transaction.mid.toLowerCase().includes(searchQuery.toLowerCase()));
+    
+    const matchesStatus = statusFilter === "all" || transaction.status === statusFilter;
+    
+    return matchesSearch && matchesStatus;
   });
+
+  // Pagination calculations
+  const totalPages = Math.ceil(filteredTransactions.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedTransactions = filteredTransactions.slice(startIndex, endIndex);
+
+  // Pagination handlers
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+  };
+
+  const handlePrevious = () => {
+    if (currentPage > 1) {
+      setCurrentPage(currentPage - 1);
+    }
+  };
+
+  const handleNext = () => {
+    if (currentPage < totalPages) {
+      setCurrentPage(currentPage + 1);
+    }
+  };
+
+  // Reset to page 1 when filters change
+  React.useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, statusFilter]);
 
   const getStatusBadge = (status: string) => {
     const styles = {
@@ -164,7 +201,7 @@ export default function Transactions() {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredTransactions.map((transaction) => (
+                  paginatedTransactions.map((transaction) => (
                     <TableRow key={transaction.id}>
                       <TableCell className="font-mono text-sm font-medium">
                         {transaction.transactionId}
@@ -213,26 +250,48 @@ export default function Transactions() {
             </Table>
           </div>
 
-          {/* Pagination placeholder */}
+          {/* Functional Pagination */}
           {filteredTransactions.length > 0 && (
             <div className="flex items-center justify-between mt-6">
               <div className="text-sm text-gray-500">
-                Showing {filteredTransactions.length} of {transactions.length} transactions
+                Showing {startIndex + 1}-{Math.min(endIndex, filteredTransactions.length)} of {filteredTransactions.length} transactions
               </div>
               <div className="flex items-center space-x-2">
-                <Button variant="outline" size="sm" disabled>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={handlePrevious}
+                  disabled={currentPage === 1}
+                >
                   Previous
                 </Button>
-                <Button variant="outline" size="sm" className="bg-primary text-white">
-                  1
-                </Button>
-                <Button variant="outline" size="sm">
-                  2
-                </Button>
-                <Button variant="outline" size="sm">
-                  3
-                </Button>
-                <Button variant="outline" size="sm">
+                
+                {/* Page numbers */}
+                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                  const startPage = Math.max(1, currentPage - 2);
+                  const pageNumber = startPage + i;
+                  
+                  if (pageNumber > totalPages) return null;
+                  
+                  return (
+                    <Button
+                      key={pageNumber}
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handlePageChange(pageNumber)}
+                      className={currentPage === pageNumber ? "bg-primary text-white" : ""}
+                    >
+                      {pageNumber}
+                    </Button>
+                  );
+                })}
+                
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={handleNext}
+                  disabled={currentPage === totalPages}
+                >
                   Next
                 </Button>
               </div>
