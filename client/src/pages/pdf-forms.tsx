@@ -299,7 +299,7 @@ export default function PdfFormsPage() {
           <TabsContent value="forms">
             <div className="space-y-4">
               <div className="flex justify-between items-center">
-                <h2 className="text-xl font-semibold">Your PDF Forms</h2>
+                <h2 className="text-xl font-semibold">PDF Forms</h2>
                 <Badge variant="outline">
                   {pdfForms ? pdfForms.length : 0} forms
                 </Badge>
