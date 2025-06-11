@@ -59,8 +59,15 @@ export default function ProspectValidation() {
       setProspectData(data.prospect);
       toast({
         title: "Email Validated",
-        description: "Your email has been verified. You can now start your merchant application.",
+        description: "Redirecting to merchant application...",
       });
+      
+      // Automatically redirect to merchant application
+      if (data.prospect?.validationToken) {
+        setTimeout(() => {
+          setLocation(`/merchant-application?token=${data.prospect.validationToken}`);
+        }, 1500);
+      }
     },
     onError: (error: Error) => {
       setValidationState('error');
