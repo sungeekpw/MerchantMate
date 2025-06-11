@@ -1001,6 +1001,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Validate prospect by token (public, no auth required)
+  app.post("/api/prospects/validate-token", async (req, res) => {
+    try {
+      const { token } = req.body;
+      
+      if (!token) {
+        return res.status(400).json({ message: "Token is required" });
+      }
+
+      const prospect = await storage.getMerchantProspectByToken(token);
+      
+      if (!prospect) {
+        return res.status(404).json({ message: "Invalid or expired token" });
+      }
+
+      // Update validation timestamp if not already validated
+      if (!prospect.validatedAt) {
+        await storage.updateMerchantProspect(prospect.id, {
+          validatedAt: new Date(),
+          status: 'contacted'
+        });
+      }
+
+      res.json({
+        success: true,
+        prospect: {
+          id: prospect.id,
+          firstName: prospect.firstName,
+          lastName: prospect.lastName,
+          email: prospect.email,
+          agentId: prospect.agentId,
+          validationToken: prospect.validationToken
+        }
+      });
+    } catch (error) {
+      console.error("Error validating prospect by token:", error);
+      res.status(500).json({ message: "Failed to validate prospect" });
+    }
+  });
+
   // Get prospect by token (for starting application)
   app.get("/api/prospects/token/:token", async (req, res) => {
     try {

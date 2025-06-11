@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
@@ -32,12 +32,57 @@ export default function ProspectValidation() {
   const [errorMessage, setErrorMessage] = useState("");
   const [prospectData, setProspectData] = useState<any>(null);
 
+  // Check for prospect validation token in URL parameters
+  const urlParams = new URLSearchParams(window.location.search);
+  const prospectToken = urlParams.get('token');
+
   const form = useForm<ValidationData>({
     resolver: zodResolver(validationSchema),
     defaultValues: {
       email: "",
     },
   });
+
+  // Auto-validate if token is present in URL
+  useEffect(() => {
+    if (prospectToken && validationState === 'initial') {
+      setValidationState('validating');
+      validateByToken(prospectToken);
+    }
+  }, [prospectToken]);
+
+  const validateByToken = async (token: string) => {
+    try {
+      const response = await fetch("/api/prospects/validate-token", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token }),
+      });
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Token validation failed');
+      }
+      
+      const data = await response.json();
+      setValidationState('success');
+      setProspectData(data.prospect);
+      
+      toast({
+        title: "Email Validated",
+        description: "Redirecting to merchant application...",
+      });
+      
+      // Automatically redirect to merchant application
+      setTimeout(() => {
+        setLocation(`/merchant-application?token=${data.prospect.validationToken}`);
+      }, 1500);
+      
+    } catch (error: any) {
+      setValidationState('error');
+      setErrorMessage(error.message);
+    }
+  };
 
   const validateMutation = useMutation({
     mutationFn: async (data: ValidationData) => {
@@ -131,6 +176,29 @@ export default function ProspectValidation() {
                 If you have any questions, please contact your assigned agent or our support team.
               </p>
             </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
+  }
+
+  // Show loading state when auto-validating with token
+  if (validationState === 'validating' && prospectToken) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <div className="max-w-md w-full">
+          <Card className="border-0 shadow-lg">
+            <CardHeader className="text-center pb-6">
+              <div className="mx-auto w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mb-4">
+                <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+              </div>
+              <CardTitle className="text-xl font-semibold text-gray-900">
+                Validating Invitation
+              </CardTitle>
+              <p className="text-sm text-gray-600 mt-2">
+                Please wait while we verify your invitation...
+              </p>
+            </CardHeader>
           </Card>
         </div>
       </div>
