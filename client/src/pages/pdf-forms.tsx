@@ -58,6 +58,7 @@ export default function PdfFormsPage() {
   React.useEffect(() => {
     if (pdfForms) {
       console.log('PDF Forms data loaded:', pdfForms);
+      console.log('Number of forms:', pdfForms.length);
     }
     if (formsError) {
       console.error('PDF Forms query error:', formsError);
