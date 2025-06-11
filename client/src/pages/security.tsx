@@ -2,7 +2,6 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Header } from "@/components/layout/header";
 import { Shield, AlertTriangle, Clock, MapPin, Monitor, User } from "lucide-react";
 import { formatDistanceToNow, format } from "date-fns";
 import { formatDateInUserTimezone } from "@/lib/timezone";
@@ -65,12 +64,7 @@ export default function Security() {
   };
 
   return (
-    <div className="space-y-6">
-      <Header 
-        title="Security Dashboard" 
-        subtitle="Monitor login attempts and security metrics" 
-      />
-
+    <div className="p-6 space-y-6">
       {/* Security Metrics Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <Card>
