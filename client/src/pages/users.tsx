@@ -34,11 +34,15 @@ type RegisterForm = z.infer<typeof registerSchema>;
 interface User {
   id: string;
   email: string;
-  firstName: string;
-  lastName: string;
+  username: string;
+  firstName: string | null;
+  lastName: string | null;
   role: string;
   status: string;
   createdAt: string;
+  lastLoginAt: string | null;
+  lastLoginIp: string | null;
+  timezone: string | null;
 }
 
 export default function Users() {
@@ -141,11 +145,15 @@ export default function Users() {
     },
   });
 
-  const filteredUsers = users.filter(user =>
-    `${user.firstName} ${user.lastName}`.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    user.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    user.role.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredUsers = users.filter(user => {
+    const fullName = `${user.firstName || ''} ${user.lastName || ''}`.trim();
+    const searchLower = searchQuery.toLowerCase();
+    
+    return fullName.toLowerCase().includes(searchLower) ||
+           user.username.toLowerCase().includes(searchLower) ||
+           user.email.toLowerCase().includes(searchLower) ||
+           user.role.toLowerCase().includes(searchLower);
+  });
 
   const getRoleColor = (role: string) => {
     switch (role) {
@@ -424,8 +432,13 @@ export default function Users() {
                   <TableRow key={user.id}>
                     <TableCell>
                       <div>
-                        <div className="font-medium">{user.firstName} {user.lastName}</div>
-                        <div className="text-sm text-gray-500">ID: {user.id}</div>
+                        <div className="font-medium">
+                          {user.firstName && user.lastName 
+                            ? `${user.firstName} ${user.lastName}` 
+                            : user.username
+                          }
+                        </div>
+                        <div className="text-sm text-gray-500">@{user.username}</div>
                       </div>
                     </TableCell>
                     <TableCell>{user.email}</TableCell>
