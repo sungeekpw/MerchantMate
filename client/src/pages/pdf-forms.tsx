@@ -308,16 +308,8 @@ export default function PdfFormsPage() {
   };
 
   return (
-    <div className="container mx-auto py-6">
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold">Merchant Applications</h1>
-          <p className="text-gray-600 dark:text-gray-400">
-            Manage Wells Fargo Merchant Processing Applications with interactive forms
-          </p>
-        </div>
-
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+    <div className="p-6 space-y-6">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
           <TabsList>
             <TabsTrigger value="upload">Upload Wells Fargo MPA</TabsTrigger>
             <TabsTrigger value="forms">Application Forms</TabsTrigger>
@@ -607,9 +599,6 @@ export default function PdfFormsPage() {
             </div>
           </TabsContent>
         </Tabs>
-      </div>
-
-
     </div>
   );
 }
