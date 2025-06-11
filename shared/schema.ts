@@ -297,6 +297,10 @@ export const pdfForms = pgTable("pdf_forms", {
   fileSize: integer("file_size").notNull(),
   status: text("status").default("active"), // active, inactive
   uploadedBy: text("uploaded_by").notNull().references(() => users.id, { onDelete: "cascade" }),
+  // Navigation configuration
+  showInNavigation: boolean("show_in_navigation").default(false),
+  navigationTitle: text("navigation_title"), // Custom title for navigation
+  allowedRoles: text("allowed_roles").array().default(['admin']), // Roles that can access this form
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow()
 });
