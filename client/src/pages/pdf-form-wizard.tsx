@@ -56,8 +56,10 @@ export default function PdfFormWizard() {
   const queryClient = useQueryClient();
 
   // Fetch current user to check admin role
-  const { data: currentUser } = useQuery({
+  const { data: currentUser, isLoading: isUserLoading } = useQuery({
     queryKey: ['/api/auth/user'],
+    retry: 3,
+    staleTime: 5 * 60 * 1000, // 5 minutes
   });
 
   // Fetch PDF form with fields
@@ -158,8 +160,10 @@ export default function PdfFormWizard() {
     }
   ].filter(section => section.fields.length > 0) : [];
 
-  // Check if current user is admin
+  // Check if current user is admin - add debug logging
+  console.log('Current user data:', currentUser);
   const isAdmin = currentUser?.role === 'admin' || currentUser?.role === 'super_admin';
+  console.log('Is admin check:', isAdmin, 'User role:', currentUser?.role);
 
   // Initialize edit states when form loads
   useEffect(() => {
