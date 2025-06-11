@@ -14,9 +14,11 @@ interface PdfForm {
   id: number;
   name: string;
   description: string;
-  originalFilename: string;
+  fileName: string;
+  fileSize: number;
   status: 'active' | 'inactive';
   createdAt: string;
+  updatedAt: string;
   uploadedBy: string;
 }
 
@@ -42,10 +44,13 @@ export default function PdfFormsPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
+  // Add error boundary for debugging
+  const [hasError, setHasError] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
+
   // Fetch all PDF forms
   const { data: pdfForms, isLoading: formsLoading, error: formsError } = useQuery({
     queryKey: ['/api/pdf-forms'],
-    queryFn: () => apiRequest('/api/pdf-forms'),
     retry: false
   });
 
@@ -238,7 +243,7 @@ export default function PdfFormsPage() {
                         <div className="space-y-2 text-sm">
                           <div className="flex justify-between">
                             <span className="text-gray-600 dark:text-gray-400">Original File:</span>
-                            <span className="font-medium">{form.originalFilename}</span>
+                            <span className="font-medium">{form.fileName}</span>
                           </div>
                           <div className="flex justify-between">
                             <span className="text-gray-600 dark:text-gray-400">Created:</span>
