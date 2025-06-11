@@ -82,6 +82,7 @@ export default function Users() {
 
   const { data: users, isLoading, error } = useQuery<User[]>({
     queryKey: ["/api/users"],
+    enabled: authAttempted, // Only run query after auth is attempted
   });
 
   // Handle authentication failure - when query returns null due to 401
