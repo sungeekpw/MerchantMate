@@ -43,27 +43,29 @@ export default function Merchants() {
     queryFn: () => merchantsApi.getAll(searchQuery || undefined),
   });
 
-  // Fetch locations for expanded merchants
-  const expandedMerchantIds = Array.from(expandedMerchants);
-  const { data: locationsData = {} } = useQuery({
-    queryKey: ["/api/locations", expandedMerchantIds],
+  // Fetch all locations for merchants to determine location counts
+  const { data: allLocationsData = {} } = useQuery({
+    queryKey: ["/api/merchants/locations"],
     queryFn: async () => {
       const results: Record<number, any[]> = {};
       await Promise.all(
-        expandedMerchantIds.map(async (merchantId) => {
+        merchants.map(async (merchant) => {
           try {
-            const response = await fetch(`/api/merchants/${merchantId}/locations`);
+            const response = await fetch(`/api/merchants/${merchant.id}/locations`);
             if (response.ok) {
-              results[merchantId] = await response.json();
+              results[merchant.id] = await response.json();
+            } else {
+              results[merchant.id] = [];
             }
           } catch (error) {
-            console.error(`Failed to fetch locations for merchant ${merchantId}:`, error);
+            console.error(`Failed to fetch locations for merchant ${merchant.id}:`, error);
+            results[merchant.id] = [];
           }
         })
       );
       return results;
     },
-    enabled: expandedMerchantIds.length > 0
+    enabled: merchants.length > 0
   });
 
   const deleteMutation = useMutation({
@@ -117,7 +119,7 @@ export default function Merchants() {
   };
 
   const getMerchantLocationCount = (merchantId: number) => {
-    const locations = locationsData[merchantId] || [];
+    const locations = allLocationsData[merchantId] || [];
     return locations.length;
   };
 
@@ -297,8 +299,8 @@ export default function Merchants() {
                     ];
 
                     // Add location rows if expanded
-                    if (isExpanded && locationsData[merchant.id]) {
-                      const locations = locationsData[merchant.id];
+                    if (isExpanded && allLocationsData[merchant.id]) {
+                      const locations = allLocationsData[merchant.id];
                       locations.forEach((location: any) => {
                         rows.push(
                           <TableRow key={`location-${location.id}`} className="bg-gray-50">
