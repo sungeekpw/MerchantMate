@@ -223,54 +223,109 @@ export default function Merchants() {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredMerchants.map((merchant) => (
-                    <TableRow key={merchant.id}>
-                      <TableCell>
-                        <div className="flex items-center space-x-3">
-                          <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                            <span className="text-blue-600 font-medium text-sm">
-                              {merchant.businessName.charAt(0)}
-                            </span>
+                  filteredMerchants.flatMap((merchant) => {
+                    const locationCount = getMerchantLocationCount(merchant.id);
+                    const isExpanded = expandedMerchants.has(merchant.id);
+                    const showExpandButton = user?.role === 'agent' && locationCount > 1;
+                    
+                    const rows = [
+                      <TableRow key={merchant.id}>
+                        <TableCell>
+                          <div className="flex items-center space-x-3">
+                            {showExpandButton && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => toggleMerchantExpansion(merchant.id)}
+                                className="p-1 h-6 w-6"
+                              >
+                                {isExpanded ? (
+                                  <ChevronDown className="w-4 h-4" />
+                                ) : (
+                                  <ChevronRight className="w-4 h-4" />
+                                )}
+                              </Button>
+                            )}
+                            <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                              <span className="text-blue-600 font-medium text-sm">
+                                {merchant.businessName.charAt(0)}
+                              </span>
+                            </div>
+                            <div>
+                              <div className="font-medium text-gray-900">{merchant.businessName}</div>
+                              <div className="text-sm text-gray-500">{merchant.email}</div>
+                              {showExpandButton && (
+                                <div className="text-xs text-blue-600">
+                                  {locationCount} locations
+                                </div>
+                              )}
+                            </div>
                           </div>
-                          <div>
-                            <div className="font-medium text-gray-900">{merchant.businessName}</div>
-                            <div className="text-sm text-gray-500">{merchant.email}</div>
+                        </TableCell>
+                        <TableCell className="text-gray-500">{merchant.businessType}</TableCell>
+                        <TableCell className="font-medium">
+                          {formatCurrency(merchant.monthlyVolume || "0")}
+                        </TableCell>
+                        <TableCell className="text-gray-500">
+                          {merchant.agent ? `${merchant.agent.firstName} ${merchant.agent.lastName}` : "Unassigned"}
+                        </TableCell>
+                        <TableCell>
+                          <Badge className={`corecrm-status-badge ${getStatusBadge(merchant.status)}`}>
+                            {merchant.status.charAt(0).toUpperCase() + merchant.status.slice(1)}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center space-x-2">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleEdit(merchant)}
+                            >
+                              <Edit className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleDelete(merchant)}
+                              disabled={deleteMutation.isPending}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
                           </div>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-gray-500">{merchant.businessType}</TableCell>
-                      <TableCell className="font-medium">
-                        {formatCurrency(merchant.monthlyVolume || "0")}
-                      </TableCell>
-                      <TableCell className="text-gray-500">
-                        {merchant.agent ? `${merchant.agent.firstName} ${merchant.agent.lastName}` : "Unassigned"}
-                      </TableCell>
-                      <TableCell>
-                        <Badge className={`corecrm-status-badge ${getStatusBadge(merchant.status)}`}>
-                          {merchant.status.charAt(0).toUpperCase() + merchant.status.slice(1)}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center space-x-2">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleEdit(merchant)}
-                          >
-                            <Edit className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleDelete(merchant)}
-                            disabled={deleteMutation.isPending}
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))
+                        </TableCell>
+                      </TableRow>
+                    ];
+
+                    // Add location rows if expanded
+                    if (isExpanded && locationsData[merchant.id]) {
+                      const locations = locationsData[merchant.id];
+                      locations.forEach((location: any) => {
+                        rows.push(
+                          <TableRow key={`location-${location.id}`} className="bg-gray-50">
+                            <TableCell colSpan={6}>
+                              <div className="flex items-center space-x-4 pl-12">
+                                <MapPin className="w-4 h-4 text-gray-400" />
+                                <div className="flex-1">
+                                  <div className="font-medium text-sm">{location.name}</div>
+                                  <div className="text-xs text-gray-500">
+                                    MID: {location.mid} • {location.addresses?.[0]?.city}, {location.addresses?.[0]?.state}
+                                  </div>
+                                </div>
+                                <div className="text-right">
+                                  <div className="text-sm font-medium">{location.status}</div>
+                                  <div className="text-xs text-gray-500">
+                                    {location.addresses?.length || 0} address{location.addresses?.length !== 1 ? 'es' : ''}
+                                  </div>
+                                </div>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      });
+                    }
+
+                    return rows;
+                  })
                 )}
               </TableBody>
             </Table>
