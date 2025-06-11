@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -53,6 +53,18 @@ export default function PdfFormsPage() {
     queryKey: ['/api/pdf-forms'],
     retry: false
   });
+
+  // Handle query effects
+  React.useEffect(() => {
+    if (pdfForms) {
+      console.log('PDF Forms data loaded:', pdfForms);
+    }
+    if (formsError) {
+      console.error('PDF Forms query error:', formsError);
+      setErrorMessage(`Failed to load PDF forms: ${formsError.message}`);
+      setHasError(true);
+    }
+  }, [pdfForms, formsError]);
 
   // Upload PDF form mutation
   const uploadMutation = useMutation({
