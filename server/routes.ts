@@ -799,6 +799,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get merchants for a specific agent
+  app.get("/api/agents/:agentId/merchants", devRequireRole(['admin', 'corporate', 'super_admin']), async (req: any, res) => {
+    try {
+      const { agentId } = req.params;
+      const merchants = await storage.getAgentMerchants(parseInt(agentId));
+      res.json(merchants);
+    } catch (error) {
+      console.error("Error fetching agent merchants:", error);
+      res.status(500).json({ message: "Failed to fetch agent merchants" });
+    }
+  });
+
   // Admin-only routes for merchants
   app.get("/api/merchants/all", devRequireRole(['admin', 'corporate', 'super_admin']), async (req, res) => {
     try {
