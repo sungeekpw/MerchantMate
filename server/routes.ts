@@ -272,30 +272,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // User management routes (admin and super admin only)
   app.get("/api/users", async (req: any, res) => {
     try {
-      console.log("Users endpoint - Session:", req.session);
-      console.log("Users endpoint - Session ID:", req.sessionID);
-      console.log("Users endpoint - Cookies:", req.headers.cookie);
-      
       // Check session authentication
       const userId = (req.session as any)?.userId;
-      console.log("Users endpoint - UserId from session:", userId);
       
       if (!userId) {
-        console.log("Users endpoint - No userId in session, returning unauthorized");
         return res.status(401).json({ message: "Authentication required" });
       }
       
       // Get current user and check role
       const currentUser = await storage.getUser(userId);
-      console.log("Users endpoint - Current user:", currentUser?.username, currentUser?.role);
       
       if (!currentUser || !['admin', 'corporate', 'super_admin'].includes(currentUser.role)) {
-        console.log("Users endpoint - Access denied for role:", currentUser?.role);
         return res.status(403).json({ message: "Access denied. Admin role required." });
       }
       
       const users = await storage.getAllUsers();
-      console.log("Users endpoint - Found users:", users.length);
       res.json(users);
     } catch (error) {
       console.error("Error fetching users:", error);

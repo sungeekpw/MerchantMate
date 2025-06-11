@@ -67,33 +67,7 @@ export default function Users() {
 
   const { data: users = [], isLoading, error } = useQuery<User[]>({
     queryKey: ["/api/users"],
-    queryFn: async () => {
-      console.log("Making direct API request to /api/users");
-      const response = await fetch("/api/users", {
-        credentials: "include",
-        mode: "cors",
-      });
-      console.log("API response status:", response.status);
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error("API error:", response.status, errorText);
-        throw new Error(`${response.status}: ${errorText}`);
-      }
-      
-      const data = await response.json();
-      console.log("API response data:", data);
-      return data;
-    },
-    retry: false,
-    throwOnError: false,
   });
-
-  console.log("Users query state:", { users, isLoading, error });
-  
-  if (error) {
-    console.error("Users query error details:", error);
-  }
 
   // Register mutation
   const registerMutation = useMutation({
