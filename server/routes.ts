@@ -1257,8 +1257,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get all PDF forms
   app.get("/api/pdf-forms", devAuth, async (req: any, res) => {
     try {
-      const userId = req.user?.claims?.sub || req.user?.id || 'user_admin_1';
-      const forms = await storage.getAllPdfForms(userId);
+      const forms = await storage.getAllPdfForms();
       res.json(forms);
     } catch (error) {
       console.error("Error fetching PDF forms:", error);
