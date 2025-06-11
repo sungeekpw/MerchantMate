@@ -937,21 +937,16 @@ export class DatabaseStorage implements IStorage {
 
     // If user is merchant, return only transactions for their location MIDs
     if (user.role === 'merchant') {
-      console.log(`Merchant user filtering - User email: ${user.email}, User role: ${user.role}`);
       const merchant = await this.getMerchantByEmail(user.email);
-      console.log(`Found merchant:`, merchant);
       if (!merchant) {
-        console.log(`No merchant found for email: ${user.email}`);
         return [];
       }
       
       // Get all locations for this merchant to find their MIDs
       const locations = await this.getLocationsByMerchant(merchant.id);
       const mids = locations.map(loc => loc.mid).filter(mid => mid !== null);
-      console.log(`Merchant ${merchant.id} has MIDs:`, mids);
       
       if (mids.length === 0) {
-        console.log(`No MIDs found for merchant ${merchant.id}`);
         return [];
       }
       
@@ -986,13 +981,10 @@ export class DatabaseStorage implements IStorage {
         .where(inArray(transactions.mid, mids))
         .orderBy(desc(transactions.createdAt));
 
-      const filteredTransactions = result.map(row => ({
+      return result.map(row => ({
         ...row,
         merchant: row.merchant || undefined
       }));
-      
-      console.log(`Merchant ${merchant.id} has ${filteredTransactions.length} transactions for their MIDs`);
-      return filteredTransactions;
     }
 
     return [];
