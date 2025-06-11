@@ -139,6 +139,7 @@ export default function Prospects() {
     const styles = {
       pending: "bg-yellow-100 text-yellow-800",
       contacted: "bg-blue-100 text-blue-800",
+      in_progress: "bg-orange-100 text-orange-800",
       applied: "bg-purple-100 text-purple-800",
       approved: "bg-green-100 text-green-800",
       rejected: "bg-red-100 text-red-800",
@@ -189,6 +190,7 @@ export default function Prospects() {
                   <SelectItem value="all">All Status</SelectItem>
                   <SelectItem value="pending">Pending</SelectItem>
                   <SelectItem value="contacted">Contacted</SelectItem>
+                  <SelectItem value="in_progress">In Progress</SelectItem>
                   <SelectItem value="applied">Applied</SelectItem>
                   <SelectItem value="approved">Approved</SelectItem>
                   <SelectItem value="rejected">Rejected</SelectItem>
@@ -254,7 +256,7 @@ export default function Prospects() {
                       </TableCell>
                       <TableCell>
                         <Badge className={`text-xs ${getStatusBadge(prospect.status)}`}>
-                          {prospect.status.charAt(0).toUpperCase() + prospect.status.slice(1)}
+                          {prospect.status === 'in_progress' ? 'In Progress' : prospect.status.charAt(0).toUpperCase() + prospect.status.slice(1)}
                         </Badge>
                       </TableCell>
                       <TableCell className="text-gray-500">

@@ -65,7 +65,7 @@ export const merchantProspects = pgTable("merchant_prospects", {
   lastName: text("last_name").notNull(),
   email: text("email").notNull().unique(),
   agentId: integer("agent_id").notNull().references(() => agents.id),
-  status: text("status").notNull().default("pending"), // pending, contacted, applied, approved, rejected
+  status: text("status").notNull().default("pending"), // pending, contacted, in_progress, applied, approved, rejected
   validationToken: text("validation_token").unique(), // Token for email validation
   validatedAt: timestamp("validated_at"),
   applicationStartedAt: timestamp("application_started_at"),
