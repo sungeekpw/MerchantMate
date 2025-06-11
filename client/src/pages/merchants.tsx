@@ -330,6 +330,7 @@ export default function Merchants() {
                     if (isExpanded && allLocationsData[merchant.id]) {
                       const locations = allLocationsData[merchant.id];
                       locations.forEach((location: any) => {
+                        const revenue = locationRevenueData[location.id];
                         rows.push(
                           <TableRow key={`location-${location.id}`} className="bg-gray-50">
                             <TableCell colSpan={6}>
@@ -342,7 +343,9 @@ export default function Merchants() {
                                   </div>
                                 </div>
                                 <div className="text-right">
-                                  <div className="text-sm font-medium">{location.status}</div>
+                                  <div className="text-sm font-medium text-green-600">
+                                    MTD: {revenue ? formatCurrency(revenue.monthToDate) : '$0.00'}
+                                  </div>
                                   <div className="text-xs text-gray-500">
                                     {location.addresses?.length || 0} address{location.addresses?.length !== 1 ? 'es' : ''}
                                   </div>
