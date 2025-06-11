@@ -168,65 +168,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Setup authentication routes AFTER session middleware
   setupAuthRoutes(app);
 
-  // Development auth route for testing
-  if (process.env.NODE_ENV === 'development') {
-    app.post('/api/auth/dev-login', async (req, res) => {
-      const { userId } = req.body;
-      try {
-        const user = await storage.getUser(userId);
-        if (user) {
-          // Use simple token approach for development
-          const token = Buffer.from(userId).toString('base64');
-          res.cookie('dev-auth-token', token, {
-            httpOnly: false,
-            secure: false,
-            maxAge: 24 * 60 * 60 * 1000,
-            sameSite: 'lax'
-          });
-          (req.session as any).userId = userId;
-          res.json({ success: true, user });
-        } else {
-          res.status(401).json({ message: "User not found" });
-        }
-      } catch (error) {
-        console.error("Error during dev login:", error);
-        res.status(500).json({ message: "Login failed" });
-      }
-    });
+  // Use production auth setup for all environments
+  await setupAuth(app);
 
-    app.get('/api/auth/user', async (req, res) => {
-      try {
-        const userId = (req.session as any)?.userId;
-        if (!userId) {
-          return res.status(401).json({ message: "Authentication required" });
-        }
-        const user = await storage.getUser(userId);
-        res.json(user);
-      } catch (error) {
-        console.error("Error fetching user:", error);
-        res.status(500).json({ message: "Failed to fetch user" });
-      }
-    });
-
-    app.post('/api/auth/logout', (req, res) => {
-      res.clearCookie('dev-auth-token');
-      res.json({ success: true });
-    });
-  } else {
-    // Production auth setup
-    await setupAuth(app);
-
-    app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
-      try {
-        const userId = req.user.claims.sub;
-        const user = await storage.getUser(userId);
-        res.json(user);
-      } catch (error) {
-        console.error("Error fetching user:", error);
-        res.status(500).json({ message: "Failed to fetch user" });
-      }
-    });
-  }
+  app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      res.json(user);
+    } catch (error) {
+      console.error("Error fetching user:", error);
+      res.status(500).json({ message: "Failed to fetch user" });
+    }
+  });
 
   // Development authentication middleware
   const devAuth = async (req: any, res: any, next: any) => {
@@ -270,16 +224,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   };
 
   // User management routes (admin and super admin only)
-  app.get("/api/users", async (req: any, res) => {
+  app.get("/api/users", isAuthenticated, async (req: any, res) => {
     try {
-      // Check session authentication
-      const userId = (req.session as any)?.userId;
-      console.log("Users endpoint - Session:", req.session);
-      console.log("Users endpoint - UserId:", userId);
-      
-      if (!userId) {
-        return res.status(401).json({ message: "Authentication required" });
-      }
+      const userId = req.user.claims.sub;
       
       // Get current user and check role
       const currentUser = await storage.getUser(userId);
