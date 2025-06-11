@@ -146,7 +146,7 @@ export default function Users() {
     },
   });
 
-  const filteredUsers = users.filter(user => {
+  const filteredUsers = Array.isArray(users) ? users.filter((user: User) => {
     const fullName = `${user.firstName || ''} ${user.lastName || ''}`.trim();
     const searchLower = searchQuery.toLowerCase();
     
@@ -154,7 +154,7 @@ export default function Users() {
            user.username.toLowerCase().includes(searchLower) ||
            user.email.toLowerCase().includes(searchLower) ||
            user.role.toLowerCase().includes(searchLower);
-  });
+  }) : [];
 
   const getRoleColor = (role: string) => {
     switch (role) {
@@ -353,7 +353,7 @@ export default function Users() {
             <Shield className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{users.length}</div>
+            <div className="text-2xl font-bold">{Array.isArray(users) ? users.length : 0}</div>
           </CardContent>
         </Card>
         <Card>
@@ -363,7 +363,7 @@ export default function Users() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {users.filter(u => u.status === 'active').length}
+              {Array.isArray(users) ? users.filter((u: User) => u.status === 'active').length : 0}
             </div>
           </CardContent>
         </Card>
@@ -374,7 +374,7 @@ export default function Users() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {users.filter(u => ['admin', 'super_admin', 'corporate'].includes(u.role)).length}
+              {Array.isArray(users) ? users.filter((u: User) => ['admin', 'super_admin', 'corporate'].includes(u.role)).length : 0}
             </div>
           </CardContent>
         </Card>
@@ -385,7 +385,7 @@ export default function Users() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {users.filter(u => u.role === 'merchant').length}
+              {Array.isArray(users) ? users.filter((u: User) => u.role === 'merchant').length : 0}
             </div>
           </CardContent>
         </Card>
