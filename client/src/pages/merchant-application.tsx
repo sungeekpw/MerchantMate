@@ -35,6 +35,8 @@ export default function MerchantApplicationPage() {
   const [editedTitle, setEditedTitle] = useState('');
   const [editedDescription, setEditedDescription] = useState('');
   const [showNavSettings, setShowNavSettings] = useState<number | null>(null);
+  const [formStarted, setFormStarted] = useState(false);
+  const [fieldsInteracted, setFieldsInteracted] = useState(new Set<string>());
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -82,6 +84,24 @@ export default function MerchantApplicationPage() {
       return response.json();
     },
     enabled: !!formId
+  });
+
+  // Mutation to update prospect status to "in progress"
+  const updateProspectStatusMutation = useMutation({
+    mutationFn: async (prospectId: number) => {
+      const response = await fetch(`/api/prospects/${prospectId}/start-application`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to update prospect status');
+      }
+      
+      return response.json();
+    },
   });
 
   // Update form mutation
@@ -149,6 +169,26 @@ export default function MerchantApplicationPage() {
       data: settings
     });
     setShowNavSettings(null);
+  };
+
+  // Track when user starts filling out the form and update prospect status
+  const handleFieldInteraction = (fieldName: string) => {
+    if (!prospectData?.prospect || formStarted) return;
+
+    const newFieldsInteracted = new Set(fieldsInteracted);
+    newFieldsInteracted.add(fieldName);
+    setFieldsInteracted(newFieldsInteracted);
+
+    // Check if user has interacted with the first 3 required fields
+    const requiredFirstFields = ['companyName', 'federalTaxId', 'companyEmail'];
+    const hasInteractedWithFirstThree = requiredFirstFields.every(field => 
+      newFieldsInteracted.has(field)
+    );
+
+    if (hasInteractedWithFirstThree && !formStarted) {
+      setFormStarted(true);
+      updateProspectStatusMutation.mutate(prospectData.prospect.id);
+    }
   };
 
   if (formLoading) {
