@@ -68,7 +68,14 @@ export default function Users() {
   const { data: users = [], isLoading, error } = useQuery<User[]>({
     queryKey: ["/api/users"],
     retry: 1,
+    meta: {
+      onError: (error: any) => {
+        console.error("Users query error:", error);
+      }
+    }
   });
+
+  console.log("Users query state:", { users, isLoading, error });
 
   // Register mutation
   const registerMutation = useMutation({
