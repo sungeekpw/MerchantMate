@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Search, Edit, Trash2, Mail, Calendar, User } from "lucide-react";
+import { Plus, Search, Edit, Trash2, Mail, Calendar, User, Send } from "lucide-react";
 import { insertMerchantProspectSchema, type MerchantProspectWithAgent, type Agent } from "@shared/schema";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
@@ -35,6 +35,7 @@ export default function Prospects() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProspect, setEditingProspect] = useState<MerchantProspectWithAgent | undefined>();
+  const [resendingEmail, setResendingEmail] = useState<number | null>(null);
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -70,6 +71,29 @@ export default function Prospects() {
     },
   });
 
+  const resendInvitationMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const response = await fetch(`/api/prospects/${id}/resend-invitation`, { method: 'POST' });
+      if (!response.ok) throw new Error('Failed to resend invitation');
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Invitation email sent successfully",
+      });
+      setResendingEmail(null);
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to send invitation email",
+        variant: "destructive",
+      });
+      setResendingEmail(null);
+    },
+  });
+
   const filteredProspects = prospects.filter((prospect) => {
     if (statusFilter !== "all" && prospect.status !== statusFilter) {
       return false;
@@ -96,6 +120,11 @@ export default function Prospects() {
   const handleCloseModal = () => {
     setIsModalOpen(false);
     setEditingProspect(undefined);
+  };
+
+  const handleResendInvitation = (prospect: MerchantProspectWithAgent) => {
+    setResendingEmail(prospect.id);
+    resendInvitationMutation.mutate(prospect.id);
   };
 
   const getStatusBadge = (status: string) => {
@@ -238,6 +267,15 @@ export default function Prospects() {
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center space-x-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleResendInvitation(prospect)}
+                            disabled={resendingEmail === prospect.id || resendInvitationMutation.isPending}
+                            title="Resend invitation email"
+                          >
+                            <Send className="w-4 h-4" />
+                          </Button>
                           <Button
                             variant="ghost"
                             size="sm"
