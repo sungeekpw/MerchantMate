@@ -1327,6 +1327,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Save form data for prospects
+  app.post("/api/prospects/:id/save-form-data", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { formData, currentStep } = req.body;
+      const prospectId = parseInt(id);
+
+      const prospect = await storage.getMerchantProspect(prospectId);
+      if (!prospect) {
+        return res.status(404).json({ message: "Prospect not found" });
+      }
+
+      // Save the form data and current step
+      await storage.updateMerchantProspect(prospectId, {
+        formData: JSON.stringify(formData),
+        currentStep: currentStep
+      });
+
+      console.log(`Form data saved for prospect ${prospectId}, step ${currentStep}`);
+      res.json({ success: true, message: "Form data saved successfully" });
+    } catch (error) {
+      console.error("Error saving prospect form data:", error);
+      res.status(500).json({ message: "Failed to save form data" });
+    }
+  });
+
   // Admin-only routes for merchants
   app.get("/api/merchants/all", devRequireRole(['admin', 'corporate', 'super_admin']), async (req, res) => {
     try {

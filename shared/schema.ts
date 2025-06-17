@@ -69,6 +69,8 @@ export const merchantProspects = pgTable("merchant_prospects", {
   validationToken: text("validation_token").unique(), // Token for email validation
   validatedAt: timestamp("validated_at"),
   applicationStartedAt: timestamp("application_started_at"),
+  formData: text("form_data"), // JSON string of form data for resuming applications
+  currentStep: integer("current_step").default(0), // Current step in the application form
   notes: text("notes"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
@@ -386,6 +388,8 @@ export const insertMerchantProspectSchema = createInsertSchema(merchantProspects
   validationToken: true,
   validatedAt: true,
   applicationStartedAt: true,
+  formData: true,
+  currentStep: true,
 });
 
 // Merchant Prospect types
