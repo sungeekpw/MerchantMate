@@ -1353,6 +1353,59 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Send signature request email
+  app.post("/api/signature-request", async (req, res) => {
+    try {
+      const { 
+        ownerName, 
+        ownerEmail, 
+        companyName, 
+        ownershipPercentage, 
+        requesterName, 
+        agentName 
+      } = req.body;
+
+      if (!ownerName || !ownerEmail || !companyName || !ownershipPercentage) {
+        return res.status(400).json({ 
+          success: false, 
+          message: "Missing required fields" 
+        });
+      }
+
+      // Generate unique signature token
+      const signatureToken = `sig_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+      const success = await emailService.sendSignatureRequestEmail({
+        ownerName,
+        ownerEmail,
+        companyName,
+        ownershipPercentage,
+        signatureToken,
+        requesterName,
+        agentName
+      });
+
+      if (success) {
+        res.json({ 
+          success: true, 
+          message: `Signature request sent to ${ownerEmail}`,
+          signatureToken 
+        });
+      } else {
+        res.status(500).json({ 
+          success: false, 
+          message: "Failed to send signature request email" 
+        });
+      }
+    } catch (error) {
+      console.error("Error sending signature request:", error);
+      res.status(500).json({ 
+        success: false, 
+        message: "Internal server error" 
+      });
+    }
+  });
+
   // Admin-only routes for merchants
   app.get("/api/merchants/all", devRequireRole(['admin', 'corporate', 'super_admin']), async (req, res) => {
     try {
