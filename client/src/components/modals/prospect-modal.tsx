@@ -68,15 +68,18 @@ export function ProspectModal({ isOpen, onClose, prospect }: ProspectModalProps)
     queryKey: ["/api/current-agent"],
     enabled: user?.role === 'agent',
     retry: false,
+    staleTime: 0,
   });
 
   // Debug logging
   console.log('ProspectModal Debug:', {
+    user,
     userRole: user?.role,
     currentAgent,
     isCurrentAgentLoading,
     agentError,
-    userIsAgent: user?.role === 'agent'
+    userIsAgent: user?.role === 'agent',
+    enabled: user?.role === 'agent'
   });
 
   // Fetch agents for the dropdown (only for non-agent users)
