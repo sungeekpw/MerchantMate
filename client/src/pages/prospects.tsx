@@ -365,14 +365,7 @@ function ProspectModal({ isOpen, onClose, prospect }: ProspectModalProps) {
   const agentDefaultId = isAgent ? 2 : 1; // Use agent ID 2 for Mike Chen
   const agentDisplayValue = isAgent && user ? `${user.firstName} ${user.lastName} (${user.email})` : '';
 
-  console.log('ProspectModal (inline) Debug:', {
-    user,
-    userRole: user?.role,
-    isAgent,
-    agentDisplayValue,
-    agentDefaultId,
-    modalOpen: isOpen
-  });
+
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),

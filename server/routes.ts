@@ -1120,8 +1120,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Fetch agent information for email
       const agent = await storage.getAgent(prospect.agentId);
-      console.log(`Prospect created with agentId: ${prospect.agentId}`);
-      console.log(`Agent lookup result:`, agent);
       
       // Send validation email if agent information is available
       if (agent && prospect.validationToken) {
@@ -1163,7 +1161,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/prospects/:id/resend-invitation", devRequireRole(['admin', 'corporate', 'super_admin']), async (req, res) => {
+  app.post("/api/prospects/:id/resend-invitation", devRequireRole(['agent', 'admin', 'corporate', 'super_admin']), async (req, res) => {
     try {
       const { id } = req.params;
       const { emailService } = await import("./emailService");
