@@ -402,12 +402,12 @@ function ProspectModal({ isOpen, onClose, prospect }: ProspectModalProps) {
         firstName: "",
         lastName: "",
         email: "",
-        agentId: 1,
+        agentId: agentDefaultId,
         status: "pending",
         notes: "",
       });
     }
-  }, [prospect, form]);
+  }, [prospect, form, agentDefaultId]);
 
   // Fetch agents for the dropdown
   const { data: agents = [] } = useQuery({
