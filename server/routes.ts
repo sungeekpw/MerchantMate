@@ -371,14 +371,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return {
           id: prospect.id,
           prospectName: `${prospect.firstName} ${prospect.lastName}`,
-          companyName: prospect.companyName || 'Not specified',
+          companyName: 'Not specified', // Will be added to schema later
           email: prospect.email,
-          phone: prospect.phone || 'Not provided',
+          phone: 'Not provided', // Will be added to schema later
           status: prospect.status,
           createdAt: prospect.createdAt,
           lastUpdated: prospect.updatedAt || prospect.createdAt,
           completionPercentage,
-          assignedAgent: prospect.assignedAgentName || 'Unassigned'
+          assignedAgent: prospect.agent?.firstName ? `${prospect.agent.firstName} ${prospect.agent.lastName}` : 'Unassigned'
         };
       });
 

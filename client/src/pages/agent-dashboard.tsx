@@ -35,7 +35,9 @@ interface Application {
 interface DashboardStats {
   totalApplications: number;
   pendingApplications: number;
+  contactedApplications: number;
   inProgressApplications: number;
+  appliedApplications: number;
   completedApplications: number;
   approvedApplications: number;
   rejectedApplications: number;
@@ -65,13 +67,13 @@ export default function AgentDashboard() {
   const [selectedTab, setSelectedTab] = useState('overview');
 
   // Fetch dashboard statistics
-  const { data: stats, isLoading: statsLoading } = useQuery({
+  const { data: stats = {}, isLoading: statsLoading } = useQuery({
     queryKey: ['/api/agent/dashboard/stats'],
     refetchInterval: 30000, // Refresh every 30 seconds
   });
 
   // Fetch applications
-  const { data: applications, isLoading: applicationsLoading } = useQuery({
+  const { data: applications = [], isLoading: applicationsLoading } = useQuery({
     queryKey: ['/api/agent/applications'],
     refetchInterval: 30000,
   });
