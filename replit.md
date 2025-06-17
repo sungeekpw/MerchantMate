@@ -208,6 +208,9 @@ The application is configured for deployment on Replit with:
   - Complete end-to-end signature workflow now functional with proper token linking and retrieval
   - Added manual "Check for Signatures" button to retrieve submitted signatures when form data doesn't persist owners
   - Signature system fully operational with manual refresh capability for edge cases
+  - Enhanced signature system with email-token mapping and email-based signature search
+  - Signatures now automatically include owner email addresses for reliable retrieval
+  - Added fallback email search when signature tokens are not available in form data
 
 ## User Preferences
 Preferred communication style: Simple, everyday language.
