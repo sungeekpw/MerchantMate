@@ -625,6 +625,27 @@ export default function EnhancedPdfWizard() {
                     setShowSuggestions(addressSuggestions.length > 0);
                   }
                 }}
+                onKeyDown={(e) => {
+                  if (field.fieldName === 'address' && showSuggestions && addressSuggestions.length > 0) {
+                    if (e.key === 'ArrowDown') {
+                      e.preventDefault();
+                      setSelectedSuggestionIndex(prev => 
+                        prev < addressSuggestions.length - 1 ? prev + 1 : 0
+                      );
+                    } else if (e.key === 'ArrowUp') {
+                      e.preventDefault();
+                      setSelectedSuggestionIndex(prev => 
+                        prev > 0 ? prev - 1 : addressSuggestions.length - 1
+                      );
+                    } else if (e.key === 'Enter' && selectedSuggestionIndex >= 0) {
+                      e.preventDefault();
+                      selectAddressSuggestion(addressSuggestions[selectedSuggestionIndex]);
+                    } else if (e.key === 'Escape') {
+                      setShowSuggestions(false);
+                      setSelectedSuggestionIndex(-1);
+                    }
+                  }
+                }}
                 className={`${hasError ? 'border-red-500' : ''} ${
                   isProspectMode && field.fieldName === 'companyEmail' ? 'bg-gray-50 cursor-not-allowed' : ''
                 } ${
@@ -652,14 +673,27 @@ export default function EnhancedPdfWizard() {
                     addressSuggestions.map((suggestion, index) => (
                       <div
                         key={index}
-                        className="p-3 hover:bg-gray-100 cursor-pointer border-b border-gray-100 last:border-b-0"
+                        className={`p-3 cursor-pointer border-b border-gray-100 last:border-b-0 transition-colors ${
+                          index === selectedSuggestionIndex 
+                            ? 'bg-blue-50 border-blue-200' 
+                            : 'hover:bg-gray-100'
+                        }`}
                         onMouseDown={(e) => {
                           e.preventDefault(); // Prevent blur event
                           selectAddressSuggestion(suggestion);
                         }}
+                        onMouseEnter={() => setSelectedSuggestionIndex(index)}
                       >
-                        <div className="font-medium text-gray-900">{suggestion.structured_formatting?.main_text || suggestion.description}</div>
-                        <div className="text-sm text-gray-500">{suggestion.structured_formatting?.secondary_text || ''}</div>
+                        <div className={`font-medium ${
+                          index === selectedSuggestionIndex ? 'text-blue-900' : 'text-gray-900'
+                        }`}>
+                          {suggestion.structured_formatting?.main_text || suggestion.description}
+                        </div>
+                        <div className={`text-sm ${
+                          index === selectedSuggestionIndex ? 'text-blue-600' : 'text-gray-500'
+                        }`}>
+                          {suggestion.structured_formatting?.secondary_text || ''}
+                        </div>
                       </div>
                     ))
                   ) : (
