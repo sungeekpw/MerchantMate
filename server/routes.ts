@@ -1569,11 +1569,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Store signature in a simple in-memory map for now
       // In production, this would be stored in the database
-      if (!global.signatureStore) {
-        global.signatureStore = new Map();
+      if (!(global as any).signatureStore) {
+        (global as any).signatureStore = new Map();
       }
       
-      global.signatureStore.set(signatureToken, {
+      (global as any).signatureStore.set(signatureToken, {
         signature,
         signatureType,
         submittedAt: new Date()
@@ -1581,7 +1581,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log(`Signature submitted for token: ${signatureToken}`);
       console.log(`Signature type: ${signatureType}`);
-      console.log(`Total signatures stored: ${global.signatureStore.size}`);
+      console.log(`Total signatures stored: ${(global as any).signatureStore.size}`);
 
       res.json({ 
         success: true, 
@@ -1601,14 +1601,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { token } = req.params;
       
-      if (!global.signatureStore || !global.signatureStore.has(token)) {
+      if (!(global as any).signatureStore || !(global as any).signatureStore.has(token)) {
         return res.status(404).json({ 
           success: false, 
           message: "Signature not found" 
         });
       }
       
-      const signatureData = global.signatureStore.get(token);
+      const signatureData = (global as any).signatureStore.get(token);
       
       res.json({ 
         success: true, 
