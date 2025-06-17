@@ -378,6 +378,23 @@ function AuthenticatedApp() {
               );
             }}
           </Route>
+          <Route path="/agent-dashboard">
+            {() => {
+              const pageInfo = { title: "Agent Dashboard", subtitle: "Manage your merchant applications and track progress" };
+              return (
+                <>
+                  <Header 
+                    title={pageInfo.title} 
+                    subtitle={pageInfo.subtitle}
+                    onSearch={setGlobalSearch}
+                  />
+                  <main className="flex-1 overflow-auto bg-gray-50">
+                    <AgentDashboard />
+                  </main>
+                </>
+              );
+            }}
+          </Route>
           <Route>
             <div className="flex-1">
               <NotFound />

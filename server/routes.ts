@@ -312,8 +312,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "Authentication required" });
       }
 
+      // Get agent by user ID first
+      const agent = await storage.getAgentByEmail(req.user?.email);
+      if (!agent) {
+        return res.status(404).json({ message: "Agent not found" });
+      }
+
       // Get all prospects assigned to this agent
-      const prospects = await storage.getProspectsByAgent(userId);
+      const prospects = await storage.getProspectsByAgent(agent.id);
       
       // Calculate statistics
       const totalApplications = prospects.length;
@@ -352,8 +358,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "Authentication required" });
       }
 
+      // Get agent by user ID first
+      const agent = await storage.getAgentByEmail(req.user?.email);
+      if (!agent) {
+        return res.status(404).json({ message: "Agent not found" });
+      }
+
       // Get all prospects assigned to this agent with application details
-      const prospects = await storage.getProspectsByAgent(userId);
+      const prospects = await storage.getProspectsByAgent(agent.id);
       
       // Transform prospects to application format
       const applications = prospects.map(prospect => {
