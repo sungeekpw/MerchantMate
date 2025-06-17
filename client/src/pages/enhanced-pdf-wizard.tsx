@@ -344,6 +344,7 @@ export default function EnhancedPdfWizard() {
 
   // Select an address suggestion and populate all fields
   const selectAddressSuggestion = async (suggestion: any) => {
+    console.log('Selected suggestion:', suggestion);
     setShowSuggestions(false);
     setAddressValidationStatus('validating');
     
@@ -358,16 +359,19 @@ export default function EnhancedPdfWizard() {
       
       if (response.ok) {
         const result = await response.json();
+        console.log('Validation result:', result);
         if (result.isValid) {
           setAddressValidationStatus('valid');
           
           // Auto-populate fields, but only use street address for the address field
           const newFormData = { ...formData };
-          newFormData.address = result.streetAddress || suggestion.structured_formatting?.main_text || result.formattedAddress;
+          // Use the main text from suggestion as street address, or fallback to API result
+          newFormData.address = suggestion.structured_formatting?.main_text || result.streetAddress || result.formattedAddress.split(',')[0].trim();
           if (result.city) newFormData.city = result.city;
           if (result.state) newFormData.state = result.state;
           if (result.zipCode) newFormData.zipCode = result.zipCode;
           
+          console.log('Updated form data:', newFormData);
           setFormData(newFormData);
         } else {
           setAddressValidationStatus('invalid');
@@ -568,7 +572,7 @@ export default function EnhancedPdfWizard() {
                     setTimeout(() => {
                       setShowSuggestions(false);
                       handleAddressBlur(field.fieldName, e.target.value);
-                    }, 150);
+                    }, 200);
                   } else {
                     handleAddressBlur(field.fieldName, e.target.value);
                   }
@@ -605,7 +609,10 @@ export default function EnhancedPdfWizard() {
                       <div
                         key={index}
                         className="p-3 hover:bg-gray-100 cursor-pointer border-b border-gray-100 last:border-b-0"
-                        onClick={() => selectAddressSuggestion(suggestion)}
+                        onMouseDown={(e) => {
+                          e.preventDefault(); // Prevent blur event
+                          selectAddressSuggestion(suggestion);
+                        }}
                       >
                         <div className="font-medium text-gray-900">{suggestion.structured_formatting?.main_text || suggestion.description}</div>
                         <div className="text-sm text-gray-500">{suggestion.structured_formatting?.secondary_text || ''}</div>
