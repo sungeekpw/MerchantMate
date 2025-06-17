@@ -359,10 +359,45 @@ export default function EnhancedPdfWizard() {
     // Clear any existing validation errors
     setValidationErrors({});
     
-    // Immediately populate the address field with the main text to give instant feedback
+    // Immediately clear and populate address fields from the suggestion
     const newFormData = { ...formData };
-    newFormData.address = suggestion.structured_formatting?.main_text || suggestion.description.split(',')[0].trim();
+    
+    // Clear all address-related fields first to prevent old data
+    newFormData.address = '';
+    newFormData.city = '';
+    newFormData.state = '';
+    newFormData.zipCode = '';
+    
+    // Extract address components from suggestion
+    const mainText = suggestion.structured_formatting?.main_text || suggestion.description.split(',')[0].trim();
+    const secondaryText = suggestion.structured_formatting?.secondary_text || '';
+    
+    // Parse city and state from secondary text if available
+    let suggestedCity = '';
+    let suggestedState = '';
+    
+    if (secondaryText) {
+      const parts = secondaryText.split(',').map(part => part.trim());
+      if (parts.length >= 2) {
+        suggestedCity = parts[0];
+        suggestedState = parts[1].split(' ')[0]; // Get state code, ignore ZIP
+      } else if (parts.length === 1) {
+        // Could be just city or just state
+        if (parts[0].length === 2) {
+          suggestedState = parts[0];
+        } else {
+          suggestedCity = parts[0];
+        }
+      }
+    }
+    
+    // Set initial values from suggestion
+    newFormData.address = mainText;
+    if (suggestedCity) newFormData.city = suggestedCity;
+    if (suggestedState) newFormData.state = suggestedState;
+    
     setFormData(newFormData);
+    console.log('Initial form data from suggestion:', newFormData);
     
     // Use Google Places Details API for precise data with place_id
     try {
@@ -384,17 +419,17 @@ export default function EnhancedPdfWizard() {
         if (result.isValid) {
           setAddressValidationStatus('valid');
           
-          // Update all address fields with validated data
-          const finalFormData = { ...newFormData };
+          // Create completely fresh form data to avoid any merging issues
+          const finalFormData = { ...formData };
           
-          // Use structured data from the API response
-          if (result.streetAddress) finalFormData.address = result.streetAddress;
-          if (result.city) finalFormData.city = result.city;
-          if (result.state) finalFormData.state = result.state;
-          if (result.zipCode) finalFormData.zipCode = result.zipCode;
+          // Override ALL address fields with API results
+          finalFormData.address = result.streetAddress || mainText;
+          finalFormData.city = result.city || suggestedCity;
+          finalFormData.state = result.state || suggestedState;
+          finalFormData.zipCode = result.zipCode || '';
           
           setFormData(finalFormData);
-          console.log('Updated form data:', finalFormData);
+          console.log('Final validated form data:', finalFormData);
           
           // Auto-focus to address line 2 field after successful selection
           setTimeout(() => {
@@ -485,11 +520,21 @@ export default function EnhancedPdfWizard() {
     // Trigger address autocomplete for address field
     if (fieldName === 'address') {
       setAddressValidationStatus('idle');
+      // Clear city, state, zip when manually typing new address
       if (value && value.length >= 4) {
         fetchAddressSuggestions(value);
       } else {
         setShowSuggestions(false);
         setAddressSuggestions([]);
+        setSelectedSuggestionIndex(-1);
+        // Clear address-related fields when address is short
+        if (value.length < 4) {
+          const clearedFormData = { ...newFormData };
+          clearedFormData.city = '';
+          clearedFormData.state = '';
+          clearedFormData.zipCode = '';
+          setFormData(clearedFormData);
+        }
       }
     }
     
