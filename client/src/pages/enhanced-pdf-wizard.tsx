@@ -349,6 +349,10 @@ export default function EnhancedPdfWizard() {
     setShowSuggestions(false);
     setAddressValidationStatus('validating');
     
+    // Directly populate the address field with the selected suggestion
+    const newFormData = { ...formData };
+    newFormData.address = suggestion.structured_formatting?.main_text || suggestion.description.split(',')[0].trim();
+    
     try {
       const response = await fetch('/api/validate-address', {
         method: 'POST',
@@ -364,10 +368,7 @@ export default function EnhancedPdfWizard() {
         if (result.isValid) {
           setAddressValidationStatus('valid');
           
-          // Auto-populate fields, but only use street address for the address field
-          const newFormData = { ...formData };
-          // Use the main text from suggestion as street address, or fallback to API result
-          newFormData.address = suggestion.structured_formatting?.main_text || result.streetAddress || result.formattedAddress.split(',')[0].trim();
+          // Auto-populate city, state, and ZIP from validation result
           if (result.city) newFormData.city = result.city;
           if (result.state) newFormData.state = result.state;
           if (result.zipCode) newFormData.zipCode = result.zipCode;
@@ -378,23 +379,26 @@ export default function EnhancedPdfWizard() {
           // Auto-focus to address line 2 field after address selection
           setTimeout(() => {
             const addressLine2Field = document.getElementById('addressLine2');
-            console.log('Looking for addressLine2 field:', addressLine2Field);
             if (addressLine2Field) {
               addressLine2Field.focus();
               console.log('Focused on Address Line 2 field');
-            } else {
-              console.log('Address Line 2 field not found');
             }
           }, 200);
         } else {
+          // Even if validation fails, keep the selected address
           setAddressValidationStatus('invalid');
+          setFormData(newFormData);
         }
       } else {
+        // Even if API fails, keep the selected address
         setAddressValidationStatus('invalid');
+        setFormData(newFormData);
       }
     } catch (error) {
       console.error('Address validation error:', error);
       setAddressValidationStatus('invalid');
+      // Keep the selected address even if validation fails
+      setFormData(newFormData);
     }
   };
 

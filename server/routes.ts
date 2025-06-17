@@ -102,8 +102,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(500).json({ error: 'Google API key not configured' });
       }
       
-      // Call Google Places Autocomplete API
-      const autocompleteUrl = `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(input)}&types=address&key=${googleApiKey}`;
+      // Call Google Places Autocomplete API with US bias
+      const autocompleteUrl = `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(input)}&types=address&components=country:us&key=${googleApiKey}`;
       
       const response = await fetch(autocompleteUrl);
       const data = await response.json();
