@@ -1589,12 +1589,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
         (global as any).signatureStore = new Map();
       }
       
-      (global as any).signatureStore.set(signatureToken, {
+      // Store the signature with all relevant data
+      const signatureData = {
         signature,
         signatureType,
         email,
-        submittedAt: new Date()
-      });
+        submittedAt: new Date(),
+        ownerName: signature // Store the signature text as owner name for easier matching
+      };
+      
+      (global as any).signatureStore.set(signatureToken, signatureData);
+      
+      // Also create a reverse lookup by email for faster searching
+      if (!(global as any).signaturesByEmail) {
+        (global as any).signaturesByEmail = new Map();
+      }
+      if (email) {
+        (global as any).signaturesByEmail.set(email.toLowerCase(), {
+          ...signatureData,
+          token: signatureToken
+        });
+      }
       
       console.log(`Signature submitted for token: ${signatureToken}`);
       console.log(`Signature type: ${signatureType}`);
@@ -1654,32 +1669,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       console.log(`Searching for signatures by email: ${email}`);
-      console.log(`Total signatures in store: ${(global as any).signatureStore.size}`);
-
-      // List all signatures for debugging
-      for (const [token, signatureData] of (global as any).signatureStore.entries()) {
-        console.log(`Token: ${token}, Signature: ${signatureData.signature}, Email: ${signatureData.email}`);
+      
+      // Check the fast email lookup first
+      if ((global as any).signaturesByEmail && (global as any).signaturesByEmail.has(email.toLowerCase())) {
+        const signatureData = (global as any).signaturesByEmail.get(email.toLowerCase());
+        console.log(`Found signature via email lookup: ${signatureData.signature}`);
+        return res.json({ 
+          success: true, 
+          signature: signatureData 
+        });
       }
 
-      // Search through all stored signatures to find one with matching email
-      for (const [token, signatureData] of (global as any).signatureStore.entries()) {
-        if (signatureData.email && signatureData.email.toLowerCase() === email.toLowerCase()) {
-          return res.json({ 
-            success: true, 
-            signature: { ...signatureData, token } 
-          });
-        }
-      }
-
-      // If no email match found, check if we can match by known tokens for this email
-      // This handles the case where existing signatures don't have email stored
-      if (email.toLowerCase() === "rudy@charrg.com") {
-        // Find any signature for Demi Moore and update it with the email
+      // Fallback to searching the main store
+      if ((global as any).signatureStore) {
+        console.log(`Total signatures in store: ${(global as any).signatureStore.size}`);
+        
+        // Search through all stored signatures to find one with matching email
         for (const [token, signatureData] of (global as any).signatureStore.entries()) {
-          if (signatureData.signature === "Demi Moore") {
-            // Update the signature with the email
-            signatureData.email = email;
-            console.log(`Updated signature for Demi Moore with email: ${email}`);
+          console.log(`Token: ${token}, Signature: ${signatureData.signature}, Email: ${signatureData.email}`);
+          if (signatureData.email && signatureData.email.toLowerCase() === email.toLowerCase()) {
             return res.json({ 
               success: true, 
               signature: { ...signatureData, token } 
