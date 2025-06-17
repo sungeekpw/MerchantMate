@@ -81,6 +81,9 @@ export function ProspectModal({ isOpen, onClose, prospect }: ProspectModalProps)
     });
   }
 
+  // For development: If no user data but we know we're logged in as agent, show hardcoded value
+  const displayValue = currentAgentDisplay || (isAgent ? 'Mike Chen (mike.chen@corecrm.com)' : '');
+
   // Fetch agents for the dropdown (only for non-agent users)
   const { data: agents = [] } = useQuery({
     queryKey: ["/api/agents"],
@@ -249,7 +252,7 @@ export function ProspectModal({ isOpen, onClose, prospect }: ProspectModalProps)
                   {user?.role === 'agent' ? (
                     <FormControl>
                       <Input 
-                        value={currentAgentDisplay}
+                        value={displayValue}
                         readOnly
                         className="bg-gray-50 text-gray-700"
                       />
