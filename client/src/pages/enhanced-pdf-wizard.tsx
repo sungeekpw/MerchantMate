@@ -1395,9 +1395,12 @@ export default function EnhancedPdfWizard() {
                       
                       // If no token or token didn't work, search by email
                       if (owner.email) {
+                        console.log(`Searching by email for ${owner.name}: ${owner.email}`);
                         const searchResponse = await fetch(`/api/signatures/by-email/${encodeURIComponent(owner.email)}`);
+                        console.log(`Email search response status: ${searchResponse.status}`);
                         if (searchResponse.ok) {
                           const searchResult = await searchResponse.json();
+                          console.log(`Email search result:`, searchResult);
                           if (searchResult.success && searchResult.signature) {
                             updatedOwners[i] = {
                               ...owner,
@@ -1406,8 +1409,12 @@ export default function EnhancedPdfWizard() {
                               signatureToken: searchResult.signature.token // Save the token for future use
                             };
                             hasUpdates = true;
-                            console.log(`Found signature for ${owner.name} via email search`);
+                            console.log(`Found signature for ${owner.name} via email search: ${searchResult.signature.signature}`);
+                          } else {
+                            console.log(`No signature found via email search for ${owner.name}`);
                           }
+                        } else {
+                          console.log(`Email search failed for ${owner.name}: ${searchResponse.status}`);
                         }
                       }
                     } catch (error) {
