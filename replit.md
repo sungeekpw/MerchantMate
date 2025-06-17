@@ -184,6 +184,9 @@ The application is configured for deployment on Replit with:
   - Added read-only "Assigned Agent" field that auto-fills with logged-in agent name and email
   - Agents now see "Mike Chen (mike.chen@corecrm.com)" in a read-only field when adding new prospects
   - Form automatically assigns correct agentId (2) for agent users creating new prospects
+  - Updated API permissions to allow agents to create and edit prospects
+  - Fixed email service to send validation emails with correct agent information
+  - Prospects created by agents now appear correctly in agent-filtered prospect list
 
 ## User Preferences
 Preferred communication style: Simple, everyday language.
