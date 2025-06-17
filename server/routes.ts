@@ -1369,8 +1369,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Update prospect with final form data and status
       const updatedProspect = await storage.updateMerchantProspect(prospectId, {
         formData: JSON.stringify(formData),
-        status: 'submitted',
-        submittedAt: new Date()
+        status: 'submitted'
       });
 
       console.log(`Application submitted for prospect ${prospectId}`);
