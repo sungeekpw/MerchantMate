@@ -1366,17 +1366,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Prospect not found" });
       }
 
+      // Get agent information
+      const agent = await storage.getAgent(prospect.agentId);
+      if (!agent) {
+        return res.status(404).json({ message: "Agent not found" });
+      }
+
       // Update prospect with final form data and status
       const updatedProspect = await storage.updateMerchantProspect(prospectId, {
         formData: JSON.stringify(formData),
         status: 'submitted'
       });
 
+      // Generate PDF document
+      let pdfBuffer: Buffer | undefined;
+      try {
+        const { pdfGenerator } = await import('./pdfGenerator');
+        pdfBuffer = await pdfGenerator.generateApplicationPDF(updatedProspect, formData);
+      } catch (pdfError) {
+        console.error('PDF generation failed:', pdfError);
+        // Continue without PDF - don't fail the submission
+      }
+
+      // Send notification emails
+      try {
+        const submissionDate = new Date().toLocaleDateString('en-US', {
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric'
+        });
+
+        await emailService.sendApplicationSubmissionNotification({
+          companyName: formData.companyName || 'Unknown Company',
+          applicantName: `${prospect.firstName} ${prospect.lastName}`,
+          applicantEmail: prospect.email,
+          agentName: `${agent.firstName} ${agent.lastName}`,
+          agentEmail: agent.email,
+          submissionDate,
+          applicationToken: prospect.validationToken || 'unknown'
+        }, pdfBuffer);
+      } catch (emailError) {
+        console.error('Email notification failed:', emailError);
+        // Continue without email - don't fail the submission
+      }
+
       console.log(`Application submitted for prospect ${prospectId}`);
       res.json({ 
         success: true, 
         message: "Application submitted successfully",
-        prospect: updatedProspect
+        prospect: updatedProspect,
+        statusUrl: `/application-status/${prospect.validationToken}`
       });
     } catch (error) {
       console.error("Error submitting prospect application:", error);

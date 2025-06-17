@@ -29,6 +29,16 @@ interface SignatureRequestData {
   agentName: string;
 }
 
+interface ApplicationSubmissionData {
+  companyName: string;
+  applicantName: string;
+  applicantEmail: string;
+  agentName: string;
+  agentEmail: string;
+  submissionDate: string;
+  applicationToken: string;
+}
+
 export class EmailService {
   private getBaseUrl(): string {
     // Use the current domain or localhost for development
@@ -218,6 +228,138 @@ This is an automated message. Please do not reply to this email.
       return true;
     } catch (error) {
       console.error('Error sending signature request email:', error);
+      return false;
+    }
+  }
+
+  async sendApplicationSubmissionNotification(data: ApplicationSubmissionData, pdfAttachment?: Buffer): Promise<boolean> {
+    try {
+      const baseUrl = this.getBaseUrl();
+      const statusUrl = `${baseUrl}/application-status/${data.applicationToken}`;
+      
+      // Email to merchant with PDF attachment
+      const merchantMsg = {
+        to: data.applicantEmail,
+        from: process.env.SENDGRID_FROM_EMAIL || 'noreply@corecrm.com',
+        subject: `Application Submitted Successfully - ${data.companyName}`,
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <div style="background: linear-gradient(135deg, #059669 0%, #10b981 100%); color: white; padding: 30px; text-align: center;">
+              <h1 style="margin: 0; font-size: 24px;">Application Successfully Submitted</h1>
+              <p style="margin: 10px 0 0 0; opacity: 0.9;">${data.companyName}</p>
+            </div>
+            
+            <div style="padding: 30px; background: #ffffff;">
+              <p style="font-size: 16px; color: #333; margin-bottom: 20px;">Dear ${data.applicantName},</p>
+              
+              <p style="color: #555; line-height: 1.6;">
+                Thank you for submitting your merchant application for <strong>${data.companyName}</strong>. 
+                Your application has been received and is now under review.
+              </p>
+              
+              <div style="background: #f0fdf4; border-left: 4px solid #10b981; padding: 20px; margin: 20px 0;">
+                <h3 style="margin: 0 0 10px 0; color: #059669;">Next Steps</h3>
+                <p style="margin: 5px 0; color: #555;">✓ Your application has been submitted</p>
+                <p style="margin: 5px 0; color: #555;">• Your assigned agent will review your application</p>
+                <p style="margin: 5px 0; color: #555;">• You will be contacted within 2-3 business days</p>
+                <p style="margin: 5px 0; color: #555;">• Track your application status anytime using the link below</p>
+              </div>
+              
+              <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px; margin: 20px 0;">
+                <h3 style="margin: 0 0 10px 0; color: #1e40af;">Application Details</h3>
+                <p style="margin: 5px 0; color: #555;"><strong>Company:</strong> ${data.companyName}</p>
+                <p style="margin: 5px 0; color: #555;"><strong>Submission Date:</strong> ${data.submissionDate}</p>
+                <p style="margin: 5px 0; color: #555;"><strong>Assigned Agent:</strong> ${data.agentName}</p>
+                <p style="margin: 5px 0; color: #555;"><strong>Application ID:</strong> ${data.applicationToken}</p>
+              </div>
+              
+              <div style="text-align: center; margin: 30px 0;">
+                <a href="${statusUrl}" 
+                   style="background: #3b82f6; color: white; padding: 15px 30px; text-decoration: none; 
+                          border-radius: 8px; font-weight: bold; display: inline-block;">
+                  Check Application Status
+                </a>
+              </div>
+              
+              <p style="color: #555; line-height: 1.6; margin-top: 20px;">
+                A copy of your completed application is attached to this email for your records. 
+                Please save this document as it contains your digital signatures and all submitted information.
+              </p>
+            </div>
+            
+            <div style="background: #f9fafb; padding: 20px; text-align: center; color: #6b7280; font-size: 12px;">
+              <p style="margin: 0;">Keep this email for your records. Your application ID: ${data.applicationToken}</p>
+              <p style="margin: 5px 0 0 0;">© ${new Date().getFullYear()} Core CRM. All rights reserved.</p>
+            </div>
+          </div>
+        `,
+        attachments: pdfAttachment ? [{
+          content: pdfAttachment.toString('base64'),
+          filename: `${data.companyName}_Application_${data.submissionDate.replace(/\//g, '-')}.pdf`,
+          type: 'application/pdf',
+          disposition: 'attachment'
+        }] : []
+      };
+
+      // Email to agent notification
+      const agentMsg = {
+        to: data.agentEmail,
+        from: process.env.SENDGRID_FROM_EMAIL || 'noreply@corecrm.com',
+        subject: `New Application Submitted - ${data.companyName}`,
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <div style="background: linear-gradient(135deg, #7c3aed 0%, #a855f7 100%); color: white; padding: 30px; text-align: center;">
+              <h1 style="margin: 0; font-size: 24px;">New Application Submitted</h1>
+              <p style="margin: 10px 0 0 0; opacity: 0.9;">Requires Your Review</p>
+            </div>
+            
+            <div style="padding: 30px; background: #ffffff;">
+              <p style="font-size: 16px; color: #333; margin-bottom: 20px;">Hello ${data.agentName},</p>
+              
+              <p style="color: #555; line-height: 1.6;">
+                A new merchant application has been submitted and assigned to you for review.
+              </p>
+              
+              <div style="background: #faf5ff; border-left: 4px solid #a855f7; padding: 20px; margin: 20px 0;">
+                <h3 style="margin: 0 0 10px 0; color: #7c3aed;">Application Details</h3>
+                <p style="margin: 5px 0; color: #555;"><strong>Company:</strong> ${data.companyName}</p>
+                <p style="margin: 5px 0; color: #555;"><strong>Applicant:</strong> ${data.applicantName}</p>
+                <p style="margin: 5px 0; color: #555;"><strong>Email:</strong> ${data.applicantEmail}</p>
+                <p style="margin: 5px 0; color: #555;"><strong>Submitted:</strong> ${data.submissionDate}</p>
+                <p style="margin: 5px 0; color: #555;"><strong>Application ID:</strong> ${data.applicationToken}</p>
+              </div>
+              
+              <div style="text-align: center; margin: 30px 0;">
+                <a href="${baseUrl}/agent-dashboard" 
+                   style="background: #7c3aed; color: white; padding: 15px 30px; text-decoration: none; 
+                          border-radius: 8px; font-weight: bold; display: inline-block;">
+                  Review Application
+                </a>
+              </div>
+              
+              <p style="color: #555; line-height: 1.6;">
+                Please review this application promptly and contact the applicant within 2-3 business days 
+                to proceed with the next steps in the approval process.
+              </p>
+            </div>
+            
+            <div style="background: #f9fafb; padding: 20px; text-align: center; color: #6b7280; font-size: 12px;">
+              <p style="margin: 0;">This notification was sent automatically when the application was submitted.</p>
+              <p style="margin: 5px 0 0 0;">© ${new Date().getFullYear()} Core CRM. All rights reserved.</p>
+            </div>
+          </div>
+        `
+      };
+
+      // Send both emails
+      await Promise.all([
+        sgMail.send(merchantMsg),
+        sgMail.send(agentMsg)
+      ]);
+
+      return true;
+    } catch (error) {
+      console.error('SendGrid application submission notification error:', error);
       return false;
     }
   }
