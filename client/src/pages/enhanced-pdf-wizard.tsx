@@ -915,6 +915,28 @@ export default function EnhancedPdfWizard() {
     }
   };
 
+  // Handle money field formatting on blur
+  const handleMoneyBlur = (fieldName: string, value: string) => {
+    const moneyFields = ['monthlyVolume', 'averageTicket', 'highestTicket', 'avgMonthlyVolume', 'avgTicketAmount', 'highestTicketAmount'];
+    
+    if (moneyFields.includes(fieldName) && value) {
+      // Remove any existing formatting and non-numeric characters except decimal point
+      const cleanValue = value.replace(/[^0-9.]/g, '');
+      
+      // Parse as float and format as currency
+      const numericValue = parseFloat(cleanValue);
+      
+      if (!isNaN(numericValue) && numericValue >= 0) {
+        // Format with two decimal places
+        const formatted = numericValue.toFixed(2);
+        if (formatted !== value) {
+          const newFormData = { ...formData, [fieldName]: formatted };
+          setFormData(newFormData);
+        }
+      }
+    }
+  };
+
   // Handle address validation on blur
   const handleAddressBlur = (fieldName: string, value: string) => {
     if (fieldName === 'address' && value.trim()) {
@@ -1404,6 +1426,7 @@ export default function EnhancedPdfWizard() {
                 onBlur={(e) => {
                   handlePhoneBlur(field.fieldName, e.target.value);
                   handleEINBlur(field.fieldName, e.target.value);
+                  handleMoneyBlur(field.fieldName, e.target.value);
                   if (field.fieldName === 'address') {
                     handleAddressInputBlur(field.fieldName, e.target.value);
                   }
@@ -1448,6 +1471,8 @@ export default function EnhancedPdfWizard() {
                             field.fieldName === 'address' ? 'Enter street address (e.g., 123 Main St)' :
                             field.fieldName === 'addressLine2' ? 'Suite, apt, floor, etc. (optional)' :
                             (field.fieldName === 'federalTaxId' || field.fieldName === 'taxId') ? 'Enter 9-digit EIN (will format as XX-XXXXXXX)' :
+                            ['monthlyVolume', 'averageTicket', 'highestTicket', 'avgMonthlyVolume', 'avgTicketAmount', 'highestTicketAmount'].includes(field.fieldName) ? 
+                              `Enter amount (e.g., 10000.00)` :
                             `Enter ${field.fieldLabel.toLowerCase()}`}
                 readOnly={
                   (isProspectMode && field.fieldName === 'companyEmail') ||
