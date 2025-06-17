@@ -173,6 +173,11 @@ The application is configured for deployment on Replit with:
   - Created secure signature request emails with personalized links and legal disclaimers
   - Integrated email request buttons for owners who cannot sign immediately
   - Added email status tracking with timestamps and delivery confirmation
+- June 17, 2025. Implemented money field formatting for transaction information
+  - Added automatic currency formatting for transaction fields (monthlyVolume, averageTicket, highestTicket)
+  - Fields automatically format to two decimal places when users finish entering values
+  - Enhanced placeholder text to guide users on proper currency format entry
+  - Ensures consistent financial data formatting throughout the application
 
 ## User Preferences
 Preferred communication style: Simple, everyday language.
