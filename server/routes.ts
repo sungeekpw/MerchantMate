@@ -1558,7 +1558,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Submit signature (public endpoint)
   app.post("/api/signature-submit", async (req, res) => {
     try {
-      const { signatureToken, signature, signatureType } = req.body;
+      const { signatureToken, signature, signatureType, email } = req.body;
 
       if (!signatureToken || !signature) {
         return res.status(400).json({ 
@@ -1576,11 +1576,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       (global as any).signatureStore.set(signatureToken, {
         signature,
         signatureType,
+        email: email || null,
         submittedAt: new Date()
       });
       
       console.log(`Signature submitted for token: ${signatureToken}`);
       console.log(`Signature type: ${signatureType}`);
+      console.log(`Email: ${email}`);
       console.log(`Total signatures stored: ${(global as any).signatureStore.size}`);
 
       res.json({ 
@@ -1612,13 +1614,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       res.json({ 
         success: true, 
-        signature: signatureData 
+        signature: { ...signatureData, token }
       });
     } catch (error) {
       console.error("Error retrieving signature:", error);
       res.status(500).json({ 
         success: false, 
         message: "Failed to retrieve signature" 
+      });
+    }
+  });
+
+  // Search for signature by email address
+  app.get("/api/signatures/by-email/:email", async (req, res) => {
+    try {
+      const email = decodeURIComponent(req.params.email);
+
+      if (!(global as any).signatureStore) {
+        return res.status(404).json({ 
+          success: false, 
+          message: "No signatures found" 
+        });
+      }
+
+      // Search through all stored signatures to find one with matching email
+      for (const [token, signatureData] of (global as any).signatureStore.entries()) {
+        if (signatureData.email && signatureData.email.toLowerCase() === email.toLowerCase()) {
+          return res.json({ 
+            success: true, 
+            signature: { ...signatureData, token } 
+          });
+        }
+      }
+
+      res.status(404).json({ 
+        success: false, 
+        message: "No signature found for this email" 
+      });
+    } catch (error) {
+      console.error("Error searching signature by email:", error);
+      res.status(500).json({ 
+        success: false, 
+        message: "Failed to search signature" 
       });
     }
   });
