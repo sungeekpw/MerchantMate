@@ -285,8 +285,12 @@ export default function EnhancedPdfWizard() {
   // Final submission mutation
   const finalSubmitMutation = useMutation({
     mutationFn: async (data: Record<string, any>) => {
+      console.log('Starting submission for mode:', isProspectMode ? 'prospect' : 'authenticated');
+      console.log('Form data being submitted:', data);
+      
       if (isProspectMode && prospectData?.prospect) {
         // Prospect submission endpoint
+        console.log('Submitting to prospect endpoint:', `/api/prospects/${prospectData.prospect.id}/submit-application`);
         const response = await fetch(`/api/prospects/${prospectData.prospect.id}/submit-application`, {
           method: 'POST',
           headers: {
@@ -297,12 +301,18 @@ export default function EnhancedPdfWizard() {
             status: 'submitted'
           }),
         });
+        console.log('Prospect submission response status:', response.status);
         if (!response.ok) {
-          throw new Error('Submission failed');
+          const errorText = await response.text();
+          console.error('Prospect submission failed:', errorText);
+          throw new Error(`Submission failed: ${response.status} ${errorText}`);
         }
-        return response.json();
+        const result = await response.json();
+        console.log('Prospect submission success:', result);
+        return result;
       } else {
         // Regular authenticated form submission
+        console.log('Submitting to authenticated endpoint:', `/api/pdf-forms/${id}/submissions`);
         const response = await fetch(`/api/pdf-forms/${id}/submissions`, {
           method: 'POST',
           headers: {
@@ -314,13 +324,19 @@ export default function EnhancedPdfWizard() {
           }),
           credentials: 'include'
         });
+        console.log('Authenticated submission response status:', response.status);
         if (!response.ok) {
-          throw new Error('Submission failed');
+          const errorText = await response.text();
+          console.error('Authenticated submission failed:', errorText);
+          throw new Error(`Submission failed: ${response.status} ${errorText}`);
         }
-        return response.json();
+        const result = await response.json();
+        console.log('Authenticated submission success:', result);
+        return result;
       }
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      console.log('Submission mutation onSuccess called with:', data);
       if (isProspectMode) {
         toast({
           title: "Application Submitted",
@@ -336,9 +352,10 @@ export default function EnhancedPdfWizard() {
       }
     },
     onError: (error) => {
+      console.error('Submission mutation onError called with:', error);
       toast({
         title: "Submission Failed",
-        description: "There was an error submitting your application. Please try again.",
+        description: error.message || "There was an error submitting your application. Please try again.",
         variant: "destructive",
       });
     }
