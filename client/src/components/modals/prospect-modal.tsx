@@ -73,7 +73,8 @@ export function ProspectModal({ isOpen, onClose, prospect }: ProspectModalProps)
     userRole: user?.role,
     isAgent,
     currentAgentDisplay,
-    modalOpen: open
+    modalOpen: open,
+    formDefaultAgentId: form.getValues('agentId')
   });
 
   // Fetch agents for the dropdown (only for non-agent users)
