@@ -359,7 +359,10 @@ export default function EnhancedPdfWizard() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ address: suggestion.description }),
+        body: JSON.stringify({ 
+          address: suggestion.description,
+          placeId: suggestion.place_id
+        }),
       });
       
       if (response.ok) {
