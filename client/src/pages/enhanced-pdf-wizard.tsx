@@ -411,34 +411,46 @@ export default function EnhancedPdfWizard() {
   };
 
   // Digital Signature Component
-  const DigitalSignaturePad = ({ ownerIndex, owner, onSignatureChange }) => {
-    const canvasRef = React.useRef(null);
+  const DigitalSignaturePad = ({ ownerIndex, owner, onSignatureChange }: {
+    ownerIndex: number;
+    owner: any;
+    onSignatureChange: (index: number, signature: string | null, type: string | null) => void;
+  }) => {
+    const canvasRef = React.useRef<HTMLCanvasElement>(null);
     const [isDrawing, setIsDrawing] = React.useState(false);
-    const [signatureMode, setSignatureMode] = React.useState('draw'); // 'draw' or 'type'
+    const [signatureMode, setSignatureMode] = React.useState<'draw' | 'type'>('draw');
     const [typedSignature, setTypedSignature] = React.useState('');
     const [showSignaturePad, setShowSignaturePad] = React.useState(false);
 
-    const startDrawing = (e) => {
+    const startDrawing = (e: React.MouseEvent<HTMLCanvasElement>) => {
       setIsDrawing(true);
       const canvas = canvasRef.current;
+      if (!canvas) return;
+      
       const rect = canvas.getBoundingClientRect();
       const x = e.clientX - rect.left;
       const y = e.clientY - rect.top;
       
       const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+      
       ctx.beginPath();
       ctx.moveTo(x, y);
     };
 
-    const draw = (e) => {
+    const draw = (e: React.MouseEvent<HTMLCanvasElement>) => {
       if (!isDrawing) return;
       
       const canvas = canvasRef.current;
+      if (!canvas) return;
+      
       const rect = canvas.getBoundingClientRect();
       const x = e.clientX - rect.left;
       const y = e.clientY - rect.top;
       
       const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+      
       ctx.lineWidth = 2;
       ctx.lineCap = 'round';
       ctx.strokeStyle = '#000';
@@ -452,20 +464,26 @@ export default function EnhancedPdfWizard() {
 
     const clearSignature = () => {
       const canvas = canvasRef.current;
+      if (!canvas) return;
+      
       const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+      
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       setTypedSignature('');
       onSignatureChange(ownerIndex, null, null);
     };
 
     const saveSignature = () => {
-      let signatureData = null;
-      let signatureType = null;
+      let signatureData: string | null = null;
+      let signatureType: string | null = null;
 
       if (signatureMode === 'draw') {
         const canvas = canvasRef.current;
-        signatureData = canvas.toDataURL();
-        signatureType = 'canvas';
+        if (canvas) {
+          signatureData = canvas.toDataURL();
+          signatureType = 'canvas';
+        }
       } else {
         signatureData = typedSignature;
         signatureType = 'typed';
@@ -479,7 +497,10 @@ export default function EnhancedPdfWizard() {
       if (!typedSignature.trim()) return;
       
       const canvas = canvasRef.current;
+      if (!canvas) return;
+      
       const ctx = canvas.getContext('2d');
+      if (!ctx) return;
       
       // Clear canvas
       ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -1235,55 +1256,11 @@ export default function EnhancedPdfWizard() {
                       </div>
                     </div>
 
-                    <div className="space-y-3">
-                      <div>
-                        <Label className="text-sm text-gray-600">Upload Signature Image</Label>
-                        <div className="flex items-center gap-2 mt-1">
-                          <Input
-                            type="file"
-                            accept="image/*"
-                            onChange={(e) => handleSignatureUpload(index, e)}
-                            className="flex-1"
-                          />
-                          <Upload className="w-4 h-4 text-gray-400" />
-                        </div>
-                      </div>
-
-                      {owner.signature && owner.signatureType === 'upload' && (
-                        <div className="mt-2">
-                          <p className="text-xs text-green-600 mb-2">✓ Signature uploaded</p>
-                          <img 
-                            src={owner.signature} 
-                            alt="Signature" 
-                            className="max-h-20 border rounded"
-                          />
-                        </div>
-                      )}
-
-                      <div className="text-center text-xs text-gray-500">
-                        or
-                      </div>
-
-                      <div>
-                        <Label className="text-sm text-gray-600">Send Email for Digital Signature</Label>
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="outline"
-                          className="w-full mt-1"
-                          onClick={() => {
-                            // TODO: Implement email signature request
-                            toast({
-                              title: "Email Sent",
-                              description: `Signature request sent to ${owner.email}`,
-                            });
-                          }}
-                          disabled={!owner.email}
-                        >
-                          Send Signature Request
-                        </Button>
-                      </div>
-                    </div>
+                    <DigitalSignaturePad 
+                      ownerIndex={index}
+                      owner={owner}
+                      onSignatureChange={handleSignatureChange}
+                    />
                   </div>
                 )}
               </div>

@@ -160,6 +160,14 @@ The application is configured for deployment on Replit with:
   - Enhanced user experience with helpful placeholder text indicating EIN format requirements
   - Integrated EIN formatting alongside existing phone number formatting functionality
   - Added validation error messages for invalid EIN entries with clear formatting guidance
+- June 17, 2025. Implemented inline digital signature functionality for Business Ownership section
+  - Created canvas-based digital signature component with draw and type options
+  - Users can draw signatures with mouse/touch or type names in signature font style
+  - Replaced file upload system with seamless inline signature experience
+  - Added signature preview, edit, clear, and save functionality
+  - Integrated signature requirements for owners with >25% ownership automatically
+  - Added proper TypeScript definitions and null safety checks for canvas operations
+  - Enhanced form UX with signature status indicators and professional styling
 
 ## User Preferences
 Preferred communication style: Simple, everyday language.
