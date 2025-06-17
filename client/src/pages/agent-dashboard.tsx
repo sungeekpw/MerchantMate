@@ -67,15 +67,17 @@ export default function AgentDashboard() {
   const [selectedTab, setSelectedTab] = useState('overview');
 
   // Fetch dashboard statistics
-  const { data: stats, isLoading: statsLoading } = useQuery<DashboardStats>({
+  const { data: stats, isLoading: statsLoading, error: statsError } = useQuery<DashboardStats>({
     queryKey: ['/api/agent/dashboard/stats'],
     refetchInterval: 30000, // Refresh every 30 seconds
+    retry: 3,
   });
 
   // Fetch applications
-  const { data: applications, isLoading: applicationsLoading } = useQuery<Application[]>({
+  const { data: applications, isLoading: applicationsLoading, error: applicationsError } = useQuery<Application[]>({
     queryKey: ['/api/agent/applications'],
     refetchInterval: 30000,
+    retry: 3,
   });
 
   const formatDate = (dateString: string) => {
@@ -112,6 +114,25 @@ export default function AgentDashboard() {
             {[...Array(4)].map((_, i) => (
               <div key={i} className="h-32 bg-gray-200 rounded"></div>
             ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (statsError || applicationsError) {
+    return (
+      <div className="p-6">
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="text-center">
+            <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
+            <h2 className="text-xl font-semibold text-gray-900 mb-2">Unable to load dashboard data</h2>
+            <p className="text-gray-600 mb-4">
+              {statsError?.message || applicationsError?.message || 'Authentication required'}
+            </p>
+            <Button onClick={() => window.location.reload()}>
+              Retry
+            </Button>
           </div>
         </div>
       </div>
