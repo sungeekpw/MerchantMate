@@ -67,13 +67,13 @@ export default function AgentDashboard() {
   const [selectedTab, setSelectedTab] = useState('overview');
 
   // Fetch dashboard statistics
-  const { data: stats = {}, isLoading: statsLoading } = useQuery({
+  const { data: stats, isLoading: statsLoading } = useQuery<DashboardStats>({
     queryKey: ['/api/agent/dashboard/stats'],
     refetchInterval: 30000, // Refresh every 30 seconds
   });
 
   // Fetch applications
-  const { data: applications = [], isLoading: applicationsLoading } = useQuery({
+  const { data: applications, isLoading: applicationsLoading } = useQuery<Application[]>({
     queryKey: ['/api/agent/applications'],
     refetchInterval: 30000,
   });
@@ -141,7 +141,7 @@ export default function AgentDashboard() {
             <FileText className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats?.totalApplications || 0}</div>
+            <div className="text-2xl font-bold">{stats?.totalApplications ?? 0}</div>
             <p className="text-xs text-muted-foreground">All time</p>
           </CardContent>
         </Card>
@@ -152,7 +152,7 @@ export default function AgentDashboard() {
             <Clock className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats?.inProgressApplications || 0}</div>
+            <div className="text-2xl font-bold">{stats?.inProgressApplications ?? 0}</div>
             <p className="text-xs text-muted-foreground">Active applications</p>
           </CardContent>
         </Card>
@@ -163,7 +163,7 @@ export default function AgentDashboard() {
             <CheckCircle className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats?.approvedApplications || 0}</div>
+            <div className="text-2xl font-bold">{stats?.approvedApplications ?? 0}</div>
             <p className="text-xs text-muted-foreground">Successfully approved</p>
           </CardContent>
         </Card>
@@ -174,7 +174,7 @@ export default function AgentDashboard() {
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats?.conversionRate?.toFixed(1) || 0}%</div>
+            <div className="text-2xl font-bold">{stats?.conversionRate?.toFixed(1) ?? 0}%</div>
             <p className="text-xs text-muted-foreground">Approval rate</p>
           </CardContent>
         </Card>
