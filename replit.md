@@ -168,6 +168,7 @@ The application is configured for deployment on Replit with:
   - Integrated signature requirements for owners with >25% ownership automatically
   - Added proper TypeScript definitions and null safety checks for canvas operations
   - Enhanced form UX with signature status indicators and professional styling
+  - Improved ownership UI by hiding "Add Owner" button when total reaches 100%
 
 ## User Preferences
 Preferred communication style: Simple, everyday language.

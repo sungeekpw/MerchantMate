@@ -1171,15 +1171,17 @@ export default function EnhancedPdfWizard() {
             {field.fieldLabel}
             {field.isRequired && <span className="text-red-500 ml-1">*</span>}
           </Label>
-          <Button
-            type="button"
-            onClick={addOwner}
-            size="sm"
-            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white"
-          >
-            <Users className="w-4 h-4" />
-            Add Owner
-          </Button>
+          {!isValidPercentage() && (
+            <Button
+              type="button"
+              onClick={addOwner}
+              size="sm"
+              className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white"
+            >
+              <Users className="w-4 h-4" />
+              Add Owner
+            </Button>
+          )}
         </div>
 
         <div className="space-y-6">
