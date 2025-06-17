@@ -69,6 +69,15 @@ export default function AgentDashboard() {
   // Fetch dashboard statistics
   const { data: stats, isLoading: statsLoading, error: statsError } = useQuery<DashboardStats>({
     queryKey: ['/api/agent/dashboard/stats'],
+    queryFn: async () => {
+      const response = await fetch('/api/agent/dashboard/stats', {
+        credentials: 'include'
+      });
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      return response.json();
+    },
     refetchInterval: 30000, // Refresh every 30 seconds
     retry: 3,
   });
@@ -76,6 +85,15 @@ export default function AgentDashboard() {
   // Fetch applications
   const { data: applications, isLoading: applicationsLoading, error: applicationsError } = useQuery<Application[]>({
     queryKey: ['/api/agent/applications'],
+    queryFn: async () => {
+      const response = await fetch('/api/agent/applications', {
+        credentials: 'include'
+      });
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      return response.json();
+    },
     refetchInterval: 30000,
     retry: 3,
   });
