@@ -1565,18 +1565,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Current agent info (for logged-in agents)
-  app.get("/api/current-agent", isAuthenticated, async (req, res) => {
+  app.get("/api/current-agent", devAuth, async (req: any, res) => {
     try {
-      const userId = req.session?.userId;
-      if (!userId) {
-        return res.status(401).json({ message: "Authentication required" });
-      }
-
+      const userId = req.user.claims.sub;
+      console.log("Current Agent API - UserId:", userId);
+      
       const agent = await storage.getAgentByUserId(userId);
       if (!agent) {
+        console.log("Agent not found for userId:", userId);
         return res.status(404).json({ message: "Agent not found" });
       }
 
+      console.log("Found agent:", agent.id, agent.firstName, agent.lastName);
       res.json(agent);
     } catch (error) {
       console.error("Error fetching current agent:", error);
