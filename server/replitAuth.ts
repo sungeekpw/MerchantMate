@@ -158,11 +158,10 @@ export const isAuthenticated: RequestHandler = async (req, res, next) => {
     console.log('isAuthenticated - Session data:', req.session);
     let userId = (req.session as any)?.userId;
     
-    // If no userId in session, create a default user for development
+    // If no userId in session, return authentication error
     if (!userId) {
-      console.log('isAuthenticated - No userId found, using default admin user');
-      userId = 'user_admin_1';
-      (req.session as any).userId = userId;
+      console.log('isAuthenticated - No userId found in session');
+      return res.status(401).json({ message: "Authentication required" });
     }
     
     console.log('isAuthenticated - UserId:', userId);
@@ -173,8 +172,12 @@ export const isAuthenticated: RequestHandler = async (req, res, next) => {
         return res.status(401).json({ message: "User not found" });
       }
       
-      // Set up user object similar to production
-      req.user = { claims: { sub: userId } };
+      // Set up user object similar to production  
+      req.user = { 
+        id: userId,
+        email: dbUser.email,
+        claims: { sub: userId } 
+      };
       (req as any).currentUser = dbUser;
       return next();
     } catch (error) {
