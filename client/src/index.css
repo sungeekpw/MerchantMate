@@ -121,6 +121,12 @@
   @apply bg-red-100 text-red-800;
 }
 
+/* Signature font styles */
+.font-signature {
+  font-family: "Brush Script MT", "Lucida Handwriting", cursive;
+  font-style: italic;
+}
+
 .corecrm-status-completed {
   @apply bg-green-100 text-green-800;
 }
