@@ -51,6 +51,31 @@ export default function Auth() {
   const [, setLocation] = useLocation();
   const { refetch } = useAuth();
 
+  // Development auto-login for agent user
+  const autoLoginMutation = useMutation({
+    mutationFn: async () => {
+      const response = await fetch('/api/auth/dev-login-bypass', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: 'user_agent_1' }),
+        credentials: 'include'
+      });
+      if (!response.ok) throw new Error('Auto-login failed');
+      return response.json();
+    },
+    onSuccess: async () => {
+      await refetch();
+      setLocation('/prospects');
+      toast({
+        title: "Success",
+        description: "Logged in as Mike Chen (Agent)",
+      });
+    },
+    onError: (error: any) => {
+      console.error('Auto-login error:', error);
+    }
+  });
+
   // Login form
   const loginForm = useForm<LoginForm>({
     resolver: zodResolver(loginSchema),
@@ -435,10 +460,32 @@ export default function Auth() {
           </Tabs>
         </CardContent>
 
-        <CardFooter className="text-center">
+        <CardFooter className="text-center space-y-3">
           <p className="text-xs text-gray-500 w-full">
             Secure authentication with 2FA protection and IP monitoring
           </p>
+          
+          {/* Development Login Button */}
+          {process.env.NODE_ENV === 'development' && (
+            <div className="w-full">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => autoLoginMutation.mutate()}
+                disabled={autoLoginMutation.isPending}
+                className="w-full text-xs"
+              >
+                {autoLoginMutation.isPending ? (
+                  <>
+                    <Loader2 className="w-3 h-3 mr-2 animate-spin" />
+                    Logging in...
+                  </>
+                ) : (
+                  'Development Login (Mike Chen - Agent)'
+                )}
+              </Button>
+            </div>
+          )}
         </CardFooter>
       </Card>
     </div>
