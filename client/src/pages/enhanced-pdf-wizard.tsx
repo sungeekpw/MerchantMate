@@ -44,6 +44,31 @@ export default function EnhancedPdfWizard() {
   const [, setLocation] = useLocation();
   const [currentStep, setCurrentStep] = useState(0);
   const [formData, setFormData] = useState<Record<string, any>>({});
+
+  // Debug form data changes
+  useEffect(() => {
+    console.log('Form data updated:', formData);
+  }, [formData]);
+
+  // Check for any cached data on component mount
+  useEffect(() => {
+    console.log('Component mounted, checking for cached data...');
+    console.log('localStorage keys:', Object.keys(localStorage));
+    console.log('sessionStorage keys:', Object.keys(sessionStorage));
+    
+    // Clear any potential cached address data
+    const addressKeys = ['address', 'city', 'state', 'zipCode'];
+    addressKeys.forEach(key => {
+      if (localStorage.getItem(key)) {
+        console.log(`Found cached ${key}:`, localStorage.getItem(key));
+        localStorage.removeItem(key);
+      }
+      if (sessionStorage.getItem(key)) {
+        console.log(`Found cached ${key}:`, sessionStorage.getItem(key));
+        sessionStorage.removeItem(key);
+      }
+    });
+  }, []);
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
   const [formStarted, setFormStarted] = useState(false);
   const [fieldsInteracted, setFieldsInteracted] = useState(new Set<string>());
@@ -257,10 +282,14 @@ export default function EnhancedPdfWizard() {
   // Initialize form data with agent and prospect information for prospects
   useEffect(() => {
     if (isProspectMode && prospectData?.prospect && prospectData?.agent) {
-      setFormData(prev => ({
-        ...prev,
+      const newData = {
         assignedAgent: `${prospectData.agent.firstName} ${prospectData.agent.lastName} (${prospectData.agent.email})`,
         companyEmail: prospectData.prospect.email
+      };
+      console.log('Setting initial prospect data:', newData);
+      setFormData(prev => ({
+        ...prev,
+        ...newData
       }));
     }
   }, [isProspectMode, prospectData]);
@@ -422,17 +451,47 @@ export default function EnhancedPdfWizard() {
           // Create completely fresh form data to avoid any merging issues
           const finalFormData = { ...formData };
           
-          // Override ALL address fields with API results
+          // Override ALL address fields with API results - force clear first
+          delete finalFormData.address;
+          delete finalFormData.city;
+          delete finalFormData.state;
+          delete finalFormData.zipCode;
+          
+          // Set new address data
           finalFormData.address = result.streetAddress || mainText;
           finalFormData.city = result.city || suggestedCity;
           finalFormData.state = result.state || suggestedState;
           finalFormData.zipCode = result.zipCode || '';
           
+          console.log('About to set final form data:', finalFormData);
           setFormData(finalFormData);
-          console.log('Final validated form data:', finalFormData);
+          console.log('Final validated form data set:', finalFormData);
           
-          // Auto-focus to address line 2 field after successful selection
+          // Force clear and update DOM input fields directly to override any browser persistence
           setTimeout(() => {
+            const addressField = document.querySelector('input[id*="address"]:not([id*="addressLine2"])') as HTMLInputElement;
+            const cityField = document.querySelector('input[id*="city"]') as HTMLInputElement;
+            const stateField = document.querySelector('select[id*="state"], input[id*="state"]') as HTMLInputElement;
+            const zipField = document.querySelector('input[id*="zip"]') as HTMLInputElement;
+            
+            if (addressField) {
+              addressField.value = finalFormData.address || '';
+              console.log('Set address field value:', addressField.value);
+            }
+            if (cityField) {
+              cityField.value = finalFormData.city || '';
+              console.log('Set city field value:', cityField.value);
+            }
+            if (stateField) {
+              stateField.value = finalFormData.state || '';
+              console.log('Set state field value:', stateField.value);
+            }
+            if (zipField) {
+              zipField.value = finalFormData.zipCode || '';
+              console.log('Set zip field value:', zipField.value);
+            }
+            
+            // Auto-focus to address line 2 field after successful selection
             const addressLine2Field = document.querySelector('input[id*="addressLine2"]') as HTMLInputElement;
             if (addressLine2Field) {
               addressLine2Field.focus();
