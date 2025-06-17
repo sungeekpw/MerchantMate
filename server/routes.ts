@@ -1514,6 +1514,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Generate unique signature token
       const signatureToken = `sig_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
+      // Store the email mapping for the signature token
+      if (!(global as any).tokenEmailMap) {
+        (global as any).tokenEmailMap = new Map();
+      }
+      (global as any).tokenEmailMap.set(signatureToken, ownerEmail);
+
       const success = await emailService.sendSignatureRequestEmail({
         ownerName,
         ownerEmail,
@@ -1558,13 +1564,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Submit signature (public endpoint)
   app.post("/api/signature-submit", async (req, res) => {
     try {
-      const { signatureToken, signature, signatureType, email } = req.body;
+      const { signatureToken, signature, signatureType } = req.body;
 
       if (!signatureToken || !signature) {
         return res.status(400).json({ 
           success: false, 
           message: "Missing signature token or signature data" 
         });
+      }
+
+      // Get the email associated with this token
+      let email = null;
+      if ((global as any).tokenEmailMap && (global as any).tokenEmailMap.has(signatureToken)) {
+        email = (global as any).tokenEmailMap.get(signatureToken);
       }
 
       // Store signature in a simple in-memory map for now
@@ -1576,7 +1588,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       (global as any).signatureStore.set(signatureToken, {
         signature,
         signatureType,
-        email: email || null,
+        email,
         submittedAt: new Date()
       });
       
