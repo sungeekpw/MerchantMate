@@ -218,16 +218,42 @@ This is an automated message. Please do not reply to this email.
         </html>
       `;
 
+      const textContent = `
+Digital Signature Required - ${data.companyName}
+
+Hello ${data.ownerName},
+
+You have been requested to provide a digital signature for the merchant application for ${data.companyName}.
+
+Your ownership percentage: ${data.ownershipPercentage}%
+Requested by: ${data.requesterName}
+Agent: ${data.agentName}
+
+Please click the link below to provide your digital signature:
+${signatureUrl}
+
+This link is secure and personalized for you. It will expire in 30 days for your protection.
+
+By signing, you acknowledge your ownership percentage and authorize the application on behalf of ${data.companyName}.
+
+Core CRM - Merchant Services Division
+This email was sent to ${data.ownerEmail}
+      `;
+
       await mailService.send({
         to: data.ownerEmail,
         from: process.env.SENDGRID_FROM_EMAIL!,
         subject: `Signature Required: ${data.companyName} Merchant Application`,
+        text: textContent,
         html: htmlContent,
       });
 
       return true;
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error sending signature request email:', error);
+      if (error.response?.body?.errors) {
+        console.error('SendGrid error details:', JSON.stringify(error.response.body.errors, null, 2));
+      }
       return false;
     }
   }
