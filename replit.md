@@ -187,6 +187,11 @@ The application is configured for deployment on Replit with:
   - Updated API permissions to allow agents to create and edit prospects
   - Fixed email service to send validation emails with correct agent information
   - Prospects created by agents now appear correctly in agent-filtered prospect list
+- June 17, 2025. Updated prospects table column from "Validated" to "Submitted"
+  - Changed column header from "Validated" to "Submitted" for better clarity
+  - Modified display logic to show submission date (updatedAt) for submitted/applied prospects
+  - Maintains visual consistency with green calendar icon and formatted date display
+  - Shows dash (—) for prospects that haven't submitted applications yet
 
 ## User Preferences
 Preferred communication style: Simple, everyday language.

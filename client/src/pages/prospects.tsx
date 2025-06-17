@@ -210,7 +210,7 @@ export default function Prospects() {
                   <TableHead>Agent</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Created</TableHead>
-                  <TableHead>Validated</TableHead>
+                  <TableHead>Submitted</TableHead>
                   <TableHead className="w-32">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -267,10 +267,10 @@ export default function Prospects() {
                         </div>
                       </TableCell>
                       <TableCell className="text-gray-500">
-                        {prospect.validatedAt ? (
+                        {prospect.status === 'submitted' || prospect.status === 'applied' ? (
                           <div className="flex items-center text-sm text-green-600">
                             <Calendar className="w-3 h-3 mr-1" />
-                            {new Date(prospect.validatedAt).toLocaleDateString()}
+                            {new Date(prospect.updatedAt).toLocaleDateString()}
                           </div>
                         ) : (
                           "—"
