@@ -52,8 +52,14 @@ export default function EnhancedPdfWizard() {
 
   // Check for submitted signatures when form data changes
   useEffect(() => {
-    const checkSubmittedSignatures = async () => {
-      if (!formData.owners || !Array.isArray(formData.owners)) return;
+    // Add a small delay to ensure form data is fully loaded
+    const timer = setTimeout(async () => {
+      if (!formData.owners || !Array.isArray(formData.owners)) {
+        console.log('No owners array found');
+        return;
+      }
+      
+      console.log('Checking for submitted signatures...', formData.owners);
       
       const updatedOwners = [...formData.owners];
       let hasUpdates = false;
@@ -61,13 +67,26 @@ export default function EnhancedPdfWizard() {
       for (let i = 0; i < updatedOwners.length; i++) {
         const owner = updatedOwners[i];
         
+        console.log(`Checking owner ${owner.name}:`, {
+          hasSignature: !!owner.signature,
+          signatureToken: owner.signatureToken
+        });
+        
         // Skip if owner already has a signature or no signature token
-        if (owner.signature || !owner.signatureToken) continue;
+        if (owner.signature || !owner.signatureToken) {
+          console.log(`Skipping ${owner.name}: ${owner.signature ? 'already has signature' : 'no signature token'}`);
+          continue;
+        }
         
         try {
+          console.log(`Fetching signature for token: ${owner.signatureToken}`);
           const response = await fetch(`/api/signature/${owner.signatureToken}`);
+          console.log(`Response status: ${response.status}`);
+          
           if (response.ok) {
             const result = await response.json();
+            console.log('Signature API response:', result);
+            
             if (result.success && result.signature) {
               updatedOwners[i] = {
                 ...owner,
@@ -77,22 +96,27 @@ export default function EnhancedPdfWizard() {
               hasUpdates = true;
               console.log(`Found submitted signature for ${owner.name}`);
             }
+          } else {
+            console.log(`No signature found for ${owner.name} (${response.status})`);
           }
         } catch (error) {
-          console.log(`No signature found for ${owner.name}:`, error);
+          console.log(`Error checking signature for ${owner.name}:`, error);
         }
       }
       
       if (hasUpdates) {
+        console.log('Updating form data with signatures');
         setFormData(prev => ({
           ...prev,
           owners: updatedOwners
         }));
+      } else {
+        console.log('No signature updates found');
       }
-    };
+    }, 100); // Small delay to ensure form data is fully loaded
     
-    checkSubmittedSignatures();
-  }, [formData.owners?.length]); // Only trigger when owners array length changes
+    return () => clearTimeout(timer);
+  }, [formData.owners]); // Trigger when owners array changes
 
   // Check for any cached data on component mount
   useEffect(() => {
