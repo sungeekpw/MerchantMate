@@ -64,14 +64,10 @@ export function ProspectModal({ isOpen, onClose, prospect }: ProspectModalProps)
   });
 
   // Fetch current agent information for the logged-in user
-  const { data: currentAgent } = useQuery({
+  const { data: currentAgent, isLoading: isCurrentAgentLoading } = useQuery({
     queryKey: ["/api/current-agent"],
-    queryFn: async () => {
-      const response = await fetch("/api/current-agent");
-      if (!response.ok) throw new Error('Failed to fetch current agent');
-      return response.json() as Promise<Agent>;
-    },
     enabled: user?.role === 'agent',
+    retry: false,
   });
 
   // Fetch agents for the dropdown (only for non-agent users)
@@ -244,10 +240,10 @@ export function ProspectModal({ isOpen, onClose, prospect }: ProspectModalProps)
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Assigned Agent</FormLabel>
-                  {user?.role === 'agent' && currentAgent ? (
+                  {user?.role === 'agent' ? (
                     <FormControl>
                       <Input 
-                        value={`${currentAgent.firstName} ${currentAgent.lastName} (${currentAgent.email})`}
+                        value={currentAgent ? `${currentAgent.firstName} ${currentAgent.lastName} (${currentAgent.email})` : 'Loading...'}
                         readOnly
                         className="bg-gray-50 text-gray-700"
                       />
