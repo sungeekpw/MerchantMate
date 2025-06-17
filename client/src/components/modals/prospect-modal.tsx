@@ -79,12 +79,7 @@ export function ProspectModal({ isOpen, onClose, prospect }: ProspectModalProps)
   // Fetch agents for the dropdown (only for non-agent users)
   const { data: agents = [] } = useQuery({
     queryKey: ["/api/agents"],
-    queryFn: async () => {
-      const response = await fetch("/api/agents");
-      if (!response.ok) throw new Error('Failed to fetch agents');
-      return response.json() as Promise<Agent[]>;
-    },
-    enabled: user?.role !== 'agent',
+    enabled: false, // Disable for now to test agent field display
   });
 
   const createMutation = useMutation({
