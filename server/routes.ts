@@ -153,10 +153,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         let city = '';
         let state = '';
         let zipCode = '';
+        let streetNumber = '';
+        let streetName = '';
         
         components.forEach((component: any) => {
           const types = component.types;
-          if (types.includes('locality')) {
+          if (types.includes('street_number')) {
+            streetNumber = component.long_name;
+          } else if (types.includes('route')) {
+            streetName = component.long_name;
+          } else if (types.includes('locality')) {
             city = component.long_name;
           } else if (types.includes('administrative_area_level_1')) {
             state = component.long_name;
@@ -165,9 +171,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
         });
         
+        // Construct street address (number + street name only)
+        const streetAddress = [streetNumber, streetName].filter(Boolean).join(' ');
+        
         res.json({
           isValid: true,
           formattedAddress: result.formatted_address,
+          streetAddress: streetAddress || result.formatted_address.split(',')[0].trim(), // fallback to first part
           city,
           state,
           zipCode,

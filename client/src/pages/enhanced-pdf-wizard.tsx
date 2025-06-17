@@ -361,9 +361,9 @@ export default function EnhancedPdfWizard() {
         if (result.isValid) {
           setAddressValidationStatus('valid');
           
-          // Auto-populate all address fields
+          // Auto-populate fields, but only use street address for the address field
           const newFormData = { ...formData };
-          newFormData.address = result.formattedAddress;
+          newFormData.address = result.streetAddress || suggestion.structured_formatting?.main_text || result.formattedAddress;
           if (result.city) newFormData.city = result.city;
           if (result.state) newFormData.state = result.state;
           if (result.zipCode) newFormData.zipCode = result.zipCode;
@@ -401,12 +401,12 @@ export default function EnhancedPdfWizard() {
         if (result.isValid) {
           setAddressValidationStatus('valid');
           
-          // Auto-populate city, state, and zip if found
+          // Auto-populate city, state, and zip if found, use street address only for address field
           const newFormData = { ...formData };
+          if (result.streetAddress) newFormData.address = result.streetAddress;
           if (result.city) newFormData.city = result.city;
           if (result.state) newFormData.state = result.state;
           if (result.zipCode) newFormData.zipCode = result.zipCode;
-          if (result.formattedAddress) newFormData.address = result.formattedAddress;
           
           setFormData(newFormData);
         } else {
@@ -587,7 +587,7 @@ export default function EnhancedPdfWizard() {
                 }`}
                 placeholder={field.fieldType === 'email' ? 'Enter email address' : 
                             field.fieldType === 'phone' ? 'Enter phone number' : 
-                            field.fieldName === 'address' ? 'Enter full business address' :
+                            field.fieldName === 'address' ? 'Enter street address (e.g., 123 Main St)' :
                             `Enter ${field.fieldLabel.toLowerCase()}`}
                 readOnly={isProspectMode && field.fieldName === 'companyEmail'}
               />
@@ -634,7 +634,7 @@ export default function EnhancedPdfWizard() {
               )}
             </div>
             {field.fieldName === 'address' && addressValidationStatus === 'valid' && (
-              <p className="text-xs text-green-600">✓ Address validated and auto-populated city, state, and ZIP</p>
+              <p className="text-xs text-green-600">✓ Street address validated and auto-populated city, state, and ZIP</p>
             )}
             {field.fieldName === 'address' && addressValidationStatus === 'invalid' && (
               <p className="text-xs text-red-600">⚠ Please enter a valid address</p>
