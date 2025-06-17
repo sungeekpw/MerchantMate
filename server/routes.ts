@@ -2224,6 +2224,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Development authentication bypass for testing
+  if (process.env.NODE_ENV === 'development') {
+    app.get("/api/auth/test-agent", async (req, res) => {
+      try {
+        const user = await storage.getUserByUsernameOrEmail("", "mike.chen@corecrm.com");
+        if (user) {
+          (req.session as any).userId = user.id;
+          (req.session as any).sessionId = uuidv4();
+          res.redirect('/agent-dashboard');
+        } else {
+          res.status(404).json({ message: "Agent not found" });
+        }
+      } catch (error) {
+        console.error("Test agent login error:", error);
+        res.status(500).json({ message: "Failed to set test session" });
+      }
+    });
+  }
+
   const httpServer = createServer(app);
   return httpServer;
 }
