@@ -192,6 +192,10 @@ The application is configured for deployment on Replit with:
   - Modified display logic to show submission date (updatedAt) for submitted/applied prospects
   - Maintains visual consistency with green calendar icon and formatted date display
   - Shows dash (—) for prospects that haven't submitted applications yet
+- June 17, 2025. Fixed signature request email sending error
+  - Resolved 403 Forbidden error in signature request emails
+  - Changed hardcoded sender address to use verified SENDGRID_FROM_EMAIL environment variable
+  - Signature request emails now send successfully using paymentnotify@pymnz.com as sender
 
 ## User Preferences
 Preferred communication style: Simple, everyday language.
