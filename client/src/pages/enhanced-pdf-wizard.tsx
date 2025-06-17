@@ -346,11 +346,24 @@ export default function EnhancedPdfWizard() {
   // Select an address suggestion and populate all fields
   const selectAddressSuggestion = async (suggestion: any) => {
     setShowSuggestions(false);
-    setAddressValidationStatus('validating');
+    setAddressValidationStatus('idle');
     
-    // Directly populate the address field with the selected suggestion
+    // Clear any existing validation errors
+    setValidationErrors({});
+    
+    // Extract city, state from the suggestion structure
+    const suggestedCity = suggestion.structured_formatting?.secondary_text?.split(',')[0]?.trim();
+    const suggestedState = suggestion.structured_formatting?.secondary_text?.split(',')[1]?.trim();
+    
+    // Directly populate all fields from the suggestion first
     const newFormData = { ...formData };
     newFormData.address = suggestion.structured_formatting?.main_text || suggestion.description.split(',')[0].trim();
+    if (suggestedCity) newFormData.city = suggestedCity;
+    if (suggestedState) newFormData.state = suggestedState;
+    
+    // Update form immediately with suggestion data
+    setFormData(newFormData);
+    setAddressValidationStatus('validating');
     
     try {
       const response = await fetch('/api/validate-address', {
@@ -369,12 +382,13 @@ export default function EnhancedPdfWizard() {
         if (result.isValid) {
           setAddressValidationStatus('valid');
           
-          // Auto-populate city, state, and ZIP from validation result
-          if (result.city) newFormData.city = result.city;
-          if (result.state) newFormData.state = result.state;
-          if (result.zipCode) newFormData.zipCode = result.zipCode;
+          // Update with precise validation results if available
+          const finalFormData = { ...newFormData };
+          if (result.city && result.city !== newFormData.city) finalFormData.city = result.city;
+          if (result.state && result.state !== newFormData.state) finalFormData.state = result.state;
+          if (result.zipCode) finalFormData.zipCode = result.zipCode;
           
-          setFormData(newFormData);
+          setFormData(finalFormData);
           
           // Auto-focus to address line 2 field after address selection
           setTimeout(() => {
@@ -384,20 +398,14 @@ export default function EnhancedPdfWizard() {
             }
           }, 200);
         } else {
-          // Even if validation fails, keep the selected address
           setAddressValidationStatus('invalid');
-          setFormData(newFormData);
         }
       } else {
-        // Even if API fails, keep the selected address
         setAddressValidationStatus('invalid');
-        setFormData(newFormData);
       }
     } catch (error) {
       console.error('Address validation error:', error);
       setAddressValidationStatus('invalid');
-      // Keep the selected address even if validation fails
-      setFormData(newFormData);
     }
   };
 
