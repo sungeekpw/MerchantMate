@@ -128,7 +128,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Address validation endpoint using Google Maps API
   app.post('/api/validate-address', async (req, res) => {
     try {
-      const { address } = req.body;
+      const { address, placeId } = req.body;
       
       if (!address || typeof address !== 'string') {
         return res.status(400).json({ error: 'Address is required' });
@@ -139,8 +139,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(500).json({ error: 'Google API key not configured' });
       }
       
-      // Call Google Maps Geocoding API
-      const geocodeUrl = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(address)}&key=${googleApiKey}`;
+      let geocodeUrl;
+      
+      // If we have a place_id, use it for more accurate results
+      if (placeId) {
+        geocodeUrl = `https://maps.googleapis.com/maps/api/geocode/json?place_id=${placeId}&key=${googleApiKey}`;
+      } else {
+        // Fallback to address geocoding
+        geocodeUrl = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(address)}&key=${googleApiKey}`;
+      }
       
       const response = await fetch(geocodeUrl);
       const data = await response.json();
