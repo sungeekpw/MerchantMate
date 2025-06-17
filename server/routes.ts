@@ -1564,6 +1564,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Current agent info (for logged-in agents)
+  app.get("/api/current-agent", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.session?.userId;
+      if (!userId) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      const agent = await storage.getAgentByUserId(userId);
+      if (!agent) {
+        return res.status(404).json({ message: "Agent not found" });
+      }
+
+      res.json(agent);
+    } catch (error) {
+      console.error("Error fetching current agent:", error);
+      res.status(500).json({ message: "Failed to fetch current agent" });
+    }
+  });
+
   // Agent routes (admin only)
   app.get("/api/agents", devRequireRole(['admin', 'corporate', 'super_admin']), async (req, res) => {
     try {
