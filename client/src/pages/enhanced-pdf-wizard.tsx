@@ -345,7 +345,6 @@ export default function EnhancedPdfWizard() {
 
   // Select an address suggestion and populate all fields
   const selectAddressSuggestion = async (suggestion: any) => {
-    console.log('Selected suggestion:', suggestion);
     setShowSuggestions(false);
     setAddressValidationStatus('validating');
     
@@ -367,7 +366,6 @@ export default function EnhancedPdfWizard() {
       
       if (response.ok) {
         const result = await response.json();
-        console.log('Validation result:', result);
         if (result.isValid) {
           setAddressValidationStatus('valid');
           
@@ -376,7 +374,6 @@ export default function EnhancedPdfWizard() {
           if (result.state) newFormData.state = result.state;
           if (result.zipCode) newFormData.zipCode = result.zipCode;
           
-          console.log('Updated form data:', newFormData);
           setFormData(newFormData);
           
           // Auto-focus to address line 2 field after address selection
@@ -384,7 +381,6 @@ export default function EnhancedPdfWizard() {
             const addressLine2Field = document.getElementById('addressLine2');
             if (addressLine2Field) {
               addressLine2Field.focus();
-              console.log('Focused on Address Line 2 field');
             }
           }, 200);
         } else {
