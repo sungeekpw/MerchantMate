@@ -33,6 +33,7 @@ import MerchantApplication from "@/pages/merchant-application";
 import FormApplication from "@/pages/form-application";
 import Prospects from "@/pages/prospects";
 import ProspectValidation from "@/pages/prospect-validation";
+import ApplicationStatus from "@/pages/application-status";
 import AgentDashboard from "@/pages/agent-dashboard";
 import NotFound from "@/pages/not-found";
 import Landing from "@/pages/landing";
