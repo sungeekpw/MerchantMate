@@ -88,6 +88,67 @@ export async function registerRoutes(app: Express): Promise<Server> {
     name: 'connect.sid'
   }));
 
+  // Address validation endpoint using Google Maps API
+  app.post('/api/validate-address', async (req, res) => {
+    try {
+      const { address } = req.body;
+      
+      if (!address || typeof address !== 'string') {
+        return res.status(400).json({ error: 'Address is required' });
+      }
+      
+      const googleApiKey = process.env.GOOGLE_API_KEY;
+      if (!googleApiKey) {
+        return res.status(500).json({ error: 'Google API key not configured' });
+      }
+      
+      // Call Google Maps Geocoding API
+      const geocodeUrl = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(address)}&key=${googleApiKey}`;
+      
+      const response = await fetch(geocodeUrl);
+      const data = await response.json();
+      
+      if (data.status === 'OK' && data.results && data.results.length > 0) {
+        const result = data.results[0];
+        const components = result.address_components;
+        
+        // Extract address components
+        let city = '';
+        let state = '';
+        let zipCode = '';
+        
+        components.forEach((component: any) => {
+          const types = component.types;
+          if (types.includes('locality')) {
+            city = component.long_name;
+          } else if (types.includes('administrative_area_level_1')) {
+            state = component.long_name;
+          } else if (types.includes('postal_code')) {
+            zipCode = component.long_name;
+          }
+        });
+        
+        res.json({
+          isValid: true,
+          formattedAddress: result.formatted_address,
+          city,
+          state,
+          zipCode,
+          latitude: result.geometry.location.lat,
+          longitude: result.geometry.location.lng
+        });
+      } else {
+        res.json({
+          isValid: false,
+          error: data.status === 'ZERO_RESULTS' ? 'Address not found' : 'Invalid address'
+        });
+      }
+    } catch (error) {
+      console.error('Address validation error:', error);
+      res.status(500).json({ error: 'Address validation failed' });
+    }
+  });
+
   // Location revenue metrics endpoint (placed early to avoid auth middleware)
   app.get("/api/locations/:locationId/revenue", async (req: any, res) => {
     try {

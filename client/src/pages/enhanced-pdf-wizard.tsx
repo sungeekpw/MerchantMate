@@ -300,6 +300,49 @@ export default function EnhancedPdfWizard() {
     return value;
   };
 
+  // Address validation state
+  const [addressValidationStatus, setAddressValidationStatus] = useState<'idle' | 'validating' | 'valid' | 'invalid'>('idle');
+
+  // Validate address using Google Maps Geocoding API
+  const validateAddress = async (address: string) => {
+    if (!address.trim()) return;
+    
+    setAddressValidationStatus('validating');
+    
+    try {
+      const response = await fetch('/api/validate-address', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ address }),
+      });
+      
+      if (response.ok) {
+        const result = await response.json();
+        if (result.isValid) {
+          setAddressValidationStatus('valid');
+          
+          // Auto-populate city, state, and zip if found
+          const newFormData = { ...formData };
+          if (result.city) newFormData.city = result.city;
+          if (result.state) newFormData.state = result.state;
+          if (result.zipCode) newFormData.zipCode = result.zipCode;
+          if (result.formattedAddress) newFormData.address = result.formattedAddress;
+          
+          setFormData(newFormData);
+        } else {
+          setAddressValidationStatus('invalid');
+        }
+      } else {
+        setAddressValidationStatus('invalid');
+      }
+    } catch (error) {
+      console.error('Address validation error:', error);
+      setAddressValidationStatus('invalid');
+    }
+  };
+
   // Handle phone number formatting on blur
   const handlePhoneBlur = (fieldName: string, value: string) => {
     if (fieldName === 'companyPhone') {
@@ -308,6 +351,13 @@ export default function EnhancedPdfWizard() {
         const newFormData = { ...formData, [fieldName]: formatted };
         setFormData(newFormData);
       }
+    }
+  };
+
+  // Handle address validation on blur
+  const handleAddressBlur = (fieldName: string, value: string) => {
+    if (fieldName === 'address' && value.trim()) {
+      validateAddress(value);
     }
   };
 
@@ -421,18 +471,51 @@ export default function EnhancedPdfWizard() {
               {field.fieldLabel}
               {field.isRequired && <span className="text-red-500 ml-1">*</span>}
             </Label>
-            <Input
-              id={field.fieldName}
-              type={field.fieldType === 'number' ? 'number' : 'text'}
-              value={value}
-              onChange={(e) => handleFieldChange(field.fieldName, e.target.value)}
-              onBlur={(e) => handlePhoneBlur(field.fieldName, e.target.value)}
-              className={hasError ? 'border-red-500' : (isProspectMode && field.fieldName === 'companyEmail' ? 'bg-gray-50 cursor-not-allowed' : '')}
-              placeholder={field.fieldType === 'email' ? 'Enter email address' : 
-                          field.fieldType === 'phone' ? 'Enter phone number' : 
-                          `Enter ${field.fieldLabel.toLowerCase()}`}
-              readOnly={isProspectMode && field.fieldName === 'companyEmail'}
-            />
+            <div className="relative">
+              <Input
+                id={field.fieldName}
+                type={field.fieldType === 'number' ? 'number' : 'text'}
+                value={value}
+                onChange={(e) => handleFieldChange(field.fieldName, e.target.value)}
+                onBlur={(e) => {
+                  handlePhoneBlur(field.fieldName, e.target.value);
+                  handleAddressBlur(field.fieldName, e.target.value);
+                }}
+                className={`${hasError ? 'border-red-500' : ''} ${
+                  isProspectMode && field.fieldName === 'companyEmail' ? 'bg-gray-50 cursor-not-allowed' : ''
+                } ${
+                  field.fieldName === 'address' && addressValidationStatus === 'valid' ? 'border-green-500' : ''
+                } ${
+                  field.fieldName === 'address' && addressValidationStatus === 'invalid' ? 'border-red-500' : ''
+                }`}
+                placeholder={field.fieldType === 'email' ? 'Enter email address' : 
+                            field.fieldType === 'phone' ? 'Enter phone number' : 
+                            field.fieldName === 'address' ? 'Enter full business address' :
+                            `Enter ${field.fieldLabel.toLowerCase()}`}
+                readOnly={isProspectMode && field.fieldName === 'companyEmail'}
+              />
+              {field.fieldName === 'address' && addressValidationStatus === 'validating' && (
+                <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                </div>
+              )}
+              {field.fieldName === 'address' && addressValidationStatus === 'valid' && (
+                <div className="absolute right-3 top-1/2 transform -translate-y-1/2 text-green-600">
+                  ✓
+                </div>
+              )}
+              {field.fieldName === 'address' && addressValidationStatus === 'invalid' && (
+                <div className="absolute right-3 top-1/2 transform -translate-y-1/2 text-red-600">
+                  ⚠
+                </div>
+              )}
+            </div>
+            {field.fieldName === 'address' && addressValidationStatus === 'valid' && (
+              <p className="text-xs text-green-600">✓ Address validated and auto-populated city, state, and ZIP</p>
+            )}
+            {field.fieldName === 'address' && addressValidationStatus === 'invalid' && (
+              <p className="text-xs text-red-600">⚠ Please enter a valid address</p>
+            )}
             {hasError && <p className="text-xs text-red-500">{hasError}</p>}
           </div>
         );
