@@ -336,6 +336,7 @@ export default function EnhancedPdfWizard() {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
   const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState(-1);
+  const [addressFieldsLocked, setAddressFieldsLocked] = useState(false);
 
   // Fetch address suggestions using Google Places Autocomplete API
   const fetchAddressSuggestions = async (input: string) => {
@@ -466,6 +467,9 @@ export default function EnhancedPdfWizard() {
           console.log('About to set final form data:', finalFormData);
           setFormData(finalFormData);
           console.log('Final validated form data set:', finalFormData);
+          
+          // Lock the address fields after successful autocomplete selection
+          setAddressFieldsLocked(true);
           
           // Force clear and update DOM input fields directly to override any browser persistence
           setTimeout(() => {
@@ -756,13 +760,18 @@ export default function EnhancedPdfWizard() {
                   field.fieldName === 'address' && addressValidationStatus === 'valid' ? 'border-green-500' : ''
                 } ${
                   field.fieldName === 'address' && addressValidationStatus === 'invalid' ? 'border-red-500' : ''
+                } ${
+                  addressFieldsLocked && (field.fieldName === 'city' || field.fieldName === 'zipCode') ? 'bg-gray-50 cursor-not-allowed' : ''
                 }`}
                 placeholder={field.fieldType === 'email' ? 'Enter email address' : 
                             field.fieldType === 'phone' ? 'Enter phone number' : 
                             field.fieldName === 'address' ? 'Enter street address (e.g., 123 Main St)' :
                             field.fieldName === 'addressLine2' ? 'Suite, apt, floor, etc. (optional)' :
                             `Enter ${field.fieldLabel.toLowerCase()}`}
-                readOnly={isProspectMode && field.fieldName === 'companyEmail'}
+                readOnly={
+                  (isProspectMode && field.fieldName === 'companyEmail') ||
+                  (addressFieldsLocked && (field.fieldName === 'city' || field.fieldName === 'zipCode'))
+                }
               />
               
               {/* Address autocomplete suggestions */}
@@ -823,10 +832,27 @@ export default function EnhancedPdfWizard() {
               )}
             </div>
             {field.fieldName === 'address' && addressValidationStatus === 'valid' && (
-              <p className="text-xs text-green-600">✓ Street address validated and auto-populated city, state, and ZIP</p>
+              <div className="flex items-center justify-between">
+                <p className="text-xs text-green-600">✓ Street address validated and auto-populated city, state, and ZIP</p>
+                {addressFieldsLocked && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAddressFieldsLocked(false);
+                      setAddressValidationStatus('idle');
+                    }}
+                    className="text-xs text-blue-600 hover:text-blue-800 underline"
+                  >
+                    Edit Address
+                  </button>
+                )}
+              </div>
             )}
             {field.fieldName === 'address' && addressValidationStatus === 'invalid' && (
               <p className="text-xs text-red-600">⚠ Please enter a valid address</p>
+            )}
+            {addressFieldsLocked && (field.fieldName === 'city' || field.fieldName === 'state' || field.fieldName === 'zipCode') && (
+              <p className="text-xs text-gray-500">✓ Auto-populated from address selection - Click "Edit Address" to modify</p>
             )}
             {hasError && <p className="text-xs text-red-500">{hasError}</p>}
           </div>
@@ -858,8 +884,14 @@ export default function EnhancedPdfWizard() {
               {field.fieldLabel}
               {field.isRequired && <span className="text-red-500 ml-1">*</span>}
             </Label>
-            <Select value={value} onValueChange={(val) => handleFieldChange(field.fieldName, val)}>
-              <SelectTrigger className={hasError ? 'border-red-500' : ''}>
+            <Select 
+              value={value} 
+              onValueChange={(val) => handleFieldChange(field.fieldName, val)}
+              disabled={addressFieldsLocked && field.fieldName === 'state'}
+            >
+              <SelectTrigger className={`${hasError ? 'border-red-500' : ''} ${
+                addressFieldsLocked && field.fieldName === 'state' ? 'bg-gray-50 cursor-not-allowed' : ''
+              }`}>
                 <SelectValue placeholder={`Select ${field.fieldLabel.toLowerCase()}`} />
               </SelectTrigger>
               <SelectContent>
