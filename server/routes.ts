@@ -304,6 +304,94 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Agent dashboard endpoints
+  app.get("/api/agent/dashboard/stats", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.id;
+      if (!userId) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      // Get all prospects assigned to this agent
+      const prospects = await storage.getProspectsByAgent(userId);
+      
+      // Calculate statistics
+      const totalApplications = prospects.length;
+      const pendingApplications = prospects.filter(p => p.status === 'pending').length;
+      const contactedApplications = prospects.filter(p => p.status === 'contacted').length;
+      const inProgressApplications = prospects.filter(p => p.status === 'in_progress').length;
+      const appliedApplications = prospects.filter(p => p.status === 'applied').length;
+      const approvedApplications = prospects.filter(p => p.status === 'approved').length;
+      const rejectedApplications = prospects.filter(p => p.status === 'rejected').length;
+      
+      const completedApplications = appliedApplications + approvedApplications + rejectedApplications;
+      const conversionRate = totalApplications > 0 ? (approvedApplications / totalApplications) * 100 : 0;
+
+      res.json({
+        totalApplications,
+        pendingApplications,
+        contactedApplications,
+        inProgressApplications,
+        appliedApplications,
+        approvedApplications,
+        rejectedApplications,
+        completedApplications,
+        conversionRate,
+        averageProcessingTime: 7 // days - can be calculated from actual data
+      });
+    } catch (error) {
+      console.error("Error fetching agent dashboard stats:", error);
+      res.status(500).json({ message: "Failed to fetch dashboard statistics" });
+    }
+  });
+
+  app.get("/api/agent/applications", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.id;
+      if (!userId) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      // Get all prospects assigned to this agent with application details
+      const prospects = await storage.getProspectsByAgent(userId);
+      
+      // Transform prospects to application format
+      const applications = prospects.map(prospect => {
+        // Calculate completion percentage based on status
+        let completionPercentage = 0;
+        switch (prospect.status) {
+          case 'pending': completionPercentage = 10; break;
+          case 'contacted': completionPercentage = 25; break;
+          case 'in_progress': completionPercentage = 60; break;
+          case 'applied': completionPercentage = 90; break;
+          case 'approved': 
+          case 'rejected': completionPercentage = 100; break;
+        }
+
+        return {
+          id: prospect.id,
+          prospectName: `${prospect.firstName} ${prospect.lastName}`,
+          companyName: prospect.companyName || 'Not specified',
+          email: prospect.email,
+          phone: prospect.phone || 'Not provided',
+          status: prospect.status,
+          createdAt: prospect.createdAt,
+          lastUpdated: prospect.updatedAt || prospect.createdAt,
+          completionPercentage,
+          assignedAgent: prospect.assignedAgentName || 'Unassigned'
+        };
+      });
+
+      // Sort by most recent first
+      applications.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+      res.json(applications);
+    } catch (error) {
+      console.error("Error fetching agent applications:", error);
+      res.status(500).json({ message: "Failed to fetch applications" });
+    }
+  });
+
   // Widget preference endpoints (before auth middleware for development)
   app.get("/api/user/:userId/widgets", async (req: any, res) => {
     try {
