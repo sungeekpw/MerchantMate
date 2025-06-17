@@ -305,21 +305,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Agent dashboard endpoints
-  app.get("/api/agent/dashboard/stats", isAuthenticated, async (req: any, res) => {
+  app.get("/api/agent/dashboard/stats", async (req: any, res) => {
     try {
-      const userId = req.user?.id;
+      console.log('Agent Dashboard Stats - Session ID:', req.sessionID);
+      console.log('Agent Dashboard Stats - Session data:', req.session);
+      
+      const userId = (req.session as any)?.userId;
       if (!userId) {
         return res.status(401).json({ message: "Authentication required" });
       }
 
-      // Get agent by user ID first
-      const agent = await storage.getAgentByEmail(req.user?.email);
+      // Get user data
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Get agent by user email
+      const agent = await storage.getAgentByEmail(user.email);
       if (!agent) {
         return res.status(404).json({ message: "Agent not found" });
       }
 
+      console.log('Found agent:', agent.id, agent.firstName, agent.lastName);
+
       // Get all prospects assigned to this agent
       const prospects = await storage.getProspectsByAgent(agent.id);
+      console.log('Found prospects:', prospects.length);
       
       // Calculate statistics
       const totalApplications = prospects.length;
@@ -351,15 +363,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/agent/applications", isAuthenticated, async (req: any, res) => {
+  app.get("/api/agent/applications", async (req: any, res) => {
     try {
-      const userId = req.user?.id;
+      console.log('Agent Applications - Session ID:', req.sessionID);
+      console.log('Agent Applications - Session data:', req.session);
+      
+      const userId = (req.session as any)?.userId;
       if (!userId) {
         return res.status(401).json({ message: "Authentication required" });
       }
 
-      // Get agent by user ID first
-      const agent = await storage.getAgentByEmail(req.user?.email);
+      // Get user data
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Get agent by user email
+      const agent = await storage.getAgentByEmail(user.email);
       if (!agent) {
         return res.status(404).json({ message: "Agent not found" });
       }
