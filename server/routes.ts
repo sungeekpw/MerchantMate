@@ -9,6 +9,7 @@ import session from "express-session";
 import connectPg from "connect-pg-simple";
 import multer from "multer";
 import { pdfFormParser } from "./pdfParser";
+import { emailService } from "./emailService";
 
 // Helper function to get default widgets for a user role
 function getDefaultWidgetsForRole(role: string) {

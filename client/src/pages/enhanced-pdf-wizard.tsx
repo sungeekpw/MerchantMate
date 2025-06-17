@@ -1318,6 +1318,37 @@ export default function EnhancedPdfWizard() {
                       owner={owner}
                       onSignatureChange={handleSignatureChange}
                     />
+
+                    {/* Email request option for unsigned owners */}
+                    {!owner.signature && owner.email && (
+                      <div className="mt-4 pt-4 border-t border-amber-200">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-sm font-medium text-amber-800">Alternative Option</p>
+                            <p className="text-xs text-amber-700">
+                              Send a secure email request for digital signature
+                            </p>
+                          </div>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleSendSignatureRequest(owner, index)}
+                            disabled={!owner.email || !formData.companyName}
+                            className="border-amber-300 text-amber-700 hover:bg-amber-100"
+                          >
+                            Send Email Request
+                          </Button>
+                        </div>
+                        
+                        {/* Show email sent status */}
+                        {owner.emailSent && (
+                          <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded text-xs text-green-700">
+                            ✓ Email sent to {owner.email} on {new Date(owner.emailSentAt).toLocaleDateString()}
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
