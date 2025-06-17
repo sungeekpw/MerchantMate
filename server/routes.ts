@@ -1106,7 +1106,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/prospects", devRequireRole(['admin', 'corporate', 'super_admin']), async (req, res) => {
+  app.post("/api/prospects", devRequireRole(['agent', 'admin', 'corporate', 'super_admin']), async (req, res) => {
     try {
       const { insertMerchantProspectSchema } = await import("@shared/schema");
       const { emailService } = await import("./emailService");
@@ -1145,7 +1145,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/prospects/:id", devRequireRole(['admin', 'corporate', 'super_admin']), async (req, res) => {
+  app.put("/api/prospects/:id", devRequireRole(['agent', 'admin', 'corporate', 'super_admin']), async (req, res) => {
     try {
       const { id } = req.params;
       const prospect = await storage.updateMerchantProspect(parseInt(id), req.body);

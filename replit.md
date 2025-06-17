@@ -178,6 +178,12 @@ The application is configured for deployment on Replit with:
   - Fields automatically format to two decimal places when users finish entering values
   - Enhanced placeholder text to guide users on proper currency format entry
   - Ensures consistent financial data formatting throughout the application
+- June 17, 2025. Fixed agent prospect modal assignment functionality
+  - Resolved issue where two separate ProspectModal components existed (separate file vs inline)
+  - Fixed the inline ProspectModal in prospects.tsx to properly detect agent role authentication
+  - Added read-only "Assigned Agent" field that auto-fills with logged-in agent name and email
+  - Agents now see "Mike Chen (mike.chen@corecrm.com)" in a read-only field when adding new prospects
+  - Form automatically assigns correct agentId (2) for agent users creating new prospects
 
 ## User Preferences
 Preferred communication style: Simple, everyday language.
