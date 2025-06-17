@@ -300,8 +300,86 @@ export default function EnhancedPdfWizard() {
     return value;
   };
 
-  // Address validation state
+  // Address validation and autocomplete state
   const [addressValidationStatus, setAddressValidationStatus] = useState<'idle' | 'validating' | 'valid' | 'invalid'>('idle');
+  const [addressSuggestions, setAddressSuggestions] = useState<any[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
+
+  // Fetch address suggestions using Google Places Autocomplete API
+  const fetchAddressSuggestions = async (input: string) => {
+    if (input.length < 4) {
+      setAddressSuggestions([]);
+      setShowSuggestions(false);
+      return;
+    }
+
+    setIsLoadingSuggestions(true);
+    
+    try {
+      const response = await fetch('/api/address-autocomplete', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ input }),
+      });
+      
+      if (response.ok) {
+        const result = await response.json();
+        setAddressSuggestions(result.suggestions || []);
+        setShowSuggestions(true);
+      } else {
+        setAddressSuggestions([]);
+        setShowSuggestions(false);
+      }
+    } catch (error) {
+      console.error('Address autocomplete error:', error);
+      setAddressSuggestions([]);
+      setShowSuggestions(false);
+    } finally {
+      setIsLoadingSuggestions(false);
+    }
+  };
+
+  // Select an address suggestion and populate all fields
+  const selectAddressSuggestion = async (suggestion: any) => {
+    setShowSuggestions(false);
+    setAddressValidationStatus('validating');
+    
+    try {
+      const response = await fetch('/api/validate-address', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ address: suggestion.description }),
+      });
+      
+      if (response.ok) {
+        const result = await response.json();
+        if (result.isValid) {
+          setAddressValidationStatus('valid');
+          
+          // Auto-populate all address fields
+          const newFormData = { ...formData };
+          newFormData.address = result.formattedAddress;
+          if (result.city) newFormData.city = result.city;
+          if (result.state) newFormData.state = result.state;
+          if (result.zipCode) newFormData.zipCode = result.zipCode;
+          
+          setFormData(newFormData);
+        } else {
+          setAddressValidationStatus('invalid');
+        }
+      } else {
+        setAddressValidationStatus('invalid');
+      }
+    } catch (error) {
+      console.error('Address validation error:', error);
+      setAddressValidationStatus('invalid');
+    }
+  };
 
   // Validate address using Google Maps Geocoding API
   const validateAddress = async (address: string) => {
@@ -368,6 +446,12 @@ export default function EnhancedPdfWizard() {
     
     // Track field interaction for prospect status update
     handleFieldInteraction(fieldName, value);
+    
+    // Trigger address autocomplete for address field
+    if (fieldName === 'address') {
+      setAddressValidationStatus('idle');
+      fetchAddressSuggestions(value);
+    }
     
     // Auto-save after 2 seconds of no changes (only for authenticated users, not prospects)
     if (!isProspectMode) {
@@ -479,7 +563,20 @@ export default function EnhancedPdfWizard() {
                 onChange={(e) => handleFieldChange(field.fieldName, e.target.value)}
                 onBlur={(e) => {
                   handlePhoneBlur(field.fieldName, e.target.value);
-                  handleAddressBlur(field.fieldName, e.target.value);
+                  // Delay hiding suggestions to allow for click
+                  if (field.fieldName === 'address') {
+                    setTimeout(() => {
+                      setShowSuggestions(false);
+                      handleAddressBlur(field.fieldName, e.target.value);
+                    }, 150);
+                  } else {
+                    handleAddressBlur(field.fieldName, e.target.value);
+                  }
+                }}
+                onFocus={(e) => {
+                  if (field.fieldName === 'address' && e.target.value.length >= 4) {
+                    setShowSuggestions(addressSuggestions.length > 0);
+                  }
                 }}
                 className={`${hasError ? 'border-red-500' : ''} ${
                   isProspectMode && field.fieldName === 'companyEmail' ? 'bg-gray-50 cursor-not-allowed' : ''
@@ -494,17 +591,43 @@ export default function EnhancedPdfWizard() {
                             `Enter ${field.fieldLabel.toLowerCase()}`}
                 readOnly={isProspectMode && field.fieldName === 'companyEmail'}
               />
-              {field.fieldName === 'address' && addressValidationStatus === 'validating' && (
+              
+              {/* Address autocomplete suggestions */}
+              {field.fieldName === 'address' && showSuggestions && (
+                <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-auto">
+                  {isLoadingSuggestions ? (
+                    <div className="p-3 text-center text-gray-500">
+                      <div className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2"></div>
+                      Loading suggestions...
+                    </div>
+                  ) : addressSuggestions.length > 0 ? (
+                    addressSuggestions.map((suggestion, index) => (
+                      <div
+                        key={index}
+                        className="p-3 hover:bg-gray-100 cursor-pointer border-b border-gray-100 last:border-b-0"
+                        onClick={() => selectAddressSuggestion(suggestion)}
+                      >
+                        <div className="font-medium text-gray-900">{suggestion.structured_formatting?.main_text || suggestion.description}</div>
+                        <div className="text-sm text-gray-500">{suggestion.structured_formatting?.secondary_text || ''}</div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="p-3 text-center text-gray-500">No suggestions found</div>
+                  )}
+                </div>
+              )}
+              
+              {field.fieldName === 'address' && (addressValidationStatus === 'validating' || isLoadingSuggestions) && (
                 <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
                 </div>
               )}
-              {field.fieldName === 'address' && addressValidationStatus === 'valid' && (
+              {field.fieldName === 'address' && addressValidationStatus === 'valid' && !isLoadingSuggestions && (
                 <div className="absolute right-3 top-1/2 transform -translate-y-1/2 text-green-600">
                   ✓
                 </div>
               )}
-              {field.fieldName === 'address' && addressValidationStatus === 'invalid' && (
+              {field.fieldName === 'address' && addressValidationStatus === 'invalid' && !isLoadingSuggestions && (
                 <div className="absolute right-3 top-1/2 transform -translate-y-1/2 text-red-600">
                   ⚠
                 </div>
