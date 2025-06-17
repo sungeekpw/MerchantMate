@@ -130,6 +130,14 @@ The application is configured for deployment on Replit with:
 
 ## Changelog
 - June 17, 2025. Initial setup
+- June 17, 2025. Added Google Maps address validation and autocomplete
+  - Integrated Google Maps Geocoding API for address validation
+  - Added Google Places Autocomplete API for address suggestions
+  - Implemented real-time address autocomplete after 4 characters
+  - Auto-populates city, state, and ZIP code fields when valid address selected
+  - Added visual feedback with loading indicators and validation status
+  - Phone number formatting on blur for company phone field
+  - US states dropdown for consistent state selection
 
 ## User Preferences
 Preferred communication style: Simple, everyday language.
