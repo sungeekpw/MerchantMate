@@ -396,6 +396,33 @@ export const insertMerchantProspectSchema = createInsertSchema(merchantProspects
 export type MerchantProspect = typeof merchantProspects.$inferSelect;
 export type InsertMerchantProspect = z.infer<typeof insertMerchantProspectSchema>;
 
+// Business Ownership table for tracking ownership percentages and signatures
+export const businessOwnership = pgTable("business_ownership", {
+  id: serial("id").primaryKey(),
+  formSubmissionId: integer("form_submission_id").references(() => pdfFormSubmissions.id, { onDelete: "cascade" }),
+  prospectId: integer("prospect_id").references(() => merchantProspects.id, { onDelete: "cascade" }),
+  ownerName: text("owner_name").notNull(),
+  ownerEmail: text("owner_email").notNull(),
+  ownershipPercentage: decimal("ownership_percentage", { precision: 5, scale: 2 }).notNull(),
+  requiresSignature: boolean("requires_signature").notNull().default(false), // true if > 25%
+  signatureImagePath: text("signature_image_path"), // path to uploaded signature file
+  digitalSignature: text("digital_signature"), // base64 encoded digital signature
+  signatureType: text("signature_type"), // 'upload' or 'digital'
+  signedAt: timestamp("signed_at"),
+  signatureToken: text("signature_token").unique(), // token for email signature requests
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertBusinessOwnershipSchema = createInsertSchema(businessOwnership).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type BusinessOwnership = typeof businessOwnership.$inferSelect;
+export type InsertBusinessOwnership = z.infer<typeof insertBusinessOwnershipSchema>;
+
 // Extended types for prospect responses
 export type MerchantProspectWithAgent = MerchantProspect & {
   agent?: Agent;
