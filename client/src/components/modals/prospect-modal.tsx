@@ -65,17 +65,21 @@ export function ProspectModal({ isOpen, onClose, prospect }: ProspectModalProps)
 
   // For agents, use user data directly instead of separate API call
   const isAgent = user?.role === 'agent';
-  const currentAgentDisplay = isAgent ? `${user.firstName} ${user.lastName} (${user.email})` : '';
+  const currentAgentDisplay = isAgent && user ? `${user.firstName} ${user.lastName} (${user.email})` : '';
 
-  // Debug logging
-  console.log('ProspectModal Debug:', {
-    user,
-    userRole: user?.role,
-    isAgent,
-    currentAgentDisplay,
-    modalOpen: open,
-    formDefaultAgentId: form.getValues('agentId')
-  });
+  // Debug logging - only when modal is open
+  if (open) {
+    console.log('ProspectModal Debug:', {
+      user,
+      userRole: user?.role,
+      isAgent,
+      currentAgentDisplay,
+      modalOpen: open,
+      userFirstName: user?.firstName,
+      userLastName: user?.lastName,
+      userEmail: user?.email
+    });
+  }
 
   // Fetch agents for the dropdown (only for non-agent users)
   const { data: agents = [] } = useQuery({
