@@ -306,12 +306,14 @@ export default function EnhancedPdfWizard() {
   const [addressSuggestions, setAddressSuggestions] = useState<any[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
+  const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState(-1);
 
   // Fetch address suggestions using Google Places Autocomplete API
   const fetchAddressSuggestions = async (input: string) => {
     if (input.length < 4) {
       setAddressSuggestions([]);
       setShowSuggestions(false);
+      setSelectedSuggestionIndex(-1);
       return;
     }
 
@@ -330,14 +332,17 @@ export default function EnhancedPdfWizard() {
         const result = await response.json();
         setAddressSuggestions(result.suggestions || []);
         setShowSuggestions(true);
+        setSelectedSuggestionIndex(-1);
       } else {
         setAddressSuggestions([]);
         setShowSuggestions(false);
+        setSelectedSuggestionIndex(-1);
       }
     } catch (error) {
       console.error('Address autocomplete error:', error);
       setAddressSuggestions([]);
       setShowSuggestions(false);
+      setSelectedSuggestionIndex(-1);
     } finally {
       setIsLoadingSuggestions(false);
     }
@@ -346,25 +351,12 @@ export default function EnhancedPdfWizard() {
   // Select an address suggestion and populate all fields
   const selectAddressSuggestion = async (suggestion: any) => {
     setShowSuggestions(false);
-    setAddressValidationStatus('idle');
+    setAddressValidationStatus('validating');
     
     // Clear any existing validation errors
     setValidationErrors({});
     
-    // Extract city, state from the suggestion structure
-    const suggestedCity = suggestion.structured_formatting?.secondary_text?.split(',')[0]?.trim();
-    const suggestedState = suggestion.structured_formatting?.secondary_text?.split(',')[1]?.trim();
-    
-    // Directly populate all fields from the suggestion first
-    const newFormData = { ...formData };
-    newFormData.address = suggestion.structured_formatting?.main_text || suggestion.description.split(',')[0].trim();
-    if (suggestedCity) newFormData.city = suggestedCity;
-    if (suggestedState) newFormData.state = suggestedState;
-    
-    // Update form immediately with suggestion data
-    setFormData(newFormData);
-    setAddressValidationStatus('validating');
-    
+    // Use Google Places Details API for precise data with place_id
     try {
       const response = await fetch('/api/validate-address', {
         method: 'POST',
@@ -382,30 +374,45 @@ export default function EnhancedPdfWizard() {
         if (result.isValid) {
           setAddressValidationStatus('valid');
           
-          // Update with precise validation results if available
-          const finalFormData = { ...newFormData };
-          if (result.city && result.city !== newFormData.city) finalFormData.city = result.city;
-          if (result.state && result.state !== newFormData.state) finalFormData.state = result.state;
-          if (result.zipCode) finalFormData.zipCode = result.zipCode;
+          // Populate all address fields with validated data
+          const newFormData = { ...formData };
           
-          setFormData(finalFormData);
+          // Use structured data from the API response
+          if (result.streetAddress) newFormData.address = result.streetAddress;
+          if (result.city) newFormData.city = result.city;
+          if (result.state) newFormData.state = result.state;
+          if (result.zipCode) newFormData.zipCode = result.zipCode;
           
-          // Auto-focus to address line 2 field after address selection
+          setFormData(newFormData);
+          
+          // Auto-focus to address line 2 field after successful selection
           setTimeout(() => {
-            const addressLine2Field = document.getElementById('addressLine2');
+            const addressLine2Field = document.querySelector('input[id*="addressLine2"]') as HTMLInputElement;
             if (addressLine2Field) {
               addressLine2Field.focus();
             }
-          }, 200);
+          }, 300);
         } else {
           setAddressValidationStatus('invalid');
+          // Fallback to basic parsing if validation fails
+          const newFormData = { ...formData };
+          newFormData.address = suggestion.structured_formatting?.main_text || suggestion.description.split(',')[0].trim();
+          setFormData(newFormData);
         }
       } else {
         setAddressValidationStatus('invalid');
+        // Fallback to basic parsing if API fails
+        const newFormData = { ...formData };
+        newFormData.address = suggestion.structured_formatting?.main_text || suggestion.description.split(',')[0].trim();
+        setFormData(newFormData);
       }
     } catch (error) {
       console.error('Address validation error:', error);
       setAddressValidationStatus('invalid');
+      // Fallback to basic parsing if network error
+      const newFormData = { ...formData };
+      newFormData.address = suggestion.structured_formatting?.main_text || suggestion.description.split(',')[0].trim();
+      setFormData(newFormData);
     }
   };
 
@@ -478,7 +485,12 @@ export default function EnhancedPdfWizard() {
     // Trigger address autocomplete for address field
     if (fieldName === 'address') {
       setAddressValidationStatus('idle');
-      fetchAddressSuggestions(value);
+      if (value && value.length >= 4) {
+        fetchAddressSuggestions(value);
+      } else {
+        setShowSuggestions(false);
+        setAddressSuggestions([]);
+      }
     }
     
     // Auto-save after 2 seconds of no changes (only for authenticated users, not prospects)
@@ -487,6 +499,19 @@ export default function EnhancedPdfWizard() {
         autoSaveMutation.mutate(newFormData);
       }, 2000);
     }
+  };
+
+  // Handle input blur with delay to allow suggestion selection
+  const handleAddressInputBlur = (fieldName: string, value: string) => {
+    // Delay hiding suggestions to allow for selection clicks
+    setTimeout(() => {
+      if (fieldName === 'address') {
+        setShowSuggestions(false);
+        if (value.trim()) {
+          validateAddress(value);
+        }
+      }
+    }, 200);
   };
 
   // Validation function
@@ -591,14 +616,8 @@ export default function EnhancedPdfWizard() {
                 onChange={(e) => handleFieldChange(field.fieldName, e.target.value)}
                 onBlur={(e) => {
                   handlePhoneBlur(field.fieldName, e.target.value);
-                  // Delay hiding suggestions to allow for click
                   if (field.fieldName === 'address') {
-                    setTimeout(() => {
-                      setShowSuggestions(false);
-                      handleAddressBlur(field.fieldName, e.target.value);
-                    }, 200);
-                  } else {
-                    handleAddressBlur(field.fieldName, e.target.value);
+                    handleAddressInputBlur(field.fieldName, e.target.value);
                   }
                 }}
                 onFocus={(e) => {
