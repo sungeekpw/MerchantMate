@@ -1152,6 +1152,61 @@ export default function EnhancedPdfWizard() {
       handleFieldChange('owners', newOwners);
     };
 
+    const handleSendSignatureRequest = async (owner: any, ownerIndex: number) => {
+      if (!owner.email || !owner.name || !formData.companyName) {
+        toast({
+          title: "Missing Information",
+          description: "Owner name, email, and company name are required to send signature request.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      try {
+        const response = await fetch('/api/signature-request', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            ownerName: owner.name,
+            ownerEmail: owner.email,
+            companyName: formData.companyName,
+            ownershipPercentage: `${owner.percentage}%`,
+            requesterName: formData.companyName, // Could be the current user's name
+            agentName: formData.assignedAgent?.split('(')[0]?.trim() || 'Your Agent'
+          }),
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+          toast({
+            title: "Email Sent",
+            description: `Signature request sent to ${owner.email}`,
+          });
+
+          // Update owner status to indicate email was sent
+          const newOwners = [...owners];
+          newOwners[ownerIndex] = { 
+            ...newOwners[ownerIndex], 
+            emailSent: true,
+            emailSentAt: new Date().toISOString()
+          };
+          handleFieldChange('owners', newOwners);
+        } else {
+          throw new Error(result.message || 'Failed to send email');
+        }
+      } catch (error) {
+        console.error('Error sending signature request:', error);
+        toast({
+          title: "Email Failed",
+          description: "Failed to send signature request. Please try again.",
+          variant: "destructive"
+        });
+      }
+    };
+
     const getTotalPercentage = () => {
       return owners.reduce((total: number, owner: any) => {
         const percentage = parseFloat(owner.percentage) || 0;

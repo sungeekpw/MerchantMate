@@ -19,6 +19,16 @@ interface ProspectEmailData {
   agentName: string;
 }
 
+interface SignatureRequestData {
+  ownerName: string;
+  ownerEmail: string;
+  companyName: string;
+  ownershipPercentage: string;
+  signatureToken: string;
+  requesterName: string;
+  agentName: string;
+}
+
 export class EmailService {
   private getBaseUrl(): string {
     // Use the current domain or localhost for development
@@ -124,6 +134,90 @@ This is an automated message. Please do not reply to this email.
       return true;
     } catch (error) {
       console.error('Failed to send prospect validation email:', error);
+      return false;
+    }
+  }
+
+  async sendSignatureRequestEmail(data: SignatureRequestData): Promise<boolean> {
+    try {
+      const signatureUrl = `${this.getBaseUrl()}/signature-request?token=${data.signatureToken}`;
+      
+      const htmlContent = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <title>Digital Signature Required - ${data.companyName}</title>
+          <style>
+            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+            .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+            .header { background-color: #2563eb; color: white; padding: 20px; text-align: center; }
+            .content { padding: 30px 20px; background-color: #f9f9f9; }
+            .signature-box { background-color: white; border: 2px solid #2563eb; padding: 20px; margin: 20px 0; border-radius: 8px; }
+            .button { display: inline-block; background-color: #16a34a; color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; margin: 20px 0; font-weight: bold; }
+            .warning { background-color: #fef3c7; border-left: 4px solid #f59e0b; padding: 15px; margin: 20px 0; }
+            .footer { background-color: #333; color: #ccc; padding: 20px; text-align: center; font-size: 12px; }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="header">
+              <h1>Digital Signature Required</h1>
+              <p>Merchant Application for ${data.companyName}</p>
+            </div>
+            
+            <div class="content">
+              <h2>Hello ${data.ownerName},</h2>
+              
+              <p>You are listed as a business owner with <strong>${data.ownershipPercentage}% ownership</strong> in ${data.companyName}. Your digital signature is required to complete the merchant application process.</p>
+              
+              <div class="signature-box">
+                <h3 style="margin-top: 0; color: #2563eb;">What You Need to Do:</h3>
+                <ol>
+                  <li>Click the secure signature link below</li>
+                  <li>Review the complete application details</li>
+                  <li>Provide your digital signature to authorize the application</li>
+                </ol>
+              </div>
+              
+              <div style="text-align: center;">
+                <a href="${signatureUrl}" class="button">Sign Application Now</a>
+              </div>
+              
+              <div class="warning">
+                <strong>Important:</strong> This signature request was initiated by ${data.requesterName}. 
+                If you have questions about this application, contact your agent ${data.agentName} directly.
+              </div>
+              
+              <p><strong>Security Note:</strong> This link is personalized and secure. It will expire in 30 days for your protection.</p>
+              
+              <hr style="margin: 30px 0; border: none; border-top: 1px solid #ddd;">
+              
+              <p style="font-size: 14px; color: #666;">
+                This is a legally binding signature request for merchant processing services. 
+                By signing, you acknowledge your ownership percentage and authorize the application on behalf of ${data.companyName}.
+              </p>
+            </div>
+            
+            <div class="footer">
+              <p>Core CRM - Merchant Services Division</p>
+              <p>This email was sent to ${data.ownerEmail}</p>
+            </div>
+          </div>
+        </body>
+        </html>
+      `;
+
+      await mailService.send({
+        to: data.ownerEmail,
+        from: 'signatures@corecrm.com',
+        subject: `Signature Required: ${data.companyName} Merchant Application`,
+        html: htmlContent,
+      });
+
+      return true;
+    } catch (error) {
+      console.error('Error sending signature request email:', error);
       return false;
     }
   }
