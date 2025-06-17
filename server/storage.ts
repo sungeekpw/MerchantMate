@@ -1529,6 +1529,54 @@ export class DatabaseStorage implements IStorage {
         prospect.status.toLowerCase().includes(query.toLowerCase())
       );
   }
+
+  async getMerchantProspectsByAgent(agentId: number): Promise<MerchantProspectWithAgent[]> {
+    const result = await db
+      .select({
+        prospect: merchantProspects,
+        agent: agents,
+      })
+      .from(merchantProspects)
+      .leftJoin(agents, eq(merchantProspects.agentId, agents.id))
+      .where(eq(merchantProspects.agentId, agentId))
+      .orderBy(desc(merchantProspects.createdAt));
+
+    return result.map(({ prospect, agent }) => ({
+      ...prospect,
+      agent,
+    }));
+  }
+
+  async searchMerchantProspectsByAgent(agentId: number, query: string): Promise<MerchantProspectWithAgent[]> {
+    const result = await db
+      .select({
+        prospect: merchantProspects,
+        agent: agents,
+      })
+      .from(merchantProspects)
+      .leftJoin(agents, eq(merchantProspects.agentId, agents.id))
+      .where(
+        and(
+          eq(merchantProspects.agentId, agentId),
+          or(
+            like(merchantProspects.firstName, `%${query}%`),
+            like(merchantProspects.lastName, `%${query}%`),
+            like(merchantProspects.email, `%${query}%`)
+          )
+        )
+      )
+      .orderBy(desc(merchantProspects.createdAt));
+
+    return result.map(({ prospect, agent }) => ({
+      ...prospect,
+      agent,
+    }));
+  }
+
+  async getAgentByUserId(userId: string): Promise<Agent | undefined> {
+    const [agent] = await db.select().from(agents).where(eq(agents.userId, userId));
+    return agent || undefined;
+  }
 }
 
 export const storage = new DatabaseStorage();

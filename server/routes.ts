@@ -10,6 +10,7 @@ import connectPg from "connect-pg-simple";
 import multer from "multer";
 import { pdfFormParser } from "./pdfParser";
 import { emailService } from "./emailService";
+import { v4 as uuidv4 } from "uuid";
 
 // Helper function to get default widgets for a user role
 function getDefaultWidgetsForRole(role: string) {
@@ -1049,17 +1050,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Merchant Prospect routes
-  app.get("/api/prospects", devRequireRole(['admin', 'corporate', 'super_admin']), async (req, res) => {
+  app.get("/api/prospects", isAuthenticated, async (req, res) => {
     try {
       const { search } = req.query;
+      const userId = (req.session as any).userId;
+      const user = await storage.getUser(userId);
       
-      if (search) {
-        const prospects = await storage.searchMerchantProspects(search as string);
-        res.json(prospects);
-      } else {
-        const prospects = await storage.getAllMerchantProspects();
-        res.json(prospects);
+      if (!user) {
+        return res.status(401).json({ message: "User not found" });
       }
+
+      let prospects;
+      
+      if (user.role === 'agent') {
+        // Agents can only see their assigned prospects
+        const agent = await storage.getAgentByUserId(userId);
+        if (!agent) {
+          return res.status(403).json({ message: "Agent not found" });
+        }
+        
+        if (search) {
+          prospects = await storage.searchMerchantProspectsByAgent(agent.id, search as string);
+        } else {
+          prospects = await storage.getMerchantProspectsByAgent(agent.id);
+        }
+      } else if (['admin', 'corporate', 'super_admin'].includes(user.role)) {
+        // Admins can see all prospects
+        if (search) {
+          prospects = await storage.searchMerchantProspects(search as string);
+        } else {
+          prospects = await storage.getAllMerchantProspects();
+        }
+      } else {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      res.json(prospects);
     } catch (error) {
       console.error("Error fetching prospects:", error);
       res.status(500).json({ message: "Failed to fetch prospects" });
