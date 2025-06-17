@@ -1361,17 +1361,70 @@ export default function EnhancedPdfWizard() {
             {field.fieldLabel}
             {field.isRequired && <span className="text-red-500 ml-1">*</span>}
           </Label>
-          {!isValidPercentage() && (
-            <Button
-              type="button"
-              onClick={addOwner}
-              size="sm"
-              className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white"
-            >
-              <Users className="w-4 h-4" />
-              Add Owner
-            </Button>
-          )}
+          <div className="flex gap-2">
+            {owners.length > 0 && (
+              <Button
+                type="button"
+                onClick={async () => {
+                  // Manually check for submitted signatures
+                  const updatedOwners = [...owners];
+                  let hasUpdates = false;
+                  
+                  for (let i = 0; i < updatedOwners.length; i++) {
+                    const owner = updatedOwners[i];
+                    if (owner.signature || !owner.signatureToken) continue;
+                    
+                    try {
+                      const response = await fetch(`/api/signature/${owner.signatureToken}`);
+                      if (response.ok) {
+                        const result = await response.json();
+                        if (result.success && result.signature) {
+                          updatedOwners[i] = {
+                            ...owner,
+                            signature: result.signature.signature,
+                            signatureType: result.signature.signatureType
+                          };
+                          hasUpdates = true;
+                        }
+                      }
+                    } catch (error) {
+                      console.log(`Error checking signature for ${owner.name}:`, error);
+                    }
+                  }
+                  
+                  if (hasUpdates) {
+                    handleFieldChange('owners', updatedOwners);
+                    toast({
+                      title: "Signatures Updated",
+                      description: "Found and loaded submitted signatures.",
+                    });
+                  } else {
+                    toast({
+                      title: "No New Signatures",
+                      description: "No new signatures found at this time.",
+                    });
+                  }
+                }}
+                size="sm"
+                variant="outline"
+                className="flex items-center gap-2"
+              >
+                <CheckCircle className="w-4 h-4" />
+                Check for Signatures
+              </Button>
+            )}
+            {!isValidPercentage() && (
+              <Button
+                type="button"
+                onClick={addOwner}
+                size="sm"
+                className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white"
+              >
+                <Users className="w-4 h-4" />
+                Add Owner
+              </Button>
+            )}
+          </div>
         </div>
 
         <div className="space-y-6">
