@@ -1,6 +1,6 @@
 import { merchants, agents, transactions, users, loginAttempts, twoFactorCodes, userDashboardPreferences, agentMerchants, locations, addresses, pdfForms, pdfFormFields, pdfFormSubmissions, merchantProspects, type Merchant, type Agent, type Transaction, type User, type InsertMerchant, type InsertAgent, type InsertTransaction, type UpsertUser, type MerchantWithAgent, type TransactionWithMerchant, type LoginAttempt, type TwoFactorCode, type UserDashboardPreference, type InsertUserDashboardPreference, type AgentMerchant, type InsertAgentMerchant, type Location, type InsertLocation, type Address, type InsertAddress, type LocationWithAddresses, type MerchantWithLocations, type PdfForm, type InsertPdfForm, type PdfFormField, type InsertPdfFormField, type PdfFormSubmission, type InsertPdfFormSubmission, type PdfFormWithFields, type MerchantProspect, type InsertMerchantProspect, type MerchantProspectWithAgent } from "@shared/schema";
 import { db } from "./db";
-import { eq, or, and, gte, sql, desc, inArray } from "drizzle-orm";
+import { eq, or, and, gte, sql, desc, inArray, like } from "drizzle-orm";
 
 export interface IStorage {
   // Merchant operations
@@ -1574,8 +1574,12 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getAgentByUserId(userId: string): Promise<Agent | undefined> {
-    const [agent] = await db.select().from(agents).where(eq(agents.userId, userId));
-    return agent || undefined;
+    // First get the user to find their email
+    const user = await this.getUser(userId);
+    if (!user) return undefined;
+    
+    // Then find the agent by email
+    return this.getAgentByEmail(user.email);
   }
 }
 
