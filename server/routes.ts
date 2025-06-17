@@ -1120,6 +1120,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Fetch agent information for email
       const agent = await storage.getAgent(prospect.agentId);
+      console.log(`Prospect created with agentId: ${prospect.agentId}`);
+      console.log(`Agent lookup result:`, agent);
       
       // Send validation email if agent information is available
       if (agent && prospect.validationToken) {
