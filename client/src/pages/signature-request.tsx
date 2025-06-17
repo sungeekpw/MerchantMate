@@ -83,14 +83,41 @@ export default function SignatureRequest() {
   };
 
   const saveSignature = () => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    
     if (signatureMode === 'draw') {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      
+      // Check if canvas has content by getting image data
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+      
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const hasContent = imageData.data.some((pixel, index) => {
+        // Check alpha channel (every 4th value) - if any pixel is not transparent, there's content
+        return index % 4 === 3 && pixel > 0;
+      });
+      
+      if (!hasContent) {
+        toast({
+          title: "No Signature",
+          description: "Please draw your signature before saving.",
+          variant: "destructive"
+        });
+        return;
+      }
+      
       const dataURL = canvas.toDataURL();
       setSignature(dataURL);
     } else {
-      setSignature(typedSignature);
+      if (!typedSignature.trim()) {
+        toast({
+          title: "No Signature",
+          description: "Please enter your name before saving.",
+          variant: "destructive"
+        });
+        return;
+      }
+      setSignature(typedSignature.trim());
     }
     
     toast({
