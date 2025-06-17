@@ -220,7 +220,7 @@ This is an automated message. Please do not reply to this email.
 
       await mailService.send({
         to: data.ownerEmail,
-        from: 'signatures@corecrm.com',
+        from: process.env.SENDGRID_FROM_EMAIL!,
         subject: `Signature Required: ${data.companyName} Merchant Application`,
         html: htmlContent,
       });
