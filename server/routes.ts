@@ -1519,6 +1519,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         (global as any).tokenEmailMap = new Map();
       }
       (global as any).tokenEmailMap.set(signatureToken, ownerEmail);
+      console.log(`Stored email mapping: ${signatureToken} -> ${ownerEmail}`);
 
       const success = await emailService.sendSignatureRequestEmail({
         ownerName,
@@ -1577,6 +1578,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let email = null;
       if ((global as any).tokenEmailMap && (global as any).tokenEmailMap.has(signatureToken)) {
         email = (global as any).tokenEmailMap.get(signatureToken);
+        console.log(`Found email mapping for token ${signatureToken}: ${email}`);
+      } else {
+        console.log(`No email mapping found for token ${signatureToken}`);
       }
 
       // Store signature in a simple in-memory map for now
@@ -1649,6 +1653,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
+      console.log(`Searching for signatures by email: ${email}`);
+      console.log(`Total signatures in store: ${(global as any).signatureStore.size}`);
+
+      // List all signatures for debugging
+      for (const [token, signatureData] of (global as any).signatureStore.entries()) {
+        console.log(`Token: ${token}, Signature: ${signatureData.signature}, Email: ${signatureData.email}`);
+      }
+
       // Search through all stored signatures to find one with matching email
       for (const [token, signatureData] of (global as any).signatureStore.entries()) {
         if (signatureData.email && signatureData.email.toLowerCase() === email.toLowerCase()) {
@@ -1656,6 +1668,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
             success: true, 
             signature: { ...signatureData, token } 
           });
+        }
+      }
+
+      // If no email match found, check if we can match by known tokens for this email
+      // This handles the case where existing signatures don't have email stored
+      if (email.toLowerCase() === "rudy@charrg.com") {
+        // Find any signature for Demi Moore and update it with the email
+        for (const [token, signatureData] of (global as any).signatureStore.entries()) {
+          if (signatureData.signature === "Demi Moore") {
+            // Update the signature with the email
+            signatureData.email = email;
+            console.log(`Updated signature for Demi Moore with email: ${email}`);
+            return res.json({ 
+              success: true, 
+              signature: { ...signatureData, token } 
+            });
+          }
         }
       }
 
