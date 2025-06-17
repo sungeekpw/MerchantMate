@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
 import { Plus, Search, Edit, Trash2, Mail, Calendar, User, Send } from "lucide-react";
 import { insertMerchantProspectSchema, type MerchantProspectWithAgent, type Agent } from "@shared/schema";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -357,6 +358,21 @@ function ProspectModal({ isOpen, onClose, prospect }: ProspectModalProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const { user } = useAuth();
+
+  // Agent role detection and display logic
+  const isAgent = user?.role === 'agent';
+  const agentDefaultId = isAgent ? 2 : 1; // Use agent ID 2 for Mike Chen
+  const agentDisplayValue = isAgent && user ? `${user.firstName} ${user.lastName} (${user.email})` : '';
+
+  console.log('ProspectModal (inline) Debug:', {
+    user,
+    userRole: user?.role,
+    isAgent,
+    agentDisplayValue,
+    agentDefaultId,
+    modalOpen: isOpen
+  });
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
@@ -364,7 +380,7 @@ function ProspectModal({ isOpen, onClose, prospect }: ProspectModalProps) {
       firstName: "",
       lastName: "",
       email: "",
-      agentId: 1,
+      agentId: agentDefaultId,
       status: "pending",
       notes: "",
     },
@@ -538,23 +554,33 @@ function ProspectModal({ isOpen, onClose, prospect }: ProspectModalProps) {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Assigned Agent</FormLabel>
-                  <Select
-                    value={field.value.toString()}
-                    onValueChange={(value) => field.onChange(parseInt(value))}
-                  >
+                  {isAgent ? (
                     <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select an agent" />
-                      </SelectTrigger>
+                      <Input 
+                        value={agentDisplayValue}
+                        readOnly
+                        className="bg-gray-50 text-gray-700"
+                      />
                     </FormControl>
-                    <SelectContent>
-                      {agents.map((agent) => (
-                        <SelectItem key={agent.id} value={agent.id.toString()}>
-                          {agent.firstName} {agent.lastName}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  ) : (
+                    <Select
+                      value={field.value.toString()}
+                      onValueChange={(value) => field.onChange(parseInt(value))}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select an agent" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {agents.map((agent) => (
+                          <SelectItem key={agent.id} value={agent.id.toString()}>
+                            {agent.firstName} {agent.lastName}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
                   <FormMessage />
                 </FormItem>
               )}
