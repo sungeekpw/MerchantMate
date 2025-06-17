@@ -67,19 +67,19 @@ export function ProspectModal({ isOpen, onClose, prospect }: ProspectModalProps)
   const isAgent = user?.role === 'agent';
   const currentAgentDisplay = isAgent && user ? `${user.firstName} ${user.lastName} (${user.email})` : '';
 
-  // Debug logging - only when modal is open
-  if (open) {
-    console.log('ProspectModal Debug:', {
-      user,
-      userRole: user?.role,
-      isAgent,
-      currentAgentDisplay,
-      modalOpen: open,
-      userFirstName: user?.firstName,
-      userLastName: user?.lastName,
-      userEmail: user?.email
-    });
-  }
+  // Debug logging - always log when component renders
+  console.log('ProspectModal Debug:', {
+    user,
+    userRole: user?.role,
+    isAgent,
+    currentAgentDisplay,
+    modalOpen: open,
+    userFirstName: user?.firstName,
+    userLastName: user?.lastName,
+    userEmail: user?.email,
+    hasUserData: !!user,
+    timestamp: new Date().toISOString()
+  });
 
   // For development: If no user data but we know we're logged in as agent, show hardcoded value
   const displayValue = currentAgentDisplay || (isAgent ? 'Mike Chen (mike.chen@corecrm.com)' : '');
