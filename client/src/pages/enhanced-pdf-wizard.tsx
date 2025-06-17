@@ -394,6 +394,20 @@ export default function EnhancedPdfWizard() {
     
     // Return original if not a valid format
     return value;
+  }
+
+  // Format EIN (Employer Identification Number)
+  const formatEIN = (value: string): string => {
+    // Remove all non-digits
+    const cleaned = value.replace(/\D/g, '');
+    
+    // Format as XX-XXXXXXX for 9 digits
+    if (cleaned.length === 9) {
+      return `${cleaned.slice(0, 2)}-${cleaned.slice(2)}`;
+    }
+    
+    // Return original if not 9 digits
+    return value;
   };
 
   // Address validation and autocomplete state
@@ -631,6 +645,17 @@ export default function EnhancedPdfWizard() {
     }
   };
 
+  // Handle EIN formatting on blur
+  const handleEINBlur = (fieldName: string, value: string) => {
+    if (fieldName === 'federalTaxId' || fieldName === 'taxId') {
+      const formatted = formatEIN(value);
+      if (formatted !== value) {
+        const newFormData = { ...formData, [fieldName]: formatted };
+        setFormData(newFormData);
+      }
+    }
+  };
+
   // Handle address validation on blur
   const handleAddressBlur = (fieldName: string, value: string) => {
     if (fieldName === 'address' && value.trim()) {
@@ -764,6 +789,19 @@ export default function EnhancedPdfWizard() {
       }
       if (field.validation.includes('ein') && !patterns.ein.test(value)) {
         return 'Please enter a valid EIN (XX-XXXXXXX)';
+      }
+      
+      // Additional EIN validation for federal tax ID fields
+      if ((field.fieldName === 'federalTaxId' || field.fieldName === 'taxId') && value) {
+        const cleanedEIN = value.replace(/\D/g, '');
+        if (cleanedEIN.length !== 9) {
+          return 'EIN must be exactly 9 digits';
+        }
+        if (!/^\d{2}-\d{7}$/.test(value) && cleanedEIN.length === 9) {
+          // Allow unformatted 9 digits, will be formatted on blur
+          const formatted = `${cleanedEIN.slice(0, 2)}-${cleanedEIN.slice(2)}`;
+          return null; // Valid, will be auto-formatted
+        }
       }
       if (field.validation.includes('ssn') && !patterns.ssn.test(value)) {
         return 'Please enter a valid SSN (XXX-XX-XXXX)';
@@ -1064,6 +1102,7 @@ export default function EnhancedPdfWizard() {
                 onChange={(e) => handleFieldChange(field.fieldName, e.target.value)}
                 onBlur={(e) => {
                   handlePhoneBlur(field.fieldName, e.target.value);
+                  handleEINBlur(field.fieldName, e.target.value);
                   if (field.fieldName === 'address') {
                     handleAddressInputBlur(field.fieldName, e.target.value);
                   }
@@ -1107,6 +1146,7 @@ export default function EnhancedPdfWizard() {
                             field.fieldType === 'phone' ? 'Enter phone number' : 
                             field.fieldName === 'address' ? 'Enter street address (e.g., 123 Main St)' :
                             field.fieldName === 'addressLine2' ? 'Suite, apt, floor, etc. (optional)' :
+                            (field.fieldName === 'federalTaxId' || field.fieldName === 'taxId') ? 'Enter 9-digit EIN (will format as XX-XXXXXXX)' :
                             `Enter ${field.fieldLabel.toLowerCase()}`}
                 readOnly={
                   (isProspectMode && field.fieldName === 'companyEmail') ||
