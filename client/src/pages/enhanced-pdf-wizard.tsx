@@ -285,28 +285,55 @@ export default function EnhancedPdfWizard() {
   // Final submission mutation
   const finalSubmitMutation = useMutation({
     mutationFn: async (data: Record<string, any>) => {
-      const response = await fetch(`/api/pdf-forms/${id}/submissions`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          data: JSON.stringify(data),
-          status: 'submitted'
-        }),
-        credentials: 'include'
-      });
-      if (!response.ok) {
-        throw new Error('Submission failed');
+      if (isProspectMode && prospectData?.prospect) {
+        // Prospect submission endpoint
+        const response = await fetch(`/api/prospects/${prospectData.prospect.id}/submit-application`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            formData: data,
+            status: 'submitted'
+          }),
+        });
+        if (!response.ok) {
+          throw new Error('Submission failed');
+        }
+        return response.json();
+      } else {
+        // Regular authenticated form submission
+        const response = await fetch(`/api/pdf-forms/${id}/submissions`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            data: JSON.stringify(data),
+            status: 'submitted'
+          }),
+          credentials: 'include'
+        });
+        if (!response.ok) {
+          throw new Error('Submission failed');
+        }
+        return response.json();
       }
-      return response.json();
     },
     onSuccess: () => {
-      toast({
-        title: "Application Submitted",
-        description: "Your Wells Fargo merchant application has been submitted successfully.",
-      });
-      setLocation('/pdf-forms');
+      if (isProspectMode) {
+        toast({
+          title: "Application Submitted",
+          description: "Your merchant application has been submitted successfully. You will be contacted by your assigned agent soon.",
+        });
+        // Don't redirect prospects, show success message
+      } else {
+        toast({
+          title: "Application Submitted",
+          description: "Your Wells Fargo merchant application has been submitted successfully.",
+        });
+        setLocation('/pdf-forms');
+      }
     },
     onError: (error) => {
       toast({

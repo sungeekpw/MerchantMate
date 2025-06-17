@@ -1354,6 +1354,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Submit complete application for prospects
+  app.post("/api/prospects/:id/submit-application", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { formData, status } = req.body;
+      const prospectId = parseInt(id);
+
+      const prospect = await storage.getMerchantProspect(prospectId);
+      if (!prospect) {
+        return res.status(404).json({ message: "Prospect not found" });
+      }
+
+      // Update prospect with final form data and status
+      const updatedProspect = await storage.updateMerchantProspect(prospectId, {
+        formData: JSON.stringify(formData),
+        status: 'submitted',
+        submittedAt: new Date()
+      });
+
+      console.log(`Application submitted for prospect ${prospectId}`);
+      res.json({ 
+        success: true, 
+        message: "Application submitted successfully",
+        prospect: updatedProspect
+      });
+    } catch (error) {
+      console.error("Error submitting prospect application:", error);
+      res.status(500).json({ message: "Failed to submit application" });
+    }
+  });
+
   // Send signature request email
   app.post("/api/signature-request", async (req, res) => {
     try {
