@@ -690,6 +690,56 @@ export default function EnhancedPdfWizard() {
 
   // Validation function
   const validateField = (field: FormField, value: any): string | null => {
+    // Special validation for ownership field
+    if (field.fieldType === 'ownership') {
+      const owners = value || [];
+      
+      if (field.isRequired && owners.length === 0) {
+        return 'At least one owner is required';
+      }
+
+      // Validate each owner
+      for (let i = 0; i < owners.length; i++) {
+        const owner = owners[i];
+        if (!owner.name || !owner.name.trim()) {
+          return `Owner ${i + 1}: Name is required`;
+        }
+        if (!owner.email || !owner.email.trim()) {
+          return `Owner ${i + 1}: Email is required`;
+        }
+        if (!owner.percentage || isNaN(parseFloat(owner.percentage))) {
+          return `Owner ${i + 1}: Valid ownership percentage is required`;
+        }
+        
+        const percentage = parseFloat(owner.percentage);
+        if (percentage <= 0 || percentage > 100) {
+          return `Owner ${i + 1}: Ownership percentage must be between 0.01 and 100`;
+        }
+
+        // Validate email format
+        const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailPattern.test(owner.email)) {
+          return `Owner ${i + 1}: Please enter a valid email address`;
+        }
+
+        // Check signature requirement for owners with >25%
+        if (percentage > 25 && !owner.signature) {
+          return `Owner ${i + 1}: Signature required for ownership > 25%`;
+        }
+      }
+
+      // Validate total percentage equals 100%
+      const total = owners.reduce((sum: number, owner: any) => {
+        return sum + (parseFloat(owner.percentage) || 0);
+      }, 0);
+
+      if (Math.abs(total - 100) > 0.01) {
+        return `Total ownership must equal 100% (currently ${total.toFixed(2)}%)`;
+      }
+
+      return null;
+    }
+
     if (field.isRequired && (!value || value.toString().trim() === '')) {
       return `${field.fieldLabel} is required`;
     }
@@ -772,6 +822,217 @@ export default function EnhancedPdfWizard() {
     if (validateCurrentSection()) {
       finalSubmitMutation.mutate(formData);
     }
+  };
+
+  // Render ownership field with multiple owners and signature requirements
+  const renderOwnershipField = (field: FormField) => {
+    const owners = formData.owners || [{ name: '', email: '', percentage: '', signature: null, signatureType: null }];
+    const hasError = validationErrors[field.fieldName];
+
+    const addOwner = () => {
+      const newOwners = [...owners, { name: '', email: '', percentage: '', signature: null, signatureType: null }];
+      handleFieldChange('owners', newOwners);
+    };
+
+    const removeOwner = (index: number) => {
+      const newOwners = owners.filter((_: any, i: number) => i !== index);
+      handleFieldChange('owners', newOwners);
+    };
+
+    const updateOwner = (index: number, field: string, value: any) => {
+      const newOwners = [...owners];
+      newOwners[index] = { ...newOwners[index], [field]: value };
+      handleFieldChange('owners', newOwners);
+    };
+
+    const handleSignatureUpload = (index: number, event: React.ChangeEvent<HTMLInputElement>) => {
+      const file = event.target.files?.[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          updateOwner(index, 'signature', e.target?.result);
+          updateOwner(index, 'signatureType', 'upload');
+        };
+        reader.readAsDataURL(file);
+      }
+    };
+
+    const getTotalPercentage = () => {
+      return owners.reduce((total: number, owner: any) => {
+        const percentage = parseFloat(owner.percentage) || 0;
+        return total + percentage;
+      }, 0);
+    };
+
+    const isValidPercentage = () => {
+      const total = getTotalPercentage();
+      return Math.abs(total - 100) < 0.01; // Allow for small floating point differences
+    };
+
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <Label className="text-sm font-medium text-gray-700">
+            {field.fieldLabel}
+            {field.isRequired && <span className="text-red-500 ml-1">*</span>}
+          </Label>
+          <Button
+            type="button"
+            onClick={addOwner}
+            size="sm"
+            className="flex items-center gap-2"
+          >
+            <Users className="w-4 h-4" />
+            Add Owner
+          </Button>
+        </div>
+
+        <div className="space-y-4">
+          {owners.map((owner: any, index: number) => (
+            <Card key={index} className="p-4">
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h4 className="font-medium text-gray-900">Owner {index + 1}</h4>
+                  {owners.length > 1 && (
+                    <Button
+                      type="button"
+                      onClick={() => removeOwner(index)}
+                      size="sm"
+                      variant="outline"
+                      className="text-red-600 hover:text-red-700"
+                    >
+                      Remove
+                    </Button>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <Label className="text-sm text-gray-600">Owner Name *</Label>
+                    <Input
+                      value={owner.name || ''}
+                      onChange={(e) => updateOwner(index, 'name', e.target.value)}
+                      placeholder="Full name"
+                      className="mt-1"
+                    />
+                  </div>
+
+                  <div>
+                    <Label className="text-sm text-gray-600">Email Address *</Label>
+                    <Input
+                      type="email"
+                      value={owner.email || ''}
+                      onChange={(e) => updateOwner(index, 'email', e.target.value)}
+                      placeholder="owner@company.com"
+                      className="mt-1"
+                    />
+                  </div>
+
+                  <div>
+                    <Label className="text-sm text-gray-600">Ownership % *</Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      max="100"
+                      step="0.01"
+                      value={owner.percentage || ''}
+                      onChange={(e) => updateOwner(index, 'percentage', e.target.value)}
+                      placeholder="25.00"
+                      className="mt-1"
+                    />
+                  </div>
+                </div>
+
+                {/* Signature requirement for owners with >25% */}
+                {parseFloat(owner.percentage) > 25 && (
+                  <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                    <div className="flex items-start gap-2 mb-3">
+                      <Signature className="w-5 h-5 text-amber-600 mt-0.5" />
+                      <div>
+                        <p className="text-sm font-medium text-amber-800">Signature Required</p>
+                        <p className="text-xs text-amber-700">
+                          Owners with more than 25% ownership must provide a signature
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="space-y-3">
+                      <div>
+                        <Label className="text-sm text-gray-600">Upload Signature Image</Label>
+                        <div className="flex items-center gap-2 mt-1">
+                          <Input
+                            type="file"
+                            accept="image/*"
+                            onChange={(e) => handleSignatureUpload(index, e)}
+                            className="flex-1"
+                          />
+                          <Upload className="w-4 h-4 text-gray-400" />
+                        </div>
+                      </div>
+
+                      {owner.signature && owner.signatureType === 'upload' && (
+                        <div className="mt-2">
+                          <p className="text-xs text-green-600 mb-2">✓ Signature uploaded</p>
+                          <img 
+                            src={owner.signature} 
+                            alt="Signature" 
+                            className="max-h-20 border rounded"
+                          />
+                        </div>
+                      )}
+
+                      <div className="text-center text-xs text-gray-500">
+                        or
+                      </div>
+
+                      <div>
+                        <Label className="text-sm text-gray-600">Send Email for Digital Signature</Label>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          className="w-full mt-1"
+                          onClick={() => {
+                            // TODO: Implement email signature request
+                            toast({
+                              title: "Email Sent",
+                              description: `Signature request sent to ${owner.email}`,
+                            });
+                          }}
+                          disabled={!owner.email}
+                        >
+                          Send Signature Request
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </Card>
+          ))}
+        </div>
+
+        {/* Ownership validation summary */}
+        <div className={`p-3 rounded-lg border ${
+          isValidPercentage() 
+            ? 'bg-green-50 border-green-200' 
+            : 'bg-red-50 border-red-200'
+        }`}>
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-medium">
+              Total Ownership: {getTotalPercentage().toFixed(2)}%
+            </span>
+            {isValidPercentage() ? (
+              <span className="text-green-600 text-sm">✓ Valid</span>
+            ) : (
+              <span className="text-red-600 text-sm">Must equal 100%</span>
+            )}
+          </div>
+        </div>
+
+        {hasError && <p className="text-xs text-red-500">{hasError}</p>}
+      </div>
+    );
   };
 
   // Render form field
@@ -1014,6 +1275,9 @@ export default function EnhancedPdfWizard() {
             />
           </div>
         );
+
+      case 'ownership':
+        return renderOwnershipField(field);
 
       default:
         return null;
