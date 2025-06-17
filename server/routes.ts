@@ -1567,14 +1567,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      // In a real implementation, you would:
-      // 1. Validate the signature token
-      // 2. Store the signature in the database
-      // 3. Update the related application/prospect record
+      // Store signature in a simple in-memory map for now
+      // In production, this would be stored in the database
+      if (!global.signatureStore) {
+        global.signatureStore = new Map();
+      }
+      
+      global.signatureStore.set(signatureToken, {
+        signature,
+        signatureType,
+        submittedAt: new Date()
+      });
       
       console.log(`Signature submitted for token: ${signatureToken}`);
       console.log(`Signature type: ${signatureType}`);
-      console.log(`Signature data: ${signature.substring(0, 50)}...`);
+      console.log(`Total signatures stored: ${global.signatureStore.size}`);
 
       res.json({ 
         success: true, 
@@ -1585,6 +1592,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ 
         success: false, 
         message: "Failed to submit signature" 
+      });
+    }
+  });
+
+  // Get signature by token (for retrieving submitted signatures)
+  app.get("/api/signature/:token", async (req, res) => {
+    try {
+      const { token } = req.params;
+      
+      if (!global.signatureStore || !global.signatureStore.has(token)) {
+        return res.status(404).json({ 
+          success: false, 
+          message: "Signature not found" 
+        });
+      }
+      
+      const signatureData = global.signatureStore.get(token);
+      
+      res.json({ 
+        success: true, 
+        signature: signatureData 
+      });
+    } catch (error) {
+      console.error("Error retrieving signature:", error);
+      res.status(500).json({ 
+        success: false, 
+        message: "Failed to retrieve signature" 
       });
     }
   });

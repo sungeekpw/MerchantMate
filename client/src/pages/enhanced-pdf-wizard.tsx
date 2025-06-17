@@ -50,6 +50,50 @@ export default function EnhancedPdfWizard() {
     console.log('Form data updated:', formData);
   }, [formData]);
 
+  // Check for submitted signatures when form data changes
+  useEffect(() => {
+    const checkSubmittedSignatures = async () => {
+      if (!formData.owners || !Array.isArray(formData.owners)) return;
+      
+      const updatedOwners = [...formData.owners];
+      let hasUpdates = false;
+      
+      for (let i = 0; i < updatedOwners.length; i++) {
+        const owner = updatedOwners[i];
+        
+        // Skip if owner already has a signature or no signature token
+        if (owner.signature || !owner.signatureToken) continue;
+        
+        try {
+          const response = await fetch(`/api/signature/${owner.signatureToken}`);
+          if (response.ok) {
+            const result = await response.json();
+            if (result.success && result.signature) {
+              updatedOwners[i] = {
+                ...owner,
+                signature: result.signature.signature,
+                signatureType: result.signature.signatureType
+              };
+              hasUpdates = true;
+              console.log(`Found submitted signature for ${owner.name}`);
+            }
+          }
+        } catch (error) {
+          console.log(`No signature found for ${owner.name}:`, error);
+        }
+      }
+      
+      if (hasUpdates) {
+        setFormData(prev => ({
+          ...prev,
+          owners: updatedOwners
+        }));
+      }
+    };
+    
+    checkSubmittedSignatures();
+  }, [formData.owners?.length]); // Only trigger when owners array length changes
+
   // Check for any cached data on component mount
   useEffect(() => {
     console.log('Component mounted, checking for cached data...');
