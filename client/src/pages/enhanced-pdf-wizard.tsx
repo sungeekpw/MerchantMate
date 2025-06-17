@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useLocation } from 'wouter';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
@@ -1322,30 +1322,30 @@ export default function EnhancedPdfWizard() {
   }
 
   return (
-    <div className="h-screen bg-gray-50 flex flex-col">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
       {/* Header - Fixed */}
-      <div className="bg-white border-b border-gray-200 px-4 py-6 flex-shrink-0">
-        <div className="max-w-6xl mx-auto">
+      <div className="bg-white/95 backdrop-blur-sm border-b border-gray-200 px-4 py-6 sticky top-0 z-50 shadow-sm">
+        <div className="max-w-4xl mx-auto">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
-              <div className="w-12 h-12 bg-blue-600 rounded-lg flex items-center justify-center">
+              <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-blue-700 rounded-xl flex items-center justify-center shadow-lg">
                 <FileText className="w-6 h-6 text-white" />
               </div>
               <div>
                 <h1 className="text-2xl font-bold text-gray-900">
                   {isProspectMode ? 'Merchant Processing Application' : (pdfForm?.name || 'Form')}
                 </h1>
-                <p className="text-gray-600">
+                <p className="text-gray-600 text-sm">
                   {isProspectMode 
-                    ? `Welcome ${prospectData?.prospect?.firstName || ''}! Complete your merchant application below - All changes are saved automatically`
-                    : `${pdfForm?.description || 'Form'} - All changes are saved automatically`
+                    ? `Welcome ${prospectData?.prospect?.firstName || ''}! Complete your application - all changes save automatically`
+                    : `${pdfForm?.description || 'Form'} - all changes save automatically`
                   }
                 </p>
               </div>
             </div>
             <div className="text-right">
-              <div className="text-sm text-gray-500">Progress</div>
-              <div className="text-2xl font-bold text-blue-600">
+              <div className="text-xs font-medium text-gray-500 uppercase tracking-wide">Progress</div>
+              <div className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-blue-700 bg-clip-text text-transparent">
                 {Math.round(((currentStep + 1) / sections.length) * 100)}%
               </div>
             </div>
@@ -1353,49 +1353,64 @@ export default function EnhancedPdfWizard() {
           
           {/* Progress Bar */}
           <div className="mt-6">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-medium text-gray-600">
+                Step {currentStep + 1} of {sections.length}
+              </span>
+              <span className="text-xs text-gray-500">
+                {sections[currentStep]?.name}
+              </span>
+            </div>
             <Progress 
               value={((currentStep + 1) / sections.length) * 100} 
-              className="h-2"
+              className="h-3 bg-gray-200"
             />
           </div>
         </div>
       </div>
 
       {/* Main Content - Scrollable */}
-      <div className="flex-1 overflow-hidden">
-        <div className="max-w-6xl mx-auto px-4 py-8 h-full">
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-8 h-full">
+      <div className="flex-1 overflow-auto">
+        <div className="max-w-7xl mx-auto px-4 py-8">
+          <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
             {/* Section Navigation - Fixed Height */}
             <div className="lg:col-span-1">
-              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 h-fit sticky top-0">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Application Sections</h3>
-                <nav className="space-y-2">
+              <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6 h-fit sticky top-28">
+                <h3 className="text-lg font-semibold text-gray-900 mb-6">Application Sections</h3>
+                <nav className="space-y-3">
                   {sections.map((section, index) => {
                     const IconComponent = section.icon;
+                    const isActive = currentStep === index;
+                    const isCompleted = index < currentStep;
                     return (
                       <button
                         key={index}
                         onClick={() => setCurrentStep(index)}
-                        className={`w-full text-left p-3 rounded-lg transition-colors ${
-                          currentStep === index
-                            ? 'bg-blue-50 border-blue-200 text-blue-700'
-                            : 'bg-gray-50 border-gray-200 text-gray-700 hover:bg-gray-100'
+                        className={`w-full text-left p-4 rounded-xl transition-all duration-200 ${
+                          isActive
+                            ? 'bg-gradient-to-r from-blue-50 to-blue-100 border-blue-200 text-blue-800 shadow-md transform scale-[1.02]'
+                            : isCompleted
+                            ? 'bg-gradient-to-r from-green-50 to-green-100 border-green-200 text-green-800 hover:shadow-sm'
+                            : 'bg-gray-50 border-gray-200 text-gray-700 hover:bg-gray-100 hover:shadow-sm'
                         } border`}
                       >
                         <div className="flex items-center space-x-3">
-                          <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
-                            currentStep === index ? 'bg-blue-100' : 'bg-gray-200'
+                          <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+                            isActive ? 'bg-blue-200 shadow-sm' : isCompleted ? 'bg-green-200' : 'bg-gray-200'
                           }`}>
-                            <IconComponent className={`w-4 h-4 ${
-                              currentStep === index ? 'text-blue-600' : 'text-gray-600'
+                            <IconComponent className={`w-5 h-5 ${
+                              isActive ? 'text-blue-700' : isCompleted ? 'text-green-700' : 'text-gray-600'
                             }`} />
                           </div>
                           <div className="flex-1">
-                            <div className="font-medium text-sm">{section.name}</div>
-                            <div className="text-xs text-gray-500 mt-1">
-                              {section.fields.length} fields
+                            <div className="font-semibold text-sm">{section.name}</div>
+                            <div className="text-xs opacity-70 mt-1">
+                              {section.fields.length} field{section.fields.length !== 1 ? 's' : ''}
                             </div>
                           </div>
+                          {isCompleted && (
+                            <CheckCircle className="w-5 h-5 text-green-600" />
+                          )}
                         </div>
                       </button>
                     );
@@ -1422,34 +1437,49 @@ export default function EnhancedPdfWizard() {
             </div>
 
             {/* Form Content - Scrollable */}
-            <div className="lg:col-span-3 h-full overflow-y-auto">
+            <div className="lg:col-span-4">
               {sections[currentStep] && (
-                <Card className="mb-8">
-                  <CardHeader className="pb-6">
+                <div className="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden">
+                  <div className="bg-gradient-to-r from-blue-50 to-indigo-50 px-8 py-6 border-b border-gray-100">
                     <div className="flex items-center justify-between">
-                      <div>
-                        <CardTitle className="text-2xl font-bold text-gray-900 mb-2">
-                          {sections[currentStep].name}
-                        </CardTitle>
-                        <p className="text-gray-600">
-                          {sections[currentStep].description}
-                        </p>
+                      <div className="flex items-center space-x-4">
+                        <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
+                          {React.createElement(sections[currentStep].icon, {
+                            className: "w-6 h-6 text-blue-600"
+                          })}
+                        </div>
+                        <div>
+                          <h2 className="text-2xl font-bold text-gray-900">
+                            {sections[currentStep].name}
+                          </h2>
+                          <p className="text-gray-600 mt-1">
+                            {sections[currentStep].description}
+                          </p>
+                        </div>
                       </div>
                       <div className="text-right">
-                        <div className="text-sm text-gray-500 mb-1">Step</div>
-                        <div className="text-2xl font-bold text-blue-600">
+                        <div className="text-xs font-medium text-gray-500 uppercase tracking-wide">Step</div>
+                        <div className="text-xl font-bold text-blue-600">
                           {currentStep + 1} of {sections.length}
                         </div>
                       </div>
                     </div>
-                  </CardHeader>
+                  </div>
                   
-                  <CardContent className="space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="p-8">
+                    <div className={`grid gap-8 ${
+                      sections[currentStep].fields.some(f => f.fieldType === 'ownership') 
+                        ? 'grid-cols-1' 
+                        : 'grid-cols-1 lg:grid-cols-2'
+                    }`}>
                       {sections[currentStep].fields.map((field) => (
                         <div 
                           key={field.fieldName} 
-                          className={field.fieldType === 'textarea' ? 'md:col-span-2' : ''}
+                          className={`${
+                            field.fieldType === 'textarea' || field.fieldType === 'ownership' 
+                              ? 'lg:col-span-full' 
+                              : ''
+                          }`}
                         >
                           {renderField(field)}
                         </div>
@@ -1491,8 +1521,8 @@ export default function EnhancedPdfWizard() {
                         </div>
                       </div>
                     </div>
-                  </CardContent>
-                </Card>
+                  </div>
+                </div>
               )}
             </div>
           </div>
