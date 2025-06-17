@@ -1366,25 +1366,48 @@ export default function EnhancedPdfWizard() {
               <Button
                 type="button"
                 onClick={async () => {
-                  // Manually check for submitted signatures
+                  // Manually check for submitted signatures by owner email
                   const updatedOwners = [...owners];
                   let hasUpdates = false;
                   
                   for (let i = 0; i < updatedOwners.length; i++) {
                     const owner = updatedOwners[i];
-                    if (owner.signature || !owner.signatureToken) continue;
+                    if (owner.signature) continue; // Skip if already has signature
                     
                     try {
-                      const response = await fetch(`/api/signature/${owner.signatureToken}`);
-                      if (response.ok) {
-                        const result = await response.json();
-                        if (result.success && result.signature) {
-                          updatedOwners[i] = {
-                            ...owner,
-                            signature: result.signature.signature,
-                            signatureType: result.signature.signatureType
-                          };
-                          hasUpdates = true;
+                      // First try with signature token if available
+                      if (owner.signatureToken) {
+                        const response = await fetch(`/api/signature/${owner.signatureToken}`);
+                        if (response.ok) {
+                          const result = await response.json();
+                          if (result.success && result.signature) {
+                            updatedOwners[i] = {
+                              ...owner,
+                              signature: result.signature.signature,
+                              signatureType: result.signature.signatureType
+                            };
+                            hasUpdates = true;
+                            console.log(`Found signature for ${owner.name} via token`);
+                            continue;
+                          }
+                        }
+                      }
+                      
+                      // If no token or token didn't work, search by email
+                      if (owner.email) {
+                        const searchResponse = await fetch(`/api/signatures/by-email/${encodeURIComponent(owner.email)}`);
+                        if (searchResponse.ok) {
+                          const searchResult = await searchResponse.json();
+                          if (searchResult.success && searchResult.signature) {
+                            updatedOwners[i] = {
+                              ...owner,
+                              signature: searchResult.signature.signature,
+                              signatureType: searchResult.signature.signatureType,
+                              signatureToken: searchResult.signature.token // Save the token for future use
+                            };
+                            hasUpdates = true;
+                            console.log(`Found signature for ${owner.name} via email search`);
+                          }
                         }
                       }
                     } catch (error) {
@@ -1395,13 +1418,13 @@ export default function EnhancedPdfWizard() {
                   if (hasUpdates) {
                     handleFieldChange('owners', updatedOwners);
                     toast({
-                      title: "Signatures Updated",
-                      description: "Found and loaded submitted signatures.",
+                      title: "Signatures Found!",
+                      description: "Successfully loaded submitted signatures.",
                     });
                   } else {
                     toast({
-                      title: "No New Signatures",
-                      description: "No new signatures found at this time.",
+                      title: "No Signatures Found",
+                      description: "No submitted signatures found for the current owners.",
                     });
                   }
                 }}
