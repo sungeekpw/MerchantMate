@@ -521,8 +521,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Use production auth setup for all environments
   await setupAuth(app);
 
-  app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
+  app.get('/api/auth/user', async (req: any, res) => {
     try {
+      // Development mode: always return Mike Chen (agent) user
+      if (process.env.NODE_ENV === 'development') {
+        const devUser = {
+          id: "user_agent_1",
+          email: "mike.chen@corecrm.com",
+          firstName: "Mike",
+          lastName: "Chen",
+          role: "agent",
+          status: "active"
+        };
+        return res.json(devUser);
+      }
+
+      // Production mode: use normal authentication
       const userId = req.user.claims.sub;
       const user = await storage.getUser(userId);
       res.json(user);
