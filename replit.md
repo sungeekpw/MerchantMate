@@ -146,6 +146,14 @@ The application is configured for deployment on Replit with:
   - Implemented session-based authentication for agent dashboard API calls
   - Dashboard displays live prospect data including status tracking and completion percentages
   - Successfully tested with agent Mike Chen showing 1 prospect (Rudy Thurston) in "contacted" status
+- June 17, 2025. Fixed Address Selection in Merchant Application Form
+  - Resolved address autocomplete issues where Vancouver data was persisting incorrectly
+  - Implemented proper form data clearing and direct DOM manipulation to override browser persistence
+  - Added keyboard navigation support (arrow keys, Enter, Escape) for address suggestions
+  - Made City, State, and ZIP Code fields read-only after address selection from autocomplete
+  - Added "Edit Address" button to unlock fields when users need to make manual changes
+  - Enhanced visual feedback with proper styling for locked/unlocked states
+  - Address selection now correctly populates with selected data (e.g., Tustin, CA 92780)
 
 ## User Preferences
 Preferred communication style: Simple, everyday language.
