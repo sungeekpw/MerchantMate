@@ -66,9 +66,10 @@ export function ProspectModal({ isOpen, onClose, prospect }: ProspectModalProps)
   // Fetch current agent information for the logged-in user
   const { data: currentAgent, isLoading: isCurrentAgentLoading, error: agentError } = useQuery<Agent>({
     queryKey: ["/api/current-agent"],
-    enabled: user?.role === 'agent',
-    retry: false,
+    enabled: true, // Temporarily force to test
+    retry: 1,
     staleTime: 0,
+    refetchOnMount: true,
   });
 
   // Debug logging
