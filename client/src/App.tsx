@@ -33,6 +33,7 @@ import MerchantApplication from "@/pages/merchant-application";
 import FormApplication from "@/pages/form-application";
 import Prospects from "@/pages/prospects";
 import ProspectValidation from "@/pages/prospect-validation";
+import SignatureRequest from "@/pages/signature-request";
 import ApplicationStatus from "@/pages/application-status";
 import AgentDashboard from "@/pages/agent-dashboard";
 import NotFound from "@/pages/not-found";
@@ -432,6 +433,13 @@ function AppContent() {
             {() => (
               <main className="flex-1 overflow-hidden">
                 <ProspectValidation />
+              </main>
+            )}
+          </Route>
+          <Route path="/signature-request">
+            {() => (
+              <main className="flex-1 overflow-hidden">
+                <SignatureRequest />
               </main>
             )}
           </Route>
