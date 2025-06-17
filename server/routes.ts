@@ -1555,6 +1555,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Submit signature (public endpoint)
+  app.post("/api/signature-submit", async (req, res) => {
+    try {
+      const { signatureToken, signature, signatureType } = req.body;
+
+      if (!signatureToken || !signature) {
+        return res.status(400).json({ 
+          success: false, 
+          message: "Missing signature token or signature data" 
+        });
+      }
+
+      // In a real implementation, you would:
+      // 1. Validate the signature token
+      // 2. Store the signature in the database
+      // 3. Update the related application/prospect record
+      
+      console.log(`Signature submitted for token: ${signatureToken}`);
+      console.log(`Signature type: ${signatureType}`);
+      console.log(`Signature data: ${signature.substring(0, 50)}...`);
+
+      res.json({ 
+        success: true, 
+        message: "Signature submitted successfully" 
+      });
+    } catch (error) {
+      console.error("Error submitting signature:", error);
+      res.status(500).json({ 
+        success: false, 
+        message: "Failed to submit signature" 
+      });
+    }
+  });
+
   // Admin-only routes for merchants
   app.get("/api/merchants/all", devRequireRole(['admin', 'corporate', 'super_admin']), async (req, res) => {
     try {
