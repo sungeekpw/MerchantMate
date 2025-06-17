@@ -217,7 +217,37 @@ export default function EnhancedPdfWizard() {
     ].filter(section => section.fields.length > 0);
   }
 
-  // Auto-save mutation
+  // Save form data mutation for prospects
+  const saveFormDataMutation = useMutation({
+    mutationFn: async (data: { formData: Record<string, any>; currentStep: number }) => {
+      if (isProspectMode && prospectData?.prospect) {
+        const response = await fetch(`/api/prospects/${prospectData.prospect.id}/save-form-data`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            formData: data.formData,
+            currentStep: data.currentStep
+          }),
+          credentials: 'include'
+        });
+        if (!response.ok) {
+          throw new Error('Save failed');
+        }
+        return response.json();
+      }
+      return null;
+    },
+    onSuccess: () => {
+      console.log('Form data saved successfully');
+    },
+    onError: (error) => {
+      console.error('Save failed:', error);
+    }
+  });
+
+  // Auto-save mutation for regular PDF forms
   const autoSaveMutation = useMutation({
     mutationFn: async (data: Record<string, any>) => {
       const response = await fetch(`/api/pdf-forms/${id}/submissions`, {
@@ -287,10 +317,38 @@ export default function EnhancedPdfWizard() {
         companyEmail: prospectData.prospect.email
       };
       console.log('Setting initial prospect data:', newData);
-      setFormData(prev => ({
-        ...prev,
-        ...newData
-      }));
+      
+      // Load existing form data if available
+      if (prospectData.prospect.formData) {
+        try {
+          const existingFormData = typeof prospectData.prospect.formData === 'string' 
+            ? JSON.parse(prospectData.prospect.formData) 
+            : prospectData.prospect.formData;
+          
+          console.log('Loading existing form data:', existingFormData);
+          setFormData(prev => ({
+            ...prev,
+            ...newData,
+            ...existingFormData
+          }));
+          
+          // Set current step from saved data
+          if (prospectData.prospect.currentStep !== null && prospectData.prospect.currentStep !== undefined) {
+            setCurrentStep(prospectData.prospect.currentStep);
+          }
+        } catch (error) {
+          console.error('Error parsing existing form data:', error);
+          setFormData(prev => ({
+            ...prev,
+            ...newData
+          }));
+        }
+      } else {
+        setFormData(prev => ({
+          ...prev,
+          ...newData
+        }));
+      }
     }
   }, [isProspectMode, prospectData]);
 
@@ -680,6 +738,14 @@ export default function EnhancedPdfWizard() {
   // Handle navigation
   const handleNext = () => {
     if (validateCurrentSection()) {
+      // Save form data for prospects before navigating to next section
+      if (isProspectMode) {
+        const nextStep = Math.min(sections.length - 1, currentStep + 1);
+        saveFormDataMutation.mutate({
+          formData: formData,
+          currentStep: nextStep
+        });
+      }
       setCurrentStep(Math.min(sections.length - 1, currentStep + 1));
     } else {
       toast({
