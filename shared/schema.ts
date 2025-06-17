@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, timestamp, decimal, varchar, jsonb, index, unique, real } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, decimal, varchar, jsonb, index, unique, real, numeric } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -304,6 +304,40 @@ export const insertUserDashboardPreferenceSchema = createInsertSchema(userDashbo
 
 export type InsertUserDashboardPreference = z.infer<typeof insertUserDashboardPreferenceSchema>;
 export type UserDashboardPreference = typeof userDashboardPreferences.$inferSelect;
+
+// Prospect owners table for business ownership information
+export const prospectOwners = pgTable("prospect_owners", {
+  id: serial("id").primaryKey(),
+  prospectId: integer("prospect_id").notNull().references(() => merchantProspects.id, { onDelete: 'cascade' }),
+  name: text("name").notNull(),
+  email: text("email").notNull(),
+  ownershipPercentage: decimal("ownership_percentage", { precision: 5, scale: 2 }).notNull(),
+  signatureToken: text("signature_token"),
+  emailSent: boolean("email_sent").default(false),
+  emailSentAt: timestamp("email_sent_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Prospect signatures table for storing digital signatures
+export const prospectSignatures = pgTable("prospect_signatures", {
+  id: serial("id").primaryKey(),
+  prospectId: integer("prospect_id").notNull().references(() => merchantProspects.id, { onDelete: 'cascade' }),
+  ownerId: integer("owner_id").notNull().references(() => prospectOwners.id, { onDelete: 'cascade' }),
+  signatureToken: text("signature_token").notNull().unique(),
+  signature: text("signature").notNull(),
+  signatureType: text("signature_type").notNull(), // 'draw' or 'type'
+  submittedAt: timestamp("submitted_at").defaultNow(),
+});
+
+export const insertProspectOwnerSchema = createInsertSchema(prospectOwners);
+
+export const insertProspectSignatureSchema = createInsertSchema(prospectSignatures);
+
+export type InsertProspectOwner = z.infer<typeof insertProspectOwnerSchema>;
+export type ProspectOwner = typeof prospectOwners.$inferSelect;
+export type InsertProspectSignature = z.infer<typeof insertProspectSignatureSchema>;
+export type ProspectSignature = typeof prospectSignatures.$inferSelect;
 
 // PDF Form schemas
 export const pdfForms = pgTable("pdf_forms", {
