@@ -1423,6 +1423,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Application status lookup
+  app.get("/api/application-status/:token", async (req, res) => {
+    try {
+      const { token } = req.params;
+      
+      const prospect = await storage.getMerchantProspectByToken(token);
+      if (!prospect) {
+        return res.status(404).json({ message: "Application not found" });
+      }
+
+      // Get agent information
+      const agent = await storage.getAgent(prospect.agentId);
+      
+      const response = {
+        ...prospect,
+        agent: agent ? {
+          firstName: agent.firstName,
+          lastName: agent.lastName,
+          email: agent.email
+        } : null
+      };
+
+      res.json(response);
+    } catch (error) {
+      console.error("Error fetching application status:", error);
+      res.status(500).json({ message: "Failed to fetch application status" });
+    }
+  });
+
   // Send signature request email
   app.post("/api/signature-request", async (req, res) => {
     try {

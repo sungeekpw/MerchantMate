@@ -448,6 +448,13 @@ function AppContent() {
               </main>
             )}
           </Route>
+          <Route path="/application-status/:token">
+            {() => (
+              <main className="flex-1 overflow-hidden">
+                <ApplicationStatus />
+              </main>
+            )}
+          </Route>
           <Route>
             {isAuthenticated ? <AuthenticatedApp /> : <Auth />}
           </Route>
