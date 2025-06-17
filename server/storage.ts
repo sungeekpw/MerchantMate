@@ -1543,7 +1543,7 @@ export class DatabaseStorage implements IStorage {
 
     return result.map(({ prospect, agent }) => ({
       ...prospect,
-      agent,
+      agent: agent || undefined,
     }));
   }
 
@@ -1569,7 +1569,7 @@ export class DatabaseStorage implements IStorage {
 
     return result.map(({ prospect, agent }) => ({
       ...prospect,
-      agent,
+      agent: agent || undefined,
     }));
   }
 
