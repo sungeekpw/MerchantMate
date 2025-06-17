@@ -378,10 +378,14 @@ export default function EnhancedPdfWizard() {
           // Auto-focus to address line 2 field after address selection
           setTimeout(() => {
             const addressLine2Field = document.getElementById('addressLine2');
+            console.log('Looking for addressLine2 field:', addressLine2Field);
             if (addressLine2Field) {
               addressLine2Field.focus();
+              console.log('Focused on Address Line 2 field');
+            } else {
+              console.log('Address Line 2 field not found');
             }
-          }, 100);
+          }, 200);
         } else {
           setAddressValidationStatus('invalid');
         }
