@@ -29,6 +29,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
 import { insertMerchantProspectSchema, type MerchantProspectWithAgent, type Agent } from "@shared/schema";
 import { z } from "zod";
 
@@ -48,6 +49,7 @@ export function ProspectModal({ isOpen, onClose, prospect }: ProspectModalProps)
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const { user } = useAuth();
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
@@ -61,7 +63,18 @@ export function ProspectModal({ isOpen, onClose, prospect }: ProspectModalProps)
     },
   });
 
-  // Fetch agents for the dropdown
+  // Fetch current agent information for the logged-in user
+  const { data: currentAgent } = useQuery({
+    queryKey: ["/api/current-agent"],
+    queryFn: async () => {
+      const response = await fetch("/api/current-agent");
+      if (!response.ok) throw new Error('Failed to fetch current agent');
+      return response.json() as Promise<Agent>;
+    },
+    enabled: user?.role === 'agent',
+  });
+
+  // Fetch agents for the dropdown (only for non-agent users)
   const { data: agents = [] } = useQuery({
     queryKey: ["/api/agents"],
     queryFn: async () => {
@@ -69,6 +82,7 @@ export function ProspectModal({ isOpen, onClose, prospect }: ProspectModalProps)
       if (!response.ok) throw new Error('Failed to fetch agents');
       return response.json() as Promise<Agent[]>;
     },
+    enabled: user?.role !== 'agent',
   });
 
   const createMutation = useMutation({
@@ -137,16 +151,18 @@ export function ProspectModal({ isOpen, onClose, prospect }: ProspectModalProps)
         notes: prospect.notes || "",
       });
     } else {
+      // For new prospects, automatically assign the current agent if user is an agent
+      const agentId = user?.role === 'agent' && currentAgent ? currentAgent.id : 0;
       form.reset({
         firstName: "",
         lastName: "",
         email: "",
-        agentId: 0,
+        agentId: agentId,
         status: "pending",
         notes: "",
       });
     }
-  }, [prospect, form]);
+  }, [prospect, form, user, currentAgent]);
 
   const onSubmit = async (data: FormData) => {
     setIsSubmitting(true);
@@ -228,23 +244,33 @@ export function ProspectModal({ isOpen, onClose, prospect }: ProspectModalProps)
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Assigned Agent</FormLabel>
-                  <Select
-                    value={field.value.toString()}
-                    onValueChange={(value) => field.onChange(parseInt(value))}
-                  >
+                  {user?.role === 'agent' && currentAgent ? (
                     <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select an agent" />
-                      </SelectTrigger>
+                      <Input 
+                        value={`${currentAgent.firstName} ${currentAgent.lastName} (${currentAgent.email})`}
+                        readOnly
+                        className="bg-gray-50 text-gray-700"
+                      />
                     </FormControl>
-                    <SelectContent>
-                      {agents.map((agent) => (
-                        <SelectItem key={agent.id} value={agent.id.toString()}>
-                          {agent.firstName} {agent.lastName}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  ) : (
+                    <Select
+                      value={field.value.toString()}
+                      onValueChange={(value) => field.onChange(parseInt(value))}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select an agent" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {agents.map((agent) => (
+                          <SelectItem key={agent.id} value={agent.id.toString()}>
+                            {agent.firstName} {agent.lastName}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
                   <FormMessage />
                 </FormItem>
               )}
