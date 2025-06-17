@@ -154,6 +154,12 @@ The application is configured for deployment on Replit with:
   - Added "Edit Address" button to unlock fields when users need to make manual changes
   - Enhanced visual feedback with proper styling for locked/unlocked states
   - Address selection now correctly populates with selected data (e.g., Tustin, CA 92780)
+- June 17, 2025. Added EIN validation and formatting to merchant application form
+  - Implemented automatic EIN formatting from 9 digits to XX-XXXXXXX format on field blur
+  - Added comprehensive EIN validation requiring exactly 9 digits
+  - Enhanced user experience with helpful placeholder text indicating EIN format requirements
+  - Integrated EIN formatting alongside existing phone number formatting functionality
+  - Added validation error messages for invalid EIN entries with clear formatting guidance
 
 ## User Preferences
 Preferred communication style: Simple, everyday language.
