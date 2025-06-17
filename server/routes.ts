@@ -88,6 +88,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
     name: 'connect.sid'
   }));
 
+  // Address autocomplete endpoint using Google Places API
+  app.post('/api/address-autocomplete', async (req, res) => {
+    try {
+      const { input } = req.body;
+      
+      if (!input || typeof input !== 'string' || input.length < 4) {
+        return res.json({ suggestions: [] });
+      }
+      
+      const googleApiKey = process.env.GOOGLE_API_KEY;
+      if (!googleApiKey) {
+        return res.status(500).json({ error: 'Google API key not configured' });
+      }
+      
+      // Call Google Places Autocomplete API
+      const autocompleteUrl = `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(input)}&types=address&key=${googleApiKey}`;
+      
+      const response = await fetch(autocompleteUrl);
+      const data = await response.json();
+      
+      if (data.status === 'OK' && data.predictions) {
+        res.json({
+          suggestions: data.predictions.map((prediction: any) => ({
+            description: prediction.description,
+            place_id: prediction.place_id,
+            structured_formatting: prediction.structured_formatting
+          }))
+        });
+      } else {
+        res.json({ suggestions: [] });
+      }
+    } catch (error) {
+      console.error('Address autocomplete error:', error);
+      res.json({ suggestions: [] });
+    }
+  });
+
   // Address validation endpoint using Google Maps API
   app.post('/api/validate-address', async (req, res) => {
     try {
