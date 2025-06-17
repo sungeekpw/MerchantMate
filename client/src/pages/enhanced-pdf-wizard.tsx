@@ -1320,12 +1320,13 @@ export default function EnhancedPdfWizard() {
             description: `Signature request sent to ${owner.email}`,
           });
 
-          // Update owner status to indicate email was sent
+          // Update owner status to indicate email was sent and save signature token
           const newOwners = [...owners];
           newOwners[ownerIndex] = { 
             ...newOwners[ownerIndex], 
             emailSent: true,
-            emailSentAt: new Date().toISOString()
+            emailSentAt: new Date().toISOString(),
+            signatureToken: result.signatureToken // Save the signature token
           };
           handleFieldChange('owners', newOwners);
         } else {
