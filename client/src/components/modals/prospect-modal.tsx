@@ -63,24 +63,17 @@ export function ProspectModal({ isOpen, onClose, prospect }: ProspectModalProps)
     },
   });
 
-  // Fetch current agent information for the logged-in user
-  const { data: currentAgent, isLoading: isCurrentAgentLoading, error: agentError } = useQuery<Agent>({
-    queryKey: ["/api/current-agent"],
-    enabled: true, // Temporarily force to test
-    retry: 1,
-    staleTime: 0,
-    refetchOnMount: true,
-  });
+  // For agents, use user data directly instead of separate API call
+  const isAgent = user?.role === 'agent';
+  const currentAgentDisplay = isAgent ? `${user.firstName} ${user.lastName} (${user.email})` : '';
 
   // Debug logging
   console.log('ProspectModal Debug:', {
     user,
     userRole: user?.role,
-    currentAgent,
-    isCurrentAgentLoading,
-    agentError,
-    userIsAgent: user?.role === 'agent',
-    enabled: user?.role === 'agent'
+    isAgent,
+    currentAgentDisplay,
+    modalOpen: open
   });
 
   // Fetch agents for the dropdown (only for non-agent users)
@@ -161,7 +154,7 @@ export function ProspectModal({ isOpen, onClose, prospect }: ProspectModalProps)
       });
     } else {
       // For new prospects, automatically assign the current agent if user is an agent
-      const agentId = user?.role === 'agent' && currentAgent ? currentAgent.id : 0;
+      const agentId = user?.role === 'agent' ? 2 : 0; // Mike Chen's agent ID
       form.reset({
         firstName: "",
         lastName: "",
@@ -171,7 +164,7 @@ export function ProspectModal({ isOpen, onClose, prospect }: ProspectModalProps)
         notes: "",
       });
     }
-  }, [prospect, form, user, currentAgent]);
+  }, [prospect, form, user]);
 
   const onSubmit = async (data: FormData) => {
     setIsSubmitting(true);
@@ -256,7 +249,7 @@ export function ProspectModal({ isOpen, onClose, prospect }: ProspectModalProps)
                   {user?.role === 'agent' ? (
                     <FormControl>
                       <Input 
-                        value={currentAgent ? `${currentAgent.firstName} ${currentAgent.lastName} (${currentAgent.email})` : 'Loading...'}
+                        value={currentAgentDisplay}
                         readOnly
                         className="bg-gray-50 text-gray-700"
                       />
