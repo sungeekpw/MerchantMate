@@ -870,9 +870,9 @@ export default function EnhancedPdfWizard() {
     };
 
     return (
-      <div className="space-y-4">
+      <div className="space-y-6">
         <div className="flex items-center justify-between">
-          <Label className="text-sm font-medium text-gray-700">
+          <Label className="text-lg font-semibold text-gray-800">
             {field.fieldLabel}
             {field.isRequired && <span className="text-red-500 ml-1">*</span>}
           </Label>
@@ -880,26 +880,31 @@ export default function EnhancedPdfWizard() {
             type="button"
             onClick={addOwner}
             size="sm"
-            className="flex items-center gap-2"
+            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white"
           >
             <Users className="w-4 h-4" />
             Add Owner
           </Button>
         </div>
 
-        <div className="space-y-4">
+        <div className="space-y-6">
           {owners.map((owner: any, index: number) => (
-            <Card key={index} className="p-4">
-              <div className="space-y-4">
+            <Card key={index} className="p-6 border-2 border-gray-100 hover:border-gray-200 transition-colors duration-200 shadow-sm">
+              <div className="space-y-6">
                 <div className="flex items-center justify-between">
-                  <h4 className="font-medium text-gray-900">Owner {index + 1}</h4>
+                  <h4 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                    <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
+                      <Users className="w-4 h-4 text-blue-600" />
+                    </div>
+                    Owner {index + 1}
+                  </h4>
                   {owners.length > 1 && (
                     <Button
                       type="button"
                       onClick={() => removeOwner(index)}
                       size="sm"
                       variant="outline"
-                      className="text-red-600 hover:text-red-700"
+                      className="text-red-600 hover:text-red-700 border-red-200 hover:border-red-300"
                     >
                       Remove
                     </Button>
