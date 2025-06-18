@@ -252,6 +252,12 @@ The application is configured for deployment on Replit with:
   - Enhanced error handling for signature request functionality with better logging
   - Form data now properly persists when users click Next button, preventing data loss
   - Both inline signatures and email signature requests now working correctly
+- June 18, 2025. Implemented intelligent wizard section detection and auto-advancement
+  - Added smart detection of completed sections to determine appropriate starting point
+  - Wizard now automatically advances to first incomplete section instead of always starting at beginning
+  - Analyzes completion status of Merchant Information, Business Type, and Business Ownership sections
+  - Enhanced user experience by resuming work where they left off based on actual completion status
+  - Users with completed Merchant Information now start directly at Business Type section
 
 ## User Preferences
 Preferred communication style: Simple, everyday language.

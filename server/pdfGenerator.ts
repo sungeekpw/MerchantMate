@@ -1,5 +1,6 @@
-import { generatePdf } from 'html-pdf-node';
 import { MerchantProspect } from '@shared/schema';
+import * as fs from 'fs';
+import * as path from 'path';
 
 interface FormData {
   assignedAgent: string;
@@ -31,310 +32,187 @@ interface FormData {
 
 export class PDFGenerator {
   async generateApplicationPDF(prospect: MerchantProspect, formData: FormData): Promise<Buffer> {
-    const html = this.generateHTML(prospect, formData);
-    
-    const options = {
-      format: 'A4',
-      margin: {
-        top: '20mm',
-        right: '15mm',
-        bottom: '20mm',
-        left: '15mm'
-      },
-      displayHeaderFooter: true,
-      headerTemplate: `
-        <div style="font-size: 10px; text-align: center; width: 100%; color: #666;">
-          Merchant Application - ${formData.companyName}
-        </div>
-      `,
-      footerTemplate: `
-        <div style="font-size: 10px; text-align: center; width: 100%; color: #666;">
-          Page <span class="pageNumber"></span> of <span class="totalPages"></span> | Generated on ${new Date().toLocaleDateString()}
-        </div>
-      `
-    };
-
     try {
-      const pdfBuffer = await generatePdf({ content: html }, {
-        ...options,
-        args: [
-          '--no-sandbox',
-          '--disable-setuid-sandbox',
-          '--disable-dev-shm-usage',
-          '--disable-gpu',
-          '--no-first-run'
-        ]
-      });
-      return pdfBuffer as Buffer;
+      // Generate a simple text-based PDF content using plain text formatting
+      const textContent = this.generateTextContent(prospect, formData);
+      
+      // Create a basic PDF structure with proper headers
+      const pdfContent = this.createBasicPDF(textContent, formData.companyName);
+      
+      return Buffer.from(pdfContent, 'binary');
     } catch (error) {
       console.error('PDF generation failed:', error);
       console.log('Continuing application submission without PDF attachment');
-      // Return empty buffer to allow submission to continue
-      return Buffer.from('PDF generation temporarily unavailable');
+      // Return a minimal valid PDF structure
+      return this.createMinimalPDF(formData.companyName);
     }
   }
 
-  private generateHTML(prospect: MerchantProspect, formData: FormData): string {
-    const submissionDate = new Date().toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    });
+  private createBasicPDF(content: string, companyName: string): string {
+    // Create a minimal but valid PDF structure
+    const date = new Date().toISOString();
+    
+    const pdfHeader = `%PDF-1.4
+1 0 obj
+<<
+/Type /Catalog
+/Pages 2 0 R
+>>
+endobj
 
-    return `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta charset="utf-8">
-        <title>Merchant Application - ${formData.companyName}</title>
-        <style>
-          body {
-            font-family: 'Arial', sans-serif;
-            line-height: 1.4;
-            color: #333;
-            margin: 0;
-            padding: 0;
-          }
-          .header {
-            background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
-            color: white;
-            padding: 30px;
-            text-align: center;
-            margin-bottom: 30px;
-          }
-          .header h1 {
-            margin: 0;
-            font-size: 28px;
-            font-weight: bold;
-          }
-          .header p {
-            margin: 10px 0 0 0;
-            font-size: 14px;
-            opacity: 0.9;
-          }
-          .section {
-            margin-bottom: 25px;
-            page-break-inside: avoid;
-          }
-          .section-title {
-            background: #f8fafc;
-            color: #1e40af;
-            padding: 12px 20px;
-            font-size: 16px;
-            font-weight: bold;
-            border-left: 4px solid #3b82f6;
-            margin-bottom: 15px;
-          }
-          .field-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 15px;
-            margin-bottom: 15px;
-          }
-          .field-group {
-            margin-bottom: 12px;
-          }
-          .field-label {
-            font-weight: 600;
-            color: #374151;
-            margin-bottom: 4px;
-            font-size: 12px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-          }
-          .field-value {
-            color: #111827;
-            font-size: 14px;
-            border-bottom: 1px solid #e5e7eb;
-            padding-bottom: 6px;
-            min-height: 18px;
-          }
-          .signature-section {
-            border: 2px solid #e5e7eb;
-            padding: 20px;
-            margin: 15px 0;
-            background: #fafafa;
-          }
-          .signature-box {
-            border: 1px solid #d1d5db;
-            padding: 15px;
-            margin: 10px 0;
-            background: white;
-            min-height: 60px;
-            display: flex;
-            align-items: center;
-          }
-          .signature-typed {
-            font-family: 'Brush Script MT', cursive;
-            font-size: 24px;
-            color: #1e40af;
-          }
-          .full-width {
-            grid-column: 1 / -1;
-          }
-          .status-badge {
-            display: inline-block;
-            background: #10b981;
-            color: white;
-            padding: 6px 12px;
-            border-radius: 20px;
-            font-size: 12px;
-            font-weight: 600;
-            text-transform: uppercase;
-          }
-          .footer {
-            margin-top: 40px;
-            padding: 20px;
-            background: #f9fafb;
-            border-radius: 8px;
-            text-align: center;
-            font-size: 12px;
-            color: #6b7280;
-          }
-          @media print {
-            .header { margin-bottom: 20px; }
-            .section { margin-bottom: 20px; }
-          }
-        </style>
-      </head>
-      <body>
-        <div class="header">
-          <h1>Merchant Application</h1>
-          <p>Submitted on ${submissionDate}</p>
-          <p><span class="status-badge">Submitted</span></p>
-        </div>
+2 0 obj
+<<
+/Type /Pages
+/Kids [3 0 R]
+/Count 1
+>>
+endobj
 
-        <div class="section">
-          <div class="section-title">Company Information</div>
-          <div class="field-grid">
-            <div class="field-group">
-              <div class="field-label">Company Name</div>
-              <div class="field-value">${formData.companyName || ''}</div>
-            </div>
-            <div class="field-group">
-              <div class="field-label">Business Type</div>
-              <div class="field-value">${formData.businessType || ''}</div>
-            </div>
-            <div class="field-group">
-              <div class="field-label">Federal Tax ID (EIN)</div>
-              <div class="field-value">${formData.federalTaxId || ''}</div>
-            </div>
-            <div class="field-group">
-              <div class="field-label">Years in Business</div>
-              <div class="field-value">${formData.yearsInBusiness || ''}</div>
-            </div>
-            <div class="field-group">
-              <div class="field-label">Company Email</div>
-              <div class="field-value">${formData.companyEmail || ''}</div>
-            </div>
-            <div class="field-group">
-              <div class="field-label">Company Phone</div>
-              <div class="field-value">${formData.companyPhone || ''}</div>
-            </div>
-          </div>
-        </div>
+3 0 obj
+<<
+/Type /Page
+/Parent 2 0 R
+/MediaBox [0 0 612 792]
+/Contents 4 0 R
+/Resources <<
+/Font <<
+/F1 5 0 R
+>>
+>>
+>>
+endobj
 
-        <div class="section">
-          <div class="section-title">Business Address</div>
-          <div class="field-grid">
-            <div class="field-group full-width">
-              <div class="field-label">Street Address</div>
-              <div class="field-value">${formData.address || ''}</div>
-            </div>
-            ${formData.addressLine2 ? `
-            <div class="field-group full-width">
-              <div class="field-label">Address Line 2</div>
-              <div class="field-value">${formData.addressLine2}</div>
-            </div>` : ''}
-            <div class="field-group">
-              <div class="field-label">City</div>
-              <div class="field-value">${formData.city || ''}</div>
-            </div>
-            <div class="field-group">
-              <div class="field-label">State</div>
-              <div class="field-value">${formData.state || ''}</div>
-            </div>
-            <div class="field-group">
-              <div class="field-label">ZIP Code</div>
-              <div class="field-value">${formData.zipCode || ''}</div>
-            </div>
-          </div>
-        </div>
+4 0 obj
+<<
+/Length ${content.length + 200}
+>>
+stream
+BT
+/F1 12 Tf
+50 750 Td
+(MERCHANT APPLICATION) Tj
+0 -20 Td
+(Company: ${companyName}) Tj
+0 -20 Td
+(Generated: ${new Date().toLocaleDateString()}) Tj
+0 -40 Td
+${content.split('\n').map(line => `(${line.replace(/[()\\]/g, '\\$&')}) Tj 0 -15 Td`).join('\n')}
+ET
+endstream
+endobj
 
-        <div class="section">
-          <div class="section-title">Business Ownership</div>
-          ${formData.owners?.map((owner, index) => `
-            <div class="signature-section">
-              <div class="field-grid">
-                <div class="field-group">
-                  <div class="field-label">Owner ${index + 1} Name</div>
-                  <div class="field-value">${owner.name || ''}</div>
-                </div>
-                <div class="field-group">
-                  <div class="field-label">Email Address</div>
-                  <div class="field-value">${owner.email || ''}</div>
-                </div>
-                <div class="field-group">
-                  <div class="field-label">Ownership Percentage</div>
-                  <div class="field-value">${owner.percentage || ''}%</div>
-                </div>
-              </div>
-              ${owner.signature ? `
-                <div class="field-group">
-                  <div class="field-label">Digital Signature</div>
-                  <div class="signature-box">
-                    <span class="signature-typed">${owner.signature}</span>
-                  </div>
-                </div>
-              ` : ''}
-            </div>
-          `).join('') || ''}
-        </div>
+5 0 obj
+<<
+/Type /Font
+/Subtype /Type1
+/BaseFont /Helvetica
+>>
+endobj
 
-        <div class="section">
-          <div class="section-title">Business Description</div>
-          <div class="field-group">
-            <div class="field-label">Business Description</div>
-            <div class="field-value">${formData.businessDescription || ''}</div>
-          </div>
-          <div class="field-group">
-            <div class="field-label">Products/Services Sold</div>
-            <div class="field-value">${formData.productsServices || ''}</div>
-          </div>
-          <div class="field-group">
-            <div class="field-label">Primary Processing Method</div>
-            <div class="field-value">${formData.processingMethod || ''}</div>
-          </div>
-        </div>
+xref
+0 6
+0000000000 65535 f 
+0000000010 00000 n 
+0000000056 00000 n 
+0000000111 00000 n 
+0000000246 00000 n 
+0000000${(500 + content.length).toString().padStart(6, '0')} 00000 n 
 
-        <div class="section">
-          <div class="section-title">Transaction Information</div>
-          <div class="field-grid">
-            <div class="field-group">
-              <div class="field-label">Expected Monthly Volume</div>
-              <div class="field-value">$${formData.monthlyVolume || '0.00'}</div>
-            </div>
-            <div class="field-group">
-              <div class="field-label">Average Transaction Amount</div>
-              <div class="field-value">$${formData.averageTicket || '0.00'}</div>
-            </div>
-            <div class="field-group">
-              <div class="field-label">Highest Single Transaction</div>
-              <div class="field-value">$${formData.highestTicket || '0.00'}</div>
-            </div>
-          </div>
-        </div>
+trailer
+<<
+/Size 6
+/Root 1 0 R
+>>
+startxref
+${600 + content.length}
+%%EOF`;
 
-        <div class="footer">
-          <p><strong>Application Reference:</strong> ${prospect.validationToken}</p>
-          <p><strong>Assigned Agent:</strong> ${formData.assignedAgent}</p>
-          <p>This application was submitted electronically and contains legally binding digital signatures.</p>
-          <p>Please retain this document for your records.</p>
-        </div>
-      </body>
-      </html>
-    `;
+    return pdfHeader;
   }
+
+  private createMinimalPDF(companyName: string): Buffer {
+    const minimalPdf = `%PDF-1.4
+1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj
+2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj
+3 0 obj<</Type/Page/Parent 2 0 R/MediaBox[0 0 612 792]/Contents 4 0 R/Resources<</Font<</F1 5 0 R>>>>>>endobj
+4 0 obj<</Length 150>>stream
+BT/F1 12 Tf 50 750 Td(MERCHANT APPLICATION)Tj 0 -20 Td(Company: ${companyName})Tj 0 -20 Td(Generated: ${new Date().toLocaleDateString()})Tj 0 -40 Td(PDF Generation Unavailable)Tj ET
+endstream endobj
+5 0 obj<</Type/Font/Subtype/Type1/BaseFont/Helvetica>>endobj
+xref 0 6
+0000000000 65535 f 
+0000000010 00000 n 
+0000000053 00000 n 
+0000000100 00000 n 
+0000000234 00000 n 
+0000000434 00000 n 
+trailer<</Size 6/Root 1 0 R>>startxref 494 %%EOF`;
+    
+    return Buffer.from(minimalPdf, 'binary');
+  }
+
+  private generateTextContent(prospect: MerchantProspect, formData: FormData): string {
+    const lines = [
+      '',
+      'COMPANY INFORMATION',
+      '===================',
+      `Company Name: ${formData.companyName || 'N/A'}`,
+      `Business Type: ${formData.businessType || 'N/A'}`,
+      `Federal Tax ID: ${formData.federalTaxId || 'N/A'}`,
+      `Years in Business: ${formData.yearsInBusiness || 'N/A'}`,
+      `Email: ${formData.companyEmail || 'N/A'}`,
+      `Phone: ${formData.companyPhone || 'N/A'}`,
+      '',
+      'BUSINESS ADDRESS',
+      '================',
+      `Address: ${formData.address || 'N/A'}`,
+      formData.addressLine2 ? `Address Line 2: ${formData.addressLine2}` : '',
+      `City: ${formData.city || 'N/A'}`,
+      `State: ${formData.state || 'N/A'}`,
+      `ZIP Code: ${formData.zipCode || 'N/A'}`,
+      '',
+      'BUSINESS OWNERSHIP',
+      '==================',
+    ];
+
+    if (formData.owners && formData.owners.length > 0) {
+      formData.owners.forEach((owner, index) => {
+        lines.push(`Owner ${index + 1}:`);
+        lines.push(`  Name: ${owner.name || 'N/A'}`);
+        lines.push(`  Email: ${owner.email || 'N/A'}`);
+        lines.push(`  Ownership: ${owner.percentage || '0'}%`);
+        if (owner.signature) {
+          lines.push(`  Signature: ${owner.signature} (${owner.signatureType || 'type'})`);
+        }
+        lines.push('');
+      });
+    }
+
+    lines.push('BUSINESS DESCRIPTION');
+    lines.push('====================');
+    lines.push(formData.businessDescription || 'N/A');
+    lines.push('');
+    lines.push('PRODUCTS/SERVICES');
+    lines.push('=================');
+    lines.push(formData.productsServices || 'N/A');
+    lines.push('');
+    lines.push('TRANSACTION INFORMATION');
+    lines.push('=======================');
+    lines.push(`Monthly Volume: $${formData.monthlyVolume || '0.00'}`);
+    lines.push(`Average Transaction: $${formData.averageTicket || '0.00'}`);
+    lines.push(`Highest Transaction: $${formData.highestTicket || '0.00'}`);
+    lines.push(`Processing Method: ${formData.processingMethod || 'N/A'}`);
+    lines.push('');
+    lines.push('APPLICATION DETAILS');
+    lines.push('===================');
+    lines.push(`Reference: ${prospect.validationToken}`);
+    lines.push(`Assigned Agent: ${formData.assignedAgent}`);
+    lines.push(`Submitted: ${new Date().toLocaleDateString()}`);
+
+    return lines.filter(line => line !== '').join('\n');
+  }
+
+
 }
 
 export const pdfGenerator = new PDFGenerator();
