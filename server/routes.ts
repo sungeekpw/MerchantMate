@@ -1449,6 +1449,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Public API endpoint for application status lookup by token (no auth required)
+  app.get("/api/prospects/status/:token", async (req, res) => {
+    try {
+      const { token } = req.params;
+      
+      if (!token) {
+        return res.status(400).json({ message: "Token is required" });
+      }
+
+      const prospect = await storage.getMerchantProspectByToken(token);
+      
+      if (!prospect) {
+        return res.status(404).json({ message: "Application not found" });
+      }
+
+      // Return prospect data for status display (no sensitive data)
+      res.json({
+        id: prospect.id,
+        firstName: prospect.firstName,
+        lastName: prospect.lastName,
+        email: prospect.email,
+        status: prospect.status,
+        createdAt: prospect.createdAt,
+        updatedAt: prospect.updatedAt,
+        validatedAt: prospect.validatedAt,
+        applicationStartedAt: prospect.applicationStartedAt,
+        formData: prospect.formData // Include form data for company name display
+      });
+    } catch (error) {
+      console.error("Error fetching prospect status:", error);
+      res.status(500).json({ message: "Failed to fetch application status" });
+    }
+  });
+
   // Update prospect status to "in progress" when they start filling out the form
   app.post("/api/prospects/:id/start-application", async (req, res) => {
     try {

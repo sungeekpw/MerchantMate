@@ -304,6 +304,8 @@ The application is configured for deployment on Replit with:
   - Enhanced agent dashboard with "Print PDF" button for submitted applications
   - Print view automatically formats content in professional card-based layout matching application view
   - Eliminates server-side PDF generation complexity while providing superior formatting control
+  - Moved print route to main app level to completely bypass sidebar and header navigation
+  - Print view now renders as standalone page with only application content for clean PDF output
 
 ## User Preferences
 Preferred communication style: Simple, everyday language.
