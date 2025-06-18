@@ -525,6 +525,10 @@ function ProspectModal({ isOpen, onClose, prospect }: ProspectModalProps) {
       } else {
         await createMutation.mutateAsync(data);
       }
+    } catch (error) {
+      // Error is already handled by the mutation's onError callback
+      // This catch prevents unhandled promise rejections
+      console.error('Form submission error:', error);
     } finally {
       setIsSubmitting(false);
     }

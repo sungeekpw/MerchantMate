@@ -326,6 +326,7 @@ The application is configured for deployment on Replit with:
   - Improved prospect management reliability with proper validation and error reporting
   - Updated frontend to display validation errors from server responses to users
   - Users now see clear messages like "A prospect with this email already exists" when duplicate emails are detected
+  - Fixed unhandled promise rejection runtime errors by adding proper error handling in form submission
 
 ## User Preferences
 Preferred communication style: Simple, everyday language.
