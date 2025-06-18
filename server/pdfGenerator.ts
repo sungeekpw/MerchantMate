@@ -42,40 +42,71 @@ export class PDFGenerator {
   }
 
   private createProfessionalFormPDF(prospect: MerchantProspect, formData: FormData): string {
-    const content = this.generateFormContent(prospect, formData);
+    const sections = this.createContentSections(prospect, formData);
+    const pages = this.distributeContentAcrossPages(sections);
     
-    const pdf = `%PDF-1.4
-1 0 obj
+    return this.buildMultiPagePDF(pages);
+  }
+
+  private buildMultiPagePDF(pages: string[]): string {
+    const pageCount = pages.length;
+    let objectCounter = 1;
+    
+    // Catalog object
+    let pdf = `%PDF-1.4
+${objectCounter} 0 obj
 <<
 /Type /Catalog
-/Pages 2 0 R
+/Pages ${objectCounter + 1} 0 R
 >>
 endobj
 
-2 0 obj
+`;
+    objectCounter++;
+
+    // Pages object
+    const pageRefs = [];
+    for (let i = 0; i < pageCount; i++) {
+      pageRefs.push(`${objectCounter + 1 + i} 0 R`);
+    }
+    
+    pdf += `${objectCounter} 0 obj
 <<
 /Type /Pages
-/Kids [3 0 R]
-/Count 1
+/Kids [${pageRefs.join(' ')}]
+/Count ${pageCount}
 >>
 endobj
 
-3 0 obj
+`;
+    objectCounter++;
+
+    // Page objects
+    const contentObjectStart = objectCounter + pageCount;
+    for (let i = 0; i < pageCount; i++) {
+      pdf += `${objectCounter} 0 obj
 <<
 /Type /Page
 /Parent 2 0 R
 /MediaBox [0 0 612 792]
-/Contents 4 0 R
+/Contents ${contentObjectStart + i} 0 R
 /Resources <<
 /Font <<
-/F1 5 0 R
-/F2 6 0 R
+/F1 ${contentObjectStart + pageCount} 0 R
+/F2 ${contentObjectStart + pageCount + 1} 0 R
 >>
 >>
 >>
 endobj
 
-4 0 obj
+`;
+      objectCounter++;
+    }
+
+    // Content objects
+    for (let i = 0; i < pageCount; i++) {
+      const content = pages[i];
+      pdf += `${objectCounter} 0 obj
 <<
 /Length ${content.length}
 >>
@@ -84,7 +115,12 @@ ${content}
 endstream
 endobj
 
-5 0 obj
+`;
+      objectCounter++;
+    }
+
+    // Font objects
+    pdf += `${objectCounter} 0 obj
 <<
 /Type /Font
 /Subtype /Type1
@@ -92,7 +128,10 @@ endobj
 >>
 endobj
 
-6 0 obj
+`;
+    objectCounter++;
+
+    pdf += `${objectCounter} 0 obj
 <<
 /Type /Font
 /Subtype /Type1
@@ -100,69 +139,170 @@ endobj
 >>
 endobj
 
-xref
-0 7
-0000000000 65535 f 
-0000000010 00000 n 
-0000000053 00000 n 
-0000000100 00000 n 
-0000000246 00000 n 
-0000000350 00000 n 
-0000000400 00000 n 
+`;
+    objectCounter++;
+
+    // Xref table
+    const totalObjects = objectCounter;
+    pdf += `xref
+0 ${totalObjects}
+0000000000 65535 f `;
+    
+    for (let i = 1; i < totalObjects; i++) {
+      pdf += `\n${(i * 100).toString().padStart(10, '0')} 00000 n `;
+    }
+
+    pdf += `
 
 trailer
 <<
-/Size 7
+/Size ${totalObjects}
 /Root 1 0 R
 >>
 startxref
-450
+${totalObjects * 100}
 %%EOF`;
 
     return pdf;
   }
 
-  private generateFormContent(prospect: MerchantProspect, formData: FormData): string {
+
+
+  private createContentSections(prospect: MerchantProspect, formData: FormData) {
     const cleanText = (text: string) => text.replace(/[()\\]/g, '\\$&');
     
-    let content = 'BT\n';
-    
-    // Header - Professional form title
+    const sections = [];
+
+    // Header section
+    sections.push({
+      type: 'header',
+      content: this.createHeaderSection(formData, cleanText),
+      height: 100
+    });
+
+    // Section 1: Merchant Information
+    sections.push({
+      type: 'section',
+      title: '1. MERCHANT INFORMATION',
+      content: this.createMerchantInfoSection(formData, cleanText),
+      height: 350
+    });
+
+    // Section 2: Business Ownership
+    sections.push({
+      type: 'section',
+      title: '2. BUSINESS OWNERSHIP',
+      content: this.createOwnershipSection(formData, cleanText),
+      height: formData.owners ? formData.owners.length * 120 + 60 : 80
+    });
+
+    // Section 3: Business Description
+    sections.push({
+      type: 'section',
+      title: '3. BUSINESS DESCRIPTION',
+      content: this.createDescriptionSection(formData, cleanText),
+      height: 80
+    });
+
+    // Section 4: Products & Services
+    sections.push({
+      type: 'section',
+      title: '4. PRODUCTS & SERVICES',
+      content: this.createServicesSection(formData, cleanText),
+      height: 80
+    });
+
+    // Section 5: Transaction Information
+    sections.push({
+      type: 'section',
+      title: '5. TRANSACTION INFORMATION',
+      content: this.createTransactionSection(formData, cleanText),
+      height: 150
+    });
+
+    // Footer section
+    sections.push({
+      type: 'footer',
+      content: this.createFooterSection(prospect, cleanText),
+      height: 60
+    });
+
+    return sections;
+  }
+
+  private distributeContentAcrossPages(sections: any[]): string[] {
+    const pages = [];
+    let currentPage = '';
+    let currentY = 750;
+    let pageNum = 1;
+
+    for (const section of sections) {
+      // Check if section fits on current page
+      if (currentY - section.height < 50 && currentPage !== '') {
+        // Finish current page and start new one
+        currentPage += 'ET\n';
+        pages.push(currentPage);
+        
+        // Start new page
+        currentPage = 'BT\n';
+        currentPage += '/F1 12 Tf\n';
+        currentPage += '50 750 Td\n';
+        currentPage += '(MERCHANT APPLICATION - Page ' + (++pageNum) + ') Tj\n';
+        currentPage += '0 -20 Td\n';
+        currentPage += '/F1 8 Tf\n';
+        currentPage += '(________________________________________________________________) Tj\n';
+        currentPage += '0 -30 Td\n';
+        currentY = 680;
+      }
+
+      if (currentPage === '') {
+        currentPage = 'BT\n';
+      }
+
+      currentPage += section.content;
+      currentY -= section.height;
+    }
+
+    // Add final page
+    if (currentPage !== '') {
+      currentPage += 'ET\n';
+      pages.push(currentPage);
+    }
+
+    return pages;
+  }
+
+  private createHeaderSection(formData: FormData, cleanText: Function): string {
+    let content = '';
     content += '/F2 16 Tf\n';
     content += '50 750 Td\n';
     content += '(MERCHANT PROCESSING APPLICATION) Tj\n';
-    
-    // Date and Agent info
     content += '300 0 Td\n';
     content += '/F1 10 Tf\n';
     content += '(' + new Date().toLocaleDateString() + ') Tj\n';
     content += '-300 0 Td\n';
-    
-    // Company name prominently displayed
     content += '0 -25 Td\n';
     content += '/F2 14 Tf\n';
     content += '(' + cleanText(formData.companyName || 'Company Name') + ') Tj\n';
-    
-    // Agent information
     content += '300 0 Td\n';
     content += '/F1 10 Tf\n';
     content += '(Agent: ' + cleanText(formData.assignedAgent || 'N/A') + ') Tj\n';
     content += '-300 0 Td\n';
-    
-    // Section separator
     content += '0 -20 Td\n';
     content += '/F1 8 Tf\n';
     content += '(________________________________________________________________) Tj\n';
-    
-    // Section 1: Merchant Information
     content += '0 -30 Td\n';
+    return content;
+  }
+
+  private createMerchantInfoSection(formData: FormData, cleanText: Function): string {
+    let content = '';
     content += '/F2 12 Tf\n';
     content += '(1. MERCHANT INFORMATION) Tj\n';
     content += '0 -15 Td\n';
     content += '/F1 8 Tf\n';
     content += '(________________________________________________) Tj\n';
-    
-    // Form fields with labels and underlines
+
     const fields = [
       ['LEGAL NAME OF BUSINESS', formData.companyName || ''],
       ['BUSINESS TYPE', formData.businessType || ''],
@@ -188,8 +328,12 @@ startxref
       content += '(________________________________) Tj\n';
     });
 
-    // Section 2: Business Ownership
     content += '0 -25 Td\n';
+    return content;
+  }
+
+  private createOwnershipSection(formData: FormData, cleanText: Function): string {
+    let content = '';
     content += '/F2 12 Tf\n';
     content += '(2. BUSINESS OWNERSHIP) Tj\n';
     content += '0 -15 Td\n';
@@ -232,8 +376,12 @@ startxref
       });
     }
 
-    // Section 3: Business Description
     content += '0 -25 Td\n';
+    return content;
+  }
+
+  private createDescriptionSection(formData: FormData, cleanText: Function): string {
+    let content = '';
     content += '/F2 12 Tf\n';
     content += '(3. BUSINESS DESCRIPTION) Tj\n';
     content += '0 -15 Td\n';
@@ -242,9 +390,12 @@ startxref
     content += '0 -15 Td\n';
     content += '/F1 10 Tf\n';
     content += '(' + cleanText(formData.businessDescription || 'Not provided') + ') Tj\n';
-
-    // Section 4: Products & Services
     content += '0 -20 Td\n';
+    return content;
+  }
+
+  private createServicesSection(formData: FormData, cleanText: Function): string {
+    let content = '';
     content += '/F2 12 Tf\n';
     content += '(4. PRODUCTS & SERVICES) Tj\n';
     content += '0 -15 Td\n';
@@ -253,9 +404,12 @@ startxref
     content += '0 -15 Td\n';
     content += '/F1 10 Tf\n';
     content += '(' + cleanText(formData.productsServices || 'Not provided') + ') Tj\n';
-
-    // Section 5: Transaction Information
     content += '0 -25 Td\n';
+    return content;
+  }
+
+  private createTransactionSection(formData: FormData, cleanText: Function): string {
+    let content = '';
     content += '/F2 12 Tf\n';
     content += '(5. TRANSACTION INFORMATION) Tj\n';
     content += '0 -15 Td\n';
@@ -281,8 +435,12 @@ startxref
       content += '(________________________) Tj\n';
     });
 
-    // Footer
     content += '0 -30 Td\n';
+    return content;
+  }
+
+  private createFooterSection(prospect: MerchantProspect, cleanText: Function): string {
+    let content = '';
     content += '/F1 8 Tf\n';
     content += '(________________________________________________________________) Tj\n';
     content += '0 -15 Td\n';
@@ -291,9 +449,6 @@ startxref
     content += '(Submitted: ' + new Date().toLocaleDateString() + ') Tj\n';
     content += '0 -12 Td\n';
     content += '(Status: Submitted for Processing) Tj\n';
-
-    content += 'ET\n';
-    
     return content;
   }
 
