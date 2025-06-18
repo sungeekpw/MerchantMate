@@ -1493,19 +1493,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Download application PDF for prospects
+  // Download application PDF for prospects  
   app.get("/api/prospects/:id/download-pdf", async (req, res) => {
     try {
       const { id } = req.params;
       const prospectId = parseInt(id);
 
+      console.log(`PDF Download - Prospect ID: ${prospectId}`);
+
       const prospect = await storage.getMerchantProspect(prospectId);
       if (!prospect) {
+        console.log(`PDF Download - Prospect ${prospectId} not found`);
         return res.status(404).json({ message: "Prospect not found" });
       }
 
-      // Check if prospect has submitted application
+      console.log(`PDF Download - Prospect status: ${prospect.status}`);
+
+      // Allow PDF download for submitted applications
       if (prospect.status !== 'submitted' && prospect.status !== 'applied') {
+        console.log(`PDF Download - Invalid status: ${prospect.status}`);
         return res.status(400).json({ message: "PDF only available for submitted applications" });
       }
 
@@ -1514,10 +1520,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (prospect.formData) {
         try {
           formData = JSON.parse(prospect.formData);
+          console.log(`PDF Download - Form data parsed successfully`);
         } catch (error) {
-          console.error('Error parsing form data:', error);
+          console.error('PDF Download - Error parsing form data:', error);
           return res.status(400).json({ message: "Invalid form data" });
         }
+      } else {
+        console.log(`PDF Download - No form data available`);
+        return res.status(400).json({ message: "No form data available" });
       }
 
       // Generate PDF document
