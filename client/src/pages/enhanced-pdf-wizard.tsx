@@ -376,6 +376,9 @@ export default function EnhancedPdfWizard() {
     
     console.log(`Navigating from step ${currentStep} to step ${prevStep}`);
     
+    // Mark current section as visited
+    setVisitedSections(prev => new Set([...prev, currentStep]));
+    
     // Save current form data before navigating for prospect mode
     if (isProspectMode && prospectData?.prospect?.id) {
       console.log('Saving form data with currentStep:', prevStep);
@@ -386,6 +389,42 @@ export default function EnhancedPdfWizard() {
     }
     
     setCurrentStep(prevStep);
+  };
+
+  // Check if a section has validation issues
+  const getSectionValidationStatus = (sectionIndex: number) => {
+    const section = sections[sectionIndex];
+    let hasErrors = false;
+
+    for (const field of section.fields) {
+      const error = validateField(field, formData[field.fieldName]);
+      if (error) {
+        hasErrors = true;
+        break;
+      }
+    }
+
+    // Special ownership validation
+    if (sectionIndex === 2) { // Business Ownership section
+      const owners = formData.owners || [];
+      const totalPercentage = owners.reduce((sum: number, owner: any) => sum + (parseFloat(owner.percentage) || 0), 0);
+      
+      if (totalPercentage !== 100) {
+        hasErrors = true;
+      }
+
+      // Check for missing signatures for owners with 25%+ ownership
+      const missingSignatures = owners.filter((owner: any) => {
+        const percentage = parseFloat(owner.percentage) || 0;
+        return percentage >= 25 && !owner.signature;
+      });
+
+      if (missingSignatures.length > 0) {
+        hasErrors = true;
+      }
+    }
+
+    return hasErrors;
   };
 
   // Fetch PDF form with fields (disable for prospect mode)
@@ -1898,6 +1937,10 @@ export default function EnhancedPdfWizard() {
                     const IconComponent = section.icon;
                     const isActive = currentStep === index;
                     const isCompleted = index < currentStep;
+                    const isVisited = Array.from(visitedSections).includes(index);
+                    const hasValidationIssues = getSectionValidationStatus(index);
+                    const showWarning = isVisited && hasValidationIssues && !isActive;
+                    
                     return (
                       <button
                         key={index}
@@ -1905,28 +1948,49 @@ export default function EnhancedPdfWizard() {
                         className={`w-full text-left p-4 rounded-xl transition-all duration-200 ${
                           isActive
                             ? 'bg-gradient-to-r from-blue-50 to-blue-100 border-blue-200 text-blue-800 shadow-md transform scale-[1.02]'
-                            : isCompleted
+                            : showWarning
+                            ? 'bg-gradient-to-r from-yellow-50 to-yellow-100 border-yellow-200 text-yellow-800 hover:shadow-sm'
+                            : isCompleted && !hasValidationIssues
                             ? 'bg-gradient-to-r from-green-50 to-green-100 border-green-200 text-green-800 hover:shadow-sm'
                             : 'bg-gray-50 border-gray-200 text-gray-700 hover:bg-gray-100 hover:shadow-sm'
                         } border`}
                       >
                         <div className="flex items-center space-x-3">
                           <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
-                            isActive ? 'bg-blue-200 shadow-sm' : isCompleted ? 'bg-green-200' : 'bg-gray-200'
+                            isActive 
+                              ? 'bg-blue-200 shadow-sm' 
+                              : showWarning
+                              ? 'bg-yellow-200'
+                              : isCompleted && !hasValidationIssues 
+                              ? 'bg-green-200' 
+                              : 'bg-gray-200'
                           }`}>
-                            <IconComponent className={`w-5 h-5 ${
-                              isActive ? 'text-blue-700' : isCompleted ? 'text-green-700' : 'text-gray-600'
-                            }`} />
+                            {showWarning ? (
+                              <AlertTriangle className="w-5 h-5 text-yellow-700" />
+                            ) : (
+                              <IconComponent className={`w-5 h-5 ${
+                                isActive 
+                                  ? 'text-blue-700' 
+                                  : isCompleted && !hasValidationIssues 
+                                  ? 'text-green-700' 
+                                  : 'text-gray-600'
+                              }`} />
+                            )}
                           </div>
                           <div className="flex-1">
                             <div className="font-semibold text-sm">{section.name}</div>
                             <div className="text-xs opacity-70 mt-1">
-                              {section.fields.length} field{section.fields.length !== 1 ? 's' : ''}
+                              {showWarning 
+                                ? 'Needs attention' 
+                                : `${section.fields.length} field${section.fields.length !== 1 ? 's' : ''}`
+                              }
                             </div>
                           </div>
-                          {isCompleted && (
+                          {showWarning ? (
+                            <AlertTriangle className="w-5 h-5 text-yellow-600" />
+                          ) : isCompleted && !hasValidationIssues ? (
                             <CheckCircle className="w-5 h-5 text-green-600" />
-                          )}
+                          ) : null}
                         </div>
                       </button>
                     );

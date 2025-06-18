@@ -345,6 +345,12 @@ The application is configured for deployment on Replit with:
   - Added agent role to DELETE /api/prospects/:id endpoint permissions
   - Agents can now delete prospects they created before applications are started
   - Maintains proper role-based access control while enabling agent workflow flexibility
+- June 18, 2025. Enhanced application wizard with section validation indicators
+  - Added yellow warning indicators for visited sections with validation issues
+  - Implemented section tracking to monitor which sections users have interacted with
+  - Visual indicators show: blue (active), green (complete), yellow (needs attention), gray (unvisited)
+  - Warning sections display alert triangles and "Needs attention" messaging
+  - Helps users quickly identify incomplete sections requiring additional work
 
 ## User Preferences
 Preferred communication style: Simple, everyday language.
