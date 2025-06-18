@@ -22,7 +22,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
-import { Plus, Search, Edit, Trash2, Mail, Calendar, User, Send } from "lucide-react";
+import { Plus, Search, Edit, Trash2, Mail, Calendar, User, Send, Download } from "lucide-react";
 import { insertMerchantProspectSchema, type MerchantProspectWithAgent, type Agent } from "@shared/schema";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
@@ -94,6 +94,36 @@ export default function Prospects() {
       setResendingEmail(null);
     },
   });
+
+  const handleDownloadPDF = async (prospect: MerchantProspectWithAgent) => {
+    try {
+      const response = await fetch(`/api/prospects/${prospect.id}/download-pdf`);
+      if (!response.ok) {
+        throw new Error('Failed to generate PDF');
+      }
+      
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${prospect.firstName}_${prospect.lastName}_Application_${new Date().toLocaleDateString().replace(/\//g, '_')}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      
+      toast({
+        title: "Success",
+        description: "Application PDF downloaded successfully",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to download PDF",
+        variant: "destructive",
+      });
+    }
+  };
 
   const filteredProspects = prospects.filter((prospect) => {
     if (statusFilter !== "all" && prospect.status !== statusFilter) {
@@ -278,6 +308,16 @@ export default function Prospects() {
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center space-x-2">
+                          {(prospect.status === 'submitted' || prospect.status === 'applied') && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleDownloadPDF(prospect)}
+                              title="Download application PDF"
+                            >
+                              <Download className="w-4 h-4" />
+                            </Button>
+                          )}
                           <Button
                             variant="ghost"
                             size="sm"

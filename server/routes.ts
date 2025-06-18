@@ -1427,6 +1427,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Download application PDF for prospects
+  app.get("/api/prospects/:id/download-pdf", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const prospectId = parseInt(id);
+
+      const prospect = await storage.getMerchantProspect(prospectId);
+      if (!prospect) {
+        return res.status(404).json({ message: "Prospect not found" });
+      }
+
+      // Check if prospect has submitted application
+      if (prospect.status !== 'submitted' && prospect.status !== 'applied') {
+        return res.status(400).json({ message: "PDF only available for submitted applications" });
+      }
+
+      // Parse form data
+      let formData: any = {};
+      if (prospect.formData) {
+        try {
+          formData = JSON.parse(prospect.formData);
+        } catch (error) {
+          console.error('Error parsing form data:', error);
+          return res.status(400).json({ message: "Invalid form data" });
+        }
+      }
+
+      // Generate PDF document
+      try {
+        const { pdfGenerator } = await import('./pdfGenerator');
+        const pdfBuffer = await pdfGenerator.generateApplicationPDF(prospect, formData);
+        
+        // Set headers for PDF download
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename="${prospect.firstName}_${prospect.lastName}_Application_${new Date().toLocaleDateString().replace(/\//g, '_')}.pdf"`);
+        res.send(pdfBuffer);
+      } catch (pdfError) {
+        console.error('PDF generation failed:', pdfError);
+        res.status(500).json({ message: "Failed to generate PDF" });
+      }
+    } catch (error) {
+      console.error("Error downloading prospect PDF:", error);
+      res.status(500).json({ message: "Failed to download PDF" });
+    }
+  });
+
   // Submit complete application for prospects
   app.post("/api/prospects/:id/submit-application", async (req, res) => {
     try {
