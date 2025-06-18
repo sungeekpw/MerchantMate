@@ -1,11 +1,13 @@
 import { useState, useRef } from "react";
 import { useLocation } from "wouter";
+import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { PenTool, Type, FileSignature, CheckCircle } from "lucide-react";
+import { PenTool, Type, FileSignature, CheckCircle, Building2, User, Mail, Percent } from "lucide-react";
 
 export default function SignatureRequest() {
   const [, setLocation] = useLocation();
@@ -22,6 +24,20 @@ export default function SignatureRequest() {
   const urlParams = new URLSearchParams(window.location.search);
   const signatureToken = urlParams.get('token');
 
+  // Fetch application context for this signature request
+  const { data: contextData, isLoading: contextLoading, error: contextError } = useQuery({
+    queryKey: [`/api/signature-request/${signatureToken}`],
+    queryFn: async () => {
+      if (!signatureToken) throw new Error('No token provided');
+      const response = await fetch(`/api/signature-request/${signatureToken}`);
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      return response.json();
+    },
+    enabled: !!signatureToken,
+  });
+
   if (!signatureToken) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
@@ -36,6 +52,38 @@ export default function SignatureRequest() {
       </div>
     );
   }
+
+  if (contextLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <Card className="max-w-md w-full">
+          <CardHeader className="text-center">
+            <CardTitle>Loading...</CardTitle>
+            <CardDescription>
+              Retrieving signature request details...
+            </CardDescription>
+          </CardHeader>
+        </Card>
+      </div>
+    );
+  }
+
+  if (contextError || !contextData?.success) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <Card className="max-w-md w-full">
+          <CardHeader className="text-center">
+            <CardTitle className="text-red-600">Invalid Request</CardTitle>
+            <CardDescription>
+              This signature request is invalid or has expired.
+            </CardDescription>
+          </CardHeader>
+        </Card>
+      </div>
+    );
+  }
+
+  const applicationContext = contextData.applicationContext;
 
   const startDrawing = (e: React.MouseEvent<HTMLCanvasElement>) => {
     setIsDrawing(true);
@@ -191,7 +239,77 @@ export default function SignatureRequest() {
 
   return (
     <div className="min-h-screen bg-gray-50 py-8 px-4">
-      <div className="max-w-2xl mx-auto">
+      <div className="max-w-2xl mx-auto space-y-6">
+        {/* Application Details Card */}
+        <Card className="shadow-lg">
+          <CardHeader>
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                <Building2 className="w-5 h-5 text-blue-600" />
+              </div>
+              <div>
+                <CardTitle className="text-lg">Merchant Application Signature Request</CardTitle>
+                <CardDescription>Application details for your reference</CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <Building2 className="w-4 h-4 text-gray-500" />
+                  <div>
+                    <p className="text-sm text-gray-600">Company</p>
+                    <p className="font-medium">{applicationContext.companyName}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <User className="w-4 h-4 text-gray-500" />
+                  <div>
+                    <p className="text-sm text-gray-600">Applicant</p>
+                    <p className="font-medium">{applicationContext.applicantName}</p>
+                  </div>
+                </div>
+              </div>
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <Percent className="w-4 h-4 text-gray-500" />
+                  <div>
+                    <p className="text-sm text-gray-600">Your Ownership</p>
+                    <p className="font-medium">{applicationContext.ownershipPercentage}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline" className="text-xs">
+                    Application ID: {applicationContext.applicationId}
+                  </Badge>
+                </div>
+              </div>
+            </div>
+            <div className="bg-blue-50 p-4 rounded-lg">
+              <p className="text-sm text-blue-800">
+                <strong>Hello {applicationContext.ownerName},</strong> Your signature is required to complete the merchant processing application for <strong>{applicationContext.companyName}</strong>. As a business owner with {applicationContext.ownershipPercentage} ownership, your signature is legally required to proceed with the application.
+              </p>
+            </div>
+            
+            {/* Agent Contact Information */}
+            <div className="border-t pt-4">
+              <div className="flex items-center gap-2 mb-2">
+                <Mail className="w-4 h-4 text-gray-500" />
+                <p className="text-sm text-gray-600">Your assigned agent</p>
+              </div>
+              <div className="bg-gray-50 p-3 rounded-lg">
+                <p className="font-medium">{applicationContext.agentName}</p>
+                <p className="text-sm text-gray-600">{applicationContext.agentEmail}</p>
+                <p className="text-xs text-gray-500 mt-1">
+                  Contact your agent if you have questions about this signature request.
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Signature Card */}
         <Card className="shadow-lg">
           <CardHeader className="text-center">
             <div className="mx-auto w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mb-4">

@@ -1858,6 +1858,67 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get application context by signature token (for signature request page)
+  app.get("/api/signature-request/:token", async (req, res) => {
+    try {
+      const { token } = req.params;
+      
+      // Find the prospect owner by signature token
+      const owner = await storage.getProspectOwnerBySignatureToken(token);
+      if (!owner) {
+        return res.status(404).json({ 
+          success: false, 
+          message: "Invalid signature token" 
+        });
+      }
+
+      // Get prospect details
+      const prospect = await storage.getMerchantProspect(owner.prospectId);
+      if (!prospect) {
+        return res.status(404).json({ 
+          success: false, 
+          message: "Application not found" 
+        });
+      }
+
+      // Parse form data to get company name
+      let formData: any = {};
+      if (prospect.formData) {
+        try {
+          formData = JSON.parse(prospect.formData);
+        } catch (e) {
+          console.error('Error parsing form data:', e);
+          formData = {};
+        }
+      }
+
+      // Get agent information
+      const agent = await storage.getAgent(prospect.agentId);
+
+      res.json({ 
+        success: true, 
+        applicationContext: {
+          companyName: formData.companyName || `${prospect.firstName} ${prospect.lastName}`,
+          applicantName: `${prospect.firstName} ${prospect.lastName}`,
+          applicantEmail: prospect.email,
+          agentName: agent ? `${agent.firstName} ${agent.lastName}` : 'Unknown Agent',
+          agentEmail: agent ? agent.email : '',
+          ownerName: owner.name,
+          ownerEmail: owner.email,
+          ownershipPercentage: owner.ownershipPercentage,
+          applicationId: prospect.id,
+          status: prospect.status
+        }
+      });
+    } catch (error) {
+      console.error("Error fetching signature request context:", error);
+      res.status(500).json({ 
+        success: false, 
+        message: "Failed to fetch application context" 
+      });
+    }
+  });
+
   // Get signature by token (for retrieving submitted signatures)
   app.get("/api/signature/:token", async (req, res) => {
     try {
