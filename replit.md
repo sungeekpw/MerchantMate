@@ -239,6 +239,12 @@ The application is configured for deployment on Replit with:
   - Enhanced browser cache clearing for localStorage and sessionStorage interference prevention
   - Address selection now reliably overwrites cached data and updates form fields from database
   - System performs multiple force updates at 100ms, 300ms, 500ms, and 1000ms intervals for reliability
+- June 18, 2025. Corrected signature threshold to 25% or greater ownership
+  - Fixed business rule from >25% to ≥25% for signature requirements
+  - Updated validation logic to use `percentage >= 25` instead of `percentage > 25`
+  - Changed UI text to "Owners with 25% or more ownership must provide a signature"
+  - Error messages now show "Signature required for ownership ≥ 25%"
+  - Ensures owners with exactly 25% ownership are properly required to provide signatures
 
 ## User Preferences
 Preferred communication style: Simple, everyday language.

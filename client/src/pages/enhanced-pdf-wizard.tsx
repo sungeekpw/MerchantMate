@@ -808,9 +808,9 @@ export default function EnhancedPdfWizard() {
           return `Owner ${i + 1}: Please enter a valid email address`;
         }
 
-        // Check signature requirement for owners with >25%
-        if (percentage > 25 && !owner.signature) {
-          return `Owner ${i + 1}: Signature required for ownership > 25%`;
+        // Check signature requirement for owners with >=25%
+        if (percentage >= 25 && !owner.signature) {
+          return `Owner ${i + 1}: Signature required for ownership ≥ 25%`;
         }
       }
 
@@ -1295,15 +1295,15 @@ export default function EnhancedPdfWizard() {
                       </div>
                     </div>
 
-                    {/* Signature requirement for owners with >25% */}
-                    {parseFloat(owner.percentage) > 25 && (
+                    {/* Signature requirement for owners with >=25% */}
+                    {parseFloat(owner.percentage) >= 25 && (
                       <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
                         <div className="flex items-start gap-2 mb-3">
                           <FileText className="w-5 h-5 text-amber-600 mt-0.5" />
                           <div>
                             <p className="text-sm font-medium text-amber-800">Signature Required</p>
                             <p className="text-xs text-amber-700">
-                              Owners with more than 25% ownership must provide a signature
+                              Owners with 25% or more ownership must provide a signature
                             </p>
                           </div>
                         </div>
