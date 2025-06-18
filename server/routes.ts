@@ -1494,12 +1494,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Download application PDF for prospects  
-  app.get("/api/prospects/:id/download-pdf", isAuthenticated, async (req, res) => {
+  app.get("/api/prospects/:id/download-pdf", async (req, res) => {
+    console.log(`PDF Download - Route hit for prospect ${req.params.id}`);
+    
     try {
       const { id } = req.params;
       const prospectId = parseInt(id);
 
-      console.log(`PDF Download - Prospect ID: ${prospectId}`);
+      if (isNaN(prospectId)) {
+        console.log(`PDF Download - Invalid prospect ID: ${id}`);
+        return res.status(400).json({ message: "Invalid prospect ID" });
+      }
+
+      console.log(`PDF Download - Looking up prospect ID: ${prospectId}`);
 
       const prospect = await storage.getMerchantProspect(prospectId);
       if (!prospect) {
@@ -1507,7 +1514,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Prospect not found" });
       }
 
-      console.log(`PDF Download - Prospect status: ${prospect.status}`);
+      console.log(`PDF Download - Found prospect: ${prospect.firstName} ${prospect.lastName}, status: ${prospect.status}`);
 
       // Allow PDF download for submitted applications
       if (prospect.status !== 'submitted' && prospect.status !== 'applied') {
@@ -1520,7 +1527,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (prospect.formData) {
         try {
           formData = JSON.parse(prospect.formData);
-          console.log(`PDF Download - Form data parsed successfully`);
+          console.log(`PDF Download - Form data parsed successfully, company: ${formData.companyName}`);
         } catch (error) {
           console.error('PDF Download - Error parsing form data:', error);
           return res.status(400).json({ message: "Invalid form data" });
