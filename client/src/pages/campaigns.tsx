@@ -196,7 +196,7 @@ export default function CampaignsPage() {
   });
 
   return (
-    <div className="space-y-6">
+    <div className="p-6 space-y-6">
       {/* Main Tabs Interface */}
       <Tabs defaultValue="campaigns" className="space-y-6">
         <TabsList className="grid w-full grid-cols-4">
