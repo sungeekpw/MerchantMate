@@ -1368,6 +1368,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Clear address data from cached form data
+  app.post("/api/prospects/:id/clear-address-data", async (req, res) => {
+    try {
+      const prospectId = parseInt(req.params.id);
+      const prospect = await storage.getMerchantProspect(prospectId);
+      
+      if (!prospect || !prospect.formData) {
+        return res.json({ success: true, message: "No cached data to clear" });
+      }
+
+      // Parse existing form data and remove address fields
+      const existingFormData = typeof prospect.formData === 'string' 
+        ? JSON.parse(prospect.formData) 
+        : prospect.formData;
+      
+      // Remove address-related fields
+      delete existingFormData.address;
+      delete existingFormData.city;
+      delete existingFormData.state;
+      delete existingFormData.zipCode;
+      
+      // Save cleaned form data back
+      await storage.updateMerchantProspect(prospectId, {
+        formData: JSON.stringify(existingFormData)
+      });
+
+      res.json({ success: true, message: "Address data cleared" });
+    } catch (error) {
+      console.error("Error clearing address data:", error);
+      res.status(500).json({ message: "Failed to clear address data" });
+    }
+  });
+
   // Save form data for prospects
   app.post("/api/prospects/:id/save-form-data", async (req, res) => {
     try {

@@ -468,8 +468,10 @@ export default function EnhancedPdfWizard() {
   });
 
   // Initialize form data with agent and prospect information for prospects
+  const [initialDataLoaded, setInitialDataLoaded] = useState(false);
+  
   useEffect(() => {
-    if (isProspectMode && prospectData?.prospect && prospectData?.agent) {
+    if (isProspectMode && prospectData?.prospect && prospectData?.agent && !initialDataLoaded) {
       const newData = {
         assignedAgent: `${prospectData.agent.firstName} ${prospectData.agent.lastName} (${prospectData.agent.email})`,
         companyEmail: prospectData.prospect.email
@@ -507,8 +509,10 @@ export default function EnhancedPdfWizard() {
           ...newData
         }));
       }
+      
+      setInitialDataLoaded(true);
     }
-  }, [isProspectMode, prospectData]);
+  }, [isProspectMode, prospectData, initialDataLoaded]);
 
   // Track when user starts filling out the form and update prospect status
   const handleFieldInteraction = (fieldName: string, value: any) => {
