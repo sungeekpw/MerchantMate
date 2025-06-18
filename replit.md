@@ -430,6 +430,15 @@ The application is configured for deployment on Replit with:
   - Added graceful shutdown handling for clean database connection termination
   - Application now starts successfully and maintains stable database connectivity
   - Agent authentication and dashboard functionality confirmed working properly
+- June 18, 2025. Implemented owner pre-population feature for prospect applications
+  - First business owner automatically populated with prospect's full name and email address
+  - Pre-population only occurs for first owner in prospect mode when valid prospect data available
+  - Additional owners continue to start with blank fields for manual entry
+  - Improves user experience by reducing duplicate data entry for applicants
+- June 18, 2025. Fixed application submission redirect URL format
+  - Corrected redirect from query parameter format (?token=) to path parameter format (/token)
+  - Application status page now loads properly after submission instead of showing login page
+  - Ensures seamless user experience from application completion to status tracking
 
 ## User Preferences
 Preferred communication style: Simple, everyday language.

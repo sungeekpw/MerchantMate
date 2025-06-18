@@ -280,7 +280,7 @@ export default function EnhancedPdfWizard() {
         });
         
         // Redirect to application status page
-        setLocation(`/application-status?token=${prospectToken}`);
+        setLocation(`/application-status/${prospectToken}`);
       }
     },
     onError: (error: any) => {
