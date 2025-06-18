@@ -135,18 +135,18 @@ startxref
     // Date and Agent info
     content += '300 0 Td\n';
     content += '/F1 10 Tf\n';
-    content += `(${new Date().toLocaleDateString()}) Tj\n`;
+    content += '(' + new Date().toLocaleDateString() + ') Tj\n';
     content += '-300 0 Td\n';
     
     // Company name prominently displayed
     content += '0 -25 Td\n';
     content += '/F2 14 Tf\n';
-    content += `(${cleanText(formData.companyName || 'Company Name')}) Tj\n`;
+    content += '(' + cleanText(formData.companyName || 'Company Name') + ') Tj\n';
     
     // Agent information
     content += '300 0 Td\n';
     content += '/F1 10 Tf\n';
-    content += `(Agent: ${cleanText(formData.assignedAgent || 'N/A')}) Tj\n`;
+    content += '(Agent: ' + cleanText(formData.assignedAgent || 'N/A') + ') Tj\n';
     content += '-300 0 Td\n';
     
     // Section separator
@@ -179,13 +179,13 @@ startxref
     fields.forEach(([label, value]) => {
       content += '0 -20 Td\n';
       content += '/F2 9 Tf\n';
-      content += `(${cleanText(label)}) Tj\n`;
+      content += '(' + cleanText(label) + ') Tj\n';
       content += '0 -12 Td\n';
       content += '/F1 10 Tf\n';
-      content += `(${cleanText(value)}) Tj\n`;
+      content += '(' + cleanText(value) + ') Tj\n';
       content += '0 -3 Td\n';
       content += '/F1 8 Tf\n';
-      content += '(________________________________) Tj\n`;
+      content += '(________________________________) Tj\n';
     });
 
     // Section 2: Business Ownership
@@ -200,24 +200,24 @@ startxref
       formData.owners.forEach((owner, index) => {
         content += '0 -20 Td\n';
         content += '/F2 10 Tf\n';
-        content += `(OWNER ${index + 1}) Tj\n`;
+        content += '(OWNER ' + (index + 1) + ') Tj\n';
         
         const ownerFields = [
           ['NAME', owner.name || ''],
           ['EMAIL', owner.email || ''],
-          ['OWNERSHIP PERCENTAGE', `${owner.percentage || '0'}%`]
+          ['OWNERSHIP PERCENTAGE', (owner.percentage || '0') + '%']
         ];
 
         ownerFields.forEach(([label, value]) => {
           content += '0 -15 Td\n';
           content += '/F2 8 Tf\n';
-          content += `(${cleanText(label)}) Tj\n`;
+          content += '(' + cleanText(label) + ') Tj\n';
           content += '0 -10 Td\n';
           content += '/F1 9 Tf\n';
-          content += `(${cleanText(value)}) Tj\n`;
+          content += '(' + cleanText(value) + ') Tj\n';
           content += '0 -2 Td\n';
           content += '/F1 7 Tf\n';
-          content += '(____________________) Tj\n`;
+          content += '(____________________) Tj\n';
         });
 
         if (owner.signature) {
@@ -227,7 +227,7 @@ startxref
           content += '0 -10 Td\n';
           content += '/F1 9 Tf\n';
           const sigType = owner.signatureType === 'type' ? 'Typed' : 'Drawn';
-          content += `(${cleanText(owner.signature)} (${sigType})) Tj\n`;
+          content += '(' + cleanText(owner.signature) + ' (' + sigType + ')) Tj\n';
         }
       });
     }
@@ -241,7 +241,7 @@ startxref
     content += '(________________________________________________) Tj\n';
     content += '0 -15 Td\n';
     content += '/F1 10 Tf\n';
-    content += `(${cleanText(formData.businessDescription || 'Not provided')}) Tj\n`;
+    content += '(' + cleanText(formData.businessDescription || 'Not provided') + ') Tj\n';
 
     // Section 4: Products & Services
     content += '0 -20 Td\n';
@@ -252,7 +252,7 @@ startxref
     content += '(________________________________________________) Tj\n';
     content += '0 -15 Td\n';
     content += '/F1 10 Tf\n';
-    content += `(${cleanText(formData.productsServices || 'Not provided')}) Tj\n`;
+    content += '(' + cleanText(formData.productsServices || 'Not provided') + ') Tj\n';
 
     // Section 5: Transaction Information
     content += '0 -25 Td\n';
@@ -263,22 +263,22 @@ startxref
     content += '(________________________________________________) Tj\n';
 
     const transactionFields = [
-      ['MONTHLY VOLUME', `$${formData.monthlyVolume || '0.00'}`],
-      ['AVERAGE TRANSACTION', `$${formData.averageTicket || '0.00'}`],
-      ['HIGHEST TRANSACTION', `$${formData.highestTicket || '0.00'}`],
+      ['MONTHLY VOLUME', '$' + (formData.monthlyVolume || '0.00')],
+      ['AVERAGE TRANSACTION', '$' + (formData.averageTicket || '0.00')],
+      ['HIGHEST TRANSACTION', '$' + (formData.highestTicket || '0.00')],
       ['PROCESSING METHOD', formData.processingMethod || 'Not specified']
     ];
 
     transactionFields.forEach(([label, value]) => {
       content += '0 -18 Td\n';
       content += '/F2 9 Tf\n';
-      content += `(${cleanText(label)}) Tj\n`;
+      content += '(' + cleanText(label) + ') Tj\n';
       content += '0 -10 Td\n';
       content += '/F1 10 Tf\n';
-      content += `(${cleanText(value)}) Tj\n`;
+      content += '(' + cleanText(value) + ') Tj\n';
       content += '0 -3 Td\n';
       content += '/F1 8 Tf\n';
-      content += '(________________________) Tj\n`;
+      content += '(________________________) Tj\n';
     });
 
     // Footer
@@ -286,9 +286,9 @@ startxref
     content += '/F1 8 Tf\n';
     content += '(________________________________________________________________) Tj\n';
     content += '0 -15 Td\n';
-    content += `(Application Reference: ${cleanText(prospect.validationToken || 'N/A')}) Tj\n`;
+    content += '(Application Reference: ' + cleanText(prospect.validationToken || 'N/A') + ') Tj\n';
     content += '0 -12 Td\n';
-    content += `(Submitted: ${new Date().toLocaleDateString()}) Tj\n`;
+    content += '(Submitted: ' + new Date().toLocaleDateString() + ') Tj\n';
     content += '0 -12 Td\n';
     content += '(Status: Submitted for Processing) Tj\n';
 
