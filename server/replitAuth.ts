@@ -7,6 +7,7 @@ import type { Express, RequestHandler } from "express";
 import memoize from "memoizee";
 import connectPg from "connect-pg-simple";
 import { storage } from "./storage";
+import { v4 as uuidv4 } from "uuid";
 
 if (!process.env.REPLIT_DOMAINS) {
   throw new Error("Environment variable REPLIT_DOMAINS not provided");
@@ -167,8 +168,6 @@ export const isAuthenticated: RequestHandler = async (req, res, next) => {
     }
     
     console.log('DevAuth - UserId from session:', userId);
-    
-    console.log('isAuthenticated - UserId:', userId);
     
     try {
       const dbUser = await storage.getUser(userId);
