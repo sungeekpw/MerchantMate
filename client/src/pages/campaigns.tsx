@@ -231,49 +231,36 @@ export default function CampaignsPage() {
         {/* Campaigns Tab */}
         <TabsContent value="campaigns" className="space-y-6">
           <div className="flex items-center justify-between">
-            <h2 className="text-2xl font-semibold">Campaigns</h2>
+            <div className="flex gap-4 flex-1">
+              <div className="relative flex-1 max-w-sm">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                <Input
+                  placeholder="Search campaigns..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+              <Select value={selectedAcquirer} onValueChange={setSelectedAcquirer}>
+                <SelectTrigger className="w-48">
+                  <SelectValue placeholder="Select Acquirer" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Acquirers</SelectItem>
+                  <SelectItem value="Esquire">Esquire</SelectItem>
+                  <SelectItem value="Merrick">Merrick</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
             <Button onClick={() => setShowAddCampaign(true)}>
               <Plus className="h-4 w-4 mr-2" />
               Add Campaign
             </Button>
           </div>
 
-          {/* Campaign Filters */}
           <Card>
             <CardHeader>
-              <CardTitle>Search & Filter Campaigns</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex gap-4">
-                <div className="flex-1">
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-                    <Input
-                      placeholder="Search by Campaign ID or Name..."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      className="pl-10"
-                    />
-                  </div>
-                </div>
-                <Select value={selectedAcquirer} onValueChange={setSelectedAcquirer}>
-                  <SelectTrigger className="w-48">
-                    <SelectValue placeholder="Select Acquirer" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Acquirers</SelectItem>
-                    <SelectItem value="Esquire">Esquire</SelectItem>
-                    <SelectItem value="Merrick">Merrick</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Campaigns Table */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Campaigns</CardTitle>
+              <CardTitle>Active Campaigns</CardTitle>
               <CardDescription>
                 Manage your pricing campaigns and their configurations
               </CardDescription>
@@ -381,7 +368,13 @@ export default function CampaignsPage() {
         {/* Fee Groups Tab */}
         <TabsContent value="fee-groups" className="space-y-6">
           <div className="flex items-center justify-between">
-            <h2 className="text-2xl font-semibold">Fee Groups</h2>
+            <div className="relative max-w-sm">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+              <Input
+                placeholder="Search fee groups..."
+                className="pl-10"
+              />
+            </div>
             <Button onClick={() => setShowAddFeeGroup(true)}>
               <Plus className="h-4 w-4 mr-2" />
               Add Fee Group
@@ -389,7 +382,13 @@ export default function CampaignsPage() {
           </div>
 
           <Card>
-            <CardContent className="pt-6">
+            <CardHeader>
+              <CardTitle>Fee Groups</CardTitle>
+              <CardDescription>
+                Organize fee items into logical groups for better management
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
               {feeGroupsLoading ? (
                 <div className="text-center py-8 text-muted-foreground">Loading fee groups...</div>
               ) : feeGroups.length === 0 ? (
@@ -451,7 +450,13 @@ export default function CampaignsPage() {
         {/* Fee Items Tab */}
         <TabsContent value="fee-items" className="space-y-6">
           <div className="flex items-center justify-between">
-            <h2 className="text-2xl font-semibold">Fee Items</h2>
+            <div className="relative max-w-sm">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+              <Input
+                placeholder="Search fee items..."
+                className="pl-10"
+              />
+            </div>
             <Button onClick={() => setShowAddFeeItem(true)}>
               <Plus className="h-4 w-4 mr-2" />
               Add Fee Item
@@ -459,7 +464,13 @@ export default function CampaignsPage() {
           </div>
 
           <Card>
-            <CardContent className="pt-6">
+            <CardHeader>
+              <CardTitle>Fee Items</CardTitle>
+              <CardDescription>
+                Individual fee components that can be assigned to pricing types
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
               {feeItemsLoading ? (
                 <div className="text-center py-8 text-muted-foreground">Loading fee items...</div>
               ) : feeItems.length === 0 ? (
@@ -534,7 +545,13 @@ export default function CampaignsPage() {
         {/* Pricing Types Tab */}
         <TabsContent value="pricing-types" className="space-y-6">
           <div className="flex items-center justify-between">
-            <h2 className="text-2xl font-semibold">Pricing Types</h2>
+            <div className="relative max-w-sm">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+              <Input
+                placeholder="Search pricing types..."
+                className="pl-10"
+              />
+            </div>
             <Button onClick={() => setShowAddPricingType(true)}>
               <Plus className="h-4 w-4 mr-2" />
               Add Pricing Type
@@ -542,7 +559,13 @@ export default function CampaignsPage() {
           </div>
 
           <Card>
-            <CardContent className="pt-6">
+            <CardHeader>
+              <CardTitle>Pricing Types</CardTitle>
+              <CardDescription>
+                Template configurations combining multiple fee items for different merchant types
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
               {pricingTypes.length === 0 ? (
                 <div className="text-center py-8">
                   <div className="text-muted-foreground mb-4">No pricing types found</div>
