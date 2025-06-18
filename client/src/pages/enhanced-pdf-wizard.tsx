@@ -441,7 +441,14 @@ export default function EnhancedPdfWizard() {
           title: "Application Submitted",
           description: "Your merchant application has been submitted successfully. You will be contacted by your assigned agent soon.",
         });
-        // Don't redirect prospects, show success message
+        
+        // Redirect to application status page for prospects
+        if (prospectData?.prospect?.id) {
+          console.log('Redirecting to application status page for prospect:', prospectData.prospect.id);
+          setTimeout(() => {
+            setLocation(`/application-status/${prospectData.prospect.id}`);
+          }, 2000); // Give user time to see the success message
+        }
       } else {
         toast({
           title: "Application Submitted",
