@@ -571,10 +571,41 @@ export default function EnhancedPdfWizard() {
         const result = await response.json();
         if (result.success && result.owners.length > 0) {
           console.log("Found owners with signatures from database:", result.owners);
-          setFormData(prev => ({
-            ...prev,
-            owners: result.owners
-          }));
+          
+          // Merge signature data with existing owners instead of replacing the entire array
+          setFormData(prev => {
+            const existingOwners = prev.owners || [];
+            const signatureOwners = result.owners;
+            
+            // Create a map of signatures by email for easy lookup
+            const signatureMap = new Map();
+            signatureOwners.forEach(sigOwner => {
+              signatureMap.set(sigOwner.email, sigOwner);
+            });
+            
+            // Update existing owners with signature data if available
+            const updatedOwners = existingOwners.map(owner => {
+              const signatureData = signatureMap.get(owner.email);
+              if (signatureData) {
+                return {
+                  ...owner,
+                  signature: signatureData.signature,
+                  signatureType: signatureData.signatureType,
+                  signatureToken: signatureData.signatureToken,
+                  submittedAt: signatureData.submittedAt,
+                  emailSent: signatureData.emailSent,
+                  emailSentAt: signatureData.emailSentAt
+                };
+              }
+              return owner;
+            });
+            
+            console.log("Merged owners with signatures:", updatedOwners);
+            return {
+              ...prev,
+              owners: updatedOwners
+            };
+          });
         } else {
           console.log("No owners found in database");
         }
