@@ -1594,14 +1594,21 @@ export default function EnhancedPdfWizard() {
                                     return;
                                   }
 
+                                  const prospectId = prospectData?.prospect?.id || prospectData?.id;
+                                  
+                                  if (!prospectId) {
+                                    console.error('No prospect ID available');
+                                    return;
+                                  }
+
                                   try {
-                                    const response = await fetch('/api/send-signature-request', {
+                                    const response = await fetch('/api/signature-request', {
                                       method: 'POST',
                                       headers: {
                                         'Content-Type': 'application/json',
                                       },
                                       body: JSON.stringify({
-                                        prospectId: prospectData?.prospect?.id,
+                                        prospectId: prospectId,
                                         ownerName: owner.name,
                                         ownerEmail: owner.email,
                                         companyName: formData.companyName,
@@ -1611,12 +1618,14 @@ export default function EnhancedPdfWizard() {
                                       }),
                                     });
 
-                                    if (response.ok) {
-                                      const result = await response.json();
-                                      if (result.success) {
-                                        updateOwner(index, 'signatureToken', result.signatureToken);
-                                        updateOwner(index, 'emailSent', new Date().toISOString());
-                                      }
+                                    const result = await response.json();
+                                    
+                                    if (response.ok && result.success) {
+                                      updateOwner(index, 'signatureToken', result.signatureToken);
+                                      updateOwner(index, 'emailSent', new Date().toISOString());
+                                      console.log(`Signature request sent to ${owner.email}`);
+                                    } else {
+                                      console.error('Failed to send signature request:', result.message);
                                     }
                                   } catch (error) {
                                     console.error('Error sending signature request:', error);
