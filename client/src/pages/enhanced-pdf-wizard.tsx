@@ -1595,47 +1595,43 @@ export default function EnhancedPdfWizard() {
                                   }
 
                                   try {
-                                        const response = await fetch('/api/send-signature-request', {
-                                          method: 'POST',
-                                          headers: {
-                                            'Content-Type': 'application/json',
-                                          },
-                                          body: JSON.stringify({
-                                            prospectId: prospectData?.prospect?.id,
-                                            ownerName: owner.name,
-                                            ownerEmail: owner.email,
-                                            companyName: formData.companyName,
-                                            ownershipPercentage: owner.percentage,
-                                            requesterName: formData.companyName,
-                                            agentName: formData.assignedAgent?.split(' (')[0] || 'Agent'
-                                          }),
-                                        });
+                                    const response = await fetch('/api/send-signature-request', {
+                                      method: 'POST',
+                                      headers: {
+                                        'Content-Type': 'application/json',
+                                      },
+                                      body: JSON.stringify({
+                                        prospectId: prospectData?.prospect?.id,
+                                        ownerName: owner.name,
+                                        ownerEmail: owner.email,
+                                        companyName: formData.companyName,
+                                        ownershipPercentage: owner.percentage,
+                                        requesterName: formData.companyName,
+                                        agentName: formData.assignedAgent?.split(' (')[0] || 'Agent'
+                                      }),
+                                    });
 
-                                        if (response.ok) {
-                                          const result = await response.json();
-                                          if (result.success) {
-                                            // Update owner with signature token
-                                            updateOwner(index, 'signatureToken', result.signatureToken);
-                                            updateOwner(index, 'emailSent', new Date().toISOString());
-                                          }
-                                        }
-                                      } catch (error) {
-                                        console.error('Error sending signature request:', error);
+                                    if (response.ok) {
+                                      const result = await response.json();
+                                      if (result.success) {
+                                        updateOwner(index, 'signatureToken', result.signatureToken);
+                                        updateOwner(index, 'emailSent', new Date().toISOString());
                                       }
-                                    }}
-                                    disabled={!owner.email || !formData.companyName}
-                                    className="border-amber-300 text-amber-700 hover:bg-amber-100"
-                                  >
-                                    Send Email Request
-                                  </Button>
-                                </div>
-                                
-                                {/* Show email sent status */}
-                                {owner.emailSent && (
-                                  <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded text-xs text-green-700">
-                                    Email sent successfully on {new Date(owner.emailSent).toLocaleDateString()}
-                                  </div>
-                                )}
+                                    }
+                                  } catch (error) {
+                                    console.error('Error sending signature request:', error);
+                                  }
+                                }}
+                                disabled={!owner.email || !formData.companyName}
+                                className="border-amber-300 text-amber-700 hover:bg-amber-100"
+                              >
+                                Send Email Request
+                              </Button>
+                            </div>
+                            
+                            {owner.emailSent && (
+                              <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded text-xs text-green-700">
+                                Email sent successfully on {new Date(owner.emailSent).toLocaleDateString()}
                               </div>
                             )}
                           </div>
