@@ -240,7 +240,31 @@ export default function EnhancedPdfWizard() {
       });
       
       if (!response.ok) {
-        const errorData = await response.json();
+        const errorData = await response.json().catch(() => ({}));
+        
+        // Handle comprehensive validation errors
+        if (errorData.validationErrors && Array.isArray(errorData.validationErrors)) {
+          const validationErrors = ['Application incomplete. Please complete the following:'];
+          
+          // Add general validation errors
+          validationErrors.push(...errorData.validationErrors.map((error: string) => `• ${error}`));
+          
+          // Add specific signature information if present
+          if (errorData.missingSignatures && Array.isArray(errorData.missingSignatures)) {
+            validationErrors.push('');
+            validationErrors.push('Missing signatures from:');
+            validationErrors.push(...errorData.missingSignatures.map((owner: any) => 
+              `• ${owner.name} (${owner.percentage}% ownership) - ${owner.email}`
+            ));
+            validationErrors.push('');
+            validationErrors.push('To complete signatures:');
+            validationErrors.push('1. Use "Draw Signature" or "Type Signature" in Business Ownership section');
+            validationErrors.push('2. Or send signature request emails to owners');
+          }
+          
+          throw new Error(validationErrors.join('\n'));
+        }
+        
         throw new Error(errorData.message || 'Failed to submit application');
       }
       
@@ -260,11 +284,68 @@ export default function EnhancedPdfWizard() {
     },
     onError: (error: any) => {
       console.error('Application submission error:', error);
-      toast({
-        title: "Submission Failed",
-        description: error.message || "There was an error submitting your application. Please try again.",
-        variant: "destructive",
-      });
+      
+      // Handle multi-line error messages with proper formatting
+      const errorMessage = error.message || "There was an error submitting your application. Please try again.";
+      
+      if (errorMessage.includes('Required signatures missing:')) {
+        // Show detailed validation dialog for signature errors
+        const dialog = document.createElement('div');
+        dialog.innerHTML = `
+          <div style="
+            position: fixed; 
+            top: 0; 
+            left: 0; 
+            right: 0; 
+            bottom: 0; 
+            background: rgba(0,0,0,0.5); 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            z-index: 9999;
+            font-family: system-ui, -apple-system, sans-serif;
+          ">
+            <div style="
+              background: white; 
+              padding: 24px; 
+              border-radius: 8px; 
+              max-width: 500px; 
+              margin: 20px;
+              box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+            ">
+              <h3 style="margin: 0 0 16px 0; color: #dc2626; font-weight: 600; font-size: 18px;">
+                Application Incomplete
+              </h3>
+              <div style="
+                white-space: pre-line; 
+                line-height: 1.5; 
+                color: #374151; 
+                margin-bottom: 20px;
+                font-size: 14px;
+              ">${errorMessage}</div>
+              <button onclick="this.parentElement.parentElement.remove()" style="
+                background: #dc2626; 
+                color: white; 
+                border: none; 
+                padding: 8px 16px; 
+                border-radius: 4px; 
+                cursor: pointer;
+                font-weight: 500;
+              ">
+                Close
+              </button>
+            </div>
+          </div>
+        `;
+        document.body.appendChild(dialog);
+      } else {
+        // Standard toast for other errors
+        toast({
+          title: "Submission Failed",
+          description: errorMessage,
+          variant: "destructive",
+        });
+      }
     }
   });
 

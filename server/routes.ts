@@ -1666,6 +1666,78 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Prospect not found" });
       }
 
+      // Comprehensive validation before submission
+      const validationErrors: string[] = [];
+      const missingSignatures: any[] = [];
+
+      // Required field validation
+      const requiredFields = [
+        { field: 'companyName', label: 'Company Name' },
+        { field: 'companyEmail', label: 'Company Email' },
+        { field: 'companyPhone', label: 'Company Phone' },
+        { field: 'address', label: 'Business Address' },
+        { field: 'city', label: 'City' },
+        { field: 'state', label: 'State' },
+        { field: 'zipCode', label: 'ZIP Code' },
+        { field: 'federalTaxId', label: 'Federal Tax ID' },
+        { field: 'businessType', label: 'Business Type' },
+        { field: 'yearsInBusiness', label: 'Years in Business' },
+        { field: 'businessDescription', label: 'Business Description' },
+        { field: 'productsServices', label: 'Products/Services' },
+        { field: 'processingMethod', label: 'Processing Method' },
+        { field: 'monthlyVolume', label: 'Monthly Volume' },
+        { field: 'averageTicket', label: 'Average Ticket' },
+        { field: 'highestTicket', label: 'Highest Ticket' }
+      ];
+
+      // Check for missing required fields
+      for (const { field, label } of requiredFields) {
+        if (!formData || !formData[field] || formData[field] === '') {
+          validationErrors.push(`${label} is required`);
+        }
+      }
+
+      // Validate business ownership totals 100%
+      if (formData && formData.owners && Array.isArray(formData.owners)) {
+        const totalOwnership = formData.owners.reduce((sum: number, owner: any) => {
+          return sum + (parseFloat(owner.percentage) || 0);
+        }, 0);
+
+        if (Math.abs(totalOwnership - 100) > 0.01) {
+          validationErrors.push(`Total ownership must equal 100% (currently ${totalOwnership}%)`);
+        }
+
+        // Check for required signatures
+        const ownersRequiringSignatures = formData.owners.filter((owner: any) => {
+          const percentage = parseFloat(owner.percentage) || 0;
+          return percentage >= 25;
+        });
+
+        const ownersWithoutSignatures = ownersRequiringSignatures.filter((owner: any) => {
+          return !owner.signature || owner.signature === null || owner.signature === '';
+        });
+
+        if (ownersWithoutSignatures.length > 0) {
+          missingSignatures.push(...ownersWithoutSignatures.map((owner: any) => ({
+            name: owner.name,
+            email: owner.email,
+            percentage: owner.percentage
+          })));
+          validationErrors.push(`Signatures required for owners with 25% or more ownership`);
+        }
+      } else {
+        validationErrors.push('At least one business owner is required');
+      }
+
+      // Return validation errors if any exist
+      if (validationErrors.length > 0) {
+        return res.status(400).json({ 
+          message: `Application incomplete. Please complete the following:\n${validationErrors.map(err => `• ${err}`).join('\n')}`,
+          validationErrors,
+          missingSignatures: missingSignatures.length > 0 ? missingSignatures : undefined
+        });
+      }
+
       // Get agent information
       const agent = await storage.getAgent(prospect.agentId);
       if (!agent) {
