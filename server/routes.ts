@@ -1665,7 +1665,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return {
           name: owner.name,
           email: owner.email,
-          percentage: owner.ownershipPercentage,
+          percentage: owner.ownershipPercentage.replace('%', ''), // Remove % sign for form input
           signature: signature?.signature || null,
           signatureType: signature?.signatureType || null,
           submittedAt: signature?.submittedAt || null,
