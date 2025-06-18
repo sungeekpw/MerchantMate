@@ -12,6 +12,7 @@ import { pdfFormParser } from "./pdfParser";
 import { emailService } from "./emailService";
 import { v4 as uuidv4 } from "uuid";
 
+
 // Helper function to get default widgets for a user role
 function getDefaultWidgetsForRole(role: string) {
   const baseWidgets = [
@@ -1502,6 +1503,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching prospect status:", error);
       res.status(500).json({ message: "Failed to fetch application status" });
+    }
+  });
+
+  // Clear all prospect applications (Super Admin only)
+  app.delete("/api/admin/clear-prospects", requireRole(['super_admin']), async (req, res) => {
+    try {
+      // Get current counts for reporting
+      const allProspects = await storage.getAllMerchantProspects();
+      const prospectCount = allProspects.length;
+
+      // Clear all prospect data using storage methods
+      await storage.clearAllProspectData();
+
+      console.log(`Super Admin cleared prospect data: ${prospectCount} prospects and related data`);
+
+      res.json({
+        success: true,
+        message: "All prospect applications cleared successfully",
+        deleted: {
+          prospects: prospectCount,
+          message: "All related owners and signatures also cleared"
+        }
+      });
+    } catch (error) {
+      console.error("Error clearing prospect applications:", error);
+      res.status(500).json({ 
+        success: false,
+        message: "Failed to clear prospect applications" 
+      });
     }
   });
 
