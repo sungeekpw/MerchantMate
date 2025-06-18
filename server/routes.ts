@@ -1494,7 +1494,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Download application PDF for prospects  
-  app.get("/api/prospects/:id/download-pdf", async (req, res) => {
+  app.get("/api/prospects/:id/download-pdf", isAuthenticated, async (req, res) => {
     try {
       const { id } = req.params;
       const prospectId = parseInt(id);
