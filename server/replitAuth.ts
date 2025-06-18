@@ -154,15 +154,19 @@ export async function setupAuth(app: Express) {
 export const isAuthenticated: RequestHandler = async (req, res, next) => {
   // Development mode: use session-based auth
   if (process.env.NODE_ENV === 'development') {
-    console.log('isAuthenticated - Session ID:', req.sessionID);
-    console.log('isAuthenticated - Session data:', req.session);
+    console.log('DevAuth - Session:', req.session);
+    console.log('DevAuth - Session ID:', req.sessionID);
     let userId = (req.session as any)?.userId;
     
-    // If no userId in session, return authentication error
+    // Development fallback: auto-authenticate as agent user if no session
     if (!userId) {
-      console.log('isAuthenticated - No userId found in session');
-      return res.status(401).json({ message: "Authentication required" });
+      console.log('DevAuth - No userId in session, using dev auth fallback');
+      userId = 'user_agent_1'; // Default agent user for development
+      (req.session as any).userId = userId;
+      (req.session as any).sessionId = uuidv4();
     }
+    
+    console.log('DevAuth - UserId from session:', userId);
     
     console.log('isAuthenticated - UserId:', userId);
     

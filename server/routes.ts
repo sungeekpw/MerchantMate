@@ -1230,7 +1230,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get individual prospect for application view
-  app.get("/api/prospects/view/:id", devAuth, async (req: any, res) => {
+  app.get("/api/prospects/view/:id", isAuthenticated, async (req: any, res) => {
     try {
       const { id } = req.params;
       console.log('Fetching prospect ID:', id);
