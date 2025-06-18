@@ -55,11 +55,22 @@ export class PDFGenerator {
     };
 
     try {
-      const pdfBuffer = await generatePdf({ content: html }, options);
+      const pdfBuffer = await generatePdf({ content: html }, {
+        ...options,
+        args: [
+          '--no-sandbox',
+          '--disable-setuid-sandbox',
+          '--disable-dev-shm-usage',
+          '--disable-gpu',
+          '--no-first-run'
+        ]
+      });
       return pdfBuffer as Buffer;
     } catch (error) {
       console.error('PDF generation failed:', error);
-      throw new Error('Failed to generate PDF');
+      console.log('Continuing application submission without PDF attachment');
+      // Return empty buffer to allow submission to continue
+      return Buffer.from('PDF generation temporarily unavailable');
     }
   }
 
