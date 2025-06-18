@@ -1501,10 +1501,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         companyName, 
         ownershipPercentage, 
         requesterName, 
-        agentName 
+        agentName,
+        prospectId
       } = req.body;
 
-      if (!ownerName || !ownerEmail || !companyName || !ownershipPercentage) {
+      if (!ownerName || !ownerEmail || !companyName || !ownershipPercentage || !prospectId) {
         return res.status(400).json({ 
           success: false, 
           message: "Missing required fields" 
@@ -1514,12 +1515,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Generate unique signature token
       const signatureToken = `sig_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
-      // Store the email mapping for the signature token
-      if (!(global as any).tokenEmailMap) {
-        (global as any).tokenEmailMap = new Map();
+      // Create or update prospect owner in database
+      const existingOwners = await storage.getProspectOwners(prospectId);
+      const existingOwner = existingOwners.find(owner => owner.email === ownerEmail);
+
+      if (existingOwner) {
+        // Update existing owner with signature token
+        await storage.updateProspectOwner(existingOwner.id, {
+          signatureToken,
+          emailSent: true,
+          emailSentAt: new Date()
+        });
+      } else {
+        // Create new prospect owner
+        await storage.createProspectOwner({
+          prospectId,
+          name: ownerName,
+          email: ownerEmail,
+          ownershipPercentage: ownershipPercentage.toString(),
+          signatureToken,
+          emailSent: true,
+          emailSentAt: new Date()
+        });
       }
-      (global as any).tokenEmailMap.set(signatureToken, ownerEmail);
-      console.log(`Stored email mapping: ${signatureToken} -> ${ownerEmail}`);
 
       const success = await emailService.sendSignatureRequestEmail({
         ownerName,
@@ -1538,7 +1556,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           signatureToken 
         });
       } else {
-        // Log the email failure but still return success to continue workflow
         console.log(`Signature request email failed for ${ownerEmail}, but continuing workflow`);
         res.json({ 
           success: true, 
@@ -1549,15 +1566,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     } catch (error) {
       console.error("Error sending signature request:", error);
-      
-      // Generate signature token even if email fails to continue workflow
-      const signatureToken = `sig_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-      
-      res.json({ 
-        success: true, 
-        message: "Signature request prepared (email delivery pending)",
-        signatureToken,
-        emailFailed: true
+      res.status(500).json({ 
+        success: false, 
+        message: "Failed to process signature request" 
       });
     }
   });
@@ -1574,29 +1585,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      // Get the email associated with this token
-      let email = null;
-      if ((global as any).tokenEmailMap && (global as any).tokenEmailMap.has(signatureToken)) {
-        email = (global as any).tokenEmailMap.get(signatureToken);
-        console.log(`Found email mapping for token ${signatureToken}: ${email}`);
-      } else {
-        console.log(`No email mapping found for token ${signatureToken}`);
+      // Find the prospect owner by signature token
+      const owner = await storage.getProspectOwnerByToken(signatureToken);
+      if (!owner) {
+        return res.status(404).json({ 
+          success: false, 
+          message: "Invalid signature token" 
+        });
       }
 
-      // Store signature in a simple in-memory map for now
-      // In production, this would be stored in the database
-      if (!(global as any).signatureStore) {
-        (global as any).signatureStore = new Map();
-      }
-      
-      // Store the signature with all relevant data
-      const signatureData = {
+      // Create the signature record in database
+      await storage.createProspectSignature({
+        prospectId: owner.prospectId,
+        ownerId: owner.id,
+        signatureToken,
         signature,
-        signatureType,
-        email,
-        submittedAt: new Date(),
-        ownerName: signature // Store the signature text as owner name for easier matching
-      };
+        signatureType: signatureType || 'type'
+      });
       
       (global as any).signatureStore.set(signatureToken, signatureData);
       
