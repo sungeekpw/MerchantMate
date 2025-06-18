@@ -272,8 +272,11 @@ export default function EnhancedPdfWizard() {
   const handleNext = () => {
     const nextStep = Math.min(sections.length - 1, currentStep + 1);
     
+    console.log(`Navigating from step ${currentStep} to step ${nextStep}`);
+    
     // Save current form data before navigating for prospect mode
     if (isProspectMode && prospectData?.prospect?.id) {
+      console.log('Saving form data with currentStep:', nextStep);
       saveFormDataMutation.mutate({
         formData: formData,
         currentStep: nextStep
@@ -286,8 +289,11 @@ export default function EnhancedPdfWizard() {
   const handlePrevious = () => {
     const prevStep = Math.max(0, currentStep - 1);
     
+    console.log(`Navigating from step ${currentStep} to step ${prevStep}`);
+    
     // Save current form data before navigating for prospect mode
     if (isProspectMode && prospectData?.prospect?.id) {
+      console.log('Saving form data with currentStep:', prevStep);
       saveFormDataMutation.mutate({
         formData: formData,
         currentStep: prevStep
@@ -376,6 +382,12 @@ export default function EnhancedPdfWizard() {
         } catch (error) {
           console.error('Error parsing existing form data:', error);
         }
+      }
+
+      // Restore current step from prospect data
+      if (prospectData.prospect.currentStep !== null && prospectData.prospect.currentStep !== undefined) {
+        console.log('Restoring current step:', prospectData.prospect.currentStep);
+        setCurrentStep(prospectData.prospect.currentStep);
       }
     }
   }, [prospectData, isProspectMode, initialDataLoaded]);
