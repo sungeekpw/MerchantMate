@@ -117,6 +117,9 @@ export interface IStorage {
   getProspectSignaturesByOwnerEmail(email: string): Promise<ProspectSignature[]>;
   getProspectSignaturesByProspect(prospectId: number): Promise<ProspectSignature[]>;
 
+  // Admin operations
+  clearAllProspectData(): Promise<void>;
+
   // Agent-Merchant associations
   getAgentMerchants(agentId: number): Promise<Merchant[]>;
   getMerchantAgents(merchantId: number): Promise<Agent[]>;
@@ -1686,6 +1689,14 @@ export class DatabaseStorage implements IStorage {
       .from(prospectOwners)
       .where(eq(prospectOwners.signatureToken, token));
     return owner || undefined;
+  }
+
+  // Admin operations
+  async clearAllProspectData(): Promise<void> {
+    // Delete in correct order due to foreign key constraints
+    await db.delete(prospectSignatures);
+    await db.delete(prospectOwners);
+    await db.delete(merchantProspects);
   }
 }
 
