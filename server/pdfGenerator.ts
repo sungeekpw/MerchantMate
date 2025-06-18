@@ -43,6 +43,271 @@ export class PDFGenerator {
     }
   }
 
+  private createModernPDFContent(prospect: MerchantProspect, formData: FormData): string {
+    const cleanText = (text: string) => text?.replace(/[()]/g, '') || '';
+    const formatCurrency = (value: string) => {
+      if (!value) return 'Not specified';
+      const num = parseFloat(value.replace(/[^0-9.]/g, ''));
+      return isNaN(num) ? value : `$${num.toLocaleString()}`;
+    };
+    const formatDate = (date: Date) => {
+      return date.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      });
+    };
+
+    // Create a beautiful PDF that matches the application view design
+    return this.createBeautifulPDF(prospect, formData, cleanText, formatCurrency, formatDate);
+  }
+
+  private createBeautifulPDF(prospect: MerchantProspect, formData: FormData, cleanText: Function, formatCurrency: Function, formatDate: Function): string {
+    const statusColors = {
+      pending: 'background: #fbbf24; color: white;',
+      contacted: 'background: #3b82f6; color: white;',
+      in_progress: 'background: #8b5cf6; color: white;',
+      applied: 'background: #10b981; color: white;',
+      approved: 'background: #059669; color: white;',
+      rejected: 'background: #ef4444; color: white;'
+    };
+    
+    const statusStyle = statusColors[prospect.status as keyof typeof statusColors] || 'background: #6b7280; color: white;';
+    
+    const sections = [];
+    
+    // Header Section with beautiful card design
+    sections.push({
+      title: `${cleanText(prospect.firstName)} ${cleanText(prospect.lastName)}`,
+      content: `
+        BT
+        /F1 24 Tf
+        50 720 Td
+        (${cleanText(prospect.firstName)} ${cleanText(prospect.lastName)}) Tj
+        
+        /F1 12 Tf
+        0 -20 Td
+        (Merchant Application Review) Tj
+        
+        /F1 10 Tf
+        350 20 Td
+        (Status: ${prospect.status.replace('_', ' ').toUpperCase()}) Tj
+        ET
+        
+        % Timeline Card
+        50 670 m
+        550 670 l
+        550 600 l
+        50 600 l
+        h
+        S
+        
+        BT
+        /F2 14 Tf
+        60 650 Td
+        (Application Timeline) Tj
+        
+        /F1 11 Tf
+        0 -20 Td
+        (Application Created: ${formatDate(prospect.createdAt)}) Tj
+        0 -15 Td
+        (Last Updated: ${formatDate(prospect.updatedAt)}) Tj
+        ${prospect.validatedAt ? `0 -15 Td (Email Validated: ${formatDate(prospect.validatedAt)}) Tj` : ''}
+        ET
+      `,
+      height: 150
+    });
+
+    // Contact Information Card
+    sections.push({
+      title: 'Contact Information',
+      content: `
+        % Contact Card
+        50 580 m
+        550 580 l
+        550 510 l
+        50 510 l
+        h
+        S
+        
+        BT
+        /F2 14 Tf
+        60 560 Td
+        (Contact Information) Tj
+        
+        /F1 11 Tf
+        0 -20 Td
+        (Email: ${cleanText(prospect.email)}) Tj
+        ${formData.companyPhone ? `0 -15 Td (Phone: ${cleanText(formData.companyPhone)}) Tj` : ''}
+        0 -15 Td
+        (Assigned Agent: ${cleanText(formData.assignedAgent)}) Tj
+        ET
+      `,
+      height: 90
+    });
+
+    // Business Information Card
+    if (formData.companyName) {
+      sections.push({
+        title: 'Business Information',
+        content: `
+          % Business Card
+          50 490 m
+          550 490 l
+          550 360 l
+          50 360 l
+          h
+          S
+          
+          BT
+          /F2 14 Tf
+          60 470 Td
+          (Business Information) Tj
+          
+          /F2 16 Tf
+          0 -25 Td
+          (${cleanText(formData.companyName)}) Tj
+          
+          /F1 11 Tf
+          0 -20 Td
+          ${formData.businessType ? `(Business Type: ${cleanText(formData.businessType)}) Tj 0 -15 Td` : ''}
+          ${formData.yearsInBusiness ? `(Years in Business: ${cleanText(formData.yearsInBusiness)}) Tj 0 -15 Td` : ''}
+          ${formData.federalTaxId ? `(Federal Tax ID: ${cleanText(formData.federalTaxId)}) Tj 0 -15 Td` : ''}
+          ${formData.businessDescription ? `(Description: ${cleanText(formData.businessDescription).substring(0, 60)}...) Tj 0 -15 Td` : ''}
+          ET
+        `,
+        height: 150
+      });
+    }
+
+    // Address Information Card
+    if (formData.address || formData.city) {
+      sections.push({
+        title: 'Business Address',
+        content: `
+          % Address Card
+          50 340 m
+          550 340 l
+          550 280 l
+          50 280 l
+          h
+          S
+          
+          BT
+          /F2 14 Tf
+          60 320 Td
+          (Business Address) Tj
+          
+          /F1 11 Tf
+          0 -20 Td
+          ${formData.address ? `(${cleanText(formData.address)}) Tj 0 -15 Td` : ''}
+          (${formData.city ? cleanText(formData.city) + ', ' : ''}${formData.state ? cleanText(formData.state) + ' ' : ''}${formData.zipCode ? cleanText(formData.zipCode) : ''}) Tj
+          ET
+        `,
+        height: 80
+      });
+    }
+
+    // Business Ownership Card
+    if (formData.owners && formData.owners.length > 0) {
+      const ownerContent = formData.owners.map((owner: any, index: number) => `
+        0 -20 Td
+        (${cleanText(owner.name)} - ${cleanText(owner.percentage)}% ownership) Tj
+        0 -12 Td
+        (${cleanText(owner.email)}) Tj
+        ${owner.signature ? `0 -12 Td (✓ Signature provided) Tj` : ''}
+      `).join('');
+
+      sections.push({
+        title: 'Business Ownership',
+        content: `
+          % Ownership Card
+          50 260 m
+          550 260 l
+          550 ${160 - (formData.owners.length * 40)} l
+          50 ${160 - (formData.owners.length * 40)} l
+          h
+          S
+          
+          BT
+          /F2 14 Tf
+          60 240 Td
+          (Business Ownership) Tj
+          
+          /F1 11 Tf
+          ${ownerContent}
+          ET
+        `,
+        height: 100 + (formData.owners.length * 40)
+      });
+    }
+
+    // Transaction Information Card
+    if (formData.monthlyVolume || formData.averageTicket) {
+      sections.push({
+        title: 'Transaction Information',
+        content: `
+          % Transaction Card
+          50 ${120 - (formData.owners?.length || 0) * 40} m
+          550 ${120 - (formData.owners?.length || 0) * 40} l
+          550 ${60 - (formData.owners?.length || 0) * 40} l
+          50 ${60 - (formData.owners?.length || 0) * 40} l
+          h
+          S
+          
+          BT
+          /F2 14 Tf
+          60 ${100 - (formData.owners?.length || 0) * 40} Td
+          (Transaction Information) Tj
+          
+          /F1 11 Tf
+          0 -20 Td
+          ${formData.monthlyVolume ? `(Monthly Volume: ${formatCurrency(formData.monthlyVolume)}) Tj 0 -15 Td` : ''}
+          ${formData.averageTicket ? `(Average Ticket: ${formatCurrency(formData.averageTicket)}) Tj 0 -15 Td` : ''}
+          ${formData.highestTicket ? `(Highest Ticket: ${formatCurrency(formData.highestTicket)}) Tj 0 -15 Td` : ''}
+          ${formData.processingMethod ? `(Processing Method: ${cleanText(formData.processingMethod)}) Tj` : ''}
+          ET
+        `,
+        height: 80
+      });
+    }
+
+    return this.buildModernPDF(sections);
+  }
+
+  private buildModernPDF(sections: any[]): string {
+    const pageHeight = 792;
+    const pages = [];
+    let currentPage = '';
+    let currentY = pageHeight - 50;
+
+    // Start first page
+    currentPage += 'BT\n';
+
+    for (const section of sections) {
+      // Check if section fits on current page
+      if (currentY - section.height < 50 && currentPage !== 'BT\n') {
+        // Finish current page and start new one
+        currentPage += 'ET\n';
+        pages.push(currentPage);
+        
+        // Start new page
+        currentPage = 'BT\n';
+        currentY = pageHeight - 50;
+      }
+
+      // Add section content
+      currentPage += section.content + '\n';
+      currentY -= section.height;
+    }
+
+    // Finish last page
+    currentPage += 'ET\n';
+    pages.push(currentPage);
+
+    return this.buildMultiPagePDF(pages);
+  }
+
   private createModernApplicationPDF(prospect: MerchantProspect, formData: FormData): string {
     const cleanText = (text: string) => text.replace(/[<>&"']/g, (match) => {
       const entities: { [key: string]: string } = {
