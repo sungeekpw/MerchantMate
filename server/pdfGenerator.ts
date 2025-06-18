@@ -185,7 +185,7 @@ ${totalObjects * 100}
       type: 'section',
       title: '1. MERCHANT INFORMATION',
       content: this.createMerchantInfoSection(formData, cleanText),
-      height: 350
+      height: 450
     });
 
     // Section 2: Business Ownership
@@ -320,79 +320,75 @@ ${totalObjects * 100}
     // Section header with box styling
     content += '/F2 11 Tf\n';
     content += '(  1. MERCHANT INFORMATION) Tj\n';
-    content += '0 -18 Td\n';
+    content += '0 -20 Td\n';
     
     // Legal name field (full width)
     content += '/F2 8 Tf\n';
-    content += '(LEGAL NAME OF BUSINESS / IRS FILING NAME \\(MUST MATCH IRS RECORD\\)) Tj\n';
-    content += '300 0 Td\n';
-    content += '(DBA \\(DOING BUSINESS AS\\)) Tj\n';
-    content += '-300 0 Td\n';
-    content += '0 -10 Td\n';
+    content += '(LEGAL NAME OF BUSINESS / IRS FILING NAME) Tj\n';
+    content += '0 -12 Td\n';
     content += '/F1 10 Tf\n';
     content += '(' + cleanText(formData.companyName || '') + ') Tj\n';
-    content += '0 -5 Td\n';
+    content += '0 -8 Td\n';
     content += '/F1 7 Tf\n';
     content += '(_____________________________________________) Tj\n';
-    content += '300 0 Td\n';
-    content += '(_____________________________________________) Tj\n';
-    content += '-300 0 Td\n';
-    
-    // Address line
     content += '0 -15 Td\n';
+    
+    // Address section
     content += '/F2 8 Tf\n';
     content += '(LOCATION / SITE ADDRESS) Tj\n';
-    content += '200 0 Td\n';
-    content += '(CITY) Tj\n';
-    content += '100 0 Td\n';
-    content += '(STATE) Tj\n';
-    content += '50 0 Td\n';
-    content += '(ZIP CODE) Tj\n';
-    content += '-350 0 Td\n';
-    content += '0 -10 Td\n';
+    content += '0 -12 Td\n';
     content += '/F1 9 Tf\n';
     content += '(' + cleanText(formData.address || '') + ') Tj\n';
-    content += '200 0 Td\n';
-    content += '(' + cleanText(formData.city || '') + ') Tj\n';
-    content += '100 0 Td\n';
-    content += '(' + cleanText(formData.state || '') + ') Tj\n';
-    content += '50 0 Td\n';
-    content += '(' + cleanText(formData.zipCode || '') + ') Tj\n';
-    content += '-350 0 Td\n';
-    content += '0 -5 Td\n';
+    content += '0 -8 Td\n';
     content += '/F1 7 Tf\n';
-    content += '(____________________) Tj\n';
-    content += '200 0 Td\n';
-    content += '(___________) Tj\n';
-    content += '100 0 Td\n';
-    content += '(_____) Tj\n';
-    content += '50 0 Td\n';
-    content += '(__________) Tj\n';
-    content += '-350 0 Td\n';
+    content += '(____________________________________________________) Tj\n';
+    content += '0 -15 Td\n';
     
-    // Contact information line
+    // City, State, ZIP on separate lines for clarity
+    content += '/F2 8 Tf\n';
+    content += '(CITY) Tj\n';
+    content += '200 0 Td\n';
+    content += '(STATE) Tj\n';
+    content += '100 0 Td\n';
+    content += '(ZIP CODE) Tj\n';
+    content += '-300 0 Td\n';
+    content += '0 -12 Td\n';
+    content += '/F1 9 Tf\n';
+    content += '(' + cleanText(formData.city || '') + ') Tj\n';
+    content += '200 0 Td\n';
+    content += '(' + cleanText(formData.state || '') + ') Tj\n';
+    content += '100 0 Td\n';
+    content += '(' + cleanText(formData.zipCode || '') + ') Tj\n';
+    content += '-300 0 Td\n';
+    content += '0 -8 Td\n';
+    content += '/F1 7 Tf\n';
+    content += '(___________________) Tj\n';
+    content += '200 0 Td\n';
+    content += '(__________) Tj\n';
+    content += '100 0 Td\n';
+    content += '(__________) Tj\n';
+    content += '-300 0 Td\n';
+    
+    // Contact information section
     content += '0 -15 Td\n';
     content += '/F2 8 Tf\n';
     content += '(COMPANY PHONE #) Tj\n';
-    content += '150 0 Td\n';
-    content += '(COMPANY E-MAIL ADDRESS) Tj\n';
-    content += '200 0 Td\n';
-    content += '(CONTACT NAME) Tj\n';
-    content += '-350 0 Td\n';
-    content += '0 -10 Td\n';
+    content += '0 -12 Td\n';
     content += '/F1 9 Tf\n';
     content += '(' + cleanText(formData.companyPhone || '') + ') Tj\n';
-    content += '150 0 Td\n';
-    content += '(' + cleanText(formData.companyEmail || '') + ') Tj\n';
-    content += '-150 0 Td\n';
-    content += '0 -5 Td\n';
+    content += '0 -8 Td\n';
     content += '/F1 7 Tf\n';
-    content += '(______________) Tj\n';
-    content += '150 0 Td\n';
-    content += '(____________________) Tj\n';
-    content += '200 0 Td\n';
-    content += '(______________) Tj\n';
-    content += '-350 0 Td\n';
+    content += '(_____________________) Tj\n';
+    content += '0 -15 Td\n';
+    
+    content += '/F2 8 Tf\n';
+    content += '(COMPANY E-MAIL ADDRESS) Tj\n';
+    content += '0 -12 Td\n';
+    content += '/F1 9 Tf\n';
+    content += '(' + cleanText(formData.companyEmail || '') + ') Tj\n';
+    content += '0 -8 Td\n';
+    content += '/F1 7 Tf\n';
+    content += '(____________________________________________) Tj\n';
     
     // Tax ID line
     content += '0 -15 Td\n';
@@ -405,29 +401,27 @@ ${totalObjects * 100}
     content += '/F1 7 Tf\n';
     content += '(______________) Tj\n';
     
-    // Business type and years
+    // Business type section
     content += '0 -15 Td\n';
     content += '/F2 8 Tf\n';
     content += '(BUSINESS TYPE) Tj\n';
-    content += '200 0 Td\n';
-    content += '(YEARS IN BUSINESS) Tj\n';
-    content += '150 0 Td\n';
-    content += '(BUSINESS START DATE \\( MM / DD / YYYY \\)) Tj\n';
-    content += '-350 0 Td\n';
-    content += '0 -10 Td\n';
+    content += '0 -12 Td\n';
     content += '/F1 9 Tf\n';
     content += '(' + cleanText(formData.businessType || '') + ') Tj\n';
-    content += '200 0 Td\n';
+    content += '0 -8 Td\n';
+    content += '/F1 7 Tf\n';
+    content += '(____________________) Tj\n';
+    content += '0 -15 Td\n';
+    
+    // Years in business
+    content += '/F2 8 Tf\n';
+    content += '(YEARS IN BUSINESS) Tj\n';
+    content += '0 -12 Td\n';
+    content += '/F1 9 Tf\n';
     content += '(' + cleanText(formData.yearsInBusiness || '') + ') Tj\n';
-    content += '-200 0 Td\n';
-    content += '0 -5 Td\n';
+    content += '0 -8 Td\n';
     content += '/F1 7 Tf\n';
     content += '(______________) Tj\n';
-    content += '200 0 Td\n';
-    content += '(__________) Tj\n';
-    content += '150 0 Td\n';
-    content += '(______________) Tj\n';
-    content += '-350 0 Td\n';
     
     content += '0 -20 Td\n';
     return content;
