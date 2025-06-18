@@ -672,8 +672,9 @@ export default function EnhancedPdfWizard() {
         setShowSuggestions(false);
         setAddressSuggestions([]);
         setSelectedSuggestionIndex(-1);
-        // Clear address-related fields when address is short (only if not locked)
-        if (value.length < 4 && !addressFieldsLocked) {
+        // Only clear address-related fields when completely empty (not just short)
+        if (value.length === 0 && !addressFieldsLocked) {
+          console.log('Address field completely cleared - clearing dependent fields');
           const clearedFormData = { ...newFormData };
           clearedFormData.city = '';
           clearedFormData.state = '';
