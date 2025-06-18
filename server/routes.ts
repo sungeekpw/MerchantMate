@@ -2147,6 +2147,62 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get signature status for a prospect (for application view)
+  app.get("/api/prospects/:prospectId/signature-status", async (req, res) => {
+    try {
+      const { prospectId } = req.params;
+      const prospect = await storage.getMerchantProspect(parseInt(prospectId));
+      
+      if (!prospect) {
+        return res.status(404).json({ message: "Prospect not found" });
+      }
+
+      // Get form data and database signatures
+      let formData: any = {};
+      try {
+        formData = prospect.formData ? JSON.parse(prospect.formData) : {};
+      } catch (e) {
+        formData = {};
+      }
+
+      const dbSignatures = await storage.getProspectSignaturesByProspect(parseInt(prospectId));
+      const prospectOwners = await storage.getProspectOwners(parseInt(prospectId));
+
+      // Calculate signature status using database signatures
+      const owners = formData.owners || [];
+      const requiredSignatures = owners.filter((owner: any) => parseFloat(owner.percentage || 0) >= 25);
+      const completedSignatures = requiredSignatures.filter((owner: any) => {
+        const dbOwner = prospectOwners.find(po => po.email === owner.email);
+        if (!dbOwner) return false;
+        return dbSignatures.some((sig: any) => sig.ownerId === dbOwner.id);
+      });
+
+      const signatureStatus = {
+        required: requiredSignatures.length,
+        completed: completedSignatures.length,
+        pending: requiredSignatures.length - completedSignatures.length,
+        isComplete: requiredSignatures.length > 0 && completedSignatures.length === requiredSignatures.length,
+        needsAttention: requiredSignatures.length > 0 && completedSignatures.length < requiredSignatures.length,
+        // Include owner-level details for application view
+        ownerStatus: requiredSignatures.map((owner: any) => {
+          const dbOwner = prospectOwners.find(po => po.email === owner.email);
+          const hasSignature = dbOwner ? dbSignatures.some((sig: any) => sig.ownerId === dbOwner.id) : false;
+          return {
+            name: owner.name,
+            email: owner.email,
+            percentage: owner.percentage,
+            hasSignature
+          };
+        })
+      };
+
+      res.json(signatureStatus);
+    } catch (error) {
+      console.error("Error fetching signature status:", error);
+      res.status(500).json({ message: "Failed to fetch signature status" });
+    }
+  });
+
   // Search signatures by email (database-backed)
   app.get("/api/signatures/by-email/:email", async (req, res) => {
     try {
