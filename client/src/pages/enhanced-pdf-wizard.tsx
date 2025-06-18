@@ -1831,7 +1831,30 @@ export default function EnhancedPdfWizard() {
         const totalPercentage = owners.reduce((sum: number, owner: any) => sum + (parseFloat(owner.percentage) || 0), 0);
 
         const addOwner = () => {
-          const newOwners = [...owners, { name: '', email: '', percentage: '', signature: null, signatureType: null }];
+          // Pre-populate first owner with prospect information if available
+          const isFirstOwner = owners.length === 0;
+          const prospectFirstName = prospectData?.prospect?.firstName || '';
+          const prospectLastName = prospectData?.prospect?.lastName || '';
+          const prospectEmail = prospectData?.prospect?.email || '';
+          const prospectFullName = `${prospectFirstName} ${prospectLastName}`.trim();
+          
+          const newOwner = isFirstOwner && isProspectMode && prospectFullName && prospectEmail
+            ? { 
+                name: prospectFullName, 
+                email: prospectEmail, 
+                percentage: '', 
+                signature: null, 
+                signatureType: null 
+              }
+            : { 
+                name: '', 
+                email: '', 
+                percentage: '', 
+                signature: null, 
+                signatureType: null 
+              };
+          
+          const newOwners = [...owners, newOwner];
           handleFieldChange('owners', newOwners);
         };
 
