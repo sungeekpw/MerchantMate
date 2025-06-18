@@ -1001,7 +1001,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Agent-merchant assignment routes (admin only)
-  app.post("/api/agents/:agentId/merchants/:merchantId", devRequireRole(['admin', 'corporate', 'super_admin']), async (req: any, res) => {
+  app.post("/api/agents/:agentId/merchants/:merchantId", requireRole(['admin', 'corporate', 'super_admin']), async (req: any, res) => {
     try {
       const { agentId, merchantId } = req.params;
       const userId = req.user.claims.sub;
@@ -1019,7 +1019,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/agents/:agentId/merchants/:merchantId", devRequireRole(['admin', 'corporate', 'super_admin']), async (req: any, res) => {
+  app.delete("/api/agents/:agentId/merchants/:merchantId", requireRole(['admin', 'corporate', 'super_admin']), async (req: any, res) => {
     try {
       const { agentId, merchantId } = req.params;
 
@@ -1040,7 +1040,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get merchants for a specific agent
-  app.get("/api/agents/:agentId/merchants", devRequireRole(['admin', 'corporate', 'super_admin']), async (req: any, res) => {
+  app.get("/api/agents/:agentId/merchants", requireRole(['admin', 'corporate', 'super_admin']), async (req: any, res) => {
     try {
       const { agentId } = req.params;
       const merchants = await storage.getAgentMerchants(parseInt(agentId));
@@ -1094,7 +1094,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/prospects", devRequireRole(['agent', 'admin', 'corporate', 'super_admin']), async (req, res) => {
+  app.post("/api/prospects", requireRole(['agent', 'admin', 'corporate', 'super_admin']), async (req, res) => {
     try {
       const { insertMerchantProspectSchema } = await import("@shared/schema");
       const { emailService } = await import("./emailService");
@@ -1133,7 +1133,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/prospects/:id", devRequireRole(['agent', 'admin', 'corporate', 'super_admin']), async (req, res) => {
+  app.put("/api/prospects/:id", requireRole(['agent', 'admin', 'corporate', 'super_admin']), async (req, res) => {
     try {
       const { id } = req.params;
       const prospectId = parseInt(id);
@@ -1171,7 +1171,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/prospects/:id/resend-invitation", devRequireRole(['agent', 'admin', 'corporate', 'super_admin']), async (req, res) => {
+  app.post("/api/prospects/:id/resend-invitation", requireRole(['agent', 'admin', 'corporate', 'super_admin']), async (req, res) => {
     try {
       const { id } = req.params;
       const { emailService } = await import("./emailService");
@@ -1213,7 +1213,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/prospects/:id", devRequireRole(['agent', 'admin', 'corporate', 'super_admin']), async (req, res) => {
+  app.delete("/api/prospects/:id", requireRole(['agent', 'admin', 'corporate', 'super_admin']), async (req, res) => {
     try {
       const { id } = req.params;
       const success = await storage.deleteMerchantProspect(parseInt(id));
@@ -2134,7 +2134,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Admin-only routes for merchants
-  app.get("/api/merchants/all", devRequireRole(['admin', 'corporate', 'super_admin']), async (req, res) => {
+  app.get("/api/merchants/all", requireRole(['admin', 'corporate', 'super_admin']), async (req, res) => {
     try {
       const { search } = req.query;
       
@@ -2151,7 +2151,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/merchants", devRequireRole(['admin', 'corporate', 'super_admin']), async (req, res) => {
+  app.post("/api/merchants", requireRole(['admin', 'corporate', 'super_admin']), async (req, res) => {
     try {
       const result = insertMerchantSchema.safeParse(req.body);
       if (!result.success) {
@@ -2187,7 +2187,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Agent routes (admin only)
-  app.get("/api/agents", devRequireRole(['admin', 'corporate', 'super_admin']), async (req, res) => {
+  app.get("/api/agents", requireRole(['admin', 'corporate', 'super_admin']), async (req, res) => {
     try {
       const { search } = req.query;
       
@@ -2204,7 +2204,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/agents", devRequireRole(['admin', 'corporate', 'super_admin']), async (req, res) => {
+  app.post("/api/agents", requireRole(['admin', 'corporate', 'super_admin']), async (req, res) => {
     try {
       const result = insertAgentSchema.safeParse(req.body);
       if (!result.success) {
@@ -2220,7 +2220,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Transaction routes (admin only for all operations)
-  app.get("/api/transactions/all", devRequireRole(['admin', 'corporate', 'super_admin']), async (req, res) => {
+  app.get("/api/transactions/all", requireRole(['admin', 'corporate', 'super_admin']), async (req, res) => {
     try {
       const { search } = req.query;
       
@@ -2237,7 +2237,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/transactions", devRequireRole(['admin', 'corporate', 'super_admin']), async (req, res) => {
+  app.post("/api/transactions", requireRole(['admin', 'corporate', 'super_admin']), async (req, res) => {
     try {
       const result = insertTransactionSchema.safeParse(req.body);
       if (!result.success) {
