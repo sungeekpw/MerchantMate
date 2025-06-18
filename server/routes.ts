@@ -1278,7 +1278,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/prospects/:id", devRequireRole(['admin', 'corporate', 'super_admin']), async (req, res) => {
+  app.delete("/api/prospects/:id", devRequireRole(['agent', 'admin', 'corporate', 'super_admin']), async (req, res) => {
     try {
       const { id } = req.params;
       const success = await storage.deleteMerchantProspect(parseInt(id));
