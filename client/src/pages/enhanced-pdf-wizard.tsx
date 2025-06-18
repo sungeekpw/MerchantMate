@@ -654,18 +654,26 @@ export default function EnhancedPdfWizard() {
     // Track field interaction for prospect status update
     handleFieldInteraction(fieldName, value);
     
-    // Trigger address autocomplete for address field (only if not locked)
-    if (fieldName === 'address' && !addressFieldsLocked) {
+    // Trigger address autocomplete for address field - allow even when locked to enable new selections
+    if (fieldName === 'address') {
+      // If user starts typing in a locked address field, unlock it for new selection
+      if (addressFieldsLocked && value !== formData.address) {
+        console.log('User typing new address - unlocking fields for new selection');
+        setAddressFieldsLocked(false);
+        setAddressOverrideActive(false);
+        setAddressValidationStatus('idle');
+      }
+      
       setAddressValidationStatus('idle');
-      // Clear city, state, zip when manually typing new address
+      // Clear city, state, zip when manually typing new address (if not locked or being unlocked)
       if (value && value.length >= 4) {
         fetchAddressSuggestions(value);
       } else {
         setShowSuggestions(false);
         setAddressSuggestions([]);
         setSelectedSuggestionIndex(-1);
-        // Clear address-related fields when address is short
-        if (value.length < 4) {
+        // Clear address-related fields when address is short (only if not locked)
+        if (value.length < 4 && !addressFieldsLocked) {
           const clearedFormData = { ...newFormData };
           clearedFormData.city = '';
           clearedFormData.state = '';
