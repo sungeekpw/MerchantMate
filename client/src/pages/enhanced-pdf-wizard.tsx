@@ -1026,6 +1026,300 @@ export default function EnhancedPdfWizard() {
           </div>
         );
 
+      case 'ownership':
+        const owners = formData.owners || [];
+        const totalPercentage = owners.reduce((sum: number, owner: any) => sum + (parseFloat(owner.percentage) || 0), 0);
+
+        const addOwner = () => {
+          const newOwners = [...owners, { name: '', email: '', percentage: '', signature: null, signatureType: null }];
+          handleFieldChange('owners', newOwners);
+        };
+
+        const removeOwner = (index: number) => {
+          const newOwners = owners.filter((_: any, i: number) => i !== index);
+          handleFieldChange('owners', newOwners);
+        };
+
+        const updateOwner = (index: number, field: string, value: any) => {
+          const newOwners = [...owners];
+          newOwners[index] = { ...newOwners[index], [field]: value };
+          handleFieldChange('owners', newOwners);
+        };
+
+        return (
+          <div className="space-y-6">
+            <div className="flex items-center justify-between">
+              <Label className="text-lg font-semibold text-gray-800">
+                {field.fieldLabel}
+                {field.isRequired && <span className="text-red-500 ml-1">*</span>}
+              </Label>
+              <div className="flex gap-2">
+                {owners.length > 0 && (
+                  <Button
+                    type="button"
+                    onClick={async () => {
+                      // Check for submitted signatures by owner email
+                      const updatedOwners = [...owners];
+                      let hasUpdates = false;
+                      
+                      for (let i = 0; i < updatedOwners.length; i++) {
+                        const owner = updatedOwners[i];
+                        if (owner.signature) continue; // Skip if already has signature
+                        
+                        try {
+                          // First try with signature token if available
+                          if (owner.signatureToken) {
+                            const response = await fetch(`/api/signature/${owner.signatureToken}`);
+                            if (response.ok) {
+                              const result = await response.json();
+                              if (result.success && result.signature) {
+                                updatedOwners[i] = {
+                                  ...owner,
+                                  signature: result.signature.signature,
+                                  signatureType: result.signature.signatureType
+                                };
+                                hasUpdates = true;
+                                continue;
+                              }
+                            }
+                          }
+                          
+                          // Fallback: search by email
+                          if (owner.email) {
+                            const emailResponse = await fetch(`/api/signature/by-email/${encodeURIComponent(owner.email)}`);
+                            if (emailResponse.ok) {
+                              const emailResult = await emailResponse.json();
+                              if (emailResult.success && emailResult.signature) {
+                                updatedOwners[i] = {
+                                  ...owner,
+                                  signature: emailResult.signature.signature,
+                                  signatureType: emailResult.signature.signatureType
+                                };
+                                hasUpdates = true;
+                              }
+                            }
+                          }
+                        } catch (error) {
+                          console.error('Error checking signature for owner:', error);
+                        }
+                      }
+                      
+                      if (hasUpdates) {
+                        handleFieldChange('owners', updatedOwners);
+                      }
+                    }}
+                    variant="outline"
+                    size="sm"
+                    className="text-xs"
+                  >
+                    Check for Signatures
+                  </Button>
+                )}
+                {totalPercentage < 100 && (
+                  <Button
+                    type="button"
+                    onClick={addOwner}
+                    variant="outline"
+                    size="sm"
+                    className="text-xs"
+                  >
+                    Add Owner
+                  </Button>
+                )}
+              </div>
+            </div>
+
+            {owners.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">
+                <p>No owners added yet. Click "Add Owner" to get started.</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {owners.map((owner: any, index: number) => (
+                  <div key={index} className="border border-gray-200 rounded-lg p-4">
+                    <div className="flex items-center justify-between mb-4">
+                      <h4 className="font-medium text-gray-800">Owner {index + 1}</h4>
+                      <Button
+                        type="button"
+                        onClick={() => removeOwner(index)}
+                        variant="ghost"
+                        size="sm"
+                        className="text-red-600 hover:text-red-800"
+                      >
+                        Remove
+                      </Button>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div>
+                        <Label className="text-sm text-gray-600">Owner Name *</Label>
+                        <Input
+                          value={owner.name || ''}
+                          onChange={(e) => updateOwner(index, 'name', e.target.value)}
+                          placeholder="Full name"
+                          className="mt-1"
+                        />
+                      </div>
+
+                      <div>
+                        <Label className="text-sm text-gray-600">Email Address *</Label>
+                        <Input
+                          type="email"
+                          value={owner.email || ''}
+                          onChange={(e) => updateOwner(index, 'email', e.target.value)}
+                          placeholder="owner@company.com"
+                          className="mt-1"
+                        />
+                      </div>
+
+                      <div>
+                        <Label className="text-sm text-gray-600">Ownership % *</Label>
+                        <Input
+                          type="number"
+                          min="0"
+                          max="100"
+                          step="0.01"
+                          value={owner.percentage || ''}
+                          onChange={(e) => updateOwner(index, 'percentage', e.target.value)}
+                          placeholder="25.00"
+                          className="mt-1"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Signature requirement for owners with >25% */}
+                    {parseFloat(owner.percentage) > 25 && (
+                      <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                        <div className="flex items-start gap-2 mb-3">
+                          <FileText className="w-5 h-5 text-amber-600 mt-0.5" />
+                          <div>
+                            <p className="text-sm font-medium text-amber-800">Signature Required</p>
+                            <p className="text-xs text-amber-700">
+                              Owners with more than 25% ownership must provide a signature
+                            </p>
+                          </div>
+                        </div>
+
+                        {owner.signature ? (
+                          <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded">
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <p className="text-sm font-medium text-green-800">Signature Completed</p>
+                                <p className="text-xs text-green-700">
+                                  {owner.signatureType === 'typed' ? 'Typed signature' : 'Drawn signature'} received
+                                </p>
+                              </div>
+                              <Button
+                                type="button"
+                                onClick={() => updateOwner(index, 'signature', null)}
+                                variant="ghost"
+                                size="sm"
+                                className="text-red-600 hover:text-red-800"
+                              >
+                                Clear
+                              </Button>
+                            </div>
+                            <div className="mt-2 p-2 bg-white border rounded text-center">
+                              <span className="font-signature text-lg text-gray-800">
+                                {owner.signature}
+                              </span>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="mt-3">
+                            <p className="text-sm text-amber-800 mb-2">
+                              Please provide a signature for this owner
+                            </p>
+                            
+                            {/* Email request option for unsigned owners */}
+                            {owner.email && (
+                              <div className="pt-3 border-t border-amber-200">
+                                <div className="flex items-center justify-between">
+                                  <div>
+                                    <p className="text-sm font-medium text-amber-800">Send Email Request</p>
+                                    <p className="text-xs text-amber-700">
+                                      Send a secure email request for digital signature
+                                    </p>
+                                  </div>
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={async () => {
+                                      if (!owner.email || !owner.name || !formData.companyName) {
+                                        return;
+                                      }
+
+                                      try {
+                                        const response = await fetch('/api/send-signature-request', {
+                                          method: 'POST',
+                                          headers: {
+                                            'Content-Type': 'application/json',
+                                          },
+                                          body: JSON.stringify({
+                                            prospectId: prospectData?.prospect?.id,
+                                            ownerName: owner.name,
+                                            ownerEmail: owner.email,
+                                            companyName: formData.companyName,
+                                            ownershipPercentage: owner.percentage,
+                                            requesterName: formData.companyName,
+                                            agentName: formData.assignedAgent?.split(' (')[0] || 'Agent'
+                                          }),
+                                        });
+
+                                        if (response.ok) {
+                                          const result = await response.json();
+                                          if (result.success) {
+                                            // Update owner with signature token
+                                            updateOwner(index, 'signatureToken', result.signatureToken);
+                                            updateOwner(index, 'emailSent', new Date().toISOString());
+                                          }
+                                        }
+                                      } catch (error) {
+                                        console.error('Error sending signature request:', error);
+                                      }
+                                    }}
+                                    disabled={!owner.email || !formData.companyName}
+                                    className="border-amber-300 text-amber-700 hover:bg-amber-100"
+                                  >
+                                    Send Email Request
+                                  </Button>
+                                </div>
+                                
+                                {/* Show email sent status */}
+                                {owner.emailSent && (
+                                  <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded text-xs text-green-700">
+                                    Email sent successfully on {new Date(owner.emailSent).toLocaleDateString()}
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {owners.length > 0 && (
+              <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium text-blue-800">
+                    Total Ownership: {totalPercentage.toFixed(2)}%
+                  </span>
+                  {totalPercentage !== 100 && (
+                    <span className="text-xs text-blue-700">
+                      {totalPercentage > 100 ? 'Exceeds 100%' : `${(100 - totalPercentage).toFixed(2)}% remaining`}
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        );
+
       default:
         return null;
     }
