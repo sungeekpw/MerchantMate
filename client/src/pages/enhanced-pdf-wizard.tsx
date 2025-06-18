@@ -188,6 +188,42 @@ export default function EnhancedPdfWizard() {
     enabled: !!id && !isProspectMode
   });
 
+  // Load owners with signatures from database
+  const loadOwnersWithSignatures = async (prospectId: number) => {
+    try {
+      console.log(`Loading owners with signatures for prospect ${prospectId}`);
+      const response = await fetch(`/api/prospects/${prospectId}/owners-with-signatures`);
+      if (response.ok) {
+        const result = await response.json();
+        if (result.success && result.owners.length > 0) {
+          console.log("Found owners with signatures from database:", result.owners);
+          setFormData(prev => ({
+            ...prev,
+            owners: result.owners
+          }));
+        } else {
+          console.log("No owners found in database");
+        }
+      } else {
+        console.log("Failed to fetch owners:", response.status);
+      }
+    } catch (error) {
+      console.error("Error loading owners with signatures:", error);
+    }
+  };
+
+  // Load owners with signatures when prospect data is available
+  useEffect(() => {
+    if (prospectData?.prospect?.id && isProspectMode) {
+      loadOwnersWithSignatures(prospectData.prospect.id);
+    }
+  }, [prospectData, isProspectMode]);
+
+  // Debug form data changes
+  useEffect(() => {
+    console.log('Form data updated:', formData);
+  }, [formData]);
+
   // Create hardcoded form sections for prospect mode
   const prospectFormSections: FormSection[] = [
     {
