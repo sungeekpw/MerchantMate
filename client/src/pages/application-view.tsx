@@ -81,7 +81,7 @@ export default function ApplicationView() {
     );
   }
 
-  const formData = prospect.formData ? JSON.parse(prospect.formData) : {};
+  const formData: any = prospect?.formData ? (typeof prospect.formData === 'string' ? JSON.parse(prospect.formData) : prospect.formData) : {};
   const owners: Owner[] = formData.owners || [];
 
   const getStatusColor = (status: string) => {
@@ -137,12 +137,12 @@ export default function ApplicationView() {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-3xl font-bold text-gray-900">
-                {prospect.firstName} {prospect.lastName}
+                {prospect?.firstName} {prospect?.lastName}
               </h1>
               <p className="text-gray-600 mt-1">Merchant Application Review</p>
             </div>
-            <Badge className={getStatusColor(prospect.status)}>
-              {prospect.status.replace('_', ' ').toUpperCase()}
+            <Badge className={getStatusColor(prospect?.status || 'pending')}>
+              {(prospect?.status || 'pending').replace('_', ' ').toUpperCase()}
             </Badge>
           </div>
         </div>
@@ -159,15 +159,15 @@ export default function ApplicationView() {
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <span className="text-sm text-gray-600">Application Created</span>
-                <span className="text-sm font-medium">{formatDate(prospect.createdAt)}</span>
+                <span className="text-sm font-medium">{formatDate(prospect?.createdAt || new Date().toISOString())}</span>
               </div>
-              {prospect.applicationStartedAt && (
+              {prospect?.applicationStartedAt && (
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-gray-600">Application Started</span>
                   <span className="text-sm font-medium">{formatDate(prospect.applicationStartedAt)}</span>
                 </div>
               )}
-              {prospect.validatedAt && (
+              {prospect?.validatedAt && (
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-gray-600">Email Validated</span>
                   <span className="text-sm font-medium">{formatDate(prospect.validatedAt)}</span>
@@ -175,7 +175,7 @@ export default function ApplicationView() {
               )}
               <div className="flex items-center justify-between">
                 <span className="text-sm text-gray-600">Last Updated</span>
-                <span className="text-sm font-medium">{formatDate(prospect.updatedAt)}</span>
+                <span className="text-sm font-medium">{formatDate(prospect?.updatedAt || new Date().toISOString())}</span>
               </div>
             </div>
           </CardContent>
@@ -195,7 +195,7 @@ export default function ApplicationView() {
                 <Mail className="h-4 w-4 text-gray-400" />
                 <div>
                   <p className="text-sm text-gray-600">Email</p>
-                  <p className="font-medium">{prospect.email}</p>
+                  <p className="font-medium">{prospect?.email || 'Not provided'}</p>
                 </div>
               </div>
               {formData.companyPhone && (
@@ -211,7 +211,7 @@ export default function ApplicationView() {
                 <User className="h-4 w-4 text-gray-400" />
                 <div>
                   <p className="text-sm text-gray-600">Assigned Agent</p>
-                  <p className="font-medium">{prospect.assignedAgent || 'Not assigned'}</p>
+                  <p className="font-medium">{prospect?.assignedAgent || 'Not assigned'}</p>
                 </div>
               </div>
             </div>
