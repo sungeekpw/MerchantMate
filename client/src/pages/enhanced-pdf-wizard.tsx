@@ -711,7 +711,8 @@ export default function EnhancedPdfWizard() {
           // Check if Business Type section is complete
           const businessTypeComplete = existingData.federalTaxId && 
                                      existingData.businessType && 
-                                     existingData.yearsInBusiness;
+                                     existingData.stateFiled && 
+                                     existingData.businessStartDate;
           
           // Auto-advance to next incomplete section
           if (merchantInfoComplete && !businessTypeComplete && startingStep === 0) {
@@ -1791,6 +1792,24 @@ export default function EnhancedPdfWizard() {
           </div>
         );
 
+      case 'date':
+        return (
+          <div className="space-y-2">
+            <Label htmlFor={field.fieldName} className="text-sm font-medium text-gray-700">
+              {field.fieldLabel}
+              {field.isRequired && <span className="text-red-500 ml-1">*</span>}
+            </Label>
+            <Input
+              id={field.fieldName}
+              type="date"
+              value={value}
+              onChange={(e) => handleFieldChange(field.fieldName, e.target.value)}
+              className={hasError ? 'border-red-500' : ''}
+            />
+            {hasError && <p className="text-xs text-red-500">{hasError}</p>}
+          </div>
+        );
+
       case 'readonly':
         return (
           <div className="space-y-2">
@@ -1800,10 +1819,9 @@ export default function EnhancedPdfWizard() {
             <Input
               id={field.fieldName}
               type="text"
-              value={value}
+              value={value || (field.fieldName === 'yearsInBusiness' ? 'Enter business start date to calculate' : 'Loading...')}
               readOnly
               className="bg-gray-50 cursor-not-allowed"
-              placeholder="Loading agent information..."
             />
           </div>
         );
