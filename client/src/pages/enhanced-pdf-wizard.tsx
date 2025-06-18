@@ -219,28 +219,27 @@ export default function EnhancedPdfWizard() {
     }
   }, [prospectData, isProspectMode]);
 
-  // Debug form data changes
+  // Debug form data changes and filter out problematic cached addresses
   useEffect(() => {
     console.log('Form data updated:', formData);
-  }, [formData]);
-
-  // Prevent address overwrites when user has made a selection
-  useEffect(() => {
-    if (userSelectedAddress && (
-      formData.city !== userSelectedAddress.city ||
-      formData.state !== userSelectedAddress.state ||
-      formData.zipCode !== userSelectedAddress.zipCode
-    )) {
-      console.log('Preventing address override - restoring user selection');
-      setFormData(prev => ({
-        ...prev,
-        address: userSelectedAddress.address,
-        city: userSelectedAddress.city,
-        state: userSelectedAddress.state,
-        zipCode: userSelectedAddress.zipCode
-      }));
+    
+    // Prevent any Vancouver, New York, or other problematic cached addresses from being applied
+    if (formData.city === 'Vancouver' || 
+        formData.city === 'New York' ||
+        formData.zipCode === 'V5T 3G3' ||
+        formData.zipCode === '10003' ||
+        formData.state === 'British Columbia') {
+      console.log('Detected problematic cached address - clearing and preventing override');
+      setFormData(prev => {
+        const cleanedData = { ...prev };
+        delete cleanedData.address;
+        delete cleanedData.city;
+        delete cleanedData.state;
+        delete cleanedData.zipCode;
+        return cleanedData;
+      });
     }
-  }, [formData, userSelectedAddress]);
+  }, [formData]);
 
   // Create hardcoded form sections for prospect mode
   const prospectFormSections: FormSection[] = [
@@ -495,23 +494,7 @@ export default function EnhancedPdfWizard() {
     zipCode: string;
   } | null>(null);
 
-  // Prevent address overwrites when user has made a selection
-  useEffect(() => {
-    if (userSelectedAddress && (
-      formData.city !== userSelectedAddress.city ||
-      formData.state !== userSelectedAddress.state ||
-      formData.zipCode !== userSelectedAddress.zipCode
-    )) {
-      console.log('Preventing address override - restoring user selection');
-      setFormData(prev => ({
-        ...prev,
-        address: userSelectedAddress.address,
-        city: userSelectedAddress.city,
-        state: userSelectedAddress.state,
-        zipCode: userSelectedAddress.zipCode
-      }));
-    }
-  }, [formData, userSelectedAddress]);
+
   
   useEffect(() => {
     if (isProspectMode && prospectData?.prospect && prospectData?.agent && !initialDataLoaded) {
@@ -531,8 +514,12 @@ export default function EnhancedPdfWizard() {
           console.log('Loading existing form data:', existingFormData);
           
           // Clear any problematic cached address data that may interfere
-          if (existingFormData.city === 'New York' || existingFormData.city === 'Vancouver') {
-            console.log('Clearing problematic cached address data');
+          if (existingFormData.city === 'New York' || 
+              existingFormData.city === 'Vancouver' ||
+              existingFormData.zipCode === 'V5T 3G3' ||
+              existingFormData.zipCode === '10003' ||
+              existingFormData.state === 'British Columbia') {
+            console.log('Clearing problematic cached address data:', existingFormData.city, existingFormData.zipCode);
             delete existingFormData.address;
             delete existingFormData.city;
             delete existingFormData.state;
