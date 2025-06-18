@@ -245,6 +245,13 @@ The application is configured for deployment on Replit with:
   - Changed UI text to "Owners with 25% or more ownership must provide a signature"
   - Error messages now show "Signature required for ownership ≥ 25%"
   - Ensures owners with exactly 25% ownership are properly required to provide signatures
+- June 18, 2025. Fixed form data persistence between sections
+  - Added proper form data saving when navigating between sections using Next/Previous buttons
+  - Created handleNext and handlePrevious functions that save form data before navigation
+  - Fixed signature request email endpoint URL mismatch (/api/send-signature-request → /api/signature-request)
+  - Enhanced error handling for signature request functionality with better logging
+  - Form data now properly persists when users click Next button, preventing data loss
+  - Both inline signatures and email signature requests now working correctly
 
 ## User Preferences
 Preferred communication style: Simple, everyday language.
