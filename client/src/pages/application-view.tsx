@@ -504,7 +504,7 @@ export default function ApplicationView() {
         )}
 
         {/* Transaction Information */}
-        {(formData.monthlyVolume || formData.averageTicket || formData.processingMethod) && (
+        {(formData.monthlyVolume || formData.averageTicket || formData.processingMethod || formData.averageMonthlyVolume || formData.seasonal || formData.merchantType || formData.highestVolumeMonths) && (
           <Card className="mb-6">
             <CardHeader>
               <CardTitle className="flex items-center">
@@ -518,6 +518,12 @@ export default function ApplicationView() {
                   <div>
                     <p className="text-sm text-gray-600">Monthly Volume</p>
                     <p className="font-medium">{formatCurrency(formData.monthlyVolume)}</p>
+                  </div>
+                )}
+                {formData.averageMonthlyVolume && (
+                  <div>
+                    <p className="text-sm text-gray-600">Average Monthly Volume</p>
+                    <p className="font-medium">{formatCurrency(formData.averageMonthlyVolume)}</p>
                   </div>
                 )}
                 {formData.averageTicket && (
@@ -536,6 +542,24 @@ export default function ApplicationView() {
                   <div>
                     <p className="text-sm text-gray-600">Processing Method</p>
                     <p className="font-medium">{formData.processingMethod}</p>
+                  </div>
+                )}
+                {formData.merchantType && (
+                  <div>
+                    <p className="text-sm text-gray-600">Merchant Type</p>
+                    <p className="font-medium">{formData.merchantType}</p>
+                  </div>
+                )}
+                {formData.seasonal && (
+                  <div>
+                    <p className="text-sm text-gray-600">Seasonal Business</p>
+                    <p className="font-medium">{formData.seasonal === 'true' || formData.seasonal === true ? 'Yes' : formData.seasonal === 'false' || formData.seasonal === false ? 'No' : formData.seasonal}</p>
+                  </div>
+                )}
+                {formData.highestVolumeMonths && (
+                  <div>
+                    <p className="text-sm text-gray-600">Highest Volume Months</p>
+                    <p className="font-medium">{formatCurrency(formData.highestVolumeMonths)}</p>
                   </div>
                 )}
               </div>
