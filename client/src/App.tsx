@@ -38,6 +38,7 @@ import ApplicationStatus from "@/pages/application-status";
 import ApplicationView from "@/pages/application-view";
 import ApplicationPrint from "@/pages/application-print";
 import AgentDashboard from "@/pages/agent-dashboard";
+import Campaigns from "@/pages/campaigns";
 import NotFound from "@/pages/not-found";
 import Landing from "@/pages/landing";
 import Auth from "@/pages/auth";
@@ -411,6 +412,24 @@ function AuthenticatedApp() {
                   />
                   <main className="flex-1 overflow-auto bg-gray-50">
                     <ApplicationView />
+                  </main>
+                </>
+              );
+            }}
+          </Route>
+          <Route path="/campaigns">
+            {() => {
+              if (!canAccessAgentManagement(user)) return <NotFound />;
+              const pageInfo = { title: "Campaign Management", subtitle: "Create and manage pricing campaigns for merchant applications" };
+              return (
+                <>
+                  <Header 
+                    title={pageInfo.title} 
+                    subtitle={pageInfo.subtitle}
+                    onSearch={setGlobalSearch}
+                  />
+                  <main className="flex-1 overflow-auto bg-gray-50">
+                    <Campaigns />
                   </main>
                 </>
               );
