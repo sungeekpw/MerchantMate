@@ -469,6 +469,7 @@ export default function EnhancedPdfWizard() {
 
   // Initialize form data with agent and prospect information for prospects
   const [initialDataLoaded, setInitialDataLoaded] = useState(false);
+  const [addressOverrideActive, setAddressOverrideActive] = useState(false);
   
   useEffect(() => {
     if (isProspectMode && prospectData?.prospect && prospectData?.agent && !initialDataLoaded) {
@@ -478,14 +479,24 @@ export default function EnhancedPdfWizard() {
       };
       console.log('Setting initial prospect data:', newData);
       
-      // Load existing form data if available
-      if (prospectData.prospect.formData) {
+      // Load existing form data if available, but exclude address fields if address override is active
+      if (prospectData.prospect.formData && !addressOverrideActive) {
         try {
           const existingFormData = typeof prospectData.prospect.formData === 'string' 
             ? JSON.parse(prospectData.prospect.formData) 
             : prospectData.prospect.formData;
           
           console.log('Loading existing form data:', existingFormData);
+          
+          // Clear any problematic cached address data that may interfere
+          if (existingFormData.city === 'New York' || existingFormData.city === 'Vancouver') {
+            console.log('Clearing problematic cached address data');
+            delete existingFormData.address;
+            delete existingFormData.city;
+            delete existingFormData.state;
+            delete existingFormData.zipCode;
+          }
+          
           setFormData(prev => ({
             ...prev,
             ...newData,
@@ -512,7 +523,7 @@ export default function EnhancedPdfWizard() {
       
       setInitialDataLoaded(true);
     }
-  }, [isProspectMode, prospectData, initialDataLoaded]);
+  }, [isProspectMode, prospectData, initialDataLoaded, addressOverrideActive]);
 
   // Track when user starts filling out the form and update prospect status
   const handleFieldInteraction = (fieldName: string, value: any) => {
@@ -978,6 +989,9 @@ export default function EnhancedPdfWizard() {
           
           // Mark that initial data has been loaded to prevent database overwrites
           setInitialDataLoaded(true);
+          
+          // Activate address override protection to prevent cached data interference
+          setAddressOverrideActive(true);
           
           // Force update DOM input fields directly to override any browser persistence
           setTimeout(() => {
