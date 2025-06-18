@@ -1298,9 +1298,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/prospects/:id", requireRole(['agent', 'admin', 'corporate', 'super_admin']), async (req, res) => {
+  app.delete("/api/prospects/:id", isAuthenticated, async (req, res) => {
     try {
       const { id } = req.params;
+      
+      // Check user role authorization
+      const userId = (req.session as any).userId;
+      const user = await storage.getUser(userId);
+      
+      if (!user) {
+        return res.status(401).json({ message: "User not found" });
+      }
+      
+      if (!['agent', 'admin', 'corporate', 'super_admin'].includes(user.role)) {
+        return res.status(403).json({ message: "Insufficient permissions" });
+      }
+      
       const success = await storage.deleteMerchantProspect(parseInt(id));
       
       if (success) {
