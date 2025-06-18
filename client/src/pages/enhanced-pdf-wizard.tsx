@@ -1297,8 +1297,18 @@ export default function EnhancedPdfWizard() {
       }
 
       try {
+        const prospectId = prospectData?.prospect?.id || prospectData?.id;
         console.log('Prospect data for signature request:', prospectData);
-        console.log('Prospect ID:', prospectData?.id);
+        console.log('Prospect ID:', prospectId);
+        
+        if (!prospectId) {
+          toast({
+            title: "Error",
+            description: "Unable to identify prospect. Please refresh and try again.",
+            variant: "destructive",
+          });
+          return;
+        }
         
         const response = await fetch('/api/signature-request', {
           method: 'POST',
@@ -1310,9 +1320,9 @@ export default function EnhancedPdfWizard() {
             ownerEmail: owner.email,
             companyName: formData.companyName,
             ownershipPercentage: `${owner.percentage}%`,
-            requesterName: formData.companyName, // Could be the current user's name
+            requesterName: formData.companyName,
             agentName: formData.assignedAgent?.split('(')[0]?.trim() || 'Your Agent',
-            prospectId: prospectData?.id
+            prospectId: prospectId
           }),
         });
 
