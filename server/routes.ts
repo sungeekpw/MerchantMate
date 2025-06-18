@@ -1982,6 +1982,64 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Save inline signature (for signatures created within the application)
+  app.post("/api/prospects/:id/save-inline-signature", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { ownerEmail, ownerName, signature, signatureType, ownershipPercentage } = req.body;
+      const prospectId = parseInt(id);
+
+      if (!ownerEmail || !ownerName || !signature || !signatureType) {
+        return res.status(400).json({ 
+          success: false, 
+          message: "Missing required signature data" 
+        });
+      }
+
+      // First, ensure the prospect owner exists in the database
+      let owner = await storage.getProspectOwnerByEmailAndProspectId(ownerEmail, prospectId);
+      
+      if (!owner) {
+        // Create the owner record if it doesn't exist
+        const ownerData = {
+          prospectId,
+          name: ownerName,
+          email: ownerEmail,
+          percentage: parseFloat(ownershipPercentage) || 0
+        };
+        
+        owner = await storage.createProspectOwner(ownerData);
+      }
+
+      // Generate a signature token for the inline signature
+      const signatureToken = `inline_sig_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+      // Create the signature record in database
+      await storage.createProspectSignature({
+        prospectId,
+        ownerId: owner.id,
+        signatureToken,
+        signature,
+        signatureType
+      });
+      
+      console.log(`Inline signature saved for owner: ${ownerName} (${ownerEmail})`);
+      console.log(`Signature type: ${signatureType}`);
+
+      res.json({ 
+        success: true, 
+        message: "Inline signature saved successfully",
+        signatureToken
+      });
+    } catch (error) {
+      console.error("Error saving inline signature:", error);
+      res.status(500).json({ 
+        success: false, 
+        message: "Failed to save inline signature" 
+      });
+    }
+  });
+
   // Get application context by signature token (for signature request page)
   app.get("/api/signature-request/:token", async (req, res) => {
     try {
