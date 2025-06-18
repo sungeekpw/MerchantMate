@@ -399,11 +399,21 @@ function AuthenticatedApp() {
             }}
           </Route>
           <Route path="/application-view/:id">
-            {() => (
-              <main className="flex-1 overflow-hidden">
-                <ApplicationView />
-              </main>
-            )}
+            {() => {
+              const pageInfo = { title: "Application View", subtitle: "Detailed view of merchant application" };
+              return (
+                <>
+                  <Header 
+                    title={pageInfo.title} 
+                    subtitle={pageInfo.subtitle}
+                    onSearch={setGlobalSearch}
+                  />
+                  <main className="flex-1 overflow-auto bg-gray-50">
+                    <ApplicationView />
+                  </main>
+                </>
+              );
+            }}
           </Route>
           <Route>
             <div className="flex-1">
