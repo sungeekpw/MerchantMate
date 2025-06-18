@@ -1954,9 +1954,44 @@ export default function EnhancedPdfWizard() {
                         <DigitalSignaturePad
                           ownerIndex={index}
                           owner={owner}
-                          onSignatureChange={(ownerIndex, signature, type) => {
+                          onSignatureChange={async (ownerIndex, signature, type) => {
                             updateOwner(ownerIndex, 'signature', signature);
                             updateOwner(ownerIndex, 'signatureType', type);
+                            
+                            // Save inline signature to database
+                            if (signature && type && owner.email && owner.name) {
+                              const prospectId = prospectData?.prospect?.id || prospectData?.id;
+                              if (prospectId) {
+                                try {
+                                  const response = await fetch(`/api/prospects/${prospectId}/save-inline-signature`, {
+                                    method: 'POST',
+                                    headers: {
+                                      'Content-Type': 'application/json',
+                                    },
+                                    body: JSON.stringify({
+                                      ownerEmail: owner.email,
+                                      ownerName: owner.name,
+                                      signature,
+                                      signatureType: type,
+                                      ownershipPercentage: owner.percentage
+                                    }),
+                                  });
+                                  
+                                  if (response.ok) {
+                                    const result = await response.json();
+                                    console.log(`Inline signature saved to database for ${owner.name}`);
+                                    // Optionally update owner with signature token
+                                    if (result.signatureToken) {
+                                      updateOwner(ownerIndex, 'signatureToken', result.signatureToken);
+                                    }
+                                  } else {
+                                    console.error('Failed to save inline signature to database');
+                                  }
+                                } catch (error) {
+                                  console.error('Error saving inline signature:', error);
+                                }
+                              }
+                            }
                           }}
                         />
                         

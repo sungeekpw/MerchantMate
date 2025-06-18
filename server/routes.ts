@@ -2005,7 +2005,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           prospectId,
           name: ownerName,
           email: ownerEmail,
-          percentage: parseFloat(ownershipPercentage) || 0
+          ownershipPercentage: ownershipPercentage || '0'
         };
         
         owner = await storage.createProspectOwner(ownerData);
