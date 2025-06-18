@@ -177,7 +177,7 @@ ${totalObjects * 100}
     sections.push({
       type: 'header',
       content: this.createHeaderSection(formData, cleanText),
-      height: 100
+      height: 130
     });
 
     // Section 1: Merchant Information
@@ -233,26 +233,26 @@ ${totalObjects * 100}
   private distributeContentAcrossPages(sections: any[]): string[] {
     const pages = [];
     let currentPage = '';
-    let currentY = 750;
+    let currentY = 620; // Start lower to account for header space
     let pageNum = 1;
 
     for (const section of sections) {
       // Check if section fits on current page
-      if (currentY - section.height < 50 && currentPage !== '') {
+      if (currentY - section.height < 80 && currentPage !== '') {
         // Finish current page and start new one
         currentPage += 'ET\n';
         pages.push(currentPage);
         
         // Start new page
         currentPage = 'BT\n';
+        currentPage += '50 720 Td\n';
         currentPage += '/F1 12 Tf\n';
-        currentPage += '50 750 Td\n';
         currentPage += '(MERCHANT APPLICATION - Page ' + (++pageNum) + ') Tj\n';
         currentPage += '0 -20 Td\n';
         currentPage += '/F1 8 Tf\n';
         currentPage += '(________________________________________________________________) Tj\n';
-        currentPage += '0 -30 Td\n';
-        currentY = 680;
+        currentPage += '0 -25 Td\n';
+        currentY = 650;
       }
 
       if (currentPage === '') {
@@ -275,42 +275,39 @@ ${totalObjects * 100}
   private createHeaderSection(formData: FormData, cleanText: Function): string {
     let content = '';
     
-    // Company header (centered)
+    // Start with proper positioning from top
+    content += '50 720 Td\n';
     content += '/F2 14 Tf\n';
-    content += '200 750 Td\n';
     content += '(CORE CRM MERCHANT CENTER) Tj\n';
     
-    // Right-aligned agent number
-    content += '200 0 Td\n';
+    // Agent info on same line
+    content += '300 0 Td\n';
     content += '/F1 10 Tf\n';
-    content += '(AGENT #) Tj\n';
-    content += '-400 0 Td\n';
+    content += '(AGENT: ' + cleanText(formData.assignedAgent || 'N/A') + ') Tj\n';
+    content += '-300 0 Td\n';
     
-    // Main title
-    content += '0 -30 Td\n';
-    content += '/F2 16 Tf\n';
-    content += '150 0 Td\n';
-    content += '(MERCHANT PROCESSING APPLICATION & AGREEMENT) Tj\n';
-    content += '-150 0 Td\n';
-    
-    // Date stamp
-    content += '400 0 Td\n';
-    content += '/F1 9 Tf\n';
-    content += '(Date: ' + new Date().toLocaleDateString() + ') Tj\n';
-    content += '-400 0 Td\n';
-    
-    // Company name prominently displayed
+    // Main title - centered
     content += '0 -25 Td\n';
-    content += '/F2 12 Tf\n';
-    content += '(' + cleanText(formData.companyName || 'COMPANY NAME') + ') Tj\n';
+    content += '/F2 14 Tf\n';
+    content += '80 0 Td\n';
+    content += '(MERCHANT PROCESSING APPLICATION & AGREEMENT) Tj\n';
+    content += '-80 0 Td\n';
     
-    // Agent information
-    content += '350 0 Td\n';
-    content += '/F1 9 Tf\n';
-    content += '(Agent: ' + cleanText(formData.assignedAgent || 'N/A') + ') Tj\n';
-    content += '-350 0 Td\n';
-    
+    // Company name and date
     content += '0 -20 Td\n';
+    content += '/F2 12 Tf\n';
+    content += '(Company: ' + cleanText(formData.companyName || 'COMPANY NAME') + ') Tj\n';
+    content += '250 0 Td\n';
+    content += '/F1 10 Tf\n';
+    content += '(Date: ' + new Date().toLocaleDateString() + ') Tj\n';
+    content += '-250 0 Td\n';
+    
+    // Separator line
+    content += '0 -15 Td\n';
+    content += '/F1 8 Tf\n';
+    content += '(________________________________________________________________) Tj\n';
+    
+    content += '0 -25 Td\n';
     return content;
   }
 
