@@ -1297,6 +1297,9 @@ export default function EnhancedPdfWizard() {
       }
 
       try {
+        console.log('Prospect data for signature request:', prospectData);
+        console.log('Prospect ID:', prospectData?.id);
+        
         const response = await fetch('/api/signature-request', {
           method: 'POST',
           headers: {
