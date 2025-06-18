@@ -35,6 +35,7 @@ import Prospects from "@/pages/prospects";
 import ProspectValidation from "@/pages/prospect-validation";
 import SignatureRequest from "@/pages/signature-request";
 import ApplicationStatus from "@/pages/application-status";
+import ApplicationView from "@/pages/application-view";
 import AgentDashboard from "@/pages/agent-dashboard";
 import NotFound from "@/pages/not-found";
 import Landing from "@/pages/landing";
@@ -396,6 +397,13 @@ function AuthenticatedApp() {
                 </>
               );
             }}
+          </Route>
+          <Route path="/application-view/:id">
+            {() => (
+              <main className="flex-1 overflow-hidden">
+                <ApplicationView />
+              </main>
+            )}
           </Route>
           <Route>
             <div className="flex-1">

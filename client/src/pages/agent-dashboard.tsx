@@ -330,7 +330,7 @@ function ApplicationsList({ applications }: { applications: Application[] }) {
                 <span>{application.phone}</span>
               </div>
             </div>
-            <Link href={`/enhanced-pdf-wizard/1?prospectId=${application.id}`}>
+            <Link href={`/application-view/${application.id}`}>
               <Button variant="outline" size="sm">
                 View Application
               </Button>

@@ -398,17 +398,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
           case 'pending': completionPercentage = 10; break;
           case 'contacted': completionPercentage = 25; break;
           case 'in_progress': completionPercentage = 60; break;
-          case 'applied': completionPercentage = 90; break;
+          case 'applied': 
           case 'approved': 
           case 'rejected': completionPercentage = 100; break;
+        }
+
+        // Extract form data if available
+        let formData = {};
+        try {
+          formData = prospect.formData ? JSON.parse(prospect.formData) : {};
+        } catch (e) {
+          formData = {};
         }
 
         return {
           id: prospect.id,
           prospectName: `${prospect.firstName} ${prospect.lastName}`,
-          companyName: 'Not specified', // Will be added to schema later
+          companyName: formData.companyName || 'Not specified',
           email: prospect.email,
-          phone: 'Not provided', // Will be added to schema later
+          phone: formData.companyPhone || 'Not provided',
           status: prospect.status,
           createdAt: prospect.createdAt,
           lastUpdated: prospect.updatedAt || prospect.createdAt,
