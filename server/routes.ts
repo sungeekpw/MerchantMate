@@ -390,8 +390,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get all prospects assigned to this agent with application details
       const prospects = await storage.getProspectsByAgent(agent.id);
       
-      console.log('=== CALCULATING COMPLETION PERCENTAGES ===');
-      
       // Transform prospects to application format
       const applications = prospects.map(prospect => {
         // Extract form data if available
@@ -411,25 +409,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
           let sectionsCompleted = 0;
           const totalSections = 4; // Merchant Info, Business Type, Ownership, Transaction Info
           
-          console.log(`Calculating completion for prospect ${prospect.id} (${prospect.firstName} ${prospect.lastName})`);
-          console.log(`Form data keys: ${Object.keys(formData).join(', ')}`);
-          
           // Check Merchant Information section
           const merchantInfoComplete = formData.companyName && formData.companyEmail && formData.address && formData.city && formData.state;
           if (merchantInfoComplete) {
             sectionsCompleted++;
-            console.log(`✓ Merchant Info complete`);
-          } else {
-            console.log(`✗ Merchant Info incomplete - missing: ${!formData.companyName ? 'companyName ' : ''}${!formData.companyEmail ? 'companyEmail ' : ''}${!formData.address ? 'address ' : ''}${!formData.city ? 'city ' : ''}${!formData.state ? 'state' : ''}`);
           }
           
           // Check Business Type section  
           const businessTypeComplete = formData.businessType && formData.yearsInBusiness && formData.federalTaxId;
           if (businessTypeComplete) {
             sectionsCompleted++;
-            console.log(`✓ Business Type complete`);
-          } else {
-            console.log(`✗ Business Type incomplete - missing: ${!formData.businessType ? 'businessType ' : ''}${!formData.yearsInBusiness ? 'yearsInBusiness ' : ''}${!formData.federalTaxId ? 'federalTaxId' : ''}`);
           }
           
           // Check Business Ownership section
@@ -438,29 +427,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const requiredSignatures = formData.owners.filter((owner: any) => parseFloat(owner.percentage || 0) >= 25);
             const completedSignatures = requiredSignatures.filter((owner: any) => owner.signature);
             
-            console.log(`Ownership: ${totalOwnership}%, Required signatures: ${requiredSignatures.length}, Completed: ${completedSignatures.length}`);
-            
             if (Math.abs(totalOwnership - 100) < 0.01 && completedSignatures.length === requiredSignatures.length) {
               sectionsCompleted++;
-              console.log(`✓ Business Ownership complete`);
-            } else {
-              console.log(`✗ Business Ownership incomplete`);
             }
-          } else {
-            console.log(`✗ Business Ownership incomplete - no owners`);
           }
           
           // Check Transaction Information section
           const transactionInfoComplete = formData.monthlyVolume && formData.averageTicket && formData.processingMethod;
           if (transactionInfoComplete) {
             sectionsCompleted++;
-            console.log(`✓ Transaction Info complete`);
-          } else {
-            console.log(`✗ Transaction Info incomplete - missing: ${!formData.monthlyVolume ? 'monthlyVolume ' : ''}${!formData.averageTicket ? 'averageTicket ' : ''}${!formData.processingMethod ? 'processingMethod' : ''}`);
           }
           
           completionPercentage = Math.round((sectionsCompleted / totalSections) * 100);
-          console.log(`Final completion: ${sectionsCompleted}/${totalSections} sections = ${completionPercentage}%`);
           
           // Minimum percentage based on status
           if (prospect.status === 'contacted' && completionPercentage < 10) {
