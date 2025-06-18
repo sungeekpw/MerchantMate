@@ -390,6 +390,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get all prospects assigned to this agent with application details
       const prospects = await storage.getProspectsByAgent(agent.id);
       
+      console.log('=== CALCULATING COMPLETION PERCENTAGES ===');
+      
       // Transform prospects to application format
       const applications = prospects.map(prospect => {
         // Extract form data if available
@@ -485,6 +487,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Sort by most recent first
       applications.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
+      // Disable caching for fresh data
+      res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+      res.set('Pragma', 'no-cache');
+      res.set('Expires', '0');
+      
       res.json(applications);
     } catch (error) {
       console.error("Error fetching agent applications:", error);
