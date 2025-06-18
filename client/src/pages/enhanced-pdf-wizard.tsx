@@ -268,6 +268,35 @@ export default function EnhancedPdfWizard() {
     }
   });
 
+  // Navigation handlers that save form data before moving between sections
+  const handleNext = () => {
+    const nextStep = Math.min(sections.length - 1, currentStep + 1);
+    
+    // Save current form data before navigating for prospect mode
+    if (isProspectMode && prospectData?.prospect?.id) {
+      saveFormDataMutation.mutate({
+        formData: formData,
+        currentStep: nextStep
+      });
+    }
+    
+    setCurrentStep(nextStep);
+  };
+
+  const handlePrevious = () => {
+    const prevStep = Math.max(0, currentStep - 1);
+    
+    // Save current form data before navigating for prospect mode
+    if (isProspectMode && prospectData?.prospect?.id) {
+      saveFormDataMutation.mutate({
+        formData: formData,
+        currentStep: prevStep
+      });
+    }
+    
+    setCurrentStep(prevStep);
+  };
+
   // Fetch PDF form with fields (disable for prospect mode)
   const { data: pdfForm, isLoading, error } = useQuery<PdfForm>({
     queryKey: ['/api/pdf-forms', id, 'with-fields'],
@@ -1823,7 +1852,7 @@ export default function EnhancedPdfWizard() {
                       {currentStep > 0 && (
                         <Button
                           variant="outline"
-                          onClick={() => setCurrentStep(currentStep - 1)}
+                          onClick={handlePrevious}
                           className="flex items-center space-x-2"
                         >
                           <ArrowLeft className="w-4 h-4" />
@@ -1835,7 +1864,7 @@ export default function EnhancedPdfWizard() {
                     <div className="flex items-center space-x-4">
                       {currentStep < sections.length - 1 ? (
                         <Button
-                          onClick={() => setCurrentStep(currentStep + 1)}
+                          onClick={handleNext}
                           className="flex items-center space-x-2 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800"
                         >
                           <span>Next</span>
