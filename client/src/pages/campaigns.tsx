@@ -229,7 +229,7 @@ export default function CampaignsPage() {
         </TabsList>
 
         {/* Campaigns Tab */}
-        <TabsContent value="campaigns" className="space-y-6">
+        <TabsContent value="campaigns" className="space-y-4">
           <div className="flex items-center justify-between">
             <div className="flex gap-4 flex-1">
               <div className="relative flex-1 max-w-sm">
@@ -259,12 +259,6 @@ export default function CampaignsPage() {
           </div>
 
           <Card>
-            <CardHeader>
-              <CardTitle>Active Campaigns</CardTitle>
-              <CardDescription>
-                Manage your pricing campaigns and their configurations
-              </CardDescription>
-            </CardHeader>
             <CardContent>
               {campaignsLoading ? (
                 <div className="text-center py-8 text-muted-foreground">Loading campaigns...</div>
@@ -366,7 +360,7 @@ export default function CampaignsPage() {
         </TabsContent>
 
         {/* Fee Groups Tab */}
-        <TabsContent value="fee-groups" className="space-y-6">
+        <TabsContent value="fee-groups" className="space-y-4">
           <div className="flex items-center justify-between">
             <div className="relative max-w-sm">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
@@ -382,13 +376,7 @@ export default function CampaignsPage() {
           </div>
 
           <Card>
-            <CardHeader>
-              <CardTitle>Fee Groups</CardTitle>
-              <CardDescription>
-                Organize fee items into logical groups for better management
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
+            <CardContent className="p-6">
               {feeGroupsLoading ? (
                 <div className="text-center py-8 text-muted-foreground">Loading fee groups...</div>
               ) : feeGroups.length === 0 ? (
@@ -448,7 +436,7 @@ export default function CampaignsPage() {
         </TabsContent>
 
         {/* Fee Items Tab */}
-        <TabsContent value="fee-items" className="space-y-6">
+        <TabsContent value="fee-items" className="space-y-4">
           <div className="flex items-center justify-between">
             <div className="relative max-w-sm">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
@@ -464,13 +452,7 @@ export default function CampaignsPage() {
           </div>
 
           <Card>
-            <CardHeader>
-              <CardTitle>Fee Items</CardTitle>
-              <CardDescription>
-                Individual fee components that can be assigned to pricing types
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
+            <CardContent className="p-6">
               {feeItemsLoading ? (
                 <div className="text-center py-8 text-muted-foreground">Loading fee items...</div>
               ) : feeItems.length === 0 ? (
@@ -543,7 +525,7 @@ export default function CampaignsPage() {
         </TabsContent>
 
         {/* Pricing Types Tab */}
-        <TabsContent value="pricing-types" className="space-y-6">
+        <TabsContent value="pricing-types" className="space-y-4">
           <div className="flex items-center justify-between">
             <div className="relative max-w-sm">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
@@ -559,13 +541,7 @@ export default function CampaignsPage() {
           </div>
 
           <Card>
-            <CardHeader>
-              <CardTitle>Pricing Types</CardTitle>
-              <CardDescription>
-                Template configurations combining multiple fee items for different merchant types
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
+            <CardContent className="p-6">
               {pricingTypes.length === 0 ? (
                 <div className="text-center py-8">
                   <div className="text-muted-foreground mb-4">No pricing types found</div>
