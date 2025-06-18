@@ -344,14 +344,17 @@ export default function Prospects() {
                           >
                             <Edit className="w-4 h-4" />
                           </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleDelete(prospect)}
-                            disabled={deleteMutation.isPending}
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
+                          {(prospect.status === 'pending' || prospect.status === 'contacted') && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleDelete(prospect)}
+                              disabled={deleteMutation.isPending}
+                              title="Delete prospect"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          )}
                         </div>
                       </TableCell>
                     </TableRow>
