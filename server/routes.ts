@@ -1167,10 +1167,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/prospects", requireRole(['agent', 'admin', 'corporate', 'super_admin']), async (req, res) => {
+  app.post("/api/prospects", isAuthenticated, async (req, res) => {
     try {
       const { insertMerchantProspectSchema } = await import("@shared/schema");
       const { emailService } = await import("./emailService");
+      
+      // Check user role authorization
+      const userId = (req.session as any).userId;
+      const user = await storage.getUser(userId);
+      
+      if (!user) {
+        return res.status(401).json({ message: "User not found" });
+      }
+      
+      if (!['agent', 'admin', 'corporate', 'super_admin'].includes(user.role)) {
+        return res.status(403).json({ message: "Insufficient permissions" });
+      }
       
       const result = insertMerchantProspectSchema.safeParse(req.body);
       if (!result.success) {
