@@ -363,6 +363,12 @@ The application is configured for deployment on Replit with:
   - Enhanced handleNext and handlePrevious functions to maintain section status integrity
   - Warning indicators now persist correctly when navigating between any sections
   - Complete navigation workflow preserves yellow warning triangles for incomplete visited sections
+- June 18, 2025. Fixed owner data preservation during signature workflow
+  - Resolved issue where submitting signatures caused other owners to disappear from the application
+  - Updated loadOwnersWithSignatures to merge signature data instead of replacing the entire owners array
+  - Added email-based mapping to preserve all owners while updating only signature information
+  - Enhanced data integrity to prevent loss of owner information during signature submission process
+  - All owners now remain visible in the form after signatures are submitted and user returns to application
 
 ## User Preferences
 Preferred communication style: Simple, everyday language.

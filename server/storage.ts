@@ -116,6 +116,8 @@ export interface IStorage {
   getProspectSignature(token: string): Promise<ProspectSignature | undefined>;
   getProspectSignaturesByOwnerEmail(email: string): Promise<ProspectSignature[]>;
   getProspectSignaturesByProspect(prospectId: number): Promise<ProspectSignature[]>;
+  getProspectOwnerBySignatureToken(token: string): Promise<ProspectOwner | undefined>;
+  getProspectOwnerByEmailAndProspectId(email: string, prospectId: number): Promise<ProspectOwner | undefined>;
 
   // Admin operations
   clearAllProspectData(): Promise<void>;
@@ -1688,6 +1690,19 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(prospectOwners)
       .where(eq(prospectOwners.signatureToken, token));
+    return owner || undefined;
+  }
+
+  async getProspectOwnerByEmailAndProspectId(email: string, prospectId: number): Promise<ProspectOwner | undefined> {
+    const [owner] = await db
+      .select()
+      .from(prospectOwners)
+      .where(
+        and(
+          eq(prospectOwners.email, email),
+          eq(prospectOwners.prospectId, prospectId)
+        )
+      );
     return owner || undefined;
   }
 
