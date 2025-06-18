@@ -30,6 +30,13 @@ interface Application {
   lastUpdated: string;
   completionPercentage: number;
   assignedAgent: string;
+  signatureStatus?: {
+    required: number;
+    completed: number;
+    pending: number;
+    isComplete: boolean;
+    needsAttention: boolean;
+  };
 }
 
 interface DashboardStats {

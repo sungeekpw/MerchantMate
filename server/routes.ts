@@ -449,6 +449,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
         }
 
+        // Calculate signature status for monitoring
+        const owners = formData.owners || [];
+        const requiredSignatures = owners.filter((owner: any) => parseFloat(owner.percentage || 0) >= 25);
+        const completedSignatures = requiredSignatures.filter((owner: any) => owner.signature);
+        const signatureStatus = {
+          required: requiredSignatures.length,
+          completed: completedSignatures.length,
+          pending: requiredSignatures.length - completedSignatures.length,
+          isComplete: requiredSignatures.length > 0 && completedSignatures.length === requiredSignatures.length,
+          needsAttention: requiredSignatures.length > 0 && completedSignatures.length < requiredSignatures.length
+        };
+
         return {
           id: prospect.id,
           prospectName: `${prospect.firstName} ${prospect.lastName}`,
@@ -459,7 +471,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           createdAt: prospect.createdAt,
           lastUpdated: prospect.updatedAt || prospect.createdAt,
           completionPercentage,
-          assignedAgent: prospect.agent?.firstName ? `${prospect.agent.firstName} ${prospect.agent.lastName}` : 'Unassigned'
+          assignedAgent: prospect.agent?.firstName ? `${prospect.agent.firstName} ${prospect.agent.lastName}` : 'Unassigned',
+          signatureStatus
         };
       });
 
