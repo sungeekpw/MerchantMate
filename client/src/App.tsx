@@ -36,6 +36,7 @@ import ProspectValidation from "@/pages/prospect-validation";
 import SignatureRequest from "@/pages/signature-request";
 import ApplicationStatus from "@/pages/application-status";
 import ApplicationView from "@/pages/application-view";
+import ApplicationPrint from "@/pages/application-print";
 import AgentDashboard from "@/pages/agent-dashboard";
 import NotFound from "@/pages/not-found";
 import Landing from "@/pages/landing";
@@ -414,6 +415,9 @@ function AuthenticatedApp() {
                 </>
               );
             }}
+          </Route>
+          <Route path="/application-print/:id">
+            {() => <ApplicationPrint />}
           </Route>
           <Route>
             <div className="flex-1">

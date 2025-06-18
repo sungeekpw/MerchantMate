@@ -330,11 +330,22 @@ function ApplicationsList({ applications }: { applications: Application[] }) {
                 <span>{application.phone}</span>
               </div>
             </div>
-            <Link href={`/application-view/${application.id}`}>
-              <Button variant="outline" size="sm">
-                View Application
-              </Button>
-            </Link>
+            <div className="flex gap-2">
+              <Link href={`/application-view/${application.id}`}>
+                <Button variant="outline" size="sm">
+                  View Application
+                </Button>
+              </Link>
+              {(application.status === 'submitted' || application.status === 'applied' || application.status === 'approved' || application.status === 'rejected') && (
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => window.open(`/application-print/${application.id}`, '_blank')}
+                >
+                  Print PDF
+                </Button>
+              )}
+            </div>
           </div>
 
           <div className="space-y-2">
