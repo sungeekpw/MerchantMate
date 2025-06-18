@@ -379,8 +379,8 @@ This email was sent to ${data.ownerEmail}
 
       // Send both emails
       await Promise.all([
-        sgMail.send(merchantMsg),
-        sgMail.send(agentMsg)
+        mailService.send(merchantMsg),
+        mailService.send(agentMsg)
       ]);
 
       return true;
