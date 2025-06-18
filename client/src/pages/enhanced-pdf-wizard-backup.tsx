@@ -44,6 +44,19 @@ export default function EnhancedPdfWizard() {
   const [, setLocation] = useLocation();
   const [currentStep, setCurrentStep] = useState(0);
   const [formData, setFormData] = useState<Record<string, any>>({});
+  const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
+  const [formStarted, setFormStarted] = useState(false);
+  const [fieldsInteracted, setFieldsInteracted] = useState(new Set<string>());
+  const [addressOverrideActive, setAddressOverrideActive] = useState(false);
+  const [initialDataLoaded, setInitialDataLoaded] = useState(false);
+  const [addressFieldsLocked, setAddressFieldsLocked] = useState(false);
+  const [addressValidationStatus, setAddressValidationStatus] = useState<'idle' | 'validating' | 'valid' | 'invalid'>('idle');
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [addressSuggestions, setAddressSuggestions] = useState<any[]>([]);
+  const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState(-1);
+  const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   // Check for submitted signatures when form data changes
   useEffect(() => {
@@ -132,11 +145,6 @@ export default function EnhancedPdfWizard() {
       }
     });
   }, []);
-  const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
-  const [formStarted, setFormStarted] = useState(false);
-  const [fieldsInteracted, setFieldsInteracted] = useState(new Set<string>());
-  const { toast } = useToast();
-  const queryClient = useQueryClient();
 
   // Check for prospect validation token in URL parameters
   const urlParams = new URLSearchParams(window.location.search);
@@ -468,7 +476,6 @@ export default function EnhancedPdfWizard() {
   });
 
   // Initialize form data with agent and prospect information for prospects
-  const [initialDataLoaded, setInitialDataLoaded] = useState(false);
 
 
   
@@ -829,12 +836,7 @@ export default function EnhancedPdfWizard() {
   };
 
   // Address validation and autocomplete state
-  const [addressValidationStatus, setAddressValidationStatus] = useState<'idle' | 'validating' | 'valid' | 'invalid'>('idle');
-  const [addressSuggestions, setAddressSuggestions] = useState<any[]>([]);
-  const [showSuggestions, setShowSuggestions] = useState(false);
-  const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
-  const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState(-1);
-  const [addressFieldsLocked, setAddressFieldsLocked] = useState(false);
+
 
   // Fetch address suggestions using Google Places Autocomplete API
   const fetchAddressSuggestions = async (input: string) => {
