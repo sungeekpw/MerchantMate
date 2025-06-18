@@ -1,4 +1,5 @@
 import type { MerchantProspect } from '../shared/schema';
+const htmlPdf = require('html-pdf-node');
 
 interface FormData {
   assignedAgent: string;
@@ -30,15 +31,475 @@ interface FormData {
 
 export class PDFGenerator {
   async generateApplicationPDF(prospect: MerchantProspect, formData: FormData): Promise<Buffer> {
-    console.log('Generating professional form PDF for prospect:', prospect.id);
+    console.log('Generating modern application PDF for prospect:', prospect.id);
     
     try {
-      const pdfContent = this.createProfessionalFormPDF(prospect, formData);
-      return Buffer.from(pdfContent, 'binary');
+      // Generate beautiful modern PDF that matches the application view
+      const modernPdfContent = this.createModernPDFContent(prospect, formData);
+      return Buffer.from(modernPdfContent, 'binary');
     } catch (error) {
       console.error('PDF generation failed:', error);
       return this.createMinimalPDF(formData.companyName);
     }
+  }
+
+  private createModernApplicationPDF(prospect: MerchantProspect, formData: FormData): string {
+    const cleanText = (text: string) => text.replace(/[<>&"']/g, (match) => {
+      const entities: { [key: string]: string } = {
+        '<': '&lt;',
+        '>': '&gt;',
+        '&': '&amp;',
+        '"': '&quot;',
+        "'": '&#39;'
+      };
+      return entities[match];
+    });
+
+    const formatCurrency = (value: string) => {
+      if (!value) return 'Not specified';
+      const num = parseFloat(value.replace(/[^0-9.]/g, ''));
+      return isNaN(num) ? value : `$${num.toLocaleString()}`;
+    };
+
+    const formatDate = (dateString: string) => {
+      return new Date(dateString).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    };
+
+    const getStatusBadge = (status: string) => {
+      const statusColors = {
+        pending: '#fbbf24',
+        contacted: '#3b82f6',
+        in_progress: '#8b5cf6',
+        applied: '#10b981',
+        approved: '#059669',
+        rejected: '#ef4444'
+      };
+      const color = statusColors[status as keyof typeof statusColors] || '#6b7280';
+      return `<span style="background: ${color}; color: white; padding: 4px 12px; border-radius: 16px; font-size: 11px; font-weight: 600;">${status.replace('_', ' ').toUpperCase()}</span>`;
+    };
+
+    return `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <title>Merchant Application - ${cleanText(prospect.firstName)} ${cleanText(prospect.lastName)}</title>
+      <style>
+        body { 
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif; 
+          margin: 0; 
+          padding: 0; 
+          color: #111827; 
+          background: #f9fafb;
+          line-height: 1.6;
+          font-size: 13px;
+        }
+        .container {
+          max-width: 800px;
+          margin: 0 auto;
+          background: white;
+          min-height: 100vh;
+          padding: 40px;
+        }
+        .header-section { 
+          margin-bottom: 32px; 
+          padding-bottom: 24px;
+          border-bottom: 2px solid #e5e7eb;
+        }
+        .header-top {
+          display: flex;
+          justify-content: space-between;
+          align-items: flex-start;
+          margin-bottom: 16px;
+        }
+        .applicant-name { 
+          font-size: 32px; 
+          font-weight: 700; 
+          color: #111827; 
+          margin: 0;
+          line-height: 1.2;
+        }
+        .application-subtitle { 
+          font-size: 16px; 
+          color: #6b7280; 
+          margin: 8px 0 0 0;
+          font-weight: 400;
+        }
+        .status-badge {
+          text-align: right;
+        }
+        .card { 
+          background: #fff;
+          border: 1px solid #e5e7eb;
+          border-radius: 12px;
+          margin-bottom: 24px; 
+          overflow: hidden;
+          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06);
+        }
+        .card-header { 
+          background: linear-gradient(to right, #f8fafc, #f1f5f9);
+          padding: 20px 24px;
+          border-bottom: 1px solid #e2e8f0;
+        }
+        .card-title { 
+          font-size: 18px; 
+          font-weight: 600; 
+          color: #0f172a; 
+          margin: 0;
+          display: flex;
+          align-items: center;
+        }
+        .card-icon {
+          font-size: 20px;
+          margin-right: 12px;
+          color: #475569;
+        }
+        .card-content { 
+          padding: 24px; 
+        }
+        .info-grid { 
+          display: grid; 
+          grid-template-columns: 1fr 1fr; 
+          gap: 24px; 
+        }
+        .info-item { 
+          margin-bottom: 20px; 
+        }
+        .info-label { 
+          font-size: 11px; 
+          color: #64748b; 
+          text-transform: uppercase;
+          letter-spacing: 0.8px;
+          margin-bottom: 6px;
+          display: block;
+          font-weight: 600;
+        }
+        .info-value { 
+          color: #0f172a; 
+          font-weight: 500;
+          font-size: 14px;
+          word-wrap: break-word;
+        }
+        .info-value-large {
+          font-size: 20px;
+          font-weight: 600;
+          color: #1e293b;
+        }
+        .timeline-item { 
+          display: flex; 
+          justify-content: space-between; 
+          align-items: center;
+          padding: 12px 0;
+          border-bottom: 1px solid #f1f5f9;
+        }
+        .timeline-item:last-child {
+          border-bottom: none;
+        }
+        .timeline-label { 
+          font-size: 13px; 
+          color: #64748b; 
+          font-weight: 500;
+        }
+        .timeline-value { 
+          font-size: 13px; 
+          font-weight: 600;
+          color: #0f172a;
+        }
+        .owner-card { 
+          border: 1px solid #e2e8f0; 
+          border-radius: 8px;
+          padding: 20px; 
+          margin-bottom: 16px; 
+          background: #fafafa;
+        }
+        .owner-header { 
+          display: flex; 
+          justify-content: space-between; 
+          align-items: center; 
+          margin-bottom: 12px;
+        }
+        .owner-name { 
+          font-weight: 600; 
+          font-size: 16px;
+          color: #0f172a;
+        }
+        .ownership-badge { 
+          background: #e0e7ff; 
+          color: #3730a3; 
+          padding: 6px 16px; 
+          border-radius: 20px; 
+          font-size: 12px; 
+          font-weight: 600;
+        }
+        .owner-email { 
+          color: #64748b; 
+          font-size: 13px; 
+          margin-bottom: 12px;
+        }
+        .signature-status { 
+          color: #059669; 
+          font-size: 12px;
+          display: flex;
+          align-items: center;
+          font-weight: 500;
+        }
+        .signature-check {
+          margin-right: 6px;
+          font-size: 14px;
+        }
+        .address-section {
+          line-height: 1.6;
+        }
+        .footer-section { 
+          margin-top: 48px; 
+          padding-top: 24px; 
+          border-top: 2px solid #e5e7eb; 
+          font-size: 12px; 
+          color: #64748b;
+          text-align: center;
+        }
+        .footer-section p {
+          margin: 8px 0;
+        }
+        .page-break { 
+          page-break-before: always; 
+        }
+        @media print {
+          .container {
+            background: white;
+            box-shadow: none;
+          }
+          .card {
+            box-shadow: none;
+            border: 1px solid #d1d5db;
+          }
+        }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <!-- Header Section -->
+        <div class="header-section">
+          <div class="header-top">
+            <div>
+              <h1 class="applicant-name">${cleanText(prospect.firstName)} ${cleanText(prospect.lastName)}</h1>
+              <p class="application-subtitle">Merchant Application Review</p>
+            </div>
+            <div class="status-badge">
+              ${getStatusBadge(prospect.status)}
+            </div>
+          </div>
+        </div>
+
+        <!-- Application Timeline Card -->
+        <div class="card">
+          <div class="card-header">
+            <h2 class="card-title"><span class="card-icon">📅</span> Application Timeline</h2>
+          </div>
+          <div class="card-content">
+            <div class="timeline-item">
+              <span class="timeline-label">Application Created</span>
+              <span class="timeline-value">${formatDate(prospect.createdAt.toISOString())}</span>
+            </div>
+            ${prospect.validatedAt ? `
+            <div class="timeline-item">
+              <span class="timeline-label">Email Validated</span>
+              <span class="timeline-value">${formatDate(prospect.validatedAt.toISOString())}</span>
+            </div>
+            ` : ''}
+            <div class="timeline-item">
+              <span class="timeline-label">Last Updated</span>
+              <span class="timeline-value">${formatDate(prospect.updatedAt.toISOString())}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Contact Information Card -->
+        <div class="card">
+          <div class="card-header">
+            <h2 class="card-title"><span class="card-icon">👤</span> Contact Information</h2>
+          </div>
+          <div class="card-content">
+            <div class="info-grid">
+              <div class="info-item">
+                <span class="info-label">Email</span>
+                <div class="info-value">${cleanText(prospect.email)}</div>
+              </div>
+              ${formData.companyPhone ? `
+              <div class="info-item">
+                <span class="info-label">Phone</span>
+                <div class="info-value">${cleanText(formData.companyPhone)}</div>
+              </div>
+              ` : ''}
+              <div class="info-item">
+                <span class="info-label">Assigned Agent</span>
+                <div class="info-value">${cleanText(formData.assignedAgent)}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Business Information Card -->
+        <div class="card">
+          <div class="card-header">
+            <h2 class="card-title"><span class="card-icon">🏢</span> Business Information</h2>
+          </div>
+          <div class="card-content">
+            ${formData.companyName ? `
+            <div class="info-item">
+              <span class="info-label">Company Name</span>
+              <div class="info-value info-value-large">${cleanText(formData.companyName)}</div>
+            </div>
+            ` : ''}
+            
+            <div class="info-grid">
+              ${formData.businessType ? `
+              <div class="info-item">
+                <span class="info-label">Business Type</span>
+                <div class="info-value">${cleanText(formData.businessType)}</div>
+              </div>
+              ` : ''}
+              ${formData.yearsInBusiness ? `
+              <div class="info-item">
+                <span class="info-label">Years in Business</span>
+                <div class="info-value">${cleanText(formData.yearsInBusiness)}</div>
+              </div>
+              ` : ''}
+              ${formData.federalTaxId ? `
+              <div class="info-item">
+                <span class="info-label">Federal Tax ID</span>
+                <div class="info-value">${cleanText(formData.federalTaxId)}</div>
+              </div>
+              ` : ''}
+              ${formData.companyEmail ? `
+              <div class="info-item">
+                <span class="info-label">Company Email</span>
+                <div class="info-value">${cleanText(formData.companyEmail)}</div>
+              </div>
+              ` : ''}
+            </div>
+
+            ${formData.businessDescription || formData.productsServices ? `
+            <div style="margin-top: 24px;">
+              ${formData.businessDescription ? `
+              <div class="info-item">
+                <span class="info-label">Business Description</span>
+                <div class="info-value">${cleanText(formData.businessDescription)}</div>
+              </div>
+              ` : ''}
+              ${formData.productsServices ? `
+              <div class="info-item">
+                <span class="info-label">Products & Services</span>
+                <div class="info-value">${cleanText(formData.productsServices)}</div>
+              </div>
+              ` : ''}
+            </div>
+            ` : ''}
+          </div>
+        </div>
+
+        <!-- Business Address Card -->
+        ${formData.address || formData.city || formData.state ? `
+        <div class="card">
+          <div class="card-header">
+            <h2 class="card-title"><span class="card-icon">📍</span> Business Address</h2>
+          </div>
+          <div class="card-content">
+            <div class="address-section">
+              ${formData.address ? `<div class="info-value">${cleanText(formData.address)}</div>` : ''}
+              ${formData.addressLine2 ? `<div class="info-value">${cleanText(formData.addressLine2)}</div>` : ''}
+              <div class="info-value">
+                ${formData.city ? `${cleanText(formData.city)}, ` : ''}
+                ${formData.state ? `${cleanText(formData.state)} ` : ''}
+                ${formData.zipCode ? cleanText(formData.zipCode) : ''}
+              </div>
+            </div>
+          </div>
+        </div>
+        ` : ''}
+
+        <!-- Business Ownership Card -->
+        ${formData.owners && formData.owners.length > 0 ? `
+        <div class="card">
+          <div class="card-header">
+            <h2 class="card-title"><span class="card-icon">👥</span> Business Ownership</h2>
+          </div>
+          <div class="card-content">
+            ${formData.owners.map((owner: any) => `
+              <div class="owner-card">
+                <div class="owner-header">
+                  <div class="owner-name">${cleanText(owner.name)}</div>
+                  <div class="ownership-badge">${cleanText(owner.percentage)}% ownership</div>
+                </div>
+                <div class="owner-email">${cleanText(owner.email)}</div>
+                ${owner.signature ? `
+                <div class="signature-status">
+                  <span class="signature-check">✓</span>
+                  Signature provided (${owner.signatureType || 'digital'})
+                </div>
+                ` : ''}
+              </div>
+            `).join('')}
+          </div>
+        </div>
+        ` : ''}
+
+        <!-- Transaction Information Card -->
+        ${formData.monthlyVolume || formData.averageTicket || formData.processingMethod ? `
+        <div class="card">
+          <div class="card-header">
+            <h2 class="card-title"><span class="card-icon">💰</span> Transaction Information</h2>
+          </div>
+          <div class="card-content">
+            <div class="info-grid">
+              ${formData.monthlyVolume ? `
+              <div class="info-item">
+                <span class="info-label">Monthly Volume</span>
+                <div class="info-value">${formatCurrency(formData.monthlyVolume)}</div>
+              </div>
+              ` : ''}
+              ${formData.averageTicket ? `
+              <div class="info-item">
+                <span class="info-label">Average Ticket</span>
+                <div class="info-value">${formatCurrency(formData.averageTicket)}</div>
+              </div>
+              ` : ''}
+              ${formData.highestTicket ? `
+              <div class="info-item">
+                <span class="info-label">Highest Ticket</span>
+                <div class="info-value">${formatCurrency(formData.highestTicket)}</div>
+              </div>
+              ` : ''}
+              ${formData.processingMethod ? `
+              <div class="info-item">
+                <span class="info-label">Processing Method</span>
+                <div class="info-value">${cleanText(formData.processingMethod)}</div>
+              </div>
+              ` : ''}
+            </div>
+          </div>
+        </div>
+        ` : ''}
+
+        <!-- Footer -->
+        <div class="footer-section">
+          <p><strong>Application submitted on ${new Date().toLocaleDateString('en-US', { 
+            year: 'numeric', 
+            month: 'long', 
+            day: 'numeric' 
+          })}</strong></p>
+          <p>Generated from CoreCRM Merchant Processing System</p>
+        </div>
+      </div>
+    </body>
+    </html>
+    `;
   }
 
   private createProfessionalFormPDF(prospect: MerchantProspect, formData: FormData): string {
