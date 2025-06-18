@@ -418,6 +418,11 @@ The application is configured for deployment on Replit with:
   - Prospects page displays assigned prospects correctly with full CRUD functionality for agents
   - System handles email mismatches between authentication system and agent database records across all agent endpoints
   - Complete agent workflow now functional: dashboard, prospects management, application viewing, creation, and deletion
+- June 18, 2025. Enhanced prospects list with application protection
+  - Removed delete action for prospects who have submitted applications (status other than 'pending' or 'contacted')
+  - Prevents accidental deletion of active applications while preserving ability to delete unstarted prospects
+  - Added tooltip to delete button for improved user experience
+  - Maintains data integrity by protecting submitted applications from deletion
 
 ## User Preferences
 Preferred communication style: Simple, everyday language.

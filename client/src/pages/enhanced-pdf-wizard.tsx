@@ -768,7 +768,17 @@ export default function EnhancedPdfWizard() {
       fields: [
         { id: 9, fieldName: 'federalTaxId', fieldType: 'text', fieldLabel: 'Federal Tax ID (EIN)', isRequired: true, options: null, defaultValue: null, validation: null, position: 9, section: 'Business Type & Tax Information' },
         { id: 10, fieldName: 'businessType', fieldType: 'select', fieldLabel: 'Business Type', isRequired: true, options: ['Corporation', 'LLC', 'Partnership', 'Sole Proprietorship'], defaultValue: null, validation: null, position: 10, section: 'Business Type & Tax Information' },
-        { id: 11, fieldName: 'yearsInBusiness', fieldType: 'number', fieldLabel: 'Years in Business', isRequired: true, options: null, defaultValue: null, validation: null, position: 11, section: 'Business Type & Tax Information' },
+        { id: 11, fieldName: 'stateFiled', fieldType: 'select', fieldLabel: 'State Filed', isRequired: true, options: [
+          'Alabama', 'Alaska', 'Arizona', 'Arkansas', 'California', 'Colorado', 'Connecticut', 'Delaware', 
+          'Florida', 'Georgia', 'Hawaii', 'Idaho', 'Illinois', 'Indiana', 'Iowa', 'Kansas', 'Kentucky', 
+          'Louisiana', 'Maine', 'Maryland', 'Massachusetts', 'Michigan', 'Minnesota', 'Mississippi', 
+          'Missouri', 'Montana', 'Nebraska', 'Nevada', 'New Hampshire', 'New Jersey', 'New Mexico', 
+          'New York', 'North Carolina', 'North Dakota', 'Ohio', 'Oklahoma', 'Oregon', 'Pennsylvania', 
+          'Rhode Island', 'South Carolina', 'South Dakota', 'Tennessee', 'Texas', 'Utah', 'Vermont', 
+          'Virginia', 'Washington', 'West Virginia', 'Wisconsin', 'Wyoming'
+        ], defaultValue: null, validation: null, position: 11, section: 'Business Type & Tax Information' },
+        { id: 12, fieldName: 'businessStartDate', fieldType: 'date', fieldLabel: 'Business Start Date', isRequired: true, options: null, defaultValue: null, validation: null, position: 12, section: 'Business Type & Tax Information' },
+        { id: 13, fieldName: 'yearsInBusiness', fieldType: 'readonly', fieldLabel: 'Years in Business', isRequired: false, options: null, defaultValue: null, validation: null, position: 13, section: 'Business Type & Tax Information' },
       ]
     },
     {
@@ -1033,6 +1043,27 @@ export default function EnhancedPdfWizard() {
     }
     
     const newFormData = { ...formData, [fieldName]: value };
+    
+    // Calculate years in business when business start date is entered
+    if (fieldName === 'businessStartDate' && value) {
+      const startDate = new Date(value);
+      const currentDate = new Date();
+      const yearsDiff = currentDate.getFullYear() - startDate.getFullYear();
+      const monthsDiff = currentDate.getMonth() - startDate.getMonth();
+      
+      // Calculate more precise years (including partial years)
+      let yearsInBusiness = yearsDiff;
+      if (monthsDiff < 0 || (monthsDiff === 0 && currentDate.getDate() < startDate.getDate())) {
+        yearsInBusiness--;
+      }
+      
+      // Ensure minimum of 0 years
+      yearsInBusiness = Math.max(0, yearsInBusiness);
+      
+      // Update both the start date and calculated years
+      newFormData.yearsInBusiness = yearsInBusiness.toString();
+    }
+    
     setFormData(newFormData);
 
     // Validate the field and update errors
