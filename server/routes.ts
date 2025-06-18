@@ -404,7 +404,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
 
         // Extract form data if available
-        let formData = {};
+        let formData: any = {};
         try {
           formData = prospect.formData ? JSON.parse(prospect.formData) : {};
         } catch (e) {
@@ -434,6 +434,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Failed to fetch applications" });
     }
   });
+
+
 
   // Widget preference endpoints (before auth middleware for development)
   app.get("/api/user/:userId/widgets", async (req: any, res) => {
@@ -1224,6 +1226,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error deleting prospect:", error);
       res.status(500).json({ message: "Failed to delete prospect" });
+    }
+  });
+
+  // Get individual prospect for application view
+  app.get("/api/prospects/:id", devAuth, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.user.claims.sub;
+      
+      // Get user data
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Get prospect data
+      const prospect = await storage.getMerchantProspect(parseInt(id));
+      if (!prospect) {
+        return res.status(404).json({ message: "Prospect not found" });
+      }
+
+      // For agents, check if this prospect is assigned to them
+      if (user.role === 'agent') {
+        const agent = await storage.getAgentByEmail(user.email);
+        if (!agent || prospect.agentId !== agent.id) {
+          return res.status(403).json({ message: "Access denied" });
+        }
+      }
+
+      // Get assigned agent details
+      let assignedAgent = 'Unassigned';
+      if (prospect.agentId) {
+        const agent = await storage.getAgent(prospect.agentId);
+        if (agent) {
+          assignedAgent = `${agent.firstName} ${agent.lastName}`;
+        }
+      }
+
+      // Return prospect with agent info
+      res.json({
+        ...prospect,
+        assignedAgent
+      });
+    } catch (error) {
+      console.error("Error fetching prospect:", error);
+      res.status(500).json({ message: "Failed to fetch prospect" });
     }
   });
 
