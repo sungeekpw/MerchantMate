@@ -71,6 +71,19 @@ export default function ApplicationView() {
     enabled: !!prospectId
   });
 
+  // Fetch signature status using database signatures
+  const { data: signatureStatus } = useQuery({
+    queryKey: ['/api/prospects', prospectId, 'signature-status'],
+    queryFn: async () => {
+      const response = await fetch(`/api/prospects/${prospectId}/signature-status`);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch signature status: ${response.status}`);
+      }
+      return response.json();
+    },
+    enabled: !!prospectId,
+  });
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -381,7 +394,11 @@ export default function ApplicationView() {
                 {owners.map((owner, index) => {
                   const ownershipPercentage = parseFloat(owner.percentage);
                   const requiresSignature = ownershipPercentage >= 25;
-                  const hasSignature = owner.signature;
+                  // Use database-backed signature status instead of form data
+                  const ownerStatus = signatureStatus?.ownerStatus?.find(
+                    (os: any) => os.email === owner.email
+                  );
+                  const hasSignature = ownerStatus?.hasSignature || false;
                   
                   return (
                     <div key={index} className="border rounded-lg p-4">
@@ -432,29 +449,30 @@ export default function ApplicationView() {
               
               {/* Overall Signature Status Summary */}
               {(() => {
-                const requiredSignatures = owners.filter(owner => parseFloat(owner.percentage) >= 25);
-                const completedSignatures = requiredSignatures.filter(owner => owner.signature);
-                const pendingSignatures = requiredSignatures.filter(owner => !owner.signature);
+                // Use database-backed signature status for summary
+                if (!signatureStatus) return null;
                 
-                if (requiredSignatures.length > 0) {
+                const { required, completed, pending } = signatureStatus;
+                
+                if (required > 0) {
                   return (
                     <div className="mt-6 pt-4 border-t">
                       <div className="flex items-center justify-between">
                         <span className="text-sm font-medium text-gray-700">Signature Collection Status:</span>
                         <div className="flex items-center space-x-4">
-                          {completedSignatures.length > 0 && (
+                          {completed > 0 && (
                             <div className="flex items-center text-sm text-green-600">
                               <CheckCircle className="h-4 w-4 mr-1" />
-                              {completedSignatures.length} Complete
+                              {completed} Complete
                             </div>
                           )}
-                          {pendingSignatures.length > 0 && (
+                          {pending > 0 && (
                             <div className="flex items-center text-sm text-yellow-600">
                               <Clock className="h-4 w-4 mr-1" />
-                              {pendingSignatures.length} Pending
+                              {pending} Pending
                             </div>
                           )}
-                          {completedSignatures.length === requiredSignatures.length ? (
+                          {completed === required ? (
                             <div className="flex items-center text-sm text-green-700 font-medium">
                               <CheckCircle className="h-4 w-4 mr-1" />
                               All Required Signatures Collected
@@ -462,7 +480,7 @@ export default function ApplicationView() {
                           ) : (
                             <div className="flex items-center text-sm text-yellow-700 font-medium">
                               <AlertCircle className="h-4 w-4 mr-1" />
-                              Awaiting {pendingSignatures.length} Signature{pendingSignatures.length > 1 ? 's' : ''}
+                              Awaiting {pending} Signature{pending > 1 ? 's' : ''}
                             </div>
                           )}
                         </div>
