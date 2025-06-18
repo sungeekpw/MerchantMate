@@ -197,16 +197,6 @@ export default function CampaignsPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Campaign Management</h1>
-          <p className="text-muted-foreground">
-            Create and manage pricing campaigns, fee structures, and merchant pricing workflows
-          </p>
-        </div>
-      </div>
-
       {/* Main Tabs Interface */}
       <Tabs defaultValue="campaigns" className="space-y-6">
         <TabsList className="grid w-full grid-cols-4">
