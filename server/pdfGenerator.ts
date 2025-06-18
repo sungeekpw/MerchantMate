@@ -1,5 +1,4 @@
 import type { MerchantProspect } from '../shared/schema';
-const htmlPdf = require('html-pdf-node');
 
 interface FormData {
   assignedAgent: string;
@@ -31,19 +30,21 @@ interface FormData {
 
 export class PDFGenerator {
   async generateApplicationPDF(prospect: MerchantProspect, formData: FormData): Promise<Buffer> {
-    console.log('Generating modern application PDF for prospect:', prospect.id);
+    console.log('Generating beautiful application PDF for prospect:', prospect.id);
     
     try {
-      // Generate beautiful modern PDF that matches the application view
-      const modernPdfContent = this.createModernPDFContent(prospect, formData);
-      return Buffer.from(modernPdfContent, 'binary');
+      // Use the existing working method with enhanced formatting
+      const sections = this.createContentSections(prospect, formData);
+      const pages = this.distributeContentAcrossPages(sections);
+      const pdfContent = this.buildMultiPagePDF(pages);
+      return Buffer.from(pdfContent, 'binary');
     } catch (error) {
       console.error('PDF generation failed:', error);
       return this.createMinimalPDF(formData.companyName);
     }
   }
 
-  private createModernPDFContent(prospect: MerchantProspect, formData: FormData): string {
+  private createModernFormattedPDF(prospect: MerchantProspect, formData: FormData): string {
     const cleanText = (text: string) => text?.replace(/[()]/g, '') || '';
     const formatCurrency = (value: string) => {
       if (!value) return 'Not specified';
@@ -58,8 +59,238 @@ export class PDFGenerator {
       });
     };
 
-    // Create a beautiful PDF that matches the application view design
-    return this.createBeautifulPDF(prospect, formData, cleanText, formatCurrency, formatDate);
+    // Generate a beautiful card-based PDF layout
+    return this.generateModernCardLayout(prospect, formData, cleanText, formatCurrency, formatDate);
+  }
+
+  private generateModernCardLayout(prospect: MerchantProspect, formData: FormData, cleanText: Function, formatCurrency: Function, formatDate: Function): string {
+    // Create PDF header with proper structure
+    let pdfContent = `%PDF-1.4
+1 0 obj
+<<
+/Type /Catalog
+/Pages 2 0 R
+>>
+endobj
+
+2 0 obj
+<<
+/Type /Pages
+/Kids [3 0 R]
+/Count 1
+>>
+endobj
+
+3 0 obj
+<<
+/Type /Page
+/Parent 2 0 R
+/MediaBox [0 0 612 792]
+/Resources <<
+  /Font <<
+    /F1 4 0 R
+    /F2 5 0 R
+  >>
+>>
+/Contents 6 0 R
+>>
+endobj
+
+4 0 obj
+<<
+/Type /Font
+/Subtype /Type1
+/BaseFont /Helvetica
+>>
+endobj
+
+5 0 obj
+<<
+/Type /Font
+/Subtype /Type1
+/BaseFont /Helvetica-Bold
+>>
+endobj
+
+6 0 obj
+<<
+/Length 7 0 R
+>>
+stream
+BT
+/F2 24 Tf
+50 720 Td
+(${cleanText(prospect.firstName)} ${cleanText(prospect.lastName)}) Tj
+
+/F1 12 Tf
+0 -25 Td
+(Merchant Application Review) Tj
+
+/F1 10 Tf
+350 25 Td
+(Status: ${prospect.status.replace('_', ' ').toUpperCase()}) Tj
+
+% Application Timeline Card
+50 650 m
+550 650 l
+550 580 l
+50 580 l
+h
+S
+
+/F2 14 Tf
+-350 -45 Td
+(Application Timeline) Tj
+
+/F1 11 Tf
+0 -20 Td
+(Created: ${formatDate(prospect.createdAt)}) Tj
+0 -15 Td
+(Updated: ${formatDate(prospect.updatedAt)}) Tj
+${prospect.validatedAt ? `0 -15 Td (Validated: ${formatDate(prospect.validatedAt)}) Tj` : ''}
+
+% Contact Information Card
+0 -50 Td
+50 520 m
+550 520 l
+550 460 l
+50 460 l
+h
+S
+
+/F2 14 Tf
+10 40 Td
+(Contact Information) Tj
+
+/F1 11 Tf
+0 -20 Td
+(Email: ${cleanText(prospect.email)}) Tj
+${formData.companyPhone ? `0 -15 Td (Phone: ${cleanText(formData.companyPhone)}) Tj` : ''}
+0 -15 Td
+(Agent: ${cleanText(formData.assignedAgent)}) Tj
+
+% Business Information Card
+${formData.companyName ? `
+0 -50 Td
+50 420 m
+550 420 l
+550 320 l
+50 320 l
+h
+S
+
+/F2 14 Tf
+10 80 Td
+(Business Information) Tj
+
+/F2 16 Tf
+0 -25 Td
+(${cleanText(formData.companyName)}) Tj
+
+/F1 11 Tf
+0 -20 Td
+${formData.businessType ? `(Type: ${cleanText(formData.businessType)}) Tj 0 -15 Td` : ''}
+${formData.yearsInBusiness ? `(Years: ${cleanText(formData.yearsInBusiness)}) Tj 0 -15 Td` : ''}
+${formData.federalTaxId ? `(Tax ID: ${cleanText(formData.federalTaxId)}) Tj 0 -15 Td` : ''}
+` : ''}
+
+% Address Information
+${formData.address || formData.city ? `
+0 -50 Td
+50 280 m
+550 280 l
+550 230 l
+50 230 l
+h
+S
+
+/F2 14 Tf
+10 30 Td
+(Business Address) Tj
+
+/F1 11 Tf
+0 -15 Td
+${formData.address ? `(${cleanText(formData.address)}) Tj 0 -12 Td` : ''}
+(${formData.city ? cleanText(formData.city) + ', ' : ''}${formData.state ? cleanText(formData.state) + ' ' : ''}${formData.zipCode ? cleanText(formData.zipCode) : ''}) Tj
+` : ''}
+
+% Business Ownership
+${formData.owners && formData.owners.length > 0 ? `
+0 -60 Td
+50 190 m
+550 190 l
+550 ${130 - (formData.owners.length * 25)} l
+50 ${130 - (formData.owners.length * 25)} l
+h
+S
+
+/F2 14 Tf
+10 ${40 + (formData.owners.length * 25)} Td
+(Business Ownership) Tj
+
+/F1 11 Tf
+${formData.owners.map((owner: any) => `
+0 -20 Td
+(${cleanText(owner.name)} - ${cleanText(owner.percentage)}%) Tj
+0 -12 Td
+(${cleanText(owner.email)}) Tj
+${owner.signature ? `0 -10 Td (Signature: Yes) Tj` : ''}
+`).join('')}
+` : ''}
+
+% Transaction Information
+${formData.monthlyVolume || formData.averageTicket ? `
+0 -80 Td
+50 ${90 - (formData.owners?.length || 0) * 25} m
+550 ${90 - (formData.owners?.length || 0) * 25} l
+550 ${40 - (formData.owners?.length || 0) * 25} l
+50 ${40 - (formData.owners?.length || 0) * 25} l
+h
+S
+
+/F2 14 Tf
+10 ${30 + (formData.owners?.length || 0) * 25} Td
+(Transaction Information) Tj
+
+/F1 11 Tf
+${formData.monthlyVolume ? `0 -15 Td (Monthly Volume: ${formatCurrency(formData.monthlyVolume)}) Tj` : ''}
+${formData.averageTicket ? `0 -15 Td (Average Ticket: ${formatCurrency(formData.averageTicket)}) Tj` : ''}
+${formData.highestTicket ? `0 -15 Td (Highest Ticket: ${formatCurrency(formData.highestTicket)}) Tj` : ''}
+` : ''}
+
+ET
+endstream
+endobj
+
+7 0 obj
+${this.calculateStreamLength()}
+endobj
+
+xref
+0 8
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000115 00000 n 
+0000000274 00000 n 
+0000000334 00000 n 
+0000000399 00000 n 
+0000002000 00000 n 
+trailer
+<<
+/Size 8
+/Root 1 0 R
+>>
+startxref
+2020
+%%EOF`;
+
+    return pdfContent;
+  }
+
+  private calculateStreamLength(): number {
+    // Return approximate stream length for PDF structure
+    return 1500;
   }
 
   private createBeautifulPDF(prospect: MerchantProspect, formData: FormData, cleanText: Function, formatCurrency: Function, formatDate: Function): string {
