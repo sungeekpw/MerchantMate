@@ -230,14 +230,28 @@ export default function EnhancedPdfWizard() {
         formData.zipCode === '10003' ||
         formData.state === 'British Columbia') {
       console.log('Detected problematic cached address - clearing and preventing override');
-      setFormData(prev => {
-        const cleanedData = { ...prev };
-        delete cleanedData.address;
-        delete cleanedData.city;
-        delete cleanedData.state;
-        delete cleanedData.zipCode;
-        return cleanedData;
-      });
+      
+      // If user had a valid address selected, restore it instead of clearing
+      if (userSelectedAddress) {
+        console.log('Restoring user selected address:', userSelectedAddress);
+        setFormData(prev => ({
+          ...prev,
+          address: userSelectedAddress.address,
+          city: userSelectedAddress.city,
+          state: userSelectedAddress.state,
+          zipCode: userSelectedAddress.zipCode
+        }));
+      } else {
+        // Otherwise just clear the problematic cached data
+        setFormData(prev => {
+          const cleanedData = { ...prev };
+          delete cleanedData.address;
+          delete cleanedData.city;
+          delete cleanedData.state;
+          delete cleanedData.zipCode;
+          return cleanedData;
+        });
+      }
     }
   }, [formData]);
 
@@ -989,15 +1003,23 @@ export default function EnhancedPdfWizard() {
             zipCode: result.zipCode
           });
           
+          // Store the user's selected address to prevent overrides
+          const selectedAddress = {
+            address: result.streetAddress || mainText,
+            city: result.city || '',
+            state: result.state || '',
+            zipCode: result.zipCode || ''
+          };
+          
+          console.log('Storing user selected address:', selectedAddress);
+          setUserSelectedAddress(selectedAddress);
+          
           // Create completely fresh form data by spreading current form data 
           // and then overriding only the address fields with API results
           setFormData(prevFormData => {
             const updatedFormData = {
               ...prevFormData,
-              address: result.streetAddress || mainText,
-              city: result.city || '',
-              state: result.state || '',
-              zipCode: result.zipCode || ''
+              ...selectedAddress
             };
             
             console.log('Updated form data with validated address:', updatedFormData);
