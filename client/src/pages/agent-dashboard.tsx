@@ -129,6 +129,14 @@ export default function AgentDashboard() {
   const filteredApplications = (status?: string) => {
     if (!applications || !Array.isArray(applications)) return [];
     if (!status) return applications;
+    
+    // Special filter for applications needing signature attention
+    if (status === 'signatures') {
+      return applications.filter((app: Application) => 
+        app.signatureStatus?.needsAttention === true
+      );
+    }
+    
     return applications.filter((app: Application) => app.status === status);
   };
 
@@ -182,7 +190,7 @@ export default function AgentDashboard() {
       </div>
 
       {/* Statistics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Applications</CardTitle>
@@ -226,6 +234,20 @@ export default function AgentDashboard() {
             <p className="text-xs text-muted-foreground">Approval rate</p>
           </CardContent>
         </Card>
+
+        {/* Signature Monitoring Card */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Signatures Pending</CardTitle>
+            <AlertCircle className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {applications?.filter(app => app.signatureStatus?.needsAttention).length ?? 0}
+            </div>
+            <p className="text-xs text-muted-foreground">Awaiting signatures</p>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Applications Management */}
@@ -236,8 +258,14 @@ export default function AgentDashboard() {
         </CardHeader>
         <CardContent>
           <Tabs value={selectedTab} onValueChange={setSelectedTab}>
-            <TabsList className="grid w-full grid-cols-6">
+            <TabsList className="grid w-full grid-cols-7">
               <TabsTrigger value="overview">All</TabsTrigger>
+              <TabsTrigger value="signatures">
+                <div className="flex items-center space-x-1">
+                  <Clock className="h-3 w-3" />
+                  <span>Signatures</span>
+                </div>
+              </TabsTrigger>
               <TabsTrigger value="pending">Pending</TabsTrigger>
               <TabsTrigger value="in_progress">In Progress</TabsTrigger>
               <TabsTrigger value="applied">Applied</TabsTrigger>
@@ -247,6 +275,18 @@ export default function AgentDashboard() {
 
             <TabsContent value="overview" className="space-y-4">
               <ApplicationsList applications={filteredApplications()} />
+            </TabsContent>
+
+            <TabsContent value="signatures" className="space-y-4">
+              <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                <div className="flex items-center">
+                  <AlertCircle className="h-4 w-4 text-yellow-600 mr-2" />
+                  <span className="text-sm text-yellow-800 font-medium">
+                    Applications requiring signature collection
+                  </span>
+                </div>
+              </div>
+              <ApplicationsList applications={filteredApplications('signatures')} />
             </TabsContent>
 
             <TabsContent value="pending" className="space-y-4">
@@ -338,6 +378,25 @@ function ApplicationsList({ applications }: { applications: Application[] }) {
                 <Phone className="h-4 w-4" />
                 <span>{application.phone}</span>
               </div>
+              
+              {/* Signature Status Indicator */}
+              {application.signatureStatus && application.signatureStatus.required > 0 && (
+                <div className="flex items-center space-x-1 text-sm">
+                  {application.signatureStatus.isComplete ? (
+                    <div className="flex items-center text-green-700 bg-green-50 px-2 py-1 rounded-md">
+                      <CheckCircle className="h-3 w-3 mr-1" />
+                      <span className="font-medium">Signatures Complete</span>
+                      <span className="ml-1 text-gray-600">({application.signatureStatus.completed}/{application.signatureStatus.required})</span>
+                    </div>
+                  ) : application.signatureStatus.needsAttention ? (
+                    <div className="flex items-center text-yellow-700 bg-yellow-50 px-2 py-1 rounded-md">
+                      <Clock className="h-3 w-3 mr-1" />
+                      <span className="font-medium">Signatures Pending</span>
+                      <span className="ml-1 text-gray-600">({application.signatureStatus.completed}/{application.signatureStatus.required})</span>
+                    </div>
+                  ) : null}
+                </div>
+              )}
             </div>
             <div className="flex gap-2">
               <Link href={`/application-view/${application.id}`}>
