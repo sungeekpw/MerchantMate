@@ -3,15 +3,22 @@ import { useQuery, useMutation } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
+import { Separator } from '@/components/ui/separator';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { Plus, Search, Settings, DollarSign, MoreHorizontal, Eye, Edit, Trash2, ExternalLink } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Plus, Search, Settings, DollarSign, MoreHorizontal, Eye, Edit, Trash2, ExternalLink, Users, TrendingUp, FileText, AlertCircle, CheckCircle2, Link, Copy } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { queryClient } from '@/lib/queryClient';
 
+// Core interfaces for Campaign Management
 interface Campaign {
   id: number;
   name: string;
@@ -28,6 +35,9 @@ interface Campaign {
     name: string;
     email: string;
   };
+  assignedMerchants?: number;
+  totalRevenue?: number;
+  feeValues?: CampaignFeeValue[];
 }
 
 interface PricingType {
@@ -35,6 +45,90 @@ interface PricingType {
   name: string;
   description?: string;
   isActive: boolean;
+  feeItems?: PricingTypeFeeItem[];
+}
+
+interface FeeGroup {
+  id: number;
+  name: string;
+  description?: string;
+  displayOrder: number;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+  feeItems?: FeeItem[];
+}
+
+interface FeeItem {
+  id: number;
+  name: string;
+  description?: string;
+  feeGroupId: number;
+  defaultValue?: string;
+  valueType: 'percentage' | 'fixed' | 'basis_points';
+  isRequired: boolean;
+  displayOrder: number;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+  feeGroup?: FeeGroup;
+}
+
+interface PricingTypeFeeItem {
+  id: number;
+  pricingTypeId: number;
+  feeItemId: number;
+  isRequired: boolean;
+  displayOrder: number;
+  createdAt: string;
+  feeItem?: FeeItem;
+}
+
+interface CampaignFeeValue {
+  id: number;
+  campaignId: number;
+  feeItemId: number;
+  value: string;
+  valueType: 'percentage' | 'fixed' | 'basis_points';
+  createdAt: string;
+  updatedAt: string;
+  feeItem?: FeeItem & { feeGroup: FeeGroup };
+}
+
+// Form interfaces for creation/editing
+interface CreateFeeGroupData {
+  name: string;
+  description?: string;
+  displayOrder: number;
+}
+
+interface CreateFeeItemData {
+  name: string;
+  description?: string;
+  feeGroupId: number;
+  defaultValue?: string;
+  valueType: 'percentage' | 'fixed' | 'basis_points';
+  isRequired: boolean;
+  displayOrder: number;
+}
+
+interface CreatePricingTypeData {
+  name: string;
+  description?: string;
+  feeItemIds: number[];
+}
+
+interface CreateCampaignData {
+  name: string;
+  description?: string;
+  acquirer: 'esquire' | 'merrick';
+  pricingTypeId: number;
+  isDefault?: boolean;
+  feeValues: {
+    feeItemId: number;
+    value: string;
+    valueType: 'percentage' | 'fixed' | 'basis_points';
+  }[];
 }
 
 export default function CampaignsPage() {
@@ -42,6 +136,10 @@ export default function CampaignsPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedAcquirer, setSelectedAcquirer] = useState<string>('all');
   const [showAddCampaign, setShowAddCampaign] = useState(false);
+  const [showAddFeeGroup, setShowAddFeeGroup] = useState(false);
+  const [showAddFeeItem, setShowAddFeeItem] = useState(false);
+  const [showAddPricingType, setShowAddPricingType] = useState(false);
+  const [selectedFeeGroup, setSelectedFeeGroup] = useState<number | null>(null);
 
   // Fetch campaigns
   const { data: campaigns = [], isLoading: campaignsLoading } = useQuery<Campaign[]>({
@@ -51,6 +149,16 @@ export default function CampaignsPage() {
   // Fetch pricing types for campaign creation
   const { data: pricingTypes = [] } = useQuery<PricingType[]>({
     queryKey: ['/api/pricing-types'],
+  });
+
+  // Fetch fee groups
+  const { data: feeGroups = [], isLoading: feeGroupsLoading } = useQuery<FeeGroup[]>({
+    queryKey: ['/api/fee-groups'],
+  });
+
+  // Fetch fee items
+  const { data: feeItems = [], isLoading: feeItemsLoading } = useQuery<FeeItem[]>({
+    queryKey: ['/api/fee-items'],
   });
 
   // Filter campaigns based on search and acquirer
