@@ -341,6 +341,10 @@ The application is configured for deployment on Replit with:
   - Function clears prospects, owners, and signatures in correct order to respect foreign key constraints
   - Provides detailed reporting of deleted records count for admin transparency
   - Enables easy testing environment reset for development and quality assurance
+- June 18, 2025. Fixed agent permissions for prospect deletion
+  - Added agent role to DELETE /api/prospects/:id endpoint permissions
+  - Agents can now delete prospects they created before applications are started
+  - Maintains proper role-based access control while enabling agent workflow flexibility
 
 ## User Preferences
 Preferred communication style: Simple, everyday language.
