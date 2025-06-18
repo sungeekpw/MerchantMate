@@ -190,6 +190,8 @@ S
 /F1 11 Tf
 0 -20 Td
 ${formData.businessType ? `(Type: ${cleanText(formData.businessType)}) Tj 0 -15 Td` : ''}
+${formData.stateFiled ? `(State Filed: ${cleanText(formData.stateFiled)}) Tj 0 -15 Td` : ''}
+${formData.businessStartDate ? `(Start Date: ${cleanText(formData.businessStartDate)}) Tj 0 -15 Td` : ''}
 ${formData.yearsInBusiness ? `(Years: ${cleanText(formData.yearsInBusiness)}) Tj 0 -15 Td` : ''}
 ${formData.federalTaxId ? `(Tax ID: ${cleanText(formData.federalTaxId)}) Tj 0 -15 Td` : ''}
 ` : ''}
@@ -402,6 +404,8 @@ startxref
           /F1 11 Tf
           0 -20 Td
           ${formData.businessType ? `(Business Type: ${cleanText(formData.businessType)}) Tj 0 -15 Td` : ''}
+          ${formData.stateFiled ? `(State Filed: ${cleanText(formData.stateFiled)}) Tj 0 -15 Td` : ''}
+          ${formData.businessStartDate ? `(Business Start Date: ${cleanText(formData.businessStartDate)}) Tj 0 -15 Td` : ''}
           ${formData.yearsInBusiness ? `(Years in Business: ${cleanText(formData.yearsInBusiness)}) Tj 0 -15 Td` : ''}
           ${formData.federalTaxId ? `(Federal Tax ID: ${cleanText(formData.federalTaxId)}) Tj 0 -15 Td` : ''}
           ${formData.businessDescription ? `(Description: ${cleanText(formData.businessDescription).substring(0, 60)}...) Tj 0 -15 Td` : ''}
@@ -859,6 +863,18 @@ startxref
               <div class="info-item">
                 <span class="info-label">Business Type</span>
                 <div class="info-value">${cleanText(formData.businessType)}</div>
+              </div>
+              ` : ''}
+              ${formData.stateFiled ? `
+              <div class="info-item">
+                <span class="info-label">State Filed</span>
+                <div class="info-value">${cleanText(formData.stateFiled)}</div>
+              </div>
+              ` : ''}
+              ${formData.businessStartDate ? `
+              <div class="info-item">
+                <span class="info-label">Business Start Date</span>
+                <div class="info-value">${cleanText(formData.businessStartDate)}</div>
               </div>
               ` : ''}
               ${formData.yearsInBusiness ? `
