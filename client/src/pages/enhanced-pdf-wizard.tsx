@@ -957,6 +957,15 @@ export default function EnhancedPdfWizard() {
             };
             
             console.log('Updated form data with validated address:', updatedFormData);
+            
+            // Also save this updated form data to prevent reverting to cached values
+            if (isProspectMode && prospectData?.prospect) {
+              saveFormDataMutation.mutate({
+                formData: updatedFormData,
+                currentStep: currentStep
+              });
+            }
+            
             return updatedFormData;
           });
           
