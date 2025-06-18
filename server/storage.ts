@@ -241,6 +241,302 @@ export interface IStorage {
 }
 
 export class DatabaseStorage implements IStorage {
+  // Fee Groups implementation
+  async getAllFeeGroups(): Promise<FeeGroup[]> {
+    return await db.select().from(feeGroups).orderBy(feeGroups.displayOrder);
+  }
+
+  async getFeeGroup(id: number): Promise<FeeGroup | undefined> {
+    const [feeGroup] = await db.select().from(feeGroups).where(eq(feeGroups.id, id));
+    return feeGroup || undefined;
+  }
+
+  async createFeeGroup(feeGroup: InsertFeeGroup): Promise<FeeGroup> {
+    const [created] = await db.insert(feeGroups).values(feeGroup).returning();
+    return created;
+  }
+
+  async updateFeeGroup(id: number, updates: Partial<InsertFeeGroup>): Promise<FeeGroup | undefined> {
+    const [updated] = await db.update(feeGroups).set(updates).where(eq(feeGroups.id, id)).returning();
+    return updated || undefined;
+  }
+
+  // Fee Items implementation
+  async getAllFeeItems(): Promise<FeeItem[]> {
+    return await db.select().from(feeItems).orderBy(feeItems.displayOrder);
+  }
+
+  async getFeeItem(id: number): Promise<FeeItem | undefined> {
+    const [feeItem] = await db.select().from(feeItems).where(eq(feeItems.id, id));
+    return feeItem || undefined;
+  }
+
+  async getFeeItemsByGroup(feeGroupId: number): Promise<FeeItem[]> {
+    return await db.select().from(feeItems).where(eq(feeItems.feeGroupId, feeGroupId)).orderBy(feeItems.displayOrder);
+  }
+
+  async createFeeItem(feeItem: InsertFeeItem): Promise<FeeItem> {
+    const [created] = await db.insert(feeItems).values(feeItem).returning();
+    return created;
+  }
+
+  async updateFeeItem(id: number, updates: Partial<InsertFeeItem>): Promise<FeeItem | undefined> {
+    const [updated] = await db.update(feeItems).set(updates).where(eq(feeItems.id, id)).returning();
+    return updated || undefined;
+  }
+
+  async searchFeeItems(query: string): Promise<FeeItem[]> {
+    return await db.select().from(feeItems).where(
+      or(
+        ilike(feeItems.name, `%${query}%`),
+        ilike(feeItems.description, `%${query}%`)
+      )
+    ).orderBy(feeItems.displayOrder);
+  }
+
+  // Pricing Types implementation
+  async getAllPricingTypes(): Promise<PricingType[]> {
+    return await db.select().from(pricingTypes).orderBy(pricingTypes.name);
+  }
+
+  async getPricingType(id: number): Promise<PricingType | undefined> {
+    const [pricingType] = await db.select().from(pricingTypes).where(eq(pricingTypes.id, id));
+    return pricingType || undefined;
+  }
+
+  async getPricingTypeWithFeeItems(id: number): Promise<PricingTypeWithFeeItems | undefined> {
+    const result = await db
+      .select({
+        pricingType: pricingTypes,
+        pricingTypeFeeItem: pricingTypeFeeItems,
+        feeItem: feeItems,
+        feeGroup: feeGroups,
+      })
+      .from(pricingTypes)
+      .leftJoin(pricingTypeFeeItems, eq(pricingTypes.id, pricingTypeFeeItems.pricingTypeId))
+      .leftJoin(feeItems, eq(pricingTypeFeeItems.feeItemId, feeItems.id))
+      .leftJoin(feeGroups, eq(feeItems.feeGroupId, feeGroups.id))
+      .where(eq(pricingTypes.id, id));
+
+    if (result.length === 0) return undefined;
+
+    const pricingType = result[0].pricingType;
+    const feeItems = result
+      .filter(row => row.feeItem)
+      .map(row => ({
+        ...row.pricingTypeFeeItem!,
+        feeItem: {
+          ...row.feeItem!,
+          feeGroup: row.feeGroup!,
+        },
+      }));
+
+    return {
+      ...pricingType,
+      feeItems,
+    };
+  }
+
+  async createPricingType(pricingType: InsertPricingType): Promise<PricingType> {
+    const [created] = await db.insert(pricingTypes).values(pricingType).returning();
+    return created;
+  }
+
+  async updatePricingType(id: number, updates: Partial<InsertPricingType>): Promise<PricingType | undefined> {
+    const [updated] = await db.update(pricingTypes).set(updates).where(eq(pricingTypes.id, id)).returning();
+    return updated || undefined;
+  }
+
+  async addFeeItemToPricingType(pricingTypeId: number, feeItemId: number, isRequired: boolean = false): Promise<PricingTypeFeeItem> {
+    const [created] = await db.insert(pricingTypeFeeItems).values({
+      pricingTypeId,
+      feeItemId,
+      isRequired,
+      displayOrder: 1,
+    }).returning();
+    return created;
+  }
+
+  async removeFeeItemFromPricingType(pricingTypeId: number, feeItemId: number): Promise<boolean> {
+    const result = await db.delete(pricingTypeFeeItems)
+      .where(and(
+        eq(pricingTypeFeeItems.pricingTypeId, pricingTypeId),
+        eq(pricingTypeFeeItems.feeItemId, feeItemId)
+      ));
+    return result.rowCount > 0;
+  }
+
+  async searchPricingTypes(query: string): Promise<PricingType[]> {
+    return await db.select().from(pricingTypes).where(
+      or(
+        ilike(pricingTypes.name, `%${query}%`),
+        ilike(pricingTypes.description, `%${query}%`)
+      )
+    ).orderBy(pricingTypes.name);
+  }
+
+  // Campaigns implementation
+  async getAllCampaigns(): Promise<CampaignWithDetails[]> {
+    const result = await db
+      .select({
+        campaign: campaigns,
+        pricingType: pricingTypes,
+        createdByUser: users,
+      })
+      .from(campaigns)
+      .leftJoin(pricingTypes, eq(campaigns.pricingTypeId, pricingTypes.id))
+      .leftJoin(users, eq(campaigns.createdByUserId, users.id))
+      .orderBy(desc(campaigns.createdAt));
+
+    return result.map(row => ({
+      ...row.campaign,
+      pricingType: row.pricingType!,
+      createdByUser: row.createdByUser || undefined,
+    }));
+  }
+
+  async getCampaign(id: number): Promise<Campaign | undefined> {
+    const [campaign] = await db.select().from(campaigns).where(eq(campaigns.id, id));
+    return campaign || undefined;
+  }
+
+  async getCampaignWithDetails(id: number): Promise<CampaignWithDetails | undefined> {
+    const result = await db
+      .select({
+        campaign: campaigns,
+        pricingType: pricingTypes,
+        createdByUser: users,
+      })
+      .from(campaigns)
+      .leftJoin(pricingTypes, eq(campaigns.pricingTypeId, pricingTypes.id))
+      .leftJoin(users, eq(campaigns.createdByUserId, users.id))
+      .where(eq(campaigns.id, id));
+
+    if (result.length === 0) return undefined;
+
+    const row = result[0];
+    return {
+      ...row.campaign,
+      pricingType: row.pricingType!,
+      createdByUser: row.createdByUser || undefined,
+    };
+  }
+
+  async getCampaignsByAcquirer(acquirer: string): Promise<CampaignWithDetails[]> {
+    const result = await db
+      .select({
+        campaign: campaigns,
+        pricingType: pricingTypes,
+        createdByUser: users,
+      })
+      .from(campaigns)
+      .leftJoin(pricingTypes, eq(campaigns.pricingTypeId, pricingTypes.id))
+      .leftJoin(users, eq(campaigns.createdByUserId, users.id))
+      .where(eq(campaigns.acquirer, acquirer))
+      .orderBy(desc(campaigns.createdAt));
+
+    return result.map(row => ({
+      ...row.campaign,
+      pricingType: row.pricingType!,
+      createdByUser: row.createdByUser || undefined,
+    }));
+  }
+
+  async createCampaign(campaign: InsertCampaign): Promise<Campaign> {
+    const [created] = await db.insert(campaigns).values(campaign).returning();
+    return created;
+  }
+
+  async updateCampaign(id: number, updates: Partial<InsertCampaign>): Promise<Campaign | undefined> {
+    const [updated] = await db.update(campaigns).set(updates).where(eq(campaigns.id, id)).returning();
+    return updated || undefined;
+  }
+
+  async deactivateCampaign(id: number): Promise<boolean> {
+    const result = await db.update(campaigns).set({ isActive: false }).where(eq(campaigns.id, id));
+    return result.rowCount > 0;
+  }
+
+  async searchCampaigns(query: string): Promise<CampaignWithDetails[]> {
+    const result = await db
+      .select({
+        campaign: campaigns,
+        pricingType: pricingTypes,
+        createdByUser: users,
+      })
+      .from(campaigns)
+      .leftJoin(pricingTypes, eq(campaigns.pricingTypeId, pricingTypes.id))
+      .leftJoin(users, eq(campaigns.createdByUserId, users.id))
+      .where(
+        or(
+          ilike(campaigns.name, `%${query}%`),
+          ilike(campaigns.description, `%${query}%`)
+        )
+      )
+      .orderBy(desc(campaigns.createdAt));
+
+    return result.map(row => ({
+      ...row.campaign,
+      pricingType: row.pricingType!,
+      createdByUser: row.createdByUser || undefined,
+    }));
+  }
+
+  // Campaign Fee Values implementation
+  async setCampaignFeeValue(campaignId: number, feeItemId: number, value: string): Promise<CampaignFeeValue> {
+    const [existing] = await db.select().from(campaignFeeValues)
+      .where(and(
+        eq(campaignFeeValues.campaignId, campaignId),
+        eq(campaignFeeValues.feeItemId, feeItemId)
+      ));
+
+    if (existing) {
+      const [updated] = await db.update(campaignFeeValues)
+        .set({ value, updatedAt: new Date() })
+        .where(eq(campaignFeeValues.id, existing.id))
+        .returning();
+      return updated;
+    } else {
+      const [created] = await db.insert(campaignFeeValues).values({
+        campaignId,
+        feeItemId,
+        value,
+        valueType: 'percentage',
+      }).returning();
+      return created;
+    }
+  }
+
+  async getCampaignFeeValues(campaignId: number): Promise<CampaignFeeValue[]> {
+    return await db.select().from(campaignFeeValues).where(eq(campaignFeeValues.campaignId, campaignId));
+  }
+
+  async updateCampaignFeeValue(id: number, value: string): Promise<CampaignFeeValue | undefined> {
+    const [updated] = await db.update(campaignFeeValues)
+      .set({ value, updatedAt: new Date() })
+      .where(eq(campaignFeeValues.id, id))
+      .returning();
+    return updated || undefined;
+  }
+
+  // Campaign Assignments implementation
+  async assignCampaignToProspect(campaignId: number, prospectId: number, assignedBy: string): Promise<CampaignAssignment> {
+    const [created] = await db.insert(campaignAssignments).values({
+      campaignId,
+      prospectId,
+      assignedBy,
+    }).returning();
+    return created;
+  }
+
+  async getCampaignAssignments(campaignId: number): Promise<CampaignAssignment[]> {
+    return await db.select().from(campaignAssignments).where(eq(campaignAssignments.campaignId, campaignId));
+  }
+
+  async getProspectCampaignAssignment(prospectId: number): Promise<CampaignAssignment | undefined> {
+    const [assignment] = await db.select().from(campaignAssignments).where(eq(campaignAssignments.prospectId, prospectId));
+    return assignment || undefined;
+  }
   async getMerchant(id: number): Promise<Merchant | undefined> {
     const [merchant] = await db.select().from(merchants).where(eq(merchants.id, id));
     return merchant || undefined;

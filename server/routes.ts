@@ -3339,6 +3339,258 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ===================
+  // CAMPAIGN MANAGEMENT API ENDPOINTS
+  // ===================
+
+  // Fee Groups endpoints
+  app.get("/api/fee-groups", isAuthenticated, async (req, res) => {
+    try {
+      // Return sample fee groups for development
+      const feeGroups = [
+        {
+          id: 1,
+          name: "Processing Fees",
+          description: "Credit card processing and transaction fees",
+          displayOrder: 1,
+          isActive: true,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          feeItems: []
+        },
+        {
+          id: 2,
+          name: "Monthly Fees",
+          description: "Recurring monthly charges and subscriptions",
+          displayOrder: 2,
+          isActive: true,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          feeItems: []
+        },
+        {
+          id: 3,
+          name: "Setup & Equipment",
+          description: "One-time setup and equipment fees",
+          displayOrder: 3,
+          isActive: true,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          feeItems: []
+        }
+      ];
+      res.json(feeGroups);
+    } catch (error) {
+      console.error("Error fetching fee groups:", error);
+      res.status(500).json({ message: "Failed to fetch fee groups" });
+    }
+  });
+
+  app.post("/api/fee-groups", requireRole(['admin', 'super_admin']), async (req, res) => {
+    try {
+      const { name, description, displayOrder } = req.body;
+      const newFeeGroup = {
+        id: Date.now(),
+        name,
+        description,
+        displayOrder: displayOrder || 1,
+        isActive: true,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        feeItems: []
+      };
+      res.status(201).json(newFeeGroup);
+    } catch (error) {
+      console.error("Error creating fee group:", error);
+      res.status(500).json({ message: "Failed to create fee group" });
+    }
+  });
+
+  // Fee Items endpoints
+  app.get("/api/fee-items", isAuthenticated, async (req, res) => {
+    try {
+      // Return sample fee items for development
+      const feeItems = [
+        {
+          id: 1,
+          name: "Credit Card Processing",
+          description: "Standard credit card transaction processing fee",
+          feeGroupId: 1,
+          defaultValue: "2.9",
+          valueType: "percentage",
+          isRequired: true,
+          displayOrder: 1,
+          isActive: true,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          feeGroup: { id: 1, name: "Processing Fees" }
+        },
+        {
+          id: 2,
+          name: "Debit Card Processing",
+          description: "Debit card transaction processing fee",
+          feeGroupId: 1,
+          defaultValue: "1.9",
+          valueType: "percentage",
+          isRequired: false,
+          displayOrder: 2,
+          isActive: true,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          feeGroup: { id: 1, name: "Processing Fees" }
+        },
+        {
+          id: 3,
+          name: "Monthly Gateway Fee",
+          description: "Monthly payment gateway subscription",
+          feeGroupId: 2,
+          defaultValue: "25.00",
+          valueType: "fixed",
+          isRequired: true,
+          displayOrder: 1,
+          isActive: true,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          feeGroup: { id: 2, name: "Monthly Fees" }
+        },
+        {
+          id: 4,
+          name: "Setup Fee",
+          description: "One-time account setup fee",
+          feeGroupId: 3,
+          defaultValue: "199.00",
+          valueType: "fixed",
+          isRequired: false,
+          displayOrder: 1,
+          isActive: true,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          feeGroup: { id: 3, name: "Setup & Equipment" }
+        }
+      ];
+      res.json(feeItems);
+    } catch (error) {
+      console.error("Error fetching fee items:", error);
+      res.status(500).json({ message: "Failed to fetch fee items" });
+    }
+  });
+
+  app.post("/api/fee-items", requireRole(['admin', 'super_admin']), async (req, res) => {
+    try {
+      const { name, description, feeGroupId, defaultValue, valueType, isRequired, displayOrder } = req.body;
+      const newFeeItem = {
+        id: Date.now(),
+        name,
+        description,
+        feeGroupId,
+        defaultValue,
+        valueType,
+        isRequired: isRequired || false,
+        displayOrder: displayOrder || 1,
+        isActive: true,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+      res.status(201).json(newFeeItem);
+    } catch (error) {
+      console.error("Error creating fee item:", error);
+      res.status(500).json({ message: "Failed to create fee item" });
+    }
+  });
+
+  // Campaigns endpoints
+  app.get("/api/campaigns", isAuthenticated, async (req, res) => {
+    try {
+      // Return sample campaigns for development
+      const campaigns = [
+        {
+          id: 1,
+          name: "Standard Retail Campaign",
+          description: "Default pricing for retail merchants",
+          acquirer: "Esquire",
+          pricingType: {
+            id: 1,
+            name: "Standard Pricing"
+          },
+          isActive: true,
+          isDefault: true,
+          createdAt: new Date().toISOString(),
+          createdByUser: {
+            name: "Admin User",
+            email: "admin@corecrm.com"
+          },
+          assignedMerchants: 15,
+          totalRevenue: 125000,
+          feeValues: []
+        },
+        {
+          id: 2,
+          name: "Restaurant Campaign",
+          description: "Specialized pricing for restaurant businesses",
+          acquirer: "Merrick",
+          pricingType: {
+            id: 2,
+            name: "Restaurant Pricing"
+          },
+          isActive: true,
+          isDefault: false,
+          createdAt: new Date().toISOString(),
+          createdByUser: {
+            name: "Admin User",
+            email: "admin@corecrm.com"
+          },
+          assignedMerchants: 8,
+          totalRevenue: 89000,
+          feeValues: []
+        }
+      ];
+      res.json(campaigns);
+    } catch (error) {
+      console.error("Error fetching campaigns:", error);
+      res.status(500).json({ message: "Failed to fetch campaigns" });
+    }
+  });
+
+  app.post("/api/campaigns", requireRole(['admin', 'super_admin']), async (req, res) => {
+    try {
+      const { name, description, acquirer, pricingTypeId, isDefault, feeValues } = req.body;
+      const newCampaign = {
+        id: Date.now(),
+        name,
+        description,
+        acquirer,
+        pricingType: {
+          id: pricingTypeId,
+          name: "Selected Pricing Type"
+        },
+        isActive: true,
+        isDefault: isDefault || false,
+        createdAt: new Date().toISOString(),
+        createdByUser: {
+          name: "Current User",
+          email: "user@corecrm.com"
+        },
+        assignedMerchants: 0,
+        totalRevenue: 0,
+        feeValues: feeValues || []
+      };
+      res.status(201).json(newCampaign);
+    } catch (error) {
+      console.error("Error creating campaign:", error);
+      res.status(500).json({ message: "Failed to create campaign" });
+    }
+  });
+
+  app.post("/api/campaigns/:id/deactivate", requireRole(['admin', 'super_admin']), async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      res.json({ success: true, message: "Campaign deactivated successfully" });
+    } catch (error) {
+      console.error("Error deactivating campaign:", error);
+      res.status(500).json({ message: "Failed to deactivate campaign" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
