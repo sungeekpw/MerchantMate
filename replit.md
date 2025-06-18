@@ -389,6 +389,13 @@ The application is configured for deployment on Replit with:
   - Added comprehensive debugging system that shows 2/4 signatures completed for test prospect
   - Agents can now easily monitor and prioritize signature collection across their entire prospect portfolio
   - System correctly identifies partial signature completion and displays appropriate pending status indicators
+- June 18, 2025. Fixed application view signature status consistency with dashboard
+  - Resolved bug where application view showed incorrect signature status based on unreliable form data
+  - Created new API endpoint /api/prospects/:id/signature-status for database-backed signature detection
+  - Updated application view to use same database signature logic as agent dashboard for consistency
+  - Fixed signature progress badges and summary sections to display accurate completion status
+  - Application view now correctly shows "2 Complete, 2 Pending" for prospects with partial signature submission
+  - Signature status detection now consistent across all components using actual database signatures
 
 ## User Preferences
 Preferred communication style: Simple, everyday language.
