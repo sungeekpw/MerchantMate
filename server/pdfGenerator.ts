@@ -661,7 +661,7 @@ ${totalObjects * 100}
     
     // Merchant acknowledgment section
     content += '/F2 8 Tf\n';
-    content += '(Print Client\\'s Business Legal Name:) Tj\n';
+    content += '(Print Client\'s Business Legal Name:) Tj\n';
     content += '0 -10 Td\n';
     content += '/F1 10 Tf\n';
     content += '(' + cleanText(prospect.firstName + ' ' + prospect.lastName) + ') Tj\n';
@@ -676,9 +676,9 @@ ${totalObjects * 100}
     content += '0 -8 Td\n';
     content += '(pages including this confirmation. Client further acknowledges reading and agreeing to all terms in the) Tj\n';
     content += '0 -8 Td\n';
-    content += '(Program Guide, which shall be incorporated into Client\\'s Agreement. Upon receipt of a signed copy of this) Tj\n';
+    content += '(Program Guide, which shall be incorporated into Client\'s Agreement. Upon receipt of a signed copy of this) Tj\n';
     content += '0 -8 Td\n';
-    content += '(Application by us, Client\\'s Application will be processed.) Tj\n';
+    content += '(Application by us, Client\'s Application will be processed.) Tj\n';
     
     // Warning text
     content += '0 -12 Td\n';
@@ -690,11 +690,11 @@ ${totalObjects * 100}
     // Signature lines
     content += '0 -20 Td\n';
     content += '/F2 8 Tf\n';
-    content += '(CLIENT\\'S BUSINESS PRINCIPAL SIGNATURE) Tj\n';
+    content += '(CLIENTS BUSINESS PRINCIPAL SIGNATURE) Tj\n';
     content += '300 0 Td\n';
     content += '(TITLE) Tj\n';
     content += '100 0 Td\n';
-    content += '(DATE \\(MM/DD/YYYY\\)) Tj\n';
+    content += '(DATE) Tj\n';
     content += '-400 0 Td\n';
     content += '0 -15 Td\n';
     content += '/F1 7 Tf\n';
