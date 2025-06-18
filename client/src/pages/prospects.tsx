@@ -459,7 +459,12 @@ function ProspectModal({ isOpen, onClose, prospect }: ProspectModalProps) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
       });
-      if (!response.ok) throw new Error('Failed to create prospect');
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || 'Failed to create prospect');
+      }
+      
       return response.json();
     },
     onSuccess: () => {
@@ -473,8 +478,8 @@ function ProspectModal({ isOpen, onClose, prospect }: ProspectModalProps) {
     },
     onError: (error: Error) => {
       toast({
-        title: "Error",
-        description: error.message || "Failed to create prospect",
+        title: "Creation Failed",
+        description: error.message,
         variant: "destructive",
       });
     },
@@ -487,7 +492,12 @@ function ProspectModal({ isOpen, onClose, prospect }: ProspectModalProps) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
       });
-      if (!response.ok) throw new Error('Failed to update prospect');
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || 'Failed to update prospect');
+      }
+      
       return response.json();
     },
     onSuccess: () => {
@@ -500,8 +510,8 @@ function ProspectModal({ isOpen, onClose, prospect }: ProspectModalProps) {
     },
     onError: (error: Error) => {
       toast({
-        title: "Error",
-        description: error.message || "Failed to update prospect",
+        title: "Update Failed",
+        description: error.message,
         variant: "destructive",
       });
     },

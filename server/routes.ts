@@ -1200,7 +1200,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.put("/api/prospects/:id", devRequireRole(['agent', 'admin', 'corporate', 'super_admin']), async (req, res) => {
     try {
       const { id } = req.params;
-      const prospect = await storage.updateMerchantProspect(parseInt(id), req.body);
+      const prospectId = parseInt(id);
+      
+      // If email is being updated, check if it already exists for a different prospect
+      if (req.body.email) {
+        const existingProspect = await storage.getMerchantProspectByEmail(req.body.email);
+        if (existingProspect && existingProspect.id !== prospectId) {
+          return res.status(400).json({ 
+            message: "A prospect with this email already exists" 
+          });
+        }
+      }
+      
+      const prospect = await storage.updateMerchantProspect(prospectId, req.body);
       
       if (!prospect) {
         return res.status(404).json({ message: "Prospect not found" });
@@ -1209,6 +1221,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(prospect);
     } catch (error) {
       console.error("Error updating prospect:", error);
+      
+      // Handle specific database constraint errors
+      if (error && typeof error === 'object' && 'code' in error) {
+        if (error.code === '23505') { // Unique constraint violation
+          return res.status(400).json({ 
+            message: "A prospect with this email already exists" 
+          });
+        }
+      }
+      
       res.status(500).json({ message: "Failed to update prospect" });
     }
   });
