@@ -49,55 +49,11 @@ export class PDFGenerator {
   }
 
   private createBasicPDF(content: string, companyName: string): string {
-    // Create a professional-looking PDF with better formatting
     const lines = content.split('\n');
-    let yPosition = 750;
-    let pdfContent = '';
+    const pages = this.createPages(lines, companyName);
     
-    // Header styling
-    pdfContent += 'BT\n';
-    pdfContent += '/F2 18 Tf\n'; // Larger font for title
-    pdfContent += '50 750 Td\n';
-    pdfContent += '(MERCHANT APPLICATION) Tj\n';
-    
-    // Company name
-    pdfContent += '/F1 14 Tf\n';
-    pdfContent += '0 -25 Td\n';
-    pdfContent += `(${companyName.replace(/[()\\]/g, '\\$&')}) Tj\n`;
-    
-    // Date
-    pdfContent += '/F1 10 Tf\n';
-    pdfContent += '0 -20 Td\n';
-    pdfContent += `(Generated: ${new Date().toLocaleDateString()}) Tj\n`;
-    
-    // Add a line separator
-    pdfContent += '0 -15 Td\n';
-    pdfContent += '(________________________________________________) Tj\n';
-    pdfContent += '0 -25 Td\n';
-    
-    // Content with better formatting
-    for (const line of lines) {
-      if (line.includes('=======')) {
-        // Section headers - bold and larger
-        pdfContent += '/F2 14 Tf\n';
-        pdfContent += '0 -20 Td\n';
-      } else if (line.includes(':')) {
-        // Field labels - normal weight
-        pdfContent += '/F1 11 Tf\n';
-        pdfContent += '0 -15 Td\n';
-      } else {
-        // Regular text
-        pdfContent += '/F1 10 Tf\n';
-        pdfContent += '0 -12 Td\n';
-      }
-      
-      const cleanLine = line.replace(/[()\\]/g, '\\$&');
-      pdfContent += `(${cleanLine}) Tj\n`;
-    }
-    
-    pdfContent += 'ET\n';
-    
-    const pdfStructure = `%PDF-1.4
+    // Build PDF structure with multiple pages
+    let pdfStructure = `%PDF-1.4
 1 0 obj
 <<
 /Type /Catalog
@@ -108,36 +64,56 @@ endobj
 2 0 obj
 <<
 /Type /Pages
-/Kids [3 0 R]
-/Count 1
+/Kids [${pages.map((_, i) => `${3 + i} 0 R`).join(' ')}]
+/Count ${pages.length}
 >>
 endobj
 
-3 0 obj
+`;
+
+    // Add page objects
+    pages.forEach((pageContent, i) => {
+      const pageNum = 3 + i;
+      const contentNum = pageNum + pages.length;
+      
+      pdfStructure += `${pageNum} 0 obj
 <<
 /Type /Page
 /Parent 2 0 R
 /MediaBox [0 0 612 792]
-/Contents 4 0 R
+/Contents ${contentNum} 0 R
 /Resources <<
 /Font <<
-/F1 5 0 R
-/F2 6 0 R
+/F1 ${3 + pages.length * 2} 0 R
+/F2 ${4 + pages.length * 2} 0 R
 >>
 >>
 >>
 endobj
 
-4 0 obj
+`;
+    });
+
+    // Add content objects
+    pages.forEach((pageContent, i) => {
+      const contentNum = 3 + pages.length + i;
+      pdfStructure += `${contentNum} 0 obj
 <<
-/Length ${pdfContent.length}
+/Length ${pageContent.length}
 >>
 stream
-${pdfContent}
+${pageContent}
 endstream
 endobj
 
-5 0 obj
+`;
+    });
+
+    // Add font objects
+    const fontNum1 = 3 + pages.length * 2;
+    const fontNum2 = 4 + pages.length * 2;
+    
+    pdfStructure += `${fontNum1} 0 obj
 <<
 /Type /Font
 /Subtype /Type1
@@ -145,7 +121,7 @@ endobj
 >>
 endobj
 
-6 0 obj
+${fontNum2} 0 obj
 <<
 /Type /Font
 /Subtype /Type1
@@ -153,26 +129,114 @@ endobj
 >>
 endobj
 
-xref
-0 7
-0000000000 65535 f 
-0000000010 00000 n 
-0000000053 00000 n 
-0000000100 00000 n 
-0000000246 00000 n 
-0000000${(350 + pdfContent.length).toString().padStart(6, '0')} 00000 n 
-0000000${(400 + pdfContent.length).toString().padStart(6, '0')} 00000 n 
+`;
+
+    // Build xref table
+    const totalObjects = 5 + pages.length * 2;
+    pdfStructure += `xref
+0 ${totalObjects}
+0000000000 65535 f `;
+
+    // Calculate object positions (approximate)
+    let currentPos = 10;
+    for (let i = 1; i < totalObjects; i++) {
+      pdfStructure += `\n${currentPos.toString().padStart(10, '0')} 00000 n `;
+      currentPos += 100; // Rough estimate
+    }
+
+    pdfStructure += `
 
 trailer
 <<
-/Size 7
+/Size ${totalObjects}
 /Root 1 0 R
 >>
 startxref
-${450 + pdfContent.length}
+${currentPos}
 %%EOF`;
 
     return pdfStructure;
+  }
+
+  private createPages(lines: string[], companyName: string): string[] {
+    const pages: string[] = [];
+    let currentPage = '';
+    let currentY = 750;
+    let isFirstPage = true;
+    
+    // First page header
+    currentPage += 'BT\n';
+    currentPage += '/F2 18 Tf\n';
+    currentPage += '50 750 Td\n';
+    currentPage += '(MERCHANT APPLICATION) Tj\n';
+    currentPage += '/F1 14 Tf\n';
+    currentPage += '0 -25 Td\n';
+    currentPage += `(${companyName.replace(/[()\\]/g, '\\$&')}) Tj\n`;
+    currentPage += '/F1 10 Tf\n';
+    currentPage += '0 -20 Td\n';
+    currentPage += `(Generated: ${new Date().toLocaleDateString()}) Tj\n`;
+    currentPage += '0 -15 Td\n';
+    currentPage += '(________________________________________________) Tj\n';
+    currentPage += '0 -25 Td\n';
+    
+    currentY = 650; // Start content after header
+    
+    for (const line of lines) {
+      let lineHeight = 12;
+      
+      if (line.includes('=======')) {
+        lineHeight = 20;
+        currentPage += '/F2 14 Tf\n';
+        currentPage += '0 -20 Td\n';
+      } else if (line.includes(':')) {
+        lineHeight = 15;
+        currentPage += '/F1 11 Tf\n';
+        currentPage += '0 -15 Td\n';
+      } else {
+        lineHeight = 12;
+        currentPage += '/F1 10 Tf\n';
+        currentPage += '0 -12 Td\n';
+      }
+      
+      // Check if we need a new page
+      if (currentY - lineHeight < 50) {
+        // Finish current page
+        currentPage += 'ET\n';
+        pages.push(currentPage);
+        
+        // Start new page
+        currentPage = 'BT\n';
+        currentPage += '/F1 12 Tf\n';
+        currentPage += '50 750 Td\n';
+        currentPage += `(MERCHANT APPLICATION - Page ${pages.length + 1}) Tj\n`;
+        currentPage += '0 -20 Td\n';
+        currentPage += '(________________________________________________) Tj\n';
+        currentPage += '0 -25 Td\n';
+        currentY = 700;
+        
+        // Repeat the line formatting for new page
+        if (line.includes('=======')) {
+          currentPage += '/F2 14 Tf\n';
+          currentPage += '0 -20 Td\n';
+        } else if (line.includes(':')) {
+          currentPage += '/F1 11 Tf\n';
+          currentPage += '0 -15 Td\n';
+        } else {
+          currentPage += '/F1 10 Tf\n';
+          currentPage += '0 -12 Td\n';
+        }
+      }
+      
+      const cleanLine = line.replace(/[()\\]/g, '\\$&');
+      currentPage += `(${cleanLine}) Tj\n`;
+      currentY -= lineHeight;
+    }
+    
+    // Finish last page
+    currentPage += 'ET\n';
+    pages.push(currentPage);
+    
+    return pages;
   }
 
   private createMinimalPDF(companyName: string): Buffer {
