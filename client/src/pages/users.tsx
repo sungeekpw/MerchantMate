@@ -13,7 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Search, UserPlus, Settings, Shield, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { ensureDevAuth } from "@/lib/auth-helper";
+
 import { z } from "zod";
 
 // User registration schema
@@ -53,22 +53,12 @@ export default function Users() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Attempt development authentication on mount
+  // Load users data on mount
   useEffect(() => {
-    const setupAuth = async () => {
-      if (!authAttempted) {
-        console.log('Setting up authentication...');
-        const success = await ensureDevAuth();
-        console.log('Authentication setup result:', success);
-        setAuthAttempted(true);
-        // Small delay to ensure session is fully established
-        setTimeout(() => {
-          console.log('Invalidating queries after auth...');
-          queryClient.invalidateQueries({ queryKey: ["/api/users"] });
-        }, 100);
-      }
-    };
-    setupAuth();
+    if (!authAttempted) {
+      setAuthAttempted(true);
+      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+    }
   }, [authAttempted, queryClient]);
 
   // Registration form

@@ -557,24 +557,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Use production auth setup for all environments
   await setupAuth(app);
 
-  app.get('/api/auth/user', async (req: any, res) => {
+  app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
     try {
-      // Development mode: always return Mike Chen (agent) user
-      if (process.env.NODE_ENV === 'development') {
-        const devUser = {
-          id: "user_agent_1",
-          email: "mike.chen@corecrm.com",
-          firstName: "Mike",
-          lastName: "Chen",
-          role: "agent",
-          status: "active"
-        };
-        return res.json(devUser);
-      }
-
-      // Production mode: use normal authentication
       const userId = req.user.claims.sub;
       const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
       res.json(user);
     } catch (error) {
       console.error("Error fetching user:", error);
@@ -582,46 +571,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Development authentication middleware
-  const devAuth = async (req: any, res: any, next: any) => {
-    if (process.env.NODE_ENV === 'development') {
-      console.log('DevAuth - Session:', req.session);
-      console.log('DevAuth - Session ID:', req.sessionID);
-      const userId = (req.session as any)?.userId;
-      console.log('DevAuth - UserId from session:', userId);
-      if (!userId) {
-        console.log('DevAuth - No userId in session, returning unauthorized');
-        return res.status(401).json({ message: "Unauthorized" });
-      }
-      const user = await storage.getUser(userId);
-      if (!user) {
-        console.log('DevAuth - User not found in database:', userId);
-        return res.status(401).json({ message: "User not found" });
-      }
-      req.user = { claims: { sub: userId } };
-      req.dbUser = user;
-      console.log('DevAuth - Authentication successful for user:', userId);
-      return next();
-    }
-    return isAuthenticated(req, res, next);
-  };
+;
 
-  const devRequireRole = (allowedRoles: string[]) => async (req: any, res: any, next: any) => {
-    if (process.env.NODE_ENV === 'development') {
-      const userId = (req.session as any)?.userId;
-      if (!userId) {
-        return res.status(401).json({ message: "Unauthorized" });
-      }
-      const user = await storage.getUser(userId);
-      if (!user || !allowedRoles.includes(user.role)) {
-        return res.status(403).json({ message: "Access denied" });
-      }
-      req.user = { claims: { sub: userId } };
-      req.dbUser = user;
-      return next();
-    }
-    return requireRole(allowedRoles)(req, res, next);
-  };
+
 
   // User management routes (admin and super admin only)
   app.get("/api/users", isAuthenticated, async (req: any, res) => {
@@ -643,7 +595,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/users/:id/role", devRequireRole(['super_admin']), async (req, res) => {
+  app.patch("/api/users/:id/role", requireRole(['super_admin']), async (req, res) => {
     try {
       const { id } = req.params;
       const { role } = req.body;
@@ -663,7 +615,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/users/:id/status", devRequireRole(['admin', 'corporate', 'super_admin']), async (req, res) => {
+  app.patch("/api/users/:id/status", requireRole(['admin', 'corporate', 'super_admin']), async (req, res) => {
     try {
       const { id } = req.params;
       const { status } = req.body;
@@ -684,7 +636,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Merchant routes with role-based access
-  app.get("/api/merchants", devAuth, async (req: any, res) => {
+  app.get("/api/merchants", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const { search } = req.query;
@@ -708,7 +660,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Location routes with role-based access
-  app.get("/api/merchants/:merchantId/locations", devAuth, async (req: any, res) => {
+  app.get("/api/merchants/:merchantId/locations", isAuthenticated, async (req: any, res) => {
     try {
       const { merchantId } = req.params;
       const userId = req.user.claims.sub;
@@ -731,7 +683,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/merchants/:merchantId/locations", devAuth, async (req: any, res) => {
+  app.post("/api/merchants/:merchantId/locations", isAuthenticated, async (req: any, res) => {
     try {
       const { merchantId } = req.params;
       const userId = req.user.claims.sub;
@@ -759,7 +711,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
 
 
-  app.put("/api/locations/:locationId", devAuth, async (req: any, res) => {
+  app.put("/api/locations/:locationId", isAuthenticated, async (req: any, res) => {
     try {
       const { locationId } = req.params;
       const userId = req.user.claims.sub;
@@ -790,7 +742,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/locations/:locationId", devAuth, async (req: any, res) => {
+  app.delete("/api/locations/:locationId", isAuthenticated, async (req: any, res) => {
     try {
       const { locationId } = req.params;
       const userId = req.user.claims.sub;
@@ -820,7 +772,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Address routes with role-based access and geolocation support
-  app.get("/api/locations/:locationId/addresses", devAuth, async (req: any, res) => {
+  app.get("/api/locations/:locationId/addresses", isAuthenticated, async (req: any, res) => {
     try {
       const { locationId } = req.params;
       const userId = req.user.claims.sub;
@@ -845,7 +797,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/locations/:locationId/addresses", devAuth, async (req: any, res) => {
+  app.post("/api/locations/:locationId/addresses", isAuthenticated, async (req: any, res) => {
     try {
       const { locationId } = req.params;
       const userId = req.user.claims.sub;
@@ -875,7 +827,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/addresses/:addressId", devAuth, async (req: any, res) => {
+  app.put("/api/addresses/:addressId", isAuthenticated, async (req: any, res) => {
     try {
       const { addressId } = req.params;
       const userId = req.user.claims.sub;
@@ -911,7 +863,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/addresses/:addressId", devAuth, async (req: any, res) => {
+  app.delete("/api/addresses/:addressId", isAuthenticated, async (req: any, res) => {
     try {
       const { addressId } = req.params;
       const userId = req.user.claims.sub;
@@ -946,7 +898,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Transaction routes with role-based access
-  app.get("/api/transactions", devAuth, async (req: any, res) => {
+  app.get("/api/transactions", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const user = await storage.getUser(userId);
@@ -1021,7 +973,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get transactions by MID (location-specific transactions)
-  app.get("/api/transactions/mid/:mid", devAuth, async (req: any, res) => {
+  app.get("/api/transactions/mid/:mid", isAuthenticated, async (req: any, res) => {
     try {
       const { mid } = req.params;
       const userId = req.user.claims.sub;
@@ -2215,7 +2167,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Current agent info (for logged-in agents)
-  app.get("/api/current-agent", devAuth, async (req: any, res) => {
+  app.get("/api/current-agent", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       console.log("Current Agent API - UserId:", userId);
@@ -2301,7 +2253,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Analytics routes
-  app.get("/api/analytics/dashboard", devAuth, async (req, res) => {
+  app.get("/api/analytics/dashboard", isAuthenticated, async (req, res) => {
     try {
       const metrics = await storage.getDashboardMetrics();
       res.json(metrics);
@@ -2311,7 +2263,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/analytics/top-merchants", devAuth, async (req, res) => {
+  app.get("/api/analytics/top-merchants", isAuthenticated, async (req, res) => {
     try {
       const topMerchants = await storage.getTopMerchants();
       res.json(topMerchants);
@@ -2321,7 +2273,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/analytics/recent-transactions", devAuth, async (req, res) => {
+  app.get("/api/analytics/recent-transactions", isAuthenticated, async (req, res) => {
     try {
       const limit = req.query.limit ? parseInt(req.query.limit as string) : 10;
       const recentTransactions = await storage.getRecentTransactions(limit);
@@ -2333,7 +2285,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Widget preferences routes
-  app.get("/api/user/widgets", devAuth, async (req: any, res) => {
+  app.get("/api/user/widgets", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const preferences = await storage.getUserWidgetPreferences(userId);
@@ -2344,7 +2296,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/user/widgets", devAuth, async (req: any, res) => {
+  app.post("/api/user/widgets", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const widgetData = { ...req.body, userId };
@@ -2357,7 +2309,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/user/widgets/:id", devAuth, async (req: any, res) => {
+  app.patch("/api/user/widgets/:id", isAuthenticated, async (req: any, res) => {
     try {
       const id = parseInt(req.params.id);
       const updates = req.body;
@@ -2374,7 +2326,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/user/widgets/:id", devAuth, async (req, res) => {
+  app.delete("/api/user/widgets/:id", isAuthenticated, async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       const success = await storage.deleteWidgetPreference(id);
@@ -2391,7 +2343,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Dashboard widget endpoints
-  app.get('/api/dashboard/widgets', devAuth, async (req: any, res) => {
+  app.get('/api/dashboard/widgets', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const widgets = await storage.getUserWidgetPreferences(userId);
@@ -2402,7 +2354,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/dashboard/widgets', devAuth, async (req: any, res) => {
+  app.post('/api/dashboard/widgets', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const widgetData = { ...req.body, userId };
@@ -2414,7 +2366,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put('/api/dashboard/widgets/:id', devAuth, async (req: any, res) => {
+  app.put('/api/dashboard/widgets/:id', isAuthenticated, async (req: any, res) => {
     try {
       const id = parseInt(req.params.id);
       const widget = await storage.updateWidgetPreference(id, req.body);
@@ -2428,7 +2380,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete('/api/dashboard/widgets/:id', devAuth, async (req: any, res) => {
+  app.delete('/api/dashboard/widgets/:id', isAuthenticated, async (req: any, res) => {
     try {
       const id = parseInt(req.params.id);
       const success = await storage.deleteWidgetPreference(id);
@@ -2442,7 +2394,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/dashboard/initialize', devAuth, async (req: any, res) => {
+  app.post('/api/dashboard/initialize', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const user = await storage.getUser(userId);
@@ -2473,7 +2425,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Dashboard analytics endpoints
-  app.get('/api/dashboard/metrics', devAuth, async (req: any, res) => {
+  app.get('/api/dashboard/metrics', isAuthenticated, async (req: any, res) => {
     try {
       const metrics = await storage.getDashboardMetrics();
       res.json(metrics);
@@ -2483,7 +2435,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/dashboard/revenue', devAuth, async (req: any, res) => {
+  app.get('/api/dashboard/revenue', isAuthenticated, async (req: any, res) => {
     try {
       const timeRange = req.query.timeRange as string || 'daily';
       const revenue = await storage.getDashboardRevenue(timeRange);
@@ -2494,7 +2446,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/dashboard/top-locations', devAuth, async (req: any, res) => {
+  app.get('/api/dashboard/top-locations', isAuthenticated, async (req: any, res) => {
     try {
       const limit = parseInt(req.query.limit as string) || 5;
       const sortBy = req.query.sortBy as string || 'revenue';
@@ -2506,7 +2458,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/dashboard/recent-activity', devAuth, async (req: any, res) => {
+  app.get('/api/dashboard/recent-activity', isAuthenticated, async (req: any, res) => {
     try {
       const activity = await storage.getRecentActivity();
       res.json(activity);
@@ -2516,7 +2468,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/dashboard/assigned-merchants', devAuth, async (req: any, res) => {
+  app.get('/api/dashboard/assigned-merchants', isAuthenticated, async (req: any, res) => {
     try {
       const limit = parseInt(req.query.limit as string) || 5;
       const merchants = await storage.getAssignedMerchants(limit);
@@ -2527,7 +2479,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/dashboard/system-overview', devAuth, async (req: any, res) => {
+  app.get('/api/dashboard/system-overview', isAuthenticated, async (req: any, res) => {
     try {
       const overview = await storage.getSystemOverview();
       res.json(overview);
@@ -2612,7 +2564,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // PDF Form Upload and Processing Routes (admin only)
-  app.post("/api/pdf-forms/upload", devAuth, requireRole(['admin', 'super_admin']), upload.single('pdf'), async (req: any, res) => {
+  app.post("/api/pdf-forms/upload", isAuthenticated, requireRole(['admin', 'super_admin']), upload.single('pdf'), async (req: any, res) => {
     try {
       if (!req.file) {
         return res.status(400).json({ message: "No PDF file uploaded" });
@@ -2657,7 +2609,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get all PDF forms (admin only)
-  app.get("/api/pdf-forms", devAuth, requireRole(['admin', 'super_admin']), async (req: any, res) => {
+  app.get("/api/pdf-forms", isAuthenticated, requireRole(['admin', 'super_admin']), async (req: any, res) => {
     try {
       const forms = await storage.getAllPdfForms();
       res.json(forms);
@@ -2668,7 +2620,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get specific PDF form with fields (admin only)
-  app.get("/api/pdf-forms/:id", devAuth, requireRole(['admin', 'super_admin']), async (req: any, res) => {
+  app.get("/api/pdf-forms/:id", isAuthenticated, requireRole(['admin', 'super_admin']), async (req: any, res) => {
     try {
       const formId = parseInt(req.params.id);
       const form = await storage.getPdfFormWithFields(formId);
@@ -2685,7 +2637,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get specific PDF form with fields (wizard endpoint)
-  app.get("/api/pdf-forms/:id/with-fields", devAuth, async (req: any, res) => {
+  app.get("/api/pdf-forms/:id/with-fields", isAuthenticated, async (req: any, res) => {
     try {
       const formId = parseInt(req.params.id);
       const form = await storage.getPdfFormWithFields(formId);
@@ -2702,7 +2654,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Update PDF form metadata (admin only)
-  app.patch("/api/pdf-forms/:id", devAuth, requireRole(['admin', 'super_admin']), async (req: any, res) => {
+  app.patch("/api/pdf-forms/:id", isAuthenticated, requireRole(['admin', 'super_admin']), async (req: any, res) => {
     try {
       const formId = parseInt(req.params.id);
       const { name, description, showInNavigation, navigationTitle, allowedRoles } = req.body;
