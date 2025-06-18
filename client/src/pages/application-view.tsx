@@ -47,7 +47,7 @@ export default function ApplicationView() {
   const [, params] = useRoute('/application-view/:id');
   const prospectId = params?.id;
 
-  const { data: prospect, isLoading, error } = useQuery({
+  const { data: prospect, isLoading, error } = useQuery<ProspectData>({
     queryKey: ['/api/prospects', prospectId],
     enabled: !!prospectId
   });
@@ -81,8 +81,23 @@ export default function ApplicationView() {
     );
   }
 
-  const formData: any = prospect?.formData ? (typeof prospect.formData === 'string' ? JSON.parse(prospect.formData) : prospect.formData) : {};
+  // Parse form data safely with type guard
+  let formData: any = {};
+  try {
+    if (prospect && prospect.formData) {
+      formData = typeof prospect.formData === 'string' ? JSON.parse(prospect.formData) : prospect.formData;
+    }
+  } catch (e) {
+    console.error('Error parsing form data:', e);
+    formData = {};
+  }
+  
   const owners: Owner[] = formData.owners || [];
+
+  // Type guard to ensure prospect is defined
+  if (!prospect) {
+    return null;
+  }
 
   const getStatusColor = (status: string) => {
     const colors = {
