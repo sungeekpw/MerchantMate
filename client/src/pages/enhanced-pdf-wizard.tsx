@@ -224,6 +224,24 @@ export default function EnhancedPdfWizard() {
     console.log('Form data updated:', formData);
   }, [formData]);
 
+  // Prevent address overwrites when user has made a selection
+  useEffect(() => {
+    if (userSelectedAddress && (
+      formData.city !== userSelectedAddress.city ||
+      formData.state !== userSelectedAddress.state ||
+      formData.zipCode !== userSelectedAddress.zipCode
+    )) {
+      console.log('Preventing address override - restoring user selection');
+      setFormData(prev => ({
+        ...prev,
+        address: userSelectedAddress.address,
+        city: userSelectedAddress.city,
+        state: userSelectedAddress.state,
+        zipCode: userSelectedAddress.zipCode
+      }));
+    }
+  }, [formData, userSelectedAddress]);
+
   // Create hardcoded form sections for prospect mode
   const prospectFormSections: FormSection[] = [
     {
@@ -470,6 +488,30 @@ export default function EnhancedPdfWizard() {
   // Initialize form data with agent and prospect information for prospects
   const [initialDataLoaded, setInitialDataLoaded] = useState(false);
   const [addressOverrideActive, setAddressOverrideActive] = useState(false);
+  const [userSelectedAddress, setUserSelectedAddress] = useState<{
+    address: string;
+    city: string;
+    state: string;
+    zipCode: string;
+  } | null>(null);
+
+  // Prevent address overwrites when user has made a selection
+  useEffect(() => {
+    if (userSelectedAddress && (
+      formData.city !== userSelectedAddress.city ||
+      formData.state !== userSelectedAddress.state ||
+      formData.zipCode !== userSelectedAddress.zipCode
+    )) {
+      console.log('Preventing address override - restoring user selection');
+      setFormData(prev => ({
+        ...prev,
+        address: userSelectedAddress.address,
+        city: userSelectedAddress.city,
+        state: userSelectedAddress.state,
+        zipCode: userSelectedAddress.zipCode
+      }));
+    }
+  }, [formData, userSelectedAddress]);
   
   useEffect(() => {
     if (isProspectMode && prospectData?.prospect && prospectData?.agent && !initialDataLoaded) {
