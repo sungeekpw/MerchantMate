@@ -416,9 +416,6 @@ function AuthenticatedApp() {
               );
             }}
           </Route>
-          <Route path="/application-print/:id">
-            {() => <ApplicationPrint />}
-          </Route>
           <Route>
             <div className="flex-1">
               <NotFound />
@@ -485,6 +482,9 @@ function AppContent() {
                 <ApplicationStatus />
               </main>
             )}
+          </Route>
+          <Route path="/application-print/:id">
+            {() => <ApplicationPrint />}
           </Route>
           <Route>
             {isAuthenticated ? <AuthenticatedApp /> : <Auth />}
