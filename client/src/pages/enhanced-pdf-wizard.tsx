@@ -976,6 +976,9 @@ export default function EnhancedPdfWizard() {
           // Lock the address fields after successful autocomplete selection
           setAddressFieldsLocked(true);
           
+          // Mark that initial data has been loaded to prevent database overwrites
+          setInitialDataLoaded(true);
+          
           // Force update DOM input fields directly to override any browser persistence
           setTimeout(() => {
             const addressField = document.querySelector('input[id*="address"]:not([id*="addressLine2"])') as HTMLInputElement;
