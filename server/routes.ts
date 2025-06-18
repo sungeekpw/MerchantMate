@@ -1233,24 +1233,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/prospects/:id", devAuth, async (req: any, res) => {
     try {
       const { id } = req.params;
+      console.log('Fetching prospect ID:', id);
+      
       const userId = req.user.claims.sub;
+      console.log('User ID from session:', userId);
       
       // Get user data
       const user = await storage.getUser(userId);
       if (!user) {
+        console.log('User not found for ID:', userId);
         return res.status(404).json({ message: "User not found" });
       }
+      console.log('Found user:', user.email, 'role:', user.role);
 
       // Get prospect data
       const prospect = await storage.getMerchantProspect(parseInt(id));
       if (!prospect) {
+        console.log('Prospect not found for ID:', id);
         return res.status(404).json({ message: "Prospect not found" });
       }
+      console.log('Found prospect:', prospect.firstName, prospect.lastName, 'agentId:', prospect.agentId);
 
       // For agents, check if this prospect is assigned to them
       if (user.role === 'agent') {
         const agent = await storage.getAgentByEmail(user.email);
+        console.log('Found agent:', agent?.id, agent?.firstName, agent?.lastName);
         if (!agent || prospect.agentId !== agent.id) {
+          console.log('Access denied - agent ID mismatch:', agent?.id, 'vs prospect agentId:', prospect.agentId);
           return res.status(403).json({ message: "Access denied" });
         }
       }
@@ -1264,6 +1273,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
+      console.log('Returning prospect data with assigned agent:', assignedAgent);
       // Return prospect with agent info
       res.json({
         ...prospect,
@@ -1271,7 +1281,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     } catch (error) {
       console.error("Error fetching prospect:", error);
-      res.status(500).json({ message: "Failed to fetch prospect" });
+      res.status(500).json({ message: "Failed to fetch prospect", error: error.message });
     }
   });
 
