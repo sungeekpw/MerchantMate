@@ -289,56 +289,144 @@ export default function EnhancedPdfWizard() {
       // Handle multi-line error messages with proper formatting
       const errorMessage = error.message || "There was an error submitting your application. Please try again.";
       
-      if (errorMessage.includes('Required signatures missing:')) {
-        // Show detailed validation dialog for signature errors
-        const dialog = document.createElement('div');
-        dialog.innerHTML = `
+      // Always show validation errors in enhanced modal dialog
+      if (errorMessage.includes('Application incomplete') || errorMessage.includes('Missing signatures') || errorMessage.includes('required') || errorMessage.includes('Required signatures missing:')) {
+        // Create enhanced modal dialog for all validation errors
+        const modalOverlay = document.createElement('div');
+        modalOverlay.style.cssText = `
+          position: fixed;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          background: rgba(0, 0, 0, 0.6);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          z-index: 9999;
+          backdrop-filter: blur(2px);
+          animation: fadeIn 0.2s ease-out;
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        `;
+        
+        // Add CSS animations
+        const style = document.createElement('style');
+        style.textContent = `
+          @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+          }
+          @keyframes slideIn {
+            from { transform: scale(0.95) translateY(-20px); opacity: 0; }
+            to { transform: scale(1) translateY(0); opacity: 1; }
+          }
+          .modal-button:hover {
+            background: #b91c1c !important;
+            transform: translateY(-1px);
+          }
+        `;
+        document.head.appendChild(style);
+        
+        modalOverlay.innerHTML = `
           <div style="
-            position: fixed; 
-            top: 0; 
-            left: 0; 
-            right: 0; 
-            bottom: 0; 
-            background: rgba(0,0,0,0.5); 
-            display: flex; 
-            align-items: center; 
-            justify-content: center; 
-            z-index: 9999;
-            font-family: system-ui, -apple-system, sans-serif;
+            background: white;
+            border-radius: 16px;
+            padding: 32px;
+            max-width: 650px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.3);
+            border: 1px solid #e5e7eb;
+            animation: slideIn 0.3s ease-out;
           ">
-            <div style="
-              background: white; 
-              padding: 24px; 
-              border-radius: 8px; 
-              max-width: 500px; 
-              margin: 20px;
-              box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
-            ">
-              <h3 style="margin: 0 0 16px 0; color: #dc2626; font-weight: 600; font-size: 18px;">
+            <div style="text-align: center; margin-bottom: 24px;">
+              <div style="
+                width: 72px;
+                height: 72px;
+                background: linear-gradient(135deg, #fee2e2, #fecaca);
+                border-radius: 50%;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                margin-bottom: 16px;
+                box-shadow: 0 4px 12px rgba(239, 68, 68, 0.2);
+              ">
+                <svg width="32" height="32" fill="#dc2626" viewBox="0 0 20 20">
+                  <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+                </svg>
+              </div>
+              <h3 style="
+                margin: 0; 
+                color: #dc2626; 
+                font-weight: 700; 
+                font-size: 28px; 
+                letter-spacing: -0.5px;
+                margin-bottom: 8px;
+              ">
                 Application Incomplete
               </h3>
-              <div style="
-                white-space: pre-line; 
-                line-height: 1.5; 
-                color: #374151; 
-                margin-bottom: 20px;
-                font-size: 14px;
-              ">${errorMessage}</div>
-              <button onclick="this.parentElement.parentElement.remove()" style="
-                background: #dc2626; 
-                color: white; 
-                border: none; 
-                padding: 8px 16px; 
-                border-radius: 4px; 
-                cursor: pointer;
+              <p style="
+                margin: 0;
+                color: #6b7280;
+                font-size: 16px;
                 font-weight: 500;
               ">
-                Close
+                Please complete the required information before submitting
+              </p>
+            </div>
+            <div style="
+              white-space: pre-line; 
+              line-height: 1.7; 
+              color: #374151; 
+              margin-bottom: 32px;
+              font-size: 15px;
+              background: linear-gradient(135deg, #f9fafb, #f3f4f6);
+              padding: 24px;
+              border-radius: 12px;
+              border-left: 5px solid #dc2626;
+              box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1);
+            ">${errorMessage}</div>
+            <div style="display: flex; gap: 16px; justify-content: center;">
+              <button onclick="this.closest('[style*=\"position: fixed\"]').remove()" 
+                class="modal-button"
+                style="
+                  background: linear-gradient(135deg, #dc2626, #b91c1c); 
+                  color: white; 
+                  border: none; 
+                  padding: 14px 32px; 
+                  border-radius: 10px; 
+                  cursor: pointer;
+                  font-weight: 600;
+                  font-size: 16px;
+                  letter-spacing: 0.25px;
+                  transition: all 0.2s ease;
+                  box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3);
+                  min-width: 140px;
+                ">
+                I Understand
               </button>
             </div>
           </div>
         `;
-        document.body.appendChild(dialog);
+        
+        // Close modal when clicking overlay
+        modalOverlay.addEventListener('click', (e) => {
+          if (e.target === modalOverlay) {
+            modalOverlay.remove();
+          }
+        });
+        
+        // Close modal with Escape key
+        const handleEscape = (e) => {
+          if (e.key === 'Escape') {
+            modalOverlay.remove();
+            document.removeEventListener('keydown', handleEscape);
+          }
+        };
+        document.addEventListener('keydown', handleEscape);
+        
+        document.body.appendChild(modalOverlay);
       } else {
         // Standard toast for other errors
         toast({
