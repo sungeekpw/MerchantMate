@@ -938,50 +938,65 @@ export default function EnhancedPdfWizard() {
         if (result.isValid) {
           setAddressValidationStatus('valid');
           
-          // Create completely fresh form data to avoid any merging issues
-          const finalFormData = { ...formData };
+          console.log('API returned validated address data:', {
+            streetAddress: result.streetAddress,
+            city: result.city,
+            state: result.state,
+            zipCode: result.zipCode
+          });
           
-          // Override ALL address fields with API results - force clear first
-          delete finalFormData.address;
-          delete finalFormData.city;
-          delete finalFormData.state;
-          delete finalFormData.zipCode;
-          
-          // Set new address data
-          finalFormData.address = result.streetAddress || mainText;
-          finalFormData.city = result.city || suggestedCity;
-          finalFormData.state = result.state || suggestedState;
-          finalFormData.zipCode = result.zipCode || '';
-          
-          console.log('About to set final form data:', finalFormData);
-          setFormData(finalFormData);
-          console.log('Final validated form data set:', finalFormData);
+          // Create completely fresh form data by spreading current form data 
+          // and then overriding only the address fields with API results
+          setFormData(prevFormData => {
+            const updatedFormData = {
+              ...prevFormData,
+              address: result.streetAddress || mainText,
+              city: result.city || '',
+              state: result.state || '',
+              zipCode: result.zipCode || ''
+            };
+            
+            console.log('Updated form data with validated address:', updatedFormData);
+            return updatedFormData;
+          });
           
           // Lock the address fields after successful autocomplete selection
           setAddressFieldsLocked(true);
           
-          // Force clear and update DOM input fields directly to override any browser persistence
+          // Force update DOM input fields directly to override any browser persistence
           setTimeout(() => {
             const addressField = document.querySelector('input[id*="address"]:not([id*="addressLine2"])') as HTMLInputElement;
             const cityField = document.querySelector('input[id*="city"]') as HTMLInputElement;
             const stateField = document.querySelector('select[id*="state"], input[id*="state"]') as HTMLInputElement;
             const zipField = document.querySelector('input[id*="zip"]') as HTMLInputElement;
             
-            if (addressField) {
-              addressField.value = finalFormData.address || '';
-              console.log('Set address field value:', addressField.value);
+            console.log('Updating DOM fields with validated address data...');
+            console.log('API result contains:', {
+              streetAddress: result.streetAddress,
+              city: result.city,
+              state: result.state,
+              zipCode: result.zipCode
+            });
+            
+            if (addressField && result.streetAddress) {
+              addressField.value = result.streetAddress;
+              addressField.dispatchEvent(new Event('input', { bubbles: true }));
+              console.log('Set address field to:', result.streetAddress);
             }
-            if (cityField) {
-              cityField.value = finalFormData.city || '';
-              console.log('Set city field value:', cityField.value);
+            if (cityField && result.city) {
+              cityField.value = result.city;
+              cityField.dispatchEvent(new Event('input', { bubbles: true }));
+              console.log('Set city field to:', result.city);
             }
-            if (stateField) {
-              stateField.value = finalFormData.state || '';
-              console.log('Set state field value:', stateField.value);
+            if (stateField && result.state) {
+              stateField.value = result.state;
+              stateField.dispatchEvent(new Event('change', { bubbles: true }));
+              console.log('Set state field to:', result.state);
             }
-            if (zipField) {
-              zipField.value = finalFormData.zipCode || '';
-              console.log('Set zip field value:', zipField.value);
+            if (zipField && result.zipCode) {
+              zipField.value = result.zipCode;
+              zipField.dispatchEvent(new Event('input', { bubbles: true }));
+              console.log('Set zip field to:', result.zipCode);
             }
             
             // Auto-focus to address line 2 field after successful selection
@@ -989,7 +1004,7 @@ export default function EnhancedPdfWizard() {
             if (addressLine2Field) {
               addressLine2Field.focus();
             }
-          }, 100);
+          }, 200);
         } else {
           setAddressValidationStatus('invalid');
         }
