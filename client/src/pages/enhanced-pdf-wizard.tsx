@@ -219,40 +219,9 @@ export default function EnhancedPdfWizard() {
     }
   }, [prospectData, isProspectMode]);
 
-  // Debug form data changes and filter out problematic cached addresses
+  // Debug form data changes
   useEffect(() => {
     console.log('Form data updated:', formData);
-    
-    // Prevent any Vancouver, New York, or other problematic cached addresses from being applied
-    if (formData.city === 'Vancouver' || 
-        formData.city === 'New York' ||
-        formData.zipCode === 'V5T 3G3' ||
-        formData.zipCode === '10003' ||
-        formData.state === 'British Columbia') {
-      console.log('Detected problematic cached address - clearing and preventing override');
-      
-      // If user had a valid address selected, restore it instead of clearing
-      if (userSelectedAddress) {
-        console.log('Restoring user selected address:', userSelectedAddress);
-        setFormData(prev => ({
-          ...prev,
-          address: userSelectedAddress.address,
-          city: userSelectedAddress.city,
-          state: userSelectedAddress.state,
-          zipCode: userSelectedAddress.zipCode
-        }));
-      } else {
-        // Otherwise just clear the problematic cached data
-        setFormData(prev => {
-          const cleanedData = { ...prev };
-          delete cleanedData.address;
-          delete cleanedData.city;
-          delete cleanedData.state;
-          delete cleanedData.zipCode;
-          return cleanedData;
-        });
-      }
-    }
   }, [formData]);
 
   // Create hardcoded form sections for prospect mode
@@ -500,13 +469,6 @@ export default function EnhancedPdfWizard() {
 
   // Initialize form data with agent and prospect information for prospects
   const [initialDataLoaded, setInitialDataLoaded] = useState(false);
-  const [addressOverrideActive, setAddressOverrideActive] = useState(false);
-  const [userSelectedAddress, setUserSelectedAddress] = useState<{
-    address: string;
-    city: string;
-    state: string;
-    zipCode: string;
-  } | null>(null);
 
 
   
@@ -518,8 +480,8 @@ export default function EnhancedPdfWizard() {
       };
       console.log('Setting initial prospect data:', newData);
       
-      // Load existing form data if available, but exclude address fields if address override is active
-      if (prospectData.prospect.formData && !addressOverrideActive) {
+      // Load existing form data if available
+      if (prospectData.prospect.formData) {
         try {
           const existingFormData = typeof prospectData.prospect.formData === 'string' 
             ? JSON.parse(prospectData.prospect.formData) 
@@ -527,18 +489,7 @@ export default function EnhancedPdfWizard() {
           
           console.log('Loading existing form data:', existingFormData);
           
-          // Clear any problematic cached address data that may interfere
-          if (existingFormData.city === 'New York' || 
-              existingFormData.city === 'Vancouver' ||
-              existingFormData.zipCode === 'V5T 3G3' ||
-              existingFormData.zipCode === '10003' ||
-              existingFormData.state === 'British Columbia') {
-            console.log('Clearing problematic cached address data:', existingFormData.city, existingFormData.zipCode);
-            delete existingFormData.address;
-            delete existingFormData.city;
-            delete existingFormData.state;
-            delete existingFormData.zipCode;
-          }
+          console.log('Loading existing form data:', existingFormData);
           
           setFormData(prev => ({
             ...prev,
@@ -566,7 +517,7 @@ export default function EnhancedPdfWizard() {
       
       setInitialDataLoaded(true);
     }
-  }, [isProspectMode, prospectData, initialDataLoaded, addressOverrideActive]);
+  }, [isProspectMode, prospectData, initialDataLoaded]);
 
   // Track when user starts filling out the form and update prospect status
   const handleFieldInteraction = (fieldName: string, value: any) => {
@@ -1003,7 +954,7 @@ export default function EnhancedPdfWizard() {
             zipCode: result.zipCode
           });
           
-          // Store the user's selected address to prevent overrides
+          // Immediately save the selected address to database and update form
           const selectedAddress = {
             address: result.streetAddress || mainText,
             city: result.city || '',
@@ -1011,20 +962,18 @@ export default function EnhancedPdfWizard() {
             zipCode: result.zipCode || ''
           };
           
-          console.log('Storing user selected address:', selectedAddress);
-          setUserSelectedAddress(selectedAddress);
+          console.log('Selected address - saving to database:', selectedAddress);
           
-          // Create completely fresh form data by spreading current form data 
-          // and then overriding only the address fields with API results
+          // Update form data with the selected address
           setFormData(prevFormData => {
             const updatedFormData = {
               ...prevFormData,
               ...selectedAddress
             };
             
-            console.log('Updated form data with validated address:', updatedFormData);
+            console.log('Updated form data with selected address:', updatedFormData);
             
-            // Also save this updated form data to prevent reverting to cached values
+            // Immediately save to database to ensure persistence
             if (isProspectMode && prospectData?.prospect) {
               saveFormDataMutation.mutate({
                 formData: updatedFormData,
@@ -1040,9 +989,6 @@ export default function EnhancedPdfWizard() {
           
           // Mark that initial data has been loaded to prevent database overwrites
           setInitialDataLoaded(true);
-          
-          // Activate address override protection to prevent cached data interference
-          setAddressOverrideActive(true);
           
           // Force update DOM input fields directly to override any browser persistence
           setTimeout(() => {
