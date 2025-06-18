@@ -455,8 +455,13 @@ export default function EnhancedPdfWizard() {
     
     console.log(`Navigating from step ${currentStep} to step ${nextStep}`);
     
-    // Mark current section as visited
-    setVisitedSections(prev => new Set([...prev, currentStep]));
+    // Preserve all previously visited sections and add current one
+    setVisitedSections(prev => {
+      const newVisited = new Set([...prev]);
+      newVisited.add(currentStep); // Mark current section as visited
+      newVisited.add(nextStep); // Mark next section as visited
+      return newVisited;
+    });
     
     // Save current form data before navigating for prospect mode
     if (isProspectMode && prospectData?.prospect?.id) {
@@ -475,8 +480,13 @@ export default function EnhancedPdfWizard() {
     
     console.log(`Navigating from step ${currentStep} to step ${prevStep}`);
     
-    // Mark current section as visited
-    setVisitedSections(prev => new Set([...prev, currentStep]));
+    // Preserve all previously visited sections - don't reset when going back
+    setVisitedSections(prev => {
+      const newVisited = new Set([...prev]);
+      newVisited.add(currentStep); // Mark current section as visited
+      // Don't remove any previously visited sections when going back
+      return newVisited;
+    });
     
     // Save current form data before navigating for prospect mode
     if (isProspectMode && prospectData?.prospect?.id) {
@@ -2097,7 +2107,12 @@ export default function EnhancedPdfWizard() {
                       <button
                         key={index}
                         onClick={() => {
-                          setVisitedSections(prev => new Set([...prev, index]));
+                          // Preserve all previously visited sections when navigating
+                          setVisitedSections(prev => {
+                            const newVisited = new Set([...prev]);
+                            newVisited.add(index); // Add current section
+                            return newVisited;
+                          });
                           setCurrentStep(index);
                         }}
                         className={`w-full text-left p-4 rounded-xl transition-all duration-200 ${
