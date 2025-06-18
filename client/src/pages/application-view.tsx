@@ -48,7 +48,7 @@ export default function ApplicationView() {
   const prospectId = params?.id;
 
   const { data: prospect, isLoading, error } = useQuery<ProspectData>({
-    queryKey: ['/api/prospects', prospectId],
+    queryKey: ['/api/prospects/view', prospectId],
     enabled: !!prospectId
   });
 
