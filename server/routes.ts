@@ -1652,6 +1652,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get prospect owners with their signatures
+  app.get("/api/prospects/:prospectId/owners-with-signatures", async (req, res) => {
+    try {
+      const { prospectId } = req.params;
+      const owners = await storage.getProspectOwners(parseInt(prospectId));
+      const signatures = await storage.getProspectSignaturesByProspect(parseInt(prospectId));
+      
+      // Merge owners with their signatures
+      const ownersWithSignatures = owners.map(owner => {
+        const signature = signatures.find(sig => sig.ownerId === owner.id);
+        return {
+          name: owner.name,
+          email: owner.email,
+          percentage: owner.ownershipPercentage,
+          signature: signature?.signature || null,
+          signatureType: signature?.signatureType || null,
+          submittedAt: signature?.submittedAt || null,
+          signatureToken: owner.signatureToken,
+          emailSent: owner.emailSent,
+          emailSentAt: owner.emailSentAt
+        };
+      });
+      
+      res.json({ success: true, owners: ownersWithSignatures });
+    } catch (error) {
+      console.error("Error fetching owners with signatures:", error);
+      res.status(500).json({ success: false, message: "Failed to fetch owners with signatures" });
+    }
+  });
+
   // Search signatures by email (database-backed)
   app.get("/api/signatures/by-email/:email", async (req, res) => {
     try {
