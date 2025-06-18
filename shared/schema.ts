@@ -461,3 +461,168 @@ export type InsertBusinessOwnership = z.infer<typeof insertBusinessOwnershipSche
 export type MerchantProspectWithAgent = MerchantProspect & {
   agent?: Agent;
 };
+
+// Campaign Management Tables
+
+// Fee Groups table - defines categories of fees (Discount Rates, Gateway VT, etc.)
+export const feeGroups = pgTable("fee_groups", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(), // e.g., "Discount Rates", "Gateway VT", "Wireless Fees"
+  description: text("description"),
+  displayOrder: integer("display_order").notNull().default(0),
+  isActive: boolean("is_active").notNull().default(true),
+  author: text("author").notNull().default("System"), // System or user who created it
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// Fee Items table - individual fees within fee groups
+export const feeItems = pgTable("fee_items", {
+  id: serial("id").primaryKey(),
+  feeGroupId: integer("fee_group_id").notNull().references(() => feeGroups.id, { onDelete: "cascade" }),
+  name: text("name").notNull(), // e.g., "Visa/MC Qualified", "Monthly Statement Fee"
+  description: text("description"),
+  valueType: text("value_type").notNull(), // "amount", "percentage", "placeholder"
+  defaultValue: text("default_value"), // Default value for this fee item
+  additionalInfo: text("additional_info"), // Info shown when clicking "i" icon
+  isActive: boolean("is_active").notNull().default(true),
+  author: text("author").notNull().default("System"), // System or user who created it
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => ({
+  uniqueFeeItemPerGroup: unique().on(table.feeGroupId, table.name),
+}));
+
+// Pricing Types table - defines which fee items are included in a pricing structure
+export const pricingTypes = pgTable("pricing_types", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull().unique(), // e.g., "Interchange +", "Flat Rate", "Dual"
+  description: text("description"),
+  isActive: boolean("is_active").notNull().default(true),
+  author: text("author").notNull().default("System"), // System or user who created it
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// Pricing Type Fee Items junction table - maps which fee items belong to each pricing type
+export const pricingTypeFeeItems = pgTable("pricing_type_fee_items", {
+  id: serial("id").primaryKey(),
+  pricingTypeId: integer("pricing_type_id").notNull().references(() => pricingTypes.id, { onDelete: "cascade" }),
+  feeItemId: integer("fee_item_id").notNull().references(() => feeItems.id, { onDelete: "cascade" }),
+  isRequired: boolean("is_required").notNull().default(true),
+  displayOrder: integer("display_order").notNull().default(0),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => ({
+  uniquePricingTypeFeeItem: unique().on(table.pricingTypeId, table.feeItemId),
+}));
+
+// Campaigns table - pricing plans that can be assigned to merchant applications
+export const campaigns = pgTable("campaigns", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(), // Campaign name (not required to be unique)
+  description: text("description"),
+  pricingTypeId: integer("pricing_type_id").notNull().references(() => pricingTypes.id),
+  acquirer: text("acquirer").notNull(), // "Esquire", "Merrick", etc.
+  currency: text("currency").notNull().default("USD"),
+  equipment: text("equipment"), // Optional equipment information
+  isActive: boolean("is_active").notNull().default(true),
+  isDefault: boolean("is_default").notNull().default(false), // If this is a default campaign
+  createdBy: integer("created_by").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// Campaign Fee Values table - stores the actual fee values for each campaign
+export const campaignFeeValues = pgTable("campaign_fee_values", {
+  id: serial("id").primaryKey(),
+  campaignId: integer("campaign_id").notNull().references(() => campaigns.id, { onDelete: "cascade" }),
+  feeItemId: integer("fee_item_id").notNull().references(() => feeItems.id, { onDelete: "cascade" }),
+  value: text("value").notNull(), // The actual fee value (amount, percentage, or placeholder text)
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => ({
+  uniqueCampaignFeeItem: unique().on(table.campaignId, table.feeItemId),
+}));
+
+// Campaign Assignment table - links campaigns to merchant applications/prospects
+export const campaignAssignments = pgTable("campaign_assignments", {
+  id: serial("id").primaryKey(),
+  campaignId: integer("campaign_id").notNull().references(() => campaigns.id),
+  prospectId: integer("prospect_id").references(() => merchantProspects.id, { onDelete: "cascade" }),
+  applicationId: integer("application_id"), // Future reference to applications table
+  assignedBy: integer("assigned_by").references(() => users.id),
+  assignedAt: timestamp("assigned_at").defaultNow().notNull(),
+  isActive: boolean("is_active").notNull().default(true),
+});
+
+// Insert schemas for campaign management
+export const insertFeeGroupSchema = createInsertSchema(feeGroups).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertFeeItemSchema = createInsertSchema(feeItems).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertPricingTypeSchema = createInsertSchema(pricingTypes).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertPricingTypeFeeItemSchema = createInsertSchema(pricingTypeFeeItems).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertCampaignSchema = createInsertSchema(campaigns).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertCampaignFeeValueSchema = createInsertSchema(campaignFeeValues).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertCampaignAssignmentSchema = createInsertSchema(campaignAssignments).omit({
+  id: true,
+  assignedAt: true,
+});
+
+// Campaign management types
+export type FeeGroup = typeof feeGroups.$inferSelect;
+export type InsertFeeGroup = z.infer<typeof insertFeeGroupSchema>;
+export type FeeItem = typeof feeItems.$inferSelect;
+export type InsertFeeItem = z.infer<typeof insertFeeItemSchema>;
+export type PricingType = typeof pricingTypes.$inferSelect;
+export type InsertPricingType = z.infer<typeof insertPricingTypeSchema>;
+export type PricingTypeFeeItem = typeof pricingTypeFeeItems.$inferSelect;
+export type InsertPricingTypeFeeItem = z.infer<typeof insertPricingTypeFeeItemSchema>;
+export type Campaign = typeof campaigns.$inferSelect;
+export type InsertCampaign = z.infer<typeof insertCampaignSchema>;
+export type CampaignFeeValue = typeof campaignFeeValues.$inferSelect;
+export type InsertCampaignFeeValue = z.infer<typeof insertCampaignFeeValueSchema>;
+export type CampaignAssignment = typeof campaignAssignments.$inferSelect;
+export type InsertCampaignAssignment = z.infer<typeof insertCampaignAssignmentSchema>;
+
+// Extended types for campaign management
+export type FeeGroupWithItems = FeeGroup & {
+  feeItems: FeeItem[];
+};
+
+export type PricingTypeWithFeeItems = PricingType & {
+  feeItems: (FeeItem & { isRequired: boolean; displayOrder: number })[];
+};
+
+export type CampaignWithDetails = Campaign & {
+  pricingType: PricingType;
+  feeValues: (CampaignFeeValue & { feeItem: FeeItem & { feeGroup: FeeGroup } })[];
+  createdByUser?: User;
+};

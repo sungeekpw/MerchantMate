@@ -1,4 +1,4 @@
-import { merchants, agents, transactions, users, loginAttempts, twoFactorCodes, userDashboardPreferences, agentMerchants, locations, addresses, pdfForms, pdfFormFields, pdfFormSubmissions, merchantProspects, prospectOwners, prospectSignatures, type Merchant, type Agent, type Transaction, type User, type InsertMerchant, type InsertAgent, type InsertTransaction, type UpsertUser, type MerchantWithAgent, type TransactionWithMerchant, type LoginAttempt, type TwoFactorCode, type UserDashboardPreference, type InsertUserDashboardPreference, type AgentMerchant, type InsertAgentMerchant, type Location, type InsertLocation, type Address, type InsertAddress, type LocationWithAddresses, type MerchantWithLocations, type PdfForm, type InsertPdfForm, type PdfFormField, type InsertPdfFormField, type PdfFormSubmission, type InsertPdfFormSubmission, type PdfFormWithFields, type MerchantProspect, type InsertMerchantProspect, type MerchantProspectWithAgent, type ProspectOwner, type InsertProspectOwner, type ProspectSignature, type InsertProspectSignature } from "@shared/schema";
+import { merchants, agents, transactions, users, loginAttempts, twoFactorCodes, userDashboardPreferences, agentMerchants, locations, addresses, pdfForms, pdfFormFields, pdfFormSubmissions, merchantProspects, prospectOwners, prospectSignatures, feeGroups, feeItems, pricingTypes, pricingTypeFeeItems, campaigns, campaignFeeValues, campaignAssignments, type Merchant, type Agent, type Transaction, type User, type InsertMerchant, type InsertAgent, type InsertTransaction, type UpsertUser, type MerchantWithAgent, type TransactionWithMerchant, type LoginAttempt, type TwoFactorCode, type UserDashboardPreference, type InsertUserDashboardPreference, type AgentMerchant, type InsertAgentMerchant, type Location, type InsertLocation, type Address, type InsertAddress, type LocationWithAddresses, type MerchantWithLocations, type PdfForm, type InsertPdfForm, type PdfFormField, type InsertPdfFormField, type PdfFormSubmission, type InsertPdfFormSubmission, type PdfFormWithFields, type MerchantProspect, type InsertMerchantProspect, type MerchantProspectWithAgent, type ProspectOwner, type InsertProspectOwner, type ProspectSignature, type InsertProspectSignature, type FeeGroup, type InsertFeeGroup, type FeeItem, type InsertFeeItem, type PricingType, type InsertPricingType, type PricingTypeFeeItem, type InsertPricingTypeFeeItem, type Campaign, type InsertCampaign, type CampaignFeeValue, type InsertCampaignFeeValue, type CampaignAssignment, type InsertCampaignAssignment, type FeeGroupWithItems, type PricingTypeWithFeeItems, type CampaignWithDetails } from "@shared/schema";
 import { db } from "./db";
 import { eq, or, and, gte, sql, desc, inArray, like } from "drizzle-orm";
 
@@ -193,6 +193,51 @@ export interface IStorage {
   updateMerchantProspect(id: number, updates: Partial<MerchantProspect>): Promise<MerchantProspect | undefined>;
   deleteMerchantProspect(id: number): Promise<boolean>;
   searchMerchantProspects(query: string): Promise<MerchantProspectWithAgent[]>;
+
+  // Campaign Management operations
+  // Fee Groups
+  getAllFeeGroups(): Promise<FeeGroupWithItems[]>;
+  getFeeGroup(id: number): Promise<FeeGroup | undefined>;
+  createFeeGroup(feeGroup: InsertFeeGroup): Promise<FeeGroup>;
+  updateFeeGroup(id: number, updates: Partial<InsertFeeGroup>): Promise<FeeGroup | undefined>;
+  
+  // Fee Items
+  getAllFeeItems(): Promise<FeeItem[]>;
+  getFeeItem(id: number): Promise<FeeItem | undefined>;
+  getFeeItemsByGroup(feeGroupId: number): Promise<FeeItem[]>;
+  createFeeItem(feeItem: InsertFeeItem): Promise<FeeItem>;
+  updateFeeItem(id: number, updates: Partial<InsertFeeItem>): Promise<FeeItem | undefined>;
+  searchFeeItems(query: string): Promise<FeeItem[]>;
+  
+  // Pricing Types
+  getAllPricingTypes(): Promise<PricingType[]>;
+  getPricingType(id: number): Promise<PricingType | undefined>;
+  getPricingTypeWithFeeItems(id: number): Promise<PricingTypeWithFeeItems | undefined>;
+  createPricingType(pricingType: InsertPricingType): Promise<PricingType>;
+  updatePricingType(id: number, updates: Partial<InsertPricingType>): Promise<PricingType | undefined>;
+  addFeeItemToPricingType(pricingTypeId: number, feeItemId: number, isRequired?: boolean): Promise<PricingTypeFeeItem>;
+  removeFeeItemFromPricingType(pricingTypeId: number, feeItemId: number): Promise<boolean>;
+  searchPricingTypes(query: string): Promise<PricingType[]>;
+  
+  // Campaigns
+  getAllCampaigns(): Promise<CampaignWithDetails[]>;
+  getCampaign(id: number): Promise<Campaign | undefined>;
+  getCampaignWithDetails(id: number): Promise<CampaignWithDetails | undefined>;
+  getCampaignsByAcquirer(acquirer: string): Promise<CampaignWithDetails[]>;
+  createCampaign(campaign: InsertCampaign): Promise<Campaign>;
+  updateCampaign(id: number, updates: Partial<InsertCampaign>): Promise<Campaign | undefined>;
+  deactivateCampaign(id: number): Promise<boolean>;
+  searchCampaigns(query: string): Promise<CampaignWithDetails[]>;
+  
+  // Campaign Fee Values
+  setCampaignFeeValue(campaignId: number, feeItemId: number, value: string): Promise<CampaignFeeValue>;
+  getCampaignFeeValues(campaignId: number): Promise<CampaignFeeValue[]>;
+  updateCampaignFeeValue(id: number, value: string): Promise<CampaignFeeValue | undefined>;
+  
+  // Campaign Assignments
+  assignCampaignToProspect(campaignId: number, prospectId: number, assignedBy: string): Promise<CampaignAssignment>;
+  getCampaignAssignments(campaignId: number): Promise<CampaignAssignment[]>;
+  getProspectCampaignAssignment(prospectId: number): Promise<CampaignAssignment | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
