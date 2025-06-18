@@ -396,6 +396,7 @@ export default function EnhancedPdfWizard() {
     const section = sections[sectionIndex];
     let hasErrors = false;
 
+    // Check required fields in this section
     for (const field of section.fields) {
       const error = validateField(field, formData[field.fieldName]);
       if (error) {
@@ -404,12 +405,13 @@ export default function EnhancedPdfWizard() {
       }
     }
 
-    // Special ownership validation
+    // Special ownership validation for Business Ownership section
     if (sectionIndex === 2) { // Business Ownership section
       const owners = formData.owners || [];
       const totalPercentage = owners.reduce((sum: number, owner: any) => sum + (parseFloat(owner.percentage) || 0), 0);
       
-      if (totalPercentage !== 100) {
+      // Check if ownership totals 100%
+      if (Math.abs(totalPercentage - 100) > 0.01) {
         hasErrors = true;
       }
 
@@ -422,6 +424,15 @@ export default function EnhancedPdfWizard() {
       if (missingSignatures.length > 0) {
         hasErrors = true;
       }
+    }
+
+    // For debugging, log validation status
+    if (sectionIndex === 2) {
+      console.log(`Section ${sectionIndex} (${section.name}) validation:`, {
+        hasErrors,
+        owners: formData.owners,
+        totalPercentage: formData.owners?.reduce((sum: number, owner: any) => sum + (parseFloat(owner.percentage) || 0), 0)
+      });
     }
 
     return hasErrors;
@@ -503,6 +514,37 @@ export default function EnhancedPdfWizard() {
           }
           
           setFormData(prev => ({ ...prev, ...existingData }));
+          
+          // Mark sections as visited based on existing form data
+          const newVisited = new Set<number>();
+          
+          // Check Section 0 (Merchant Information) - if we have company info
+          if (existingData.companyName || existingData.address || existingData.city) {
+            newVisited.add(0);
+          }
+          
+          // Check Section 1 (Business Type) - if we have business type info
+          if (existingData.businessType || existingData.federalTaxId || existingData.yearsInBusiness) {
+            newVisited.add(1);
+          }
+          
+          // Check Section 2 (Business Ownership) - if we have owners
+          if (existingData.owners && existingData.owners.length > 0) {
+            newVisited.add(2);
+          }
+          
+          // Check Section 3 (Products/Services) - if we have business description
+          if (existingData.businessDescription || existingData.productsServices) {
+            newVisited.add(3);
+          }
+          
+          // Check Section 4 (Transaction Info) - if we have volume info
+          if (existingData.monthlyVolume || existingData.averageTicket) {
+            newVisited.add(4);
+          }
+          
+          console.log('Marking sections as visited based on existing data:', Array.from(newVisited));
+          setVisitedSections(newVisited);
         } catch (error) {
           console.error('Error parsing existing form data:', error);
         }
@@ -1941,10 +1983,24 @@ export default function EnhancedPdfWizard() {
                     const hasValidationIssues = getSectionValidationStatus(index);
                     const showWarning = isVisited && hasValidationIssues && !isActive;
                     
+                    // Debug logging for section 2 (Business Ownership)
+                    if (index === 2) {
+                      console.log(`Section 2 status:`, {
+                        isVisited,
+                        hasValidationIssues,
+                        showWarning,
+                        isActive,
+                        visitedSections: Array.from(visitedSections)
+                      });
+                    }
+                    
                     return (
                       <button
                         key={index}
-                        onClick={() => setCurrentStep(index)}
+                        onClick={() => {
+                          setVisitedSections(prev => new Set([...prev, index]));
+                          setCurrentStep(index);
+                        }}
                         className={`w-full text-left p-4 rounded-xl transition-all duration-200 ${
                           isActive
                             ? 'bg-gradient-to-r from-blue-50 to-blue-100 border-blue-200 text-blue-800 shadow-md transform scale-[1.02]'
