@@ -17,7 +17,10 @@ import {
   DollarSign,
   Calendar,
   CheckCircle,
-  Download
+  Download,
+  XCircle,
+  Clock,
+  AlertCircle
 } from 'lucide-react';
 import { Link } from 'wouter';
 
@@ -342,29 +345,133 @@ export default function ApplicationView() {
         {owners.length > 0 && (
           <Card className="mb-6">
             <CardHeader>
-              <CardTitle className="flex items-center">
-                <Users className="h-5 w-5 mr-2" />
-                Business Ownership
+              <CardTitle className="flex items-center justify-between">
+                <div className="flex items-center">
+                  <Users className="h-5 w-5 mr-2" />
+                  Business Ownership
+                </div>
+                <div className="flex items-center space-x-2">
+                  {(() => {
+                    const requiredSignatures = owners.filter(owner => parseFloat(owner.percentage) >= 25);
+                    const completedSignatures = requiredSignatures.filter(owner => owner.signature);
+                    const signatureProgress = requiredSignatures.length > 0 ? 
+                      `${completedSignatures.length}/${requiredSignatures.length}` : '0/0';
+                    
+                    return (
+                      <>
+                        <Badge 
+                          variant={completedSignatures.length === requiredSignatures.length && requiredSignatures.length > 0 ? "default" : "secondary"}
+                          className={completedSignatures.length === requiredSignatures.length && requiredSignatures.length > 0 ? "bg-green-600" : ""}
+                        >
+                          Signatures: {signatureProgress}
+                        </Badge>
+                        {completedSignatures.length === requiredSignatures.length && requiredSignatures.length > 0 ? (
+                          <CheckCircle className="h-5 w-5 text-green-600" />
+                        ) : requiredSignatures.length > 0 ? (
+                          <Clock className="h-5 w-5 text-yellow-600" />
+                        ) : null}
+                      </>
+                    );
+                  })()}
+                </div>
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {owners.map((owner, index) => (
-                  <div key={index} className="border rounded-lg p-4">
-                    <div className="flex items-center justify-between mb-3">
-                      <h4 className="font-semibold">{owner.name}</h4>
-                      <Badge variant="outline">{owner.percentage}% ownership</Badge>
-                    </div>
-                    <p className="text-sm text-gray-600 mb-2">{owner.email}</p>
-                    {owner.signature && (
-                      <div className="flex items-center text-sm text-green-600">
-                        <CheckCircle className="h-4 w-4 mr-1" />
-                        Signature provided ({owner.signatureType || 'digital'})
+                {owners.map((owner, index) => {
+                  const ownershipPercentage = parseFloat(owner.percentage);
+                  const requiresSignature = ownershipPercentage >= 25;
+                  const hasSignature = owner.signature;
+                  
+                  return (
+                    <div key={index} className="border rounded-lg p-4">
+                      <div className="flex items-center justify-between mb-3">
+                        <h4 className="font-semibold">{owner.name}</h4>
+                        <div className="flex items-center space-x-2">
+                          <Badge variant="outline">{owner.percentage}% ownership</Badge>
+                          {requiresSignature && (
+                            <Badge 
+                              variant={hasSignature ? "default" : "secondary"}
+                              className={hasSignature ? "bg-green-600" : "bg-yellow-500"}
+                            >
+                              Signature {hasSignature ? "Received" : "Required"}
+                            </Badge>
+                          )}
+                        </div>
                       </div>
-                    )}
-                  </div>
-                ))}
+                      <p className="text-sm text-gray-600 mb-3">{owner.email}</p>
+                      
+                      {/* Signature Status */}
+                      <div className="flex items-center justify-between">
+                        {requiresSignature ? (
+                          hasSignature ? (
+                            <div className="flex items-center text-sm text-green-700 bg-green-50 px-3 py-2 rounded-lg">
+                              <CheckCircle className="h-4 w-4 mr-2" />
+                              <span className="font-medium">Signature Received</span>
+                              <span className="ml-2 text-gray-600">({owner.signatureType || 'digital'})</span>
+                            </div>
+                          ) : (
+                            <div className="flex items-center text-sm text-yellow-700 bg-yellow-50 px-3 py-2 rounded-lg">
+                              <Clock className="h-4 w-4 mr-2" />
+                              <span className="font-medium">Signature Pending</span>
+                              <span className="ml-2 text-gray-600">(≥25% ownership)</span>
+                            </div>
+                          )
+                        ) : (
+                          <div className="flex items-center text-sm text-gray-600 bg-gray-50 px-3 py-2 rounded-lg">
+                            <XCircle className="h-4 w-4 mr-2" />
+                            <span>No signature required</span>
+                            <span className="ml-2 text-gray-500">(&lt;25% ownership)</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
+              
+              {/* Overall Signature Status Summary */}
+              {(() => {
+                const requiredSignatures = owners.filter(owner => parseFloat(owner.percentage) >= 25);
+                const completedSignatures = requiredSignatures.filter(owner => owner.signature);
+                const pendingSignatures = requiredSignatures.filter(owner => !owner.signature);
+                
+                if (requiredSignatures.length > 0) {
+                  return (
+                    <div className="mt-6 pt-4 border-t">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium text-gray-700">Signature Collection Status:</span>
+                        <div className="flex items-center space-x-4">
+                          {completedSignatures.length > 0 && (
+                            <div className="flex items-center text-sm text-green-600">
+                              <CheckCircle className="h-4 w-4 mr-1" />
+                              {completedSignatures.length} Complete
+                            </div>
+                          )}
+                          {pendingSignatures.length > 0 && (
+                            <div className="flex items-center text-sm text-yellow-600">
+                              <Clock className="h-4 w-4 mr-1" />
+                              {pendingSignatures.length} Pending
+                            </div>
+                          )}
+                          {completedSignatures.length === requiredSignatures.length ? (
+                            <div className="flex items-center text-sm text-green-700 font-medium">
+                              <CheckCircle className="h-4 w-4 mr-1" />
+                              All Required Signatures Collected
+                            </div>
+                          ) : (
+                            <div className="flex items-center text-sm text-yellow-700 font-medium">
+                              <AlertCircle className="h-4 w-4 mr-1" />
+                              Awaiting {pendingSignatures.length} Signature{pendingSignatures.length > 1 ? 's' : ''}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                }
+                return null;
+              })()}
             </CardContent>
           </Card>
         )}
