@@ -365,22 +365,23 @@ export default function ApplicationView() {
                 </div>
                 <div className="flex items-center space-x-2">
                   {(() => {
-                    const requiredSignatures = owners.filter(owner => parseFloat(owner.percentage) >= 25);
-                    const completedSignatures = requiredSignatures.filter(owner => owner.signature);
-                    const signatureProgress = requiredSignatures.length > 0 ? 
-                      `${completedSignatures.length}/${requiredSignatures.length}` : '0/0';
+                    // Use database-backed signature status for badge
+                    if (!signatureStatus) return null;
+                    
+                    const { required, completed } = signatureStatus;
+                    const signatureProgress = required > 0 ? `${completed}/${required}` : '0/0';
                     
                     return (
                       <>
                         <Badge 
-                          variant={completedSignatures.length === requiredSignatures.length && requiredSignatures.length > 0 ? "default" : "secondary"}
-                          className={completedSignatures.length === requiredSignatures.length && requiredSignatures.length > 0 ? "bg-green-600" : ""}
+                          variant={completed === required && required > 0 ? "default" : "secondary"}
+                          className={completed === required && required > 0 ? "bg-green-600" : ""}
                         >
                           Signatures: {signatureProgress}
                         </Badge>
-                        {completedSignatures.length === requiredSignatures.length && requiredSignatures.length > 0 ? (
+                        {completed === required && required > 0 ? (
                           <CheckCircle className="h-5 w-5 text-green-600" />
-                        ) : requiredSignatures.length > 0 ? (
+                        ) : required > 0 ? (
                           <Clock className="h-5 w-5 text-yellow-600" />
                         ) : null}
                       </>
