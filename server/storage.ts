@@ -1679,6 +1679,14 @@ export class DatabaseStorage implements IStorage {
       .where(eq(prospectSignatures.prospectId, prospectId))
       .orderBy(prospectSignatures.submittedAt);
   }
+
+  async getProspectOwnerBySignatureToken(token: string): Promise<ProspectOwner | undefined> {
+    const [owner] = await db
+      .select()
+      .from(prospectOwners)
+      .where(eq(prospectOwners.signatureToken, token));
+    return owner || undefined;
+  }
 }
 
 export const storage = new DatabaseStorage();
