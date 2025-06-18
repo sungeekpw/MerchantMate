@@ -392,7 +392,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const prospects = await storage.getProspectsByAgent(agent.id);
       
       // Transform prospects to application format
-      const applications = prospects.map(prospect => {
+      const applications = await Promise.all(prospects.map(async prospect => {
         // Extract form data if available
         let formData: any = {};
         try {
@@ -400,6 +400,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         } catch (e) {
           formData = {};
         }
+
+        // Get database signatures for this prospect with owner information
+        const dbSignatures = await storage.getProspectSignaturesByProspect(prospect.id);
+        const prospectOwners = await storage.getProspectOwners(prospect.id);
 
         // Calculate completion percentage based on actual form data completeness
         let completionPercentage = 0;
@@ -426,7 +430,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
           if (formData.owners && formData.owners.length > 0) {
             const totalOwnership = formData.owners.reduce((sum: number, owner: any) => sum + parseFloat(owner.percentage || 0), 0);
             const requiredSignatures = formData.owners.filter((owner: any) => parseFloat(owner.percentage || 0) >= 25);
-            const completedSignatures = requiredSignatures.filter((owner: any) => owner.signature);
+            
+            // Check actual database signatures, not form data signatures
+            const completedSignatures = requiredSignatures.filter((owner: any) => {
+              // Find the database owner record to get the correct ID
+              const dbOwner = prospectOwners.find(po => po.email === owner.email);
+              if (!dbOwner) return false;
+              
+              // Check if there's a signature for this owner
+              return dbSignatures.some((sig: any) => sig.ownerId === dbOwner.id);
+            });
             
             if (Math.abs(totalOwnership - 100) < 0.01 && completedSignatures.length === requiredSignatures.length) {
               sectionsCompleted++;
@@ -449,10 +462,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
         }
 
-        // Calculate signature status for monitoring
+        // Calculate signature status for monitoring using actual database signatures
         const owners = formData.owners || [];
         const requiredSignatures = owners.filter((owner: any) => parseFloat(owner.percentage || 0) >= 25);
-        const completedSignatures = requiredSignatures.filter((owner: any) => owner.signature);
+        
+        console.log(`\n--- Signature Status Debug for Prospect ${prospect.id} ---`);
+        console.log(`Form data owners:`, owners.map(o => ({ email: o.email, percentage: o.percentage })));
+        console.log(`Required signatures (>=25%):`, requiredSignatures.map(o => ({ email: o.email, percentage: o.percentage })));
+        console.log(`Database owners:`, prospectOwners.map(po => ({ id: po.id, email: po.email })));
+        console.log(`Database signatures:`, dbSignatures.map(sig => ({ ownerId: sig.ownerId, token: sig.signatureToken })));
+        
+        const completedSignatures = requiredSignatures.filter((owner: any) => {
+          // Find the database owner record to get the correct ID
+          const dbOwner = prospectOwners.find(po => po.email === owner.email);
+          if (!dbOwner) {
+            console.log(`No database owner found for email: ${owner.email}`);
+            return false;
+          }
+          
+          // Check if there's a signature for this owner
+          const hasSignature = dbSignatures.some((sig: any) => sig.ownerId === dbOwner.id);
+          console.log(`Owner ${owner.email} (ID: ${dbOwner.id}) has signature: ${hasSignature}`);
+          return hasSignature;
+        });
+        
+        console.log(`Completed signatures count: ${completedSignatures.length}/${requiredSignatures.length}`);
+        console.log(`--- End Signature Debug ---\n`);
+        
         const signatureStatus = {
           required: requiredSignatures.length,
           completed: completedSignatures.length,
@@ -474,7 +510,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           assignedAgent: prospect.agent?.firstName ? `${prospect.agent.firstName} ${prospect.agent.lastName}` : 'Unassigned',
           signatureStatus
         };
-      });
+      }));
 
       // Sort by most recent first
       applications.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
