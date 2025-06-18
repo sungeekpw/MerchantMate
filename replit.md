@@ -335,6 +335,12 @@ The application is configured for deployment on Replit with:
   - Frontend displays detailed validation error dialogs with specific missing information
   - Users see comprehensive checklists of what needs completion before submission
   - Enhanced error handling with formatted lists of required actions and missing signatures
+- June 18, 2025. Added super admin function to clear all prospect applications
+  - Created secure DELETE /api/admin/clear-prospects endpoint with super admin role restriction
+  - Added clearAllProspectData method to storage interface for proper database cleanup
+  - Function clears prospects, owners, and signatures in correct order to respect foreign key constraints
+  - Provides detailed reporting of deleted records count for admin transparency
+  - Enables easy testing environment reset for development and quality assurance
 
 ## User Preferences
 Preferred communication style: Simple, everyday language.
