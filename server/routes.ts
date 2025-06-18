@@ -1586,7 +1586,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Find the prospect owner by signature token
-      const owner = await storage.getProspectOwnerByToken(signatureToken);
+      const owner = await storage.getProspectOwnerBySignatureToken(signatureToken);
       if (!owner) {
         return res.status(404).json({ 
           success: false, 
