@@ -25,7 +25,7 @@ interface Application {
   companyName: string;
   email: string;
   phone: string;
-  status: 'pending' | 'contacted' | 'in_progress' | 'applied' | 'approved' | 'rejected';
+  status: 'pending' | 'contacted' | 'in_progress' | 'submitted' | 'applied' | 'approved' | 'rejected';
   createdAt: string;
   lastUpdated: string;
   completionPercentage: number;
@@ -49,6 +49,7 @@ const statusColors = {
   pending: 'bg-yellow-100 text-yellow-800',
   contacted: 'bg-blue-100 text-blue-800',
   in_progress: 'bg-purple-100 text-purple-800',
+  submitted: 'bg-indigo-100 text-indigo-800',
   applied: 'bg-indigo-100 text-indigo-800',
   approved: 'bg-green-100 text-green-800',
   rejected: 'bg-red-100 text-red-800',
@@ -58,6 +59,7 @@ const statusIcons = {
   pending: AlertCircle,
   contacted: Phone,
   in_progress: Clock,
+  submitted: FileText,
   applied: FileText,
   approved: CheckCircle,
   rejected: XCircle,
