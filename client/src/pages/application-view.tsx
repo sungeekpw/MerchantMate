@@ -290,6 +290,18 @@ export default function ApplicationView() {
                       <p className="font-medium">{formData.businessType}</p>
                     </div>
                   )}
+                  {formData.stateFiled && (
+                    <div>
+                      <p className="text-sm text-gray-600">State Filed</p>
+                      <p className="font-medium">{formData.stateFiled}</p>
+                    </div>
+                  )}
+                  {formData.businessStartDate && (
+                    <div>
+                      <p className="text-sm text-gray-600">Business Start Date</p>
+                      <p className="font-medium">{new Date(formData.businessStartDate).toLocaleDateString()}</p>
+                    </div>
+                  )}
                   {formData.yearsInBusiness && (
                     <div>
                       <p className="text-sm text-gray-600">Years in Business</p>
