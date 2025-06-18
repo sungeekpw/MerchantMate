@@ -1,4 +1,4 @@
-import { merchants, agents, transactions, users, loginAttempts, twoFactorCodes, userDashboardPreferences, agentMerchants, locations, addresses, pdfForms, pdfFormFields, pdfFormSubmissions, merchantProspects, type Merchant, type Agent, type Transaction, type User, type InsertMerchant, type InsertAgent, type InsertTransaction, type UpsertUser, type MerchantWithAgent, type TransactionWithMerchant, type LoginAttempt, type TwoFactorCode, type UserDashboardPreference, type InsertUserDashboardPreference, type AgentMerchant, type InsertAgentMerchant, type Location, type InsertLocation, type Address, type InsertAddress, type LocationWithAddresses, type MerchantWithLocations, type PdfForm, type InsertPdfForm, type PdfFormField, type InsertPdfFormField, type PdfFormSubmission, type InsertPdfFormSubmission, type PdfFormWithFields, type MerchantProspect, type InsertMerchantProspect, type MerchantProspectWithAgent } from "@shared/schema";
+import { merchants, agents, transactions, users, loginAttempts, twoFactorCodes, userDashboardPreferences, agentMerchants, locations, addresses, pdfForms, pdfFormFields, pdfFormSubmissions, merchantProspects, prospectOwners, prospectSignatures, type Merchant, type Agent, type Transaction, type User, type InsertMerchant, type InsertAgent, type InsertTransaction, type UpsertUser, type MerchantWithAgent, type TransactionWithMerchant, type LoginAttempt, type TwoFactorCode, type UserDashboardPreference, type InsertUserDashboardPreference, type AgentMerchant, type InsertAgentMerchant, type Location, type InsertLocation, type Address, type InsertAddress, type LocationWithAddresses, type MerchantWithLocations, type PdfForm, type InsertPdfForm, type PdfFormField, type InsertPdfFormField, type PdfFormSubmission, type InsertPdfFormSubmission, type PdfFormWithFields, type MerchantProspect, type InsertMerchantProspect, type MerchantProspectWithAgent, type ProspectOwner, type InsertProspectOwner, type ProspectSignature, type InsertProspectSignature } from "@shared/schema";
 import { db } from "./db";
 import { eq, or, and, gte, sql, desc, inArray, like } from "drizzle-orm";
 
@@ -103,6 +103,19 @@ export interface IStorage {
   createPdfFormSubmission(submission: InsertPdfFormSubmission): Promise<PdfFormSubmission>;
   getPdfFormSubmissions(formId: number): Promise<PdfFormSubmission[]>;
   getPdfFormSubmission(id: number): Promise<PdfFormSubmission | undefined>;
+
+  // Prospect Owner operations
+  createProspectOwner(owner: InsertProspectOwner): Promise<ProspectOwner>;
+  getProspectOwners(prospectId: number): Promise<ProspectOwner[]>;
+  getProspectOwnerByToken(token: string): Promise<ProspectOwner | undefined>;
+  updateProspectOwner(id: number, updates: Partial<ProspectOwner>): Promise<ProspectOwner | undefined>;
+  deleteProspectOwners(prospectId: number): Promise<boolean>;
+
+  // Prospect Signature operations
+  createProspectSignature(signature: InsertProspectSignature): Promise<ProspectSignature>;
+  getProspectSignature(token: string): Promise<ProspectSignature | undefined>;
+  getProspectSignaturesByOwnerEmail(email: string): Promise<ProspectSignature[]>;
+  getProspectSignaturesByProspect(prospectId: number): Promise<ProspectSignature[]>;
 
   // Agent-Merchant associations
   getAgentMerchants(agentId: number): Promise<Merchant[]>;
@@ -1580,6 +1593,91 @@ export class DatabaseStorage implements IStorage {
     
     // Then find the agent by email
     return this.getAgentByEmail(user.email);
+  }
+
+  // Prospect Owner operations
+  async createProspectOwner(owner: InsertProspectOwner): Promise<ProspectOwner> {
+    const [newOwner] = await db
+      .insert(prospectOwners)
+      .values({
+        ...owner,
+        updatedAt: new Date(),
+      })
+      .returning();
+    return newOwner;
+  }
+
+  async getProspectOwners(prospectId: number): Promise<ProspectOwner[]> {
+    return await db
+      .select()
+      .from(prospectOwners)
+      .where(eq(prospectOwners.prospectId, prospectId))
+      .orderBy(prospectOwners.createdAt);
+  }
+
+  async getProspectOwnerByToken(token: string): Promise<ProspectOwner | undefined> {
+    const [owner] = await db
+      .select()
+      .from(prospectOwners)
+      .where(eq(prospectOwners.signatureToken, token));
+    return owner || undefined;
+  }
+
+  async updateProspectOwner(id: number, updates: Partial<ProspectOwner>): Promise<ProspectOwner | undefined> {
+    const [owner] = await db
+      .update(prospectOwners)
+      .set({
+        ...updates,
+        updatedAt: new Date(),
+      })
+      .where(eq(prospectOwners.id, id))
+      .returning();
+    return owner || undefined;
+  }
+
+  async deleteProspectOwners(prospectId: number): Promise<boolean> {
+    const result = await db
+      .delete(prospectOwners)
+      .where(eq(prospectOwners.prospectId, prospectId));
+    return (result.rowCount || 0) > 0;
+  }
+
+  // Prospect Signature operations
+  async createProspectSignature(signature: InsertProspectSignature): Promise<ProspectSignature> {
+    const [newSignature] = await db
+      .insert(prospectSignatures)
+      .values(signature)
+      .returning();
+    return newSignature;
+  }
+
+  async getProspectSignature(token: string): Promise<ProspectSignature | undefined> {
+    const [signature] = await db
+      .select()
+      .from(prospectSignatures)
+      .where(eq(prospectSignatures.signatureToken, token));
+    return signature || undefined;
+  }
+
+  async getProspectSignaturesByOwnerEmail(email: string): Promise<ProspectSignature[]> {
+    // Join with prospectOwners to find signatures by email
+    const result = await db
+      .select({
+        signature: prospectSignatures
+      })
+      .from(prospectSignatures)
+      .innerJoin(prospectOwners, eq(prospectSignatures.ownerId, prospectOwners.id))
+      .where(eq(prospectOwners.email, email));
+    
+    return result.map(row => row.signature);
+  }
+
+  async getProspectSignaturesByProspect(prospectId: number): Promise<ProspectSignature[]> {
+    return await db
+      .select()
+      .from(prospectSignatures)
+      .where(eq(prospectSignatures.prospectId, prospectId))
+      .orderBy(prospectSignatures.submittedAt);
   }
 }
 
