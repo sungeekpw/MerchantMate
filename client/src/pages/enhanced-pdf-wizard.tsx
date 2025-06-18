@@ -45,11 +45,6 @@ export default function EnhancedPdfWizard() {
   const [currentStep, setCurrentStep] = useState(0);
   const [formData, setFormData] = useState<Record<string, any>>({});
 
-  // Debug form data changes
-  useEffect(() => {
-    console.log('Form data updated:', formData);
-  }, [formData]);
-
   // Check for submitted signatures when form data changes
   useEffect(() => {
     // Add a small delay to ensure form data is fully loaded
