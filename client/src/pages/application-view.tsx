@@ -47,8 +47,24 @@ export default function ApplicationView() {
   const [, params] = useRoute('/application-view/:id');
   const prospectId = params?.id;
 
+  console.log('ApplicationView - prospectId:', prospectId);
+  console.log('ApplicationView - params:', params);
+
   const { data: prospect, isLoading, error } = useQuery<ProspectData>({
     queryKey: ['/api/prospects/view', prospectId],
+    queryFn: async () => {
+      console.log('Query function called for prospect ID:', prospectId);
+      const response = await fetch(`/api/prospects/view/${prospectId}`);
+      console.log('Response status:', response.status);
+      if (!response.ok) {
+        const errorData = await response.text();
+        console.error('Query error response:', errorData);
+        throw new Error(`HTTP ${response.status}: ${errorData}`);
+      }
+      const data = await response.json();
+      console.log('Query response data:', data);
+      return data;
+    },
     enabled: !!prospectId
   });
 
