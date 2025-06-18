@@ -1308,7 +1308,8 @@ export default function EnhancedPdfWizard() {
             companyName: formData.companyName,
             ownershipPercentage: `${owner.percentage}%`,
             requesterName: formData.companyName, // Could be the current user's name
-            agentName: formData.assignedAgent?.split('(')[0]?.trim() || 'Your Agent'
+            agentName: formData.assignedAgent?.split('(')[0]?.trim() || 'Your Agent',
+            prospectId: prospectData?.id
           }),
         });
 

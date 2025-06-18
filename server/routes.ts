@@ -1603,23 +1603,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         signatureType: signatureType || 'type'
       });
       
-      (global as any).signatureStore.set(signatureToken, signatureData);
-      
-      // Also create a reverse lookup by email for faster searching
-      if (!(global as any).signaturesByEmail) {
-        (global as any).signaturesByEmail = new Map();
-      }
-      if (email) {
-        (global as any).signaturesByEmail.set(email.toLowerCase(), {
-          ...signatureData,
-          token: signatureToken
-        });
-      }
-      
       console.log(`Signature submitted for token: ${signatureToken}`);
       console.log(`Signature type: ${signatureType}`);
-      console.log(`Email: ${email}`);
-      console.log(`Total signatures stored: ${(global as any).signatureStore.size}`);
+      console.log(`Owner email: ${owner.email}`);
 
       res.json({ 
         success: true, 
@@ -1639,18 +1625,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { token } = req.params;
       
-      if (!(global as any).signatureStore || !(global as any).signatureStore.has(token)) {
+      const signature = await storage.getProspectSignature(token);
+      
+      if (!signature) {
         return res.status(404).json({ 
           success: false, 
           message: "Signature not found" 
         });
       }
       
-      const signatureData = (global as any).signatureStore.get(token);
-      
       res.json({ 
         success: true, 
-        signature: { ...signatureData, token }
+        signature: {
+          signature: signature.signature,
+          signatureType: signature.signatureType,
+          submittedAt: signature.submittedAt,
+          token: signature.signatureToken
+        }
       });
     } catch (error) {
       console.error("Error retrieving signature:", error);
@@ -1661,52 +1652,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Search for signature by email address
+  // Search signatures by email (database-backed)
   app.get("/api/signatures/by-email/:email", async (req, res) => {
     try {
       const email = decodeURIComponent(req.params.email);
-
-      if (!(global as any).signatureStore) {
+      
+      const signatures = await storage.getProspectSignaturesByOwnerEmail(email);
+      
+      if (signatures.length === 0) {
         return res.status(404).json({ 
           success: false, 
-          message: "No signatures found" 
+          message: "No signatures found for this email" 
         });
       }
-
-      console.log(`Searching for signatures by email: ${email}`);
       
-      // Check the fast email lookup first
-      if ((global as any).signaturesByEmail && (global as any).signaturesByEmail.has(email.toLowerCase())) {
-        const signatureData = (global as any).signaturesByEmail.get(email.toLowerCase());
-        console.log(`Found signature via email lookup: ${signatureData.signature}`);
-        return res.json({ 
-          success: true, 
-          signature: signatureData 
-        });
-      }
+      // Return the most recent signature
+      const latestSignature = signatures[signatures.length - 1];
 
-      // Fallback to searching the main store
-      if ((global as any).signatureStore) {
-        console.log(`Total signatures in store: ${(global as any).signatureStore.size}`);
-        
-        // Search through all stored signatures to find one with matching email
-        for (const [token, signatureData] of (global as any).signatureStore.entries()) {
-          console.log(`Token: ${token}, Signature: ${signatureData.signature}, Email: ${signatureData.email}`);
-          if (signatureData.email && signatureData.email.toLowerCase() === email.toLowerCase()) {
-            return res.json({ 
-              success: true, 
-              signature: { ...signatureData, token } 
-            });
-          }
+      res.json({ 
+        success: true, 
+        signature: {
+          signature: latestSignature.signature,
+          signatureType: latestSignature.signatureType,
+          submittedAt: latestSignature.submittedAt,
+          token: latestSignature.signatureToken
         }
-      }
-
-      res.status(404).json({ 
-        success: false, 
-        message: "No signature found for this email" 
       });
     } catch (error) {
-      console.error("Error searching signature by email:", error);
+      console.error("Error searching signatures by email:", error);
       res.status(500).json({ 
         success: false, 
         message: "Failed to search signature" 
