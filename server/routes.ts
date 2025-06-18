@@ -392,23 +392,80 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Transform prospects to application format
       const applications = prospects.map(prospect => {
-        // Calculate completion percentage based on status
-        let completionPercentage = 0;
-        switch (prospect.status) {
-          case 'pending': completionPercentage = 10; break;
-          case 'contacted': completionPercentage = 25; break;
-          case 'in_progress': completionPercentage = 60; break;
-          case 'applied': 
-          case 'approved': 
-          case 'rejected': completionPercentage = 100; break;
-        }
-
         // Extract form data if available
         let formData: any = {};
         try {
           formData = prospect.formData ? JSON.parse(prospect.formData) : {};
         } catch (e) {
           formData = {};
+        }
+
+        // Calculate completion percentage based on actual form data completeness
+        let completionPercentage = 0;
+        if (prospect.status === 'submitted' || prospect.status === 'applied' || prospect.status === 'approved' || prospect.status === 'rejected') {
+          completionPercentage = 100;
+        } else {
+          // Calculate based on form sections completed
+          let sectionsCompleted = 0;
+          const totalSections = 4; // Merchant Info, Business Type, Ownership, Transaction Info
+          
+          console.log(`Calculating completion for prospect ${prospect.id} (${prospect.firstName} ${prospect.lastName})`);
+          console.log(`Form data keys: ${Object.keys(formData).join(', ')}`);
+          
+          // Check Merchant Information section
+          const merchantInfoComplete = formData.companyName && formData.companyEmail && formData.address && formData.city && formData.state;
+          if (merchantInfoComplete) {
+            sectionsCompleted++;
+            console.log(`✓ Merchant Info complete`);
+          } else {
+            console.log(`✗ Merchant Info incomplete - missing: ${!formData.companyName ? 'companyName ' : ''}${!formData.companyEmail ? 'companyEmail ' : ''}${!formData.address ? 'address ' : ''}${!formData.city ? 'city ' : ''}${!formData.state ? 'state' : ''}`);
+          }
+          
+          // Check Business Type section  
+          const businessTypeComplete = formData.businessType && formData.yearsInBusiness && formData.federalTaxId;
+          if (businessTypeComplete) {
+            sectionsCompleted++;
+            console.log(`✓ Business Type complete`);
+          } else {
+            console.log(`✗ Business Type incomplete - missing: ${!formData.businessType ? 'businessType ' : ''}${!formData.yearsInBusiness ? 'yearsInBusiness ' : ''}${!formData.federalTaxId ? 'federalTaxId' : ''}`);
+          }
+          
+          // Check Business Ownership section
+          if (formData.owners && formData.owners.length > 0) {
+            const totalOwnership = formData.owners.reduce((sum: number, owner: any) => sum + parseFloat(owner.percentage || 0), 0);
+            const requiredSignatures = formData.owners.filter((owner: any) => parseFloat(owner.percentage || 0) >= 25);
+            const completedSignatures = requiredSignatures.filter((owner: any) => owner.signature);
+            
+            console.log(`Ownership: ${totalOwnership}%, Required signatures: ${requiredSignatures.length}, Completed: ${completedSignatures.length}`);
+            
+            if (Math.abs(totalOwnership - 100) < 0.01 && completedSignatures.length === requiredSignatures.length) {
+              sectionsCompleted++;
+              console.log(`✓ Business Ownership complete`);
+            } else {
+              console.log(`✗ Business Ownership incomplete`);
+            }
+          } else {
+            console.log(`✗ Business Ownership incomplete - no owners`);
+          }
+          
+          // Check Transaction Information section
+          const transactionInfoComplete = formData.monthlyVolume && formData.averageTicket && formData.processingMethod;
+          if (transactionInfoComplete) {
+            sectionsCompleted++;
+            console.log(`✓ Transaction Info complete`);
+          } else {
+            console.log(`✗ Transaction Info incomplete - missing: ${!formData.monthlyVolume ? 'monthlyVolume ' : ''}${!formData.averageTicket ? 'averageTicket ' : ''}${!formData.processingMethod ? 'processingMethod' : ''}`);
+          }
+          
+          completionPercentage = Math.round((sectionsCompleted / totalSections) * 100);
+          console.log(`Final completion: ${sectionsCompleted}/${totalSections} sections = ${completionPercentage}%`);
+          
+          // Minimum percentage based on status
+          if (prospect.status === 'contacted' && completionPercentage < 10) {
+            completionPercentage = 10;
+          } else if (prospect.status === 'in_progress' && completionPercentage < 25) {
+            completionPercentage = 25;
+          }
         }
 
         return {
