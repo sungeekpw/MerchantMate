@@ -9,7 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
-import { Building, FileText, CheckCircle, ArrowLeft, ArrowRight, Users, Upload, Signature, PenTool, Type, RotateCcw, Check, X } from 'lucide-react';
+import { Building, FileText, CheckCircle, ArrowLeft, ArrowRight, Users, Upload, Signature, PenTool, Type, RotateCcw, Check, X, AlertTriangle } from 'lucide-react';
 
 interface FormField {
   id: number;
@@ -48,6 +48,7 @@ export default function EnhancedPdfWizard() {
   const [formStarted, setFormStarted] = useState(false);
   const [fieldsInteracted, setFieldsInteracted] = useState(new Set<string>());
   const [addressOverrideActive, setAddressOverrideActive] = useState(false);
+  const [visitedSections, setVisitedSections] = useState(new Set<number>());
   const [initialDataLoaded, setInitialDataLoaded] = useState(false);
   const [addressFieldsLocked, setAddressFieldsLocked] = useState(false);
   const [addressValidationStatus, setAddressValidationStatus] = useState<'idle' | 'validating' | 'valid' | 'invalid'>('idle');
@@ -354,6 +355,9 @@ export default function EnhancedPdfWizard() {
     const nextStep = Math.min(sections.length - 1, currentStep + 1);
     
     console.log(`Navigating from step ${currentStep} to step ${nextStep}`);
+    
+    // Mark current section as visited
+    setVisitedSections(prev => new Set([...prev, currentStep]));
     
     // Save current form data before navigating for prospect mode
     if (isProspectMode && prospectData?.prospect?.id) {
