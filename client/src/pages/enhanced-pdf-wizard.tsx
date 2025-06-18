@@ -773,6 +773,265 @@ export default function EnhancedPdfWizard() {
     }
   };
 
+  // Digital Signature Component
+  const DigitalSignaturePad = ({ ownerIndex, owner, onSignatureChange }: {
+    ownerIndex: number;
+    owner: any;
+    onSignatureChange: (index: number, signature: string | null, type: string | null) => void;
+  }) => {
+    const canvasRef = React.useRef<HTMLCanvasElement>(null);
+    const [isDrawing, setIsDrawing] = React.useState(false);
+    const [signatureMode, setSignatureMode] = React.useState<'draw' | 'type'>('draw');
+    const [typedSignature, setTypedSignature] = React.useState('');
+    const [showSignaturePad, setShowSignaturePad] = React.useState(false);
+
+    const startDrawing = (e: React.MouseEvent<HTMLCanvasElement>) => {
+      setIsDrawing(true);
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      
+      const rect = canvas.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+      
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+    };
+
+    const draw = (e: React.MouseEvent<HTMLCanvasElement>) => {
+      if (!isDrawing) return;
+      
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      
+      const rect = canvas.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+      
+      ctx.lineWidth = 2;
+      ctx.lineCap = 'round';
+      ctx.strokeStyle = '#000';
+      ctx.lineTo(x, y);
+      ctx.stroke();
+    };
+
+    const stopDrawing = () => {
+      setIsDrawing(false);
+    };
+
+    const clearSignature = () => {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+      
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      setTypedSignature('');
+      onSignatureChange(ownerIndex, null, null);
+    };
+
+    const saveSignature = () => {
+      let signatureData: string | null = null;
+      let signatureType: string | null = null;
+
+      if (signatureMode === 'draw') {
+        const canvas = canvasRef.current;
+        if (canvas) {
+          signatureData = canvas.toDataURL();
+          signatureType = 'canvas';
+        }
+      } else {
+        signatureData = typedSignature;
+        signatureType = 'typed';
+      }
+
+      onSignatureChange(ownerIndex, signatureData, signatureType);
+      setShowSignaturePad(false);
+    };
+
+    const generateTypedSignature = () => {
+      if (!typedSignature.trim()) return;
+      
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+      
+      // Clear canvas
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      
+      // Set signature font style
+      ctx.font = '32px "Brush Script MT", cursive';
+      ctx.fillStyle = '#000';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      
+      // Draw the typed signature
+      ctx.fillText(typedSignature, canvas.width / 2, canvas.height / 2);
+    };
+
+    React.useEffect(() => {
+      if (signatureMode === 'type' && typedSignature) {
+        generateTypedSignature();
+      }
+    }, [typedSignature, signatureMode]);
+
+    return (
+      <div className="space-y-4">
+        {!showSignaturePad && !owner.signature && (
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setShowSignaturePad(true)}
+            className="w-full"
+          >
+            <Signature className="w-4 h-4 mr-2" />
+            Add Digital Signature
+          </Button>
+        )}
+
+        {!showSignaturePad && owner.signature && (
+          <div className="border border-green-200 bg-green-50 p-4 rounded-lg">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <Check className="w-5 h-5 text-green-600" />
+                <span className="text-sm font-medium text-green-800">
+                  Signature Added ({owner.signatureType === 'canvas' ? 'Drawn' : 'Typed'})
+                </span>
+              </div>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowSignaturePad(true)}
+              >
+                Edit
+              </Button>
+            </div>
+            {owner.signatureType === 'canvas' && (
+              <img 
+                src={owner.signature} 
+                alt="Signature" 
+                className="mt-2 border rounded max-h-20"
+              />
+            )}
+            {owner.signatureType === 'typed' && (
+              <div className="mt-2 text-2xl font-signature text-center py-2 border rounded bg-white">
+                {owner.signature}
+              </div>
+            )}
+          </div>
+        )}
+
+        {showSignaturePad && (
+          <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+            <div className="flex justify-between items-center mb-4">
+              <h4 className="font-medium">Digital Signature</h4>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowSignaturePad(false)}
+              >
+                <X className="w-4 h-4" />
+              </Button>
+            </div>
+
+            <div className="flex space-x-2 mb-4">
+              <Button
+                type="button"
+                variant={signatureMode === 'draw' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setSignatureMode('draw')}
+              >
+                <PenTool className="w-4 h-4 mr-2" />
+                Draw
+              </Button>
+              <Button
+                type="button"
+                variant={signatureMode === 'type' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setSignatureMode('type')}
+              >
+                <Type className="w-4 h-4 mr-2" />
+                Type
+              </Button>
+            </div>
+
+            {signatureMode === 'draw' && (
+              <div className="space-y-3">
+                <canvas
+                  ref={canvasRef}
+                  width={400}
+                  height={150}
+                  className="border border-gray-300 rounded bg-white cursor-crosshair w-full"
+                  style={{ maxWidth: '100%', height: '150px' }}
+                  onMouseDown={startDrawing}
+                  onMouseMove={draw}
+                  onMouseUp={stopDrawing}
+                  onMouseLeave={stopDrawing}
+                />
+                <p className="text-sm text-gray-600">
+                  Draw your signature in the box above using your mouse or touch screen.
+                </p>
+              </div>
+            )}
+
+            {signatureMode === 'type' && (
+              <div className="space-y-3">
+                <Input
+                  placeholder="Type your full name"
+                  value={typedSignature}
+                  onChange={(e) => setTypedSignature(e.target.value)}
+                  className="text-center"
+                />
+                <canvas
+                  ref={canvasRef}
+                  width={400}
+                  height={150}
+                  className="border border-gray-300 rounded bg-white w-full"
+                  style={{ maxWidth: '100%', height: '150px' }}
+                />
+                <p className="text-sm text-gray-600">
+                  Type your name above to preview your signature style.
+                </p>
+              </div>
+            )}
+
+            <div className="flex space-x-2 mt-4">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={clearSignature}
+              >
+                <RotateCcw className="w-4 h-4 mr-2" />
+                Clear
+              </Button>
+              <Button
+                type="button"
+                onClick={saveSignature}
+                disabled={
+                  signatureMode === 'draw' ? false : !typedSignature.trim()
+                }
+              >
+                <Check className="w-4 h-4 mr-2" />
+                Save Signature
+              </Button>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   // Validate field value
   const validateField = (field: FormField, value: any): string | null => {
     // Handle ownership validation separately
@@ -1308,57 +1567,34 @@ export default function EnhancedPdfWizard() {
                           </div>
                         </div>
 
-                        {owner.signature ? (
-                          <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded">
+                        <DigitalSignaturePad
+                          ownerIndex={index}
+                          owner={owner}
+                          onSignatureChange={(ownerIndex, signature, type) => {
+                            updateOwner(ownerIndex, 'signature', signature);
+                            updateOwner(ownerIndex, 'signatureType', type);
+                          }}
+                        />
+                        
+                        {!owner.signature && owner.email && (
+                          <div className="mt-3 pt-3 border-t border-amber-200">
                             <div className="flex items-center justify-between">
                               <div>
-                                <p className="text-sm font-medium text-green-800">Signature Completed</p>
-                                <p className="text-xs text-green-700">
-                                  {owner.signatureType === 'typed' ? 'Typed signature' : 'Drawn signature'} received
+                                <p className="text-sm font-medium text-amber-800">Or Send Email Request</p>
+                                <p className="text-xs text-amber-700">
+                                  Send a secure email request for digital signature
                                 </p>
                               </div>
                               <Button
                                 type="button"
-                                onClick={() => updateOwner(index, 'signature', null)}
-                                variant="ghost"
+                                variant="outline"
                                 size="sm"
-                                className="text-red-600 hover:text-red-800"
-                              >
-                                Clear
-                              </Button>
-                            </div>
-                            <div className="mt-2 p-2 bg-white border rounded text-center">
-                              <span className="font-signature text-lg text-gray-800">
-                                {owner.signature}
-                              </span>
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="mt-3">
-                            <p className="text-sm text-amber-800 mb-2">
-                              Please provide a signature for this owner
-                            </p>
-                            
-                            {/* Email request option for unsigned owners */}
-                            {owner.email && (
-                              <div className="pt-3 border-t border-amber-200">
-                                <div className="flex items-center justify-between">
-                                  <div>
-                                    <p className="text-sm font-medium text-amber-800">Send Email Request</p>
-                                    <p className="text-xs text-amber-700">
-                                      Send a secure email request for digital signature
-                                    </p>
-                                  </div>
-                                  <Button
-                                    type="button"
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={async () => {
-                                      if (!owner.email || !owner.name || !formData.companyName) {
-                                        return;
-                                      }
+                                onClick={async () => {
+                                  if (!owner.email || !owner.name || !formData.companyName) {
+                                    return;
+                                  }
 
-                                      try {
+                                  try {
                                         const response = await fetch('/api/send-signature-request', {
                                           method: 'POST',
                                           headers: {
