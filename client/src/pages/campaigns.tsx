@@ -202,163 +202,401 @@ export default function CampaignsPage() {
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Campaign Management</h1>
           <p className="text-muted-foreground">
-            Create and manage pricing campaigns for merchant applications
+            Create and manage pricing campaigns, fee structures, and merchant pricing workflows
           </p>
-        </div>
-        <div className="flex items-center gap-3">
-          <Button variant="outline" onClick={() => window.location.href = '/pricing-types'}>
-            <Settings className="h-4 w-4 mr-2" />
-            Pricing Types
-          </Button>
-          <Button variant="outline" onClick={() => window.location.href = '/fee-items'}>
-            <DollarSign className="h-4 w-4 mr-2" />
-            Fee Items
-          </Button>
-          <Button onClick={() => setShowAddCampaign(true)}>
-            <Plus className="h-4 w-4 mr-2" />
-            Add Campaign
-          </Button>
         </div>
       </div>
 
-      {/* Filters */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Search & Filter Campaigns</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex gap-4">
-            <div className="flex-1">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-                <Input
-                  placeholder="Search by Campaign ID or Name..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
-            </div>
-            <Select value={selectedAcquirer} onValueChange={setSelectedAcquirer}>
-              <SelectTrigger className="w-48">
-                <SelectValue placeholder="Select Acquirer" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Acquirers</SelectItem>
-                <SelectItem value="Esquire">Esquire</SelectItem>
-                <SelectItem value="Merrick">Merrick</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </CardContent>
-      </Card>
+      {/* Main Tabs Interface */}
+      <Tabs defaultValue="campaigns" className="space-y-6">
+        <TabsList className="grid w-full grid-cols-4">
+          <TabsTrigger value="campaigns" className="flex items-center gap-2">
+            <DollarSign className="h-4 w-4" />
+            Campaigns
+          </TabsTrigger>
+          <TabsTrigger value="pricing-types" className="flex items-center gap-2">
+            <Settings className="h-4 w-4" />
+            Pricing Types
+          </TabsTrigger>
+          <TabsTrigger value="fee-groups" className="flex items-center gap-2">
+            <TrendingUp className="h-4 w-4" />
+            Fee Groups
+          </TabsTrigger>
+          <TabsTrigger value="fee-items" className="flex items-center gap-2">
+            <FileText className="h-4 w-4" />
+            Fee Items
+          </TabsTrigger>
+        </TabsList>
 
-      {/* Campaigns Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Campaigns</CardTitle>
-          <CardDescription>
-            Manage your pricing campaigns and their configurations
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {campaignsLoading ? (
-            <div className="text-center py-8 text-muted-foreground">Loading campaigns...</div>
-          ) : filteredCampaigns.length === 0 ? (
-            <div className="text-center py-8">
-              <div className="text-muted-foreground mb-4">
-                {campaigns.length === 0 ? 'No campaigns found' : 'No campaigns match your search criteria'}
+        {/* Campaigns Tab */}
+        <TabsContent value="campaigns" className="space-y-6">
+          <div className="flex items-center justify-between">
+            <h2 className="text-2xl font-semibold">Campaigns</h2>
+            <Button onClick={() => setShowAddCampaign(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              Add Campaign
+            </Button>
+          </div>
+
+          {/* Campaign Filters */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Search & Filter Campaigns</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex gap-4">
+                <div className="flex-1">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                    <Input
+                      placeholder="Search by Campaign ID or Name..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="pl-10"
+                    />
+                  </div>
+                </div>
+                <Select value={selectedAcquirer} onValueChange={setSelectedAcquirer}>
+                  <SelectTrigger className="w-48">
+                    <SelectValue placeholder="Select Acquirer" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Acquirers</SelectItem>
+                    <SelectItem value="Esquire">Esquire</SelectItem>
+                    <SelectItem value="Merrick">Merrick</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
-              {campaigns.length === 0 && (
-                <Button onClick={() => setShowAddCampaign(true)}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Create Your First Campaign
-                </Button>
+            </CardContent>
+          </Card>
+
+          {/* Campaigns Table */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Campaigns</CardTitle>
+              <CardDescription>
+                Manage your pricing campaigns and their configurations
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {campaignsLoading ? (
+                <div className="text-center py-8 text-muted-foreground">Loading campaigns...</div>
+              ) : filteredCampaigns.length === 0 ? (
+                <div className="text-center py-8">
+                  <div className="text-muted-foreground mb-4">
+                    {campaigns.length === 0 ? 'No campaigns found' : 'No campaigns match your search criteria'}
+                  </div>
+                  {campaigns.length === 0 && (
+                    <Button onClick={() => setShowAddCampaign(true)}>
+                      <Plus className="h-4 w-4 mr-2" />
+                      Create Your First Campaign
+                    </Button>
+                  )}
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Campaign ID</TableHead>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Description</TableHead>
+                      <TableHead>Pricing Type</TableHead>
+                      <TableHead>Acquirer</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Created</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredCampaigns.map((campaign) => (
+                      <TableRow key={campaign.id}>
+                        <TableCell>
+                          <button 
+                            className="font-medium text-primary hover:underline"
+                            onClick={() => window.location.href = `/campaigns/${campaign.id}`}
+                          >
+                            {campaign.id}
+                          </button>
+                        </TableCell>
+                        <TableCell className="font-medium">{campaign.name}</TableCell>
+                        <TableCell className="max-w-xs truncate">
+                          {campaign.description || '—'}
+                        </TableCell>
+                        <TableCell>{campaign.pricingType.name}</TableCell>
+                        <TableCell>{campaign.acquirer}</TableCell>
+                        <TableCell>
+                          <div className="flex gap-2">
+                            <Badge variant={campaign.isActive ? "default" : "secondary"}>
+                              {campaign.isActive ? "Active" : "Inactive"}
+                            </Badge>
+                            {campaign.isDefault && (
+                              <Badge variant="outline">Default</Badge>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          {new Date(campaign.createdAt).toLocaleDateString()}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" className="h-8 w-8 p-0">
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => window.location.href = `/campaigns/${campaign.id}`}>
+                                <Eye className="mr-2 h-4 w-4" />
+                                View Details
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => window.location.href = `/campaigns/${campaign.id}/edit`}>
+                                <Edit className="mr-2 h-4 w-4" />
+                                Edit Campaign
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => window.open(`/merchant-application?campaign=${campaign.id}`, '_blank')}>
+                                <ExternalLink className="mr-2 h-4 w-4" />
+                                Open Application Form
+                              </DropdownMenuItem>
+                              {campaign.isActive && (
+                                <DropdownMenuItem 
+                                  onClick={() => deactivateCampaignMutation.mutate(campaign.id)}
+                                  className="text-destructive"
+                                >
+                                  <Trash2 className="mr-2 h-4 w-4" />
+                                  Deactivate
+                                </DropdownMenuItem>
+                              )}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
               )}
-            </div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Campaign ID</TableHead>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Description</TableHead>
-                  <TableHead>Pricing Type</TableHead>
-                  <TableHead>Acquirer</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Created</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredCampaigns.map((campaign) => (
-                  <TableRow key={campaign.id}>
-                    <TableCell>
-                      <button 
-                        className="font-medium text-primary hover:underline"
-                        onClick={() => window.location.href = `/campaigns/${campaign.id}`}
-                      >
-                        {campaign.id}
-                      </button>
-                    </TableCell>
-                    <TableCell className="font-medium">{campaign.name}</TableCell>
-                    <TableCell className="max-w-xs truncate">
-                      {campaign.description || '—'}
-                    </TableCell>
-                    <TableCell>{campaign.pricingType.name}</TableCell>
-                    <TableCell>{campaign.acquirer}</TableCell>
-                    <TableCell>
-                      <div className="flex gap-2">
-                        <Badge variant={campaign.isActive ? "default" : "secondary"}>
-                          {campaign.isActive ? "Active" : "Inactive"}
-                        </Badge>
-                        {campaign.isDefault && (
-                          <Badge variant="outline">Default</Badge>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      {new Date(campaign.createdAt).toLocaleDateString()}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" className="h-8 w-8 p-0">
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => window.location.href = `/campaigns/${campaign.id}`}>
-                            <Eye className="mr-2 h-4 w-4" />
-                            View Details
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => window.location.href = `/campaigns/${campaign.id}/edit`}>
-                            <Edit className="mr-2 h-4 w-4" />
-                            Edit Campaign
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => window.open(`/merchant-application?campaign=${campaign.id}`, '_blank')}>
-                            <ExternalLink className="mr-2 h-4 w-4" />
-                            Open Application Form
-                          </DropdownMenuItem>
-                          {campaign.isActive && (
-                            <DropdownMenuItem 
-                              onClick={() => deactivateCampaignMutation.mutate(campaign.id)}
-                              className="text-destructive"
-                            >
-                              <Trash2 className="mr-2 h-4 w-4" />
-                              Deactivate
-                            </DropdownMenuItem>
-                          )}
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Fee Groups Tab */}
+        <TabsContent value="fee-groups" className="space-y-6">
+          <div className="flex items-center justify-between">
+            <h2 className="text-2xl font-semibold">Fee Groups</h2>
+            <Button onClick={() => setShowAddFeeGroup(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              Add Fee Group
+            </Button>
+          </div>
+
+          <Card>
+            <CardContent className="pt-6">
+              {feeGroupsLoading ? (
+                <div className="text-center py-8 text-muted-foreground">Loading fee groups...</div>
+              ) : feeGroups.length === 0 ? (
+                <div className="text-center py-8">
+                  <div className="text-muted-foreground mb-4">No fee groups found</div>
+                  <Button onClick={() => setShowAddFeeGroup(true)}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Create Your First Fee Group
+                  </Button>
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Description</TableHead>
+                      <TableHead>Display Order</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Fee Items</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {feeGroups.map((group) => (
+                      <TableRow key={group.id}>
+                        <TableCell className="font-medium">{group.name}</TableCell>
+                        <TableCell>{group.description || '—'}</TableCell>
+                        <TableCell>{group.displayOrder}</TableCell>
+                        <TableCell>
+                          <Badge variant={group.isActive ? "default" : "secondary"}>
+                            {group.isActive ? "Active" : "Inactive"}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>{group.feeItems?.length || 0} items</TableCell>
+                        <TableCell className="text-right">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" className="h-8 w-8 p-0">
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem>
+                                <Edit className="mr-2 h-4 w-4" />
+                                Edit Group
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Fee Items Tab */}
+        <TabsContent value="fee-items" className="space-y-6">
+          <div className="flex items-center justify-between">
+            <h2 className="text-2xl font-semibold">Fee Items</h2>
+            <Button onClick={() => setShowAddFeeItem(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              Add Fee Item
+            </Button>
+          </div>
+
+          <Card>
+            <CardContent className="pt-6">
+              {feeItemsLoading ? (
+                <div className="text-center py-8 text-muted-foreground">Loading fee items...</div>
+              ) : feeItems.length === 0 ? (
+                <div className="text-center py-8">
+                  <div className="text-muted-foreground mb-4">No fee items found</div>
+                  <Button onClick={() => setShowAddFeeItem(true)}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Create Your First Fee Item
+                  </Button>
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Fee Group</TableHead>
+                      <TableHead>Default Value</TableHead>
+                      <TableHead>Value Type</TableHead>
+                      <TableHead>Required</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {feeItems.map((item) => (
+                      <TableRow key={item.id}>
+                        <TableCell className="font-medium">{item.name}</TableCell>
+                        <TableCell>{item.feeGroup?.name || '—'}</TableCell>
+                        <TableCell>
+                          {item.defaultValue ? `${item.defaultValue}${item.valueType === 'percentage' ? '%' : item.valueType === 'fixed' ? ' USD' : ' bps'}` : '—'}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline">
+                            {item.valueType === 'percentage' ? 'Percentage' : 
+                             item.valueType === 'fixed' ? 'Fixed Amount' : 'Basis Points'}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={item.isRequired ? "default" : "secondary"}>
+                            {item.isRequired ? "Required" : "Optional"}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={item.isActive ? "default" : "secondary"}>
+                            {item.isActive ? "Active" : "Inactive"}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" className="h-8 w-8 p-0">
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem>
+                                <Edit className="mr-2 h-4 w-4" />
+                                Edit Item
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Pricing Types Tab */}
+        <TabsContent value="pricing-types" className="space-y-6">
+          <div className="flex items-center justify-between">
+            <h2 className="text-2xl font-semibold">Pricing Types</h2>
+            <Button onClick={() => setShowAddPricingType(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              Add Pricing Type
+            </Button>
+          </div>
+
+          <Card>
+            <CardContent className="pt-6">
+              {pricingTypes.length === 0 ? (
+                <div className="text-center py-8">
+                  <div className="text-muted-foreground mb-4">No pricing types found</div>
+                  <Button onClick={() => setShowAddPricingType(true)}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Create Your First Pricing Type
+                  </Button>
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Description</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Associated Fee Items</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {pricingTypes.map((type) => (
+                      <TableRow key={type.id}>
+                        <TableCell className="font-medium">{type.name}</TableCell>
+                        <TableCell>{type.description || '—'}</TableCell>
+                        <TableCell>
+                          <Badge variant={type.isActive ? "default" : "secondary"}>
+                            {type.isActive ? "Active" : "Inactive"}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>{type.feeItems?.length || 0} items</TableCell>
+                        <TableCell className="text-right">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" className="h-8 w-8 p-0">
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem>
+                                <Edit className="mr-2 h-4 w-4" />
+                                Edit Type
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
 
       {/* Add Campaign Dialog */}
       <Dialog open={showAddCampaign} onOpenChange={setShowAddCampaign}>
@@ -371,15 +609,15 @@ export default function CampaignsPage() {
           </DialogHeader>
           <div className="space-y-4">
             <div>
-              <label className="text-sm font-medium">Campaign Name *</label>
+              <Label>Campaign Name *</Label>
               <Input placeholder="Enter campaign name" maxLength={50} />
             </div>
             <div>
-              <label className="text-sm font-medium">Description</label>
-              <Input placeholder="Enter description (optional)" maxLength={300} />
+              <Label>Description</Label>
+              <Textarea placeholder="Enter description (optional)" maxLength={300} />
             </div>
             <div>
-              <label className="text-sm font-medium">Pricing Type *</label>
+              <Label>Pricing Type *</Label>
               <Select>
                 <SelectTrigger>
                   <SelectValue placeholder="Select pricing type" />
@@ -394,7 +632,7 @@ export default function CampaignsPage() {
               </Select>
             </div>
             <div>
-              <label className="text-sm font-medium">Acquirer *</label>
+              <Label>Acquirer *</Label>
               <Select>
                 <SelectTrigger>
                   <SelectValue placeholder="Select acquirer" />
@@ -405,19 +643,153 @@ export default function CampaignsPage() {
                 </SelectContent>
               </Select>
             </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowAddCampaign(false)}>
+              Cancel
+            </Button>
+            <Button>Create Campaign</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Fee Group Dialog */}
+      <Dialog open={showAddFeeGroup} onOpenChange={setShowAddFeeGroup}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Add New Fee Group</DialogTitle>
+            <DialogDescription>
+              Create a new fee group to organize related fee items
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
             <div>
-              <label className="text-sm font-medium">Equipment</label>
-              <Input placeholder="Equipment information (optional)" />
+              <Label>Group Name *</Label>
+              <Input placeholder="Enter fee group name" />
             </div>
-            <div className="flex justify-end gap-3 pt-4">
-              <Button variant="outline" onClick={() => setShowAddCampaign(false)}>
-                Cancel
-              </Button>
-              <Button>
-                Create Campaign
-              </Button>
+            <div>
+              <Label>Description</Label>
+              <Textarea placeholder="Enter description (optional)" />
+            </div>
+            <div>
+              <Label>Display Order</Label>
+              <Input type="number" placeholder="1" min="1" />
             </div>
           </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowAddFeeGroup(false)}>
+              Cancel
+            </Button>
+            <Button>Create Fee Group</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Fee Item Dialog */}
+      <Dialog open={showAddFeeItem} onOpenChange={setShowAddFeeItem}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Add New Fee Item</DialogTitle>
+            <DialogDescription>
+              Create a new fee item within a fee group
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Fee Item Name *</Label>
+              <Input placeholder="Enter fee item name" />
+            </div>
+            <div>
+              <Label>Description</Label>
+              <Textarea placeholder="Enter description (optional)" />
+            </div>
+            <div>
+              <Label>Fee Group *</Label>
+              <Select value={selectedFeeGroup?.toString()} onValueChange={(value) => setSelectedFeeGroup(parseInt(value))}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select fee group" />
+                </SelectTrigger>
+                <SelectContent>
+                  {feeGroups.map((group) => (
+                    <SelectItem key={group.id} value={group.id.toString()}>
+                      {group.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Default Value</Label>
+              <Input placeholder="Enter default value (optional)" />
+            </div>
+            <div>
+              <Label>Value Type *</Label>
+              <Select>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select value type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="percentage">Percentage (%)</SelectItem>
+                  <SelectItem value="fixed">Fixed Amount ($)</SelectItem>
+                  <SelectItem value="basis_points">Basis Points (bps)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-center space-x-2">
+              <Switch id="required" />
+              <Label htmlFor="required">Required for campaigns</Label>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowAddFeeItem(false)}>
+              Cancel
+            </Button>
+            <Button>Create Fee Item</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Pricing Type Dialog */}
+      <Dialog open={showAddPricingType} onOpenChange={setShowAddPricingType}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Add New Pricing Type</DialogTitle>
+            <DialogDescription>
+              Create a new pricing type with associated fee items
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Pricing Type Name *</Label>
+              <Input placeholder="Enter pricing type name" />
+            </div>
+            <div>
+              <Label>Description</Label>
+              <Textarea placeholder="Enter description (optional)" />
+            </div>
+            <div>
+              <Label>Associated Fee Items</Label>
+              <div className="text-sm text-muted-foreground mb-2">
+                Select fee items that will be available for this pricing type
+              </div>
+              <div className="border rounded-md p-3 max-h-40 overflow-y-auto">
+                {feeItems.map((item) => (
+                  <div key={item.id} className="flex items-center space-x-2 py-1">
+                    <input type="checkbox" id={`fee-${item.id}`} className="rounded" />
+                    <Label htmlFor={`fee-${item.id}`} className="text-sm">
+                      {item.name} ({item.feeGroup?.name})
+                    </Label>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowAddPricingType(false)}>
+              Cancel
+            </Button>
+            <Button>Create Pricing Type</Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

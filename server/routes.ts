@@ -3073,6 +3073,272 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Fee Groups API endpoints
+  app.get('/api/fee-groups', isAuthenticated, async (req: any, res) => {
+    try {
+      // Enhanced fee groups with comprehensive data structure
+      const feeGroups = [
+        {
+          id: 1,
+          name: "Processing Fees",
+          description: "Core transaction processing fees",
+          displayOrder: 1,
+          isActive: true,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          feeItems: []
+        },
+        {
+          id: 2,
+          name: "Monthly Fees",
+          description: "Recurring monthly service fees",
+          displayOrder: 2,
+          isActive: true,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          feeItems: []
+        },
+        {
+          id: 3,
+          name: "Equipment Fees",
+          description: "Terminal and equipment related fees",
+          displayOrder: 3,
+          isActive: true,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          feeItems: []
+        },
+        {
+          id: 4,
+          name: "Setup & One-Time Fees",
+          description: "Initial setup and one-time charges",
+          displayOrder: 4,
+          isActive: true,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          feeItems: []
+        }
+      ];
+      res.json(feeGroups);
+    } catch (error) {
+      console.error("Error fetching fee groups:", error);
+      res.status(500).json({ message: "Failed to fetch fee groups" });
+    }
+  });
+
+  app.post('/api/fee-groups', isAuthenticated, async (req: any, res) => {
+    try {
+      const { name, description, displayOrder } = req.body;
+      
+      if (!name) {
+        return res.status(400).json({ message: "Fee group name is required" });
+      }
+
+      const newFeeGroup = {
+        id: Date.now(), // Simple ID generation for MVP
+        name,
+        description,
+        displayOrder: displayOrder || 999,
+        isActive: true,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        feeItems: []
+      };
+
+      res.status(201).json(newFeeGroup);
+    } catch (error) {
+      console.error("Error creating fee group:", error);
+      res.status(500).json({ message: "Failed to create fee group" });
+    }
+  });
+
+  // Fee Items API endpoints
+  app.get('/api/fee-items', isAuthenticated, async (req: any, res) => {
+    try {
+      // Enhanced fee items with comprehensive data structure
+      const feeItems = [
+        {
+          id: 1,
+          name: "Qualified Rate",
+          description: "Standard qualified transaction rate",
+          feeGroupId: 1,
+          defaultValue: "2.65",
+          valueType: "percentage",
+          isRequired: true,
+          displayOrder: 1,
+          isActive: true,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          feeGroup: { id: 1, name: "Processing Fees" }
+        },
+        {
+          id: 2,
+          name: "Mid-Qualified Rate",
+          description: "Mid-qualified transaction rate",
+          feeGroupId: 1,
+          defaultValue: "3.15",
+          valueType: "percentage",
+          isRequired: true,
+          displayOrder: 2,
+          isActive: true,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          feeGroup: { id: 1, name: "Processing Fees" }
+        },
+        {
+          id: 3,
+          name: "Non-Qualified Rate",
+          description: "Non-qualified transaction rate",
+          feeGroupId: 1,
+          defaultValue: "3.85",
+          valueType: "percentage",
+          isRequired: true,
+          displayOrder: 3,
+          isActive: true,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          feeGroup: { id: 1, name: "Processing Fees" }
+        },
+        {
+          id: 4,
+          name: "Monthly Statement Fee",
+          description: "Monthly statement processing fee",
+          feeGroupId: 2,
+          defaultValue: "15.00",
+          valueType: "fixed",
+          isRequired: false,
+          displayOrder: 1,
+          isActive: true,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          feeGroup: { id: 2, name: "Monthly Fees" }
+        },
+        {
+          id: 5,
+          name: "Gateway Fee",
+          description: "Monthly gateway access fee",
+          feeGroupId: 2,
+          defaultValue: "25.00",
+          valueType: "fixed",
+          isRequired: false,
+          displayOrder: 2,
+          isActive: true,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          feeGroup: { id: 2, name: "Monthly Fees" }
+        }
+      ];
+      res.json(feeItems);
+    } catch (error) {
+      console.error("Error fetching fee items:", error);
+      res.status(500).json({ message: "Failed to fetch fee items" });
+    }
+  });
+
+  app.post('/api/fee-items', isAuthenticated, async (req: any, res) => {
+    try {
+      const { name, description, feeGroupId, defaultValue, valueType, isRequired, displayOrder } = req.body;
+      
+      if (!name || !feeGroupId || !valueType) {
+        return res.status(400).json({ message: "Fee item name, fee group, and value type are required" });
+      }
+
+      const newFeeItem = {
+        id: Date.now(), // Simple ID generation for MVP
+        name,
+        description,
+        feeGroupId: parseInt(feeGroupId),
+        defaultValue,
+        valueType,
+        isRequired: isRequired || false,
+        displayOrder: displayOrder || 999,
+        isActive: true,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+
+      res.status(201).json(newFeeItem);
+    } catch (error) {
+      console.error("Error creating fee item:", error);
+      res.status(500).json({ message: "Failed to create fee item" });
+    }
+  });
+
+  // Enhanced Pricing Types with fee item relationships
+  app.get('/api/pricing-types-detailed', isAuthenticated, async (req: any, res) => {
+    try {
+      const pricingTypesDetailed = [
+        {
+          id: 1,
+          name: "Interchange +",
+          description: "Interchange plus pricing structure with transparent fees",
+          isActive: true,
+          feeItems: [
+            { id: 1, feeItemId: 1, isRequired: true, displayOrder: 1 },
+            { id: 2, feeItemId: 4, isRequired: false, displayOrder: 2 },
+            { id: 3, feeItemId: 5, isRequired: false, displayOrder: 3 }
+          ]
+        },
+        {
+          id: 2,
+          name: "Flat Rate",
+          description: "Simple flat rate pricing for all transactions",
+          isActive: true,
+          feeItems: [
+            { id: 4, feeItemId: 1, isRequired: true, displayOrder: 1 },
+            { id: 5, feeItemId: 4, isRequired: false, displayOrder: 2 }
+          ]
+        },
+        {
+          id: 3,
+          name: "Tiered",
+          description: "Tiered pricing structure based on transaction types",
+          isActive: true,
+          feeItems: [
+            { id: 6, feeItemId: 1, isRequired: true, displayOrder: 1 },
+            { id: 7, feeItemId: 2, isRequired: true, displayOrder: 2 },
+            { id: 8, feeItemId: 3, isRequired: true, displayOrder: 3 },
+            { id: 9, feeItemId: 4, isRequired: false, displayOrder: 4 }
+          ]
+        }
+      ];
+      res.json(pricingTypesDetailed);
+    } catch (error) {
+      console.error("Error fetching detailed pricing types:", error);
+      res.status(500).json({ message: "Failed to fetch detailed pricing types" });
+    }
+  });
+
+  app.post('/api/pricing-types', isAuthenticated, async (req: any, res) => {
+    try {
+      const { name, description, feeItemIds } = req.body;
+      
+      if (!name || !feeItemIds || !Array.isArray(feeItemIds)) {
+        return res.status(400).json({ message: "Pricing type name and fee items are required" });
+      }
+
+      const newPricingType = {
+        id: Date.now(), // Simple ID generation for MVP
+        name,
+        description,
+        isActive: true,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        feeItems: feeItemIds.map((feeItemId: number, index: number) => ({
+          id: Date.now() + index,
+          feeItemId,
+          isRequired: true,
+          displayOrder: index + 1
+        }))
+      };
+
+      res.status(201).json(newPricingType);
+    } catch (error) {
+      console.error("Error creating pricing type:", error);
+      res.status(500).json({ message: "Failed to create pricing type" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
