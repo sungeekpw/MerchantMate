@@ -650,6 +650,16 @@ export default function EnhancedPdfWizard() {
     
     const newFormData = { ...formData, [fieldName]: value };
     setFormData(newFormData);
+
+    // Validate the field and update errors
+    const currentField = sections[currentStep]?.fields.find(f => f.fieldName === fieldName);
+    if (currentField) {
+      const error = validateField(currentField, value);
+      setValidationErrors(prev => ({
+        ...prev,
+        [fieldName]: error
+      }));
+    }
     
     // Track field interaction for prospect status update
     handleFieldInteraction(fieldName, value);
@@ -761,6 +771,104 @@ export default function EnhancedPdfWizard() {
         }
       }
     }
+  };
+
+  // Validate field value
+  const validateField = (field: FormField, value: any): string | null => {
+    // Handle ownership validation separately
+    if (field.fieldType === 'ownership') {
+      const owners = value || [];
+      if (field.isRequired && owners.length === 0) {
+        return 'At least one owner is required';
+      }
+
+      for (let i = 0; i < owners.length; i++) {
+        const owner = owners[i];
+        const percentage = parseFloat(owner.percentage);
+
+        if (!owner.name || owner.name.trim() === '') {
+          return `Owner ${i + 1}: Name is required`;
+        }
+
+        if (!owner.email || owner.email.trim() === '') {
+          return `Owner ${i + 1}: Email is required`;
+        }
+
+        if (!owner.percentage || isNaN(percentage)) {
+          return `Owner ${i + 1}: Ownership percentage is required`;
+        }
+
+        if (percentage < 0 || percentage > 100) {
+          return `Owner ${i + 1}: Ownership percentage must be between 0 and 100`;
+        }
+
+        // Validate email format
+        const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailPattern.test(owner.email)) {
+          return `Owner ${i + 1}: Please enter a valid email address`;
+        }
+
+        // Check signature requirement for owners with >25%
+        if (percentage > 25 && !owner.signature) {
+          return `Owner ${i + 1}: Signature required for ownership > 25%`;
+        }
+      }
+
+      // Validate total percentage equals 100%
+      const total = owners.reduce((sum: number, owner: any) => {
+        return sum + (parseFloat(owner.percentage) || 0);
+      }, 0);
+
+      if (Math.abs(total - 100) > 0.01) {
+        return `Total ownership must equal 100% (currently ${total.toFixed(2)}%)`;
+      }
+
+      return null;
+    }
+
+    if (field.isRequired && (!value || value.toString().trim() === '')) {
+      return `${field.fieldLabel} is required`;
+    }
+
+    if (value && field.validation) {
+      const patterns = {
+        email: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
+        phone: /^\(?([0-9]{3})\)?[-. ]?([0-9]{3})[-. ]?([0-9]{4})$/,
+        zip: /^\d{5}(-\d{4})?$/,
+        ein: /^\d{2}-\d{7}$/,
+        ssn: /^\d{3}-\d{2}-\d{4}$/
+      };
+
+      if (field.validation.includes('email') && !patterns.email.test(value)) {
+        return 'Please enter a valid email address';
+      }
+      if (field.validation.includes('phone') && !patterns.phone.test(value)) {
+        return 'Please enter a valid phone number';
+      }
+      if (field.validation.includes('zip') && !patterns.zip.test(value)) {
+        return 'Please enter a valid ZIP code';
+      }
+      if (field.validation.includes('ein') && !patterns.ein.test(value)) {
+        return 'Please enter a valid EIN (XX-XXXXXXX)';
+      }
+      
+      // Additional EIN validation for federal tax ID fields
+      if ((field.fieldName === 'federalTaxId' || field.fieldName === 'taxId') && value) {
+        const cleanedEIN = value.replace(/\D/g, '');
+        if (cleanedEIN.length !== 9) {
+          return 'EIN must be exactly 9 digits';
+        }
+        if (!/^\d{2}-\d{7}$/.test(value) && cleanedEIN.length === 9) {
+          // Allow unformatted 9 digits, will be formatted on blur
+          return null; // Valid, will be auto-formatted
+        }
+      }
+      if (field.validation.includes('ssn') && !patterns.ssn.test(value)) {
+        return 'Please enter a valid SSN (XXX-XX-XXXX)';
+      }
+    }
+
+    return null;
   };
 
   // For prospect mode, show loading if prospect data isn't loaded yet
