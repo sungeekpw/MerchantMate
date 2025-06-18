@@ -384,11 +384,48 @@ export default function EnhancedPdfWizard() {
         }
       }
 
-      // Restore current step from prospect data
-      if (prospectData.prospect.currentStep !== null && prospectData.prospect.currentStep !== undefined) {
-        console.log('Restoring current step:', prospectData.prospect.currentStep);
-        setCurrentStep(prospectData.prospect.currentStep);
+      // Determine the appropriate starting step based on form completion
+      const savedStep = prospectData.prospect.currentStep;
+      let startingStep = savedStep !== null && savedStep !== undefined ? savedStep : 0;
+      
+      // Check if we should advance to the next incomplete section
+      if (prospectData.prospect.formData) {
+        try {
+          const existingData = JSON.parse(prospectData.prospect.formData);
+          
+          // Check if Merchant Information section is complete
+          const merchantInfoComplete = existingData.companyName && 
+                                     existingData.companyEmail && 
+                                     existingData.companyPhone && 
+                                     existingData.address && 
+                                     existingData.city && 
+                                     existingData.state && 
+                                     existingData.zipCode;
+          
+          // Check if Business Type section is complete
+          const businessTypeComplete = existingData.federalTaxId && 
+                                     existingData.businessType && 
+                                     existingData.yearsInBusiness;
+          
+          // Auto-advance to next incomplete section
+          if (merchantInfoComplete && !businessTypeComplete && startingStep === 0) {
+            startingStep = 1; // Business Type & Tax Information
+          } else if (merchantInfoComplete && businessTypeComplete && startingStep <= 1) {
+            startingStep = 2; // Business Ownership
+          }
+          
+          console.log('Auto-advancing to step:', startingStep, {
+            merchantInfoComplete,
+            businessTypeComplete,
+            savedStep
+          });
+        } catch (error) {
+          console.error('Error determining starting step:', error);
+        }
       }
+      
+      console.log('Setting starting step:', startingStep);
+      setCurrentStep(startingStep);
     }
   }, [prospectData, isProspectMode, initialDataLoaded]);
 
