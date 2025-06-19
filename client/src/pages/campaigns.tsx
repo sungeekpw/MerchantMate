@@ -14,7 +14,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Plus, Search, Settings, DollarSign, MoreHorizontal, Eye, Edit, Trash2, ExternalLink, Users, TrendingUp, FileText, AlertCircle, CheckCircle2, Link, Copy } from 'lucide-react';
+import { Plus, Search, Settings, DollarSign, MoreHorizontal, Eye, Edit, Trash2, ExternalLink, Users, TrendingUp, FileText, AlertCircle, CheckCircle2, Link, Copy, Layers } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { queryClient } from '@/lib/queryClient';
 
@@ -61,6 +61,29 @@ interface FeeGroup {
 
 interface FeeGroupWithItems extends FeeGroup {
   feeItems: FeeItem[];
+}
+
+interface FeeItemGroup {
+  id: number;
+  feeGroupId: number;
+  name: string;
+  description?: string;
+  displayOrder: number;
+  isActive: boolean;
+  author: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface FeeItemGroupWithItems extends FeeItemGroup {
+  feeItems: FeeItem[];
+}
+
+interface CreateFeeItemGroupData {
+  feeGroupId: number;
+  name: string;
+  description?: string;
+  displayOrder: number;
 }
 
 interface FeeItem {
@@ -178,6 +201,20 @@ export default function CampaignsPage() {
 
 
 
+  // Fetch fee item groups
+  const { data: feeItemGroups = [], isLoading: feeItemGroupsLoading } = useQuery<FeeItemGroup[]>({
+    queryKey: ['/api/fee-item-groups'],
+    queryFn: async () => {
+      const response = await fetch('/api/fee-item-groups', {
+        credentials: 'include'
+      });
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      return response.json();
+    }
+  });
+
   // Fetch fee items
   const { data: feeItems = [], isLoading: feeItemsLoading } = useQuery<FeeItem[]>({
     queryKey: ['/api/fee-items'],
@@ -277,7 +314,7 @@ export default function CampaignsPage() {
     <div className="p-6 space-y-6">
       {/* Main Tabs Interface */}
       <Tabs defaultValue="campaigns" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="campaigns" className="flex items-center gap-2">
             <DollarSign className="h-4 w-4" />
             Campaigns
@@ -289,6 +326,10 @@ export default function CampaignsPage() {
           <TabsTrigger value="fee-groups" className="flex items-center gap-2">
             <TrendingUp className="h-4 w-4" />
             Fee Groups
+          </TabsTrigger>
+          <TabsTrigger value="fee-item-groups" className="flex items-center gap-2">
+            <Layers className="h-4 w-4" />
+            Fee Item Groups
           </TabsTrigger>
           <TabsTrigger value="fee-items" className="flex items-center gap-2">
             <FileText className="h-4 w-4" />
