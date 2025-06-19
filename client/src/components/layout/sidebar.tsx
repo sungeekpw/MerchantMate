@@ -128,29 +128,44 @@ export function Sidebar() {
 
       {/* User Profile & Logout */}
       {user && (
-        <div className="p-4 border-t border-gray-200">
-          <div className="flex items-center space-x-3 mb-3">
-            <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center">
-              <User className="w-4 h-4 text-gray-600" />
+        <div className={cn("border-t border-gray-200", isCollapsed ? "p-2" : "p-4")}>
+          {!isCollapsed && (
+            <div className="flex items-center space-x-3 mb-3">
+              <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center">
+                <User className="w-4 h-4 text-gray-600" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-gray-900 truncate">
+                  {(user as any)?.firstName} {(user as any)?.lastName}
+                </p>
+                <p className="text-xs text-gray-500 capitalize">
+                  {(user as any)?.role?.replace('_', ' ')}
+                </p>
+              </div>
             </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-gray-900 truncate">
-                {(user as any)?.firstName} {(user as any)?.lastName}
-              </p>
-              <p className="text-xs text-gray-500 capitalize">
-                {(user as any)?.role?.replace('_', ' ')}
-              </p>
-            </div>
+          )}
+          
+          <div className="relative group">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={logout}
+              className={cn(
+                "transition-colors",
+                isCollapsed ? "w-10 h-10 p-0" : "w-full"
+              )}
+            >
+              <LogOut className="w-4 h-4" />
+              {!isCollapsed && <span className="ml-2">Sign Out</span>}
+            </Button>
+            
+            {/* Tooltip for collapsed logout button */}
+            {isCollapsed && (
+              <div className="absolute left-full top-1/2 -translate-y-1/2 ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-50 whitespace-nowrap">
+                Sign Out
+              </div>
+            )}
           </div>
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={logout}
-            className="w-full"
-          >
-            <LogOut className="w-4 h-4 mr-2" />
-            Sign Out
-          </Button>
         </div>
       )}
     </div>
