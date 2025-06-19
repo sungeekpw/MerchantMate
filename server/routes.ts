@@ -3037,7 +3037,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
 
   // Campaign Management API endpoints
-  app.get('/api/campaigns', isAuthenticated, async (req: any, res) => {
+  app.get('/api/campaigns', requireRole(['admin', 'super_admin']), async (req: any, res) => {
     try {
       // For MVP, return empty array until database is properly set up
       res.json([]);
@@ -3047,7 +3047,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/pricing-types', isAuthenticated, async (req: any, res) => {
+  app.get('/api/pricing-types', requireRole(['admin', 'super_admin']), async (req: any, res) => {
     try {
       // For MVP, return basic pricing types until database is properly set up
       const pricingTypes = [
@@ -3309,7 +3309,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/pricing-types', isAuthenticated, async (req: any, res) => {
+  app.post('/api/pricing-types', requireRole(['admin', 'super_admin']), async (req: any, res) => {
     try {
       const { name, description, feeItemIds } = req.body;
       

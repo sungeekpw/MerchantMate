@@ -465,6 +465,12 @@ The application is configured for deployment on Replit with:
   - Reduced title font size from text-2xl to text-xl for proper proportions matching sidebar
   - Achieved perfect left corner alignment between CoreCRM sidebar and page headers with identical heights
   - Eliminated subtitle text overflow while maintaining professional visual consistency
+- June 19, 2025. Restricted Campaign Management access to admin role only
+  - Updated sidebar navigation to show Campaigns only for admin and super_admin roles
+  - Restricted all campaign-related API endpoints to require admin or super_admin roles
+  - Changed /api/campaigns, /api/pricing-types GET and POST endpoints from isAuthenticated to requireRole(['admin', 'super_admin'])
+  - Enhanced security by preventing agents, corporate users, and merchants from accessing campaign management features
+  - Campaign Management now properly restricted to administrative users only
 
 ## User Preferences
 Preferred communication style: Simple, everyday language.

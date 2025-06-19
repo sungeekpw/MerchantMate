@@ -13,7 +13,7 @@ const baseNavigation = [
   { name: "Locations", href: "/locations", icon: MapPin, requiresRole: ['merchant'] },
   { name: "Agents", href: "/agents", icon: Users, requiresRole: ['admin', 'corporate', 'super_admin'] },
   { name: "Prospects", href: "/prospects", icon: UserPlus, requiresRole: ['admin', 'corporate', 'super_admin'] },
-  { name: "Campaigns", href: "/campaigns", icon: DollarSign, requiresRole: ['agent', 'admin', 'corporate', 'super_admin'] },
+  { name: "Campaigns", href: "/campaigns", icon: DollarSign, requiresRole: ['admin', 'super_admin'] },
   { name: "Transactions", href: "/transactions", icon: Receipt, requiresRole: ['merchant', 'agent', 'admin', 'corporate', 'super_admin'] },
   { name: "PDF Forms", href: "/pdf-forms", icon: Upload, requiresRole: ['admin', 'super_admin'] },
   { name: "Users", href: "/users", icon: User, requiresRole: ['admin', 'corporate', 'super_admin'] },
