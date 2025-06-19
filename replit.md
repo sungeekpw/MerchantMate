@@ -471,6 +471,13 @@ The application is configured for deployment on Replit with:
   - Changed /api/campaigns, /api/pricing-types GET and POST endpoints from isAuthenticated to requireRole(['admin', 'super_admin'])
   - Enhanced security by preventing agents, corporate users, and merchants from accessing campaign management features
   - Campaign Management now properly restricted to administrative users only
+- June 19, 2025. Enhanced Campaign Management with Wells Fargo acquirer support
+  - Added Wells Fargo as a third acquirer option alongside Esquire and Merrick
+  - Updated acquirer filter dropdown to include Wells Fargo in alphabetical order
+  - Enhanced campaign creation dialog with Wells Fargo selection option
+  - Added sample Wells Fargo "E-commerce Campaign" to backend data with 12 assigned merchants and $95,000 revenue
+  - Updated TypeScript interfaces to support 'Esquire' | 'Merrick' | 'Wells Fargo' acquirer types
+  - Complete Wells Fargo integration across frontend filtering, creation forms, and backend sample data
 
 ## User Preferences
 Preferred communication style: Simple, everyday language.
