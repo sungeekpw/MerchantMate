@@ -141,6 +141,13 @@ export default function CampaignsPage() {
   const [showAddPricingType, setShowAddPricingType] = useState(false);
   const [selectedFeeGroup, setSelectedFeeGroup] = useState<number | null>(null);
 
+  // Fee Group form state
+  const [feeGroupForm, setFeeGroupForm] = useState({
+    name: '',
+    description: '',
+    displayOrder: 1
+  });
+
   // Fetch campaigns
   const { data: campaigns = [], isLoading: campaignsLoading } = useQuery<Campaign[]>({
     queryKey: ['/api/campaigns'],
@@ -170,6 +177,37 @@ export default function CampaignsPage() {
     return matchesSearch && matchesAcquirer;
   });
 
+  // Create Fee Group mutation
+  const createFeeGroupMutation = useMutation({
+    mutationFn: async (feeGroupData: CreateFeeGroupData) => {
+      const response = await fetch('/api/fee-groups', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(feeGroupData),
+      });
+      if (!response.ok) throw new Error('Failed to create fee group');
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/fee-groups'] });
+      setShowAddFeeGroup(false);
+      setFeeGroupForm({ name: '', description: '', displayOrder: 1 });
+      toast({
+        title: "Fee Group Created",
+        description: "The fee group has been successfully created.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to create fee group.",
+        variant: "destructive",
+      });
+    },
+  });
+
   // Deactivate campaign mutation
   const deactivateCampaignMutation = useMutation({
     mutationFn: async (campaignId: number) => {
@@ -194,6 +232,24 @@ export default function CampaignsPage() {
       });
     },
   });
+
+  // Handle fee group form submission
+  const handleCreateFeeGroup = () => {
+    if (!feeGroupForm.name.trim()) {
+      toast({
+        title: "Validation Error",
+        description: "Fee group name is required.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    createFeeGroupMutation.mutate({
+      name: feeGroupForm.name.trim(),
+      description: feeGroupForm.description.trim() || undefined,
+      displayOrder: feeGroupForm.displayOrder || 1,
+    });
+  };
 
   return (
     <div className="p-6 space-y-6">
@@ -659,22 +715,41 @@ export default function CampaignsPage() {
           <div className="space-y-4">
             <div>
               <Label>Group Name *</Label>
-              <Input placeholder="Enter fee group name" />
+              <Input 
+                placeholder="Enter fee group name" 
+                value={feeGroupForm.name}
+                onChange={(e) => setFeeGroupForm(prev => ({ ...prev, name: e.target.value }))}
+              />
             </div>
             <div>
               <Label>Description</Label>
-              <Textarea placeholder="Enter description (optional)" />
+              <Textarea 
+                placeholder="Enter description (optional)" 
+                value={feeGroupForm.description}
+                onChange={(e) => setFeeGroupForm(prev => ({ ...prev, description: e.target.value }))}
+              />
             </div>
             <div>
               <Label>Display Order</Label>
-              <Input type="number" placeholder="1" min="1" />
+              <Input 
+                type="number" 
+                placeholder="1" 
+                min="1" 
+                value={feeGroupForm.displayOrder}
+                onChange={(e) => setFeeGroupForm(prev => ({ ...prev, displayOrder: parseInt(e.target.value) || 1 }))}
+              />
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowAddFeeGroup(false)}>
               Cancel
             </Button>
-            <Button>Create Fee Group</Button>
+            <Button 
+              onClick={handleCreateFeeGroup}
+              disabled={createFeeGroupMutation.isPending}
+            >
+              {createFeeGroupMutation.isPending ? 'Creating...' : 'Create Fee Group'}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
