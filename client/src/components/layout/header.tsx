@@ -49,8 +49,8 @@ export function Header({ title, subtitle, onSearch }: HeaderProps) {
   return (
     <header className="bg-white border-b border-gray-200">
       <div className="flex items-center justify-between">
-        <div className="flex-1 px-6 py-4 max-w-lg">
-          <h2 className="text-2xl font-bold text-gray-900">{title}</h2>
+        <div className="flex-1 p-6 max-w-lg">
+          <h2 className="text-xl font-bold text-gray-900">{title}</h2>
           <p className="text-sm text-gray-500">{subtitle}</p>
         </div>
         <div className="flex items-center space-x-4 px-6 py-4">
