@@ -187,7 +187,10 @@ export default function CampaignsPage() {
         },
         body: JSON.stringify(feeGroupData),
       });
-      if (!response.ok) throw new Error('Failed to create fee group');
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to create fee group');
+      }
       return response.json();
     },
     onSuccess: () => {
@@ -199,10 +202,14 @@ export default function CampaignsPage() {
         description: "The fee group has been successfully created.",
       });
     },
-    onError: () => {
+    onError: (error: any) => {
+      let errorMessage = "Failed to create fee group.";
+      if (error.message.includes('duplicate key') || error.message.includes('already exists')) {
+        errorMessage = "A fee group with this name already exists. Please choose a different name.";
+      }
       toast({
         title: "Error",
-        description: "Failed to create fee group.",
+        description: errorMessage,
         variant: "destructive",
       });
     },
