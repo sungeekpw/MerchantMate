@@ -3542,6 +3542,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
           assignedMerchants: 8,
           totalRevenue: 89000,
           feeValues: []
+        },
+        {
+          id: 3,
+          name: "E-commerce Campaign",
+          description: "Optimized pricing for online businesses",
+          acquirer: "Wells Fargo",
+          pricingType: {
+            id: 3,
+            name: "E-commerce Pricing"
+          },
+          isActive: true,
+          isDefault: false,
+          createdAt: new Date().toISOString(),
+          createdByUser: {
+            name: "Admin User",
+            email: "admin@corecrm.com"
+          },
+          assignedMerchants: 12,
+          totalRevenue: 95000,
+          feeValues: []
         }
       ];
       res.json(campaigns);

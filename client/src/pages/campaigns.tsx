@@ -121,7 +121,7 @@ interface CreatePricingTypeData {
 interface CreateCampaignData {
   name: string;
   description?: string;
-  acquirer: 'esquire' | 'merrick';
+  acquirer: 'Esquire' | 'Merrick' | 'Wells Fargo';
   pricingTypeId: number;
   isDefault?: boolean;
   feeValues: {
@@ -239,6 +239,7 @@ export default function CampaignsPage() {
                   <SelectItem value="all">All Acquirers</SelectItem>
                   <SelectItem value="Esquire">Esquire</SelectItem>
                   <SelectItem value="Merrick">Merrick</SelectItem>
+                  <SelectItem value="Wells Fargo">Wells Fargo</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -632,6 +633,7 @@ export default function CampaignsPage() {
                 <SelectContent>
                   <SelectItem value="Esquire">Esquire</SelectItem>
                   <SelectItem value="Merrick">Merrick</SelectItem>
+                  <SelectItem value="Wells Fargo">Wells Fargo</SelectItem>
                 </SelectContent>
               </Select>
             </div>
