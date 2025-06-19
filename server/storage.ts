@@ -257,13 +257,13 @@ export class DatabaseStorage implements IStorage {
     const result: FeeGroupWithItems[] = [];
     
     for (const group of groups) {
-      const feeItems = await db.select().from(feeItems)
+      const groupItems = await db.select().from(feeItems)
         .where(eq(feeItems.feeGroupId, group.id))
         .orderBy(feeItems.displayOrder);
       
       result.push({
         ...group,
-        feeItems
+        feeItems: groupItems
       });
     }
     
