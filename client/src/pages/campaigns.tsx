@@ -165,15 +165,18 @@ export default function CampaignsPage() {
   // Fetch fee groups
   const { data: feeGroups = [], isLoading: feeGroupsLoading, error: feeGroupsError } = useQuery<FeeGroupWithItems[]>({
     queryKey: ['/api/fee-groups'],
+    queryFn: async () => {
+      const response = await fetch('/api/fee-groups', {
+        credentials: 'include'
+      });
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      return response.json();
+    }
   });
 
-  // Debug fee groups data
-  console.log('Fee groups debug:', { feeGroups, feeGroupsLoading, feeGroupsError });
-  
-  // Also log the error details
-  if (feeGroupsError) {
-    console.error('Fee groups error details:', feeGroupsError);
-  }
+
 
   // Fetch fee items
   const { data: feeItems = [], isLoading: feeItemsLoading } = useQuery<FeeItem[]>({
