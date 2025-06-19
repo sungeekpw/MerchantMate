@@ -21,7 +21,7 @@ export function Header({ title, subtitle, onSearch }: HeaderProps) {
     onSearch?.(query);
   };
 
-  const formatLastLogin = (lastLoginAt: string | null, lastLoginIp: string | null, userTimezone?: string | null) => {
+  const formatLastLogin = (lastLoginAt: string | Date | null, lastLoginIp: string | null, userTimezone?: string | null) => {
     if (!lastLoginAt) return null;
     
     try {
@@ -41,17 +41,19 @@ export function Header({ title, subtitle, onSearch }: HeaderProps) {
     }
   };
 
-  const lastLoginInfo = formatLastLogin(user?.lastLoginAt, user?.lastLoginIp);
+  const lastLoginInfo = formatLastLogin(
+    user?.lastLoginAt ? (typeof user.lastLoginAt === 'string' ? user.lastLoginAt : user.lastLoginAt.toISOString()) : null, 
+    user?.lastLoginIp
+  );
 
   return (
-    <header className="bg-white border-b border-gray-200 px-6 py-4">
+    <header className="bg-white border-b border-gray-200">
       <div className="flex items-center justify-between">
-        <div className="w-64 pr-6">
+        <div className="w-64 px-6 py-4">
           <h2 className="text-2xl font-bold text-gray-900">{title}</h2>
           <p className="text-sm text-gray-500">{subtitle}</p>
         </div>
-
-        <div className="flex items-center space-x-4">
+        <div className="flex items-center space-x-4 px-6 py-4">
           {/* Last Login Info */}
           {lastLoginInfo && (
             <div className="flex items-center space-x-3 text-xs text-gray-500 border-r border-gray-200 pr-4">
