@@ -585,6 +585,9 @@ export const insertFeeItemGroupSchema = createInsertSchema(feeItemGroups).omit({
   updatedAt: true,
 });
 
+export type FeeItemGroup = typeof feeItemGroups.$inferSelect;
+export type InsertFeeItemGroup = z.infer<typeof insertFeeItemGroupSchema>;
+
 export const insertFeeItemSchema = createInsertSchema(feeItems).omit({
   id: true,
   createdAt: true,
