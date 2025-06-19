@@ -59,6 +59,10 @@ interface FeeGroup {
   feeItems?: FeeItem[];
 }
 
+interface FeeGroupWithItems extends FeeGroup {
+  feeItems: FeeItem[];
+}
+
 interface FeeItem {
   id: number;
   name: string;
@@ -159,9 +163,17 @@ export default function CampaignsPage() {
   });
 
   // Fetch fee groups
-  const { data: feeGroups = [], isLoading: feeGroupsLoading } = useQuery<FeeGroup[]>({
+  const { data: feeGroups = [], isLoading: feeGroupsLoading, error: feeGroupsError } = useQuery<FeeGroupWithItems[]>({
     queryKey: ['/api/fee-groups'],
   });
+
+  // Debug fee groups data
+  console.log('Fee groups debug:', { feeGroups, feeGroupsLoading, feeGroupsError });
+  
+  // Also log the error details
+  if (feeGroupsError) {
+    console.error('Fee groups error details:', feeGroupsError);
+  }
 
   // Fetch fee items
   const { data: feeItems = [], isLoading: feeItemsLoading } = useQuery<FeeItem[]>({
