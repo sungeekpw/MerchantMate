@@ -476,15 +476,32 @@ export const feeGroups = pgTable("fee_groups", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
-// Fee Items table - individual fees within fee groups
+// Fee Item Groups table - intermediate grouping within fee groups (e.g., "Qualified", "Mid-Qualified", "Non-Qualified")
+export const feeItemGroups = pgTable("fee_item_groups", {
+  id: serial("id").primaryKey(),
+  feeGroupId: integer("fee_group_id").notNull().references(() => feeGroups.id, { onDelete: "cascade" }),
+  name: text("name").notNull(), // e.g., "Qualified", "Mid-Qualified", "Non-Qualified"
+  description: text("description"),
+  displayOrder: integer("display_order").notNull().default(0),
+  isActive: boolean("is_active").notNull().default(true),
+  author: text("author").notNull().default("System"), // System or user who created it
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => ({
+  uniqueFeeItemGroupPerFeeGroup: unique().on(table.feeGroupId, table.name),
+}));
+
+// Fee Items table - individual fees within fee item groups
 export const feeItems = pgTable("fee_items", {
   id: serial("id").primaryKey(),
   feeGroupId: integer("fee_group_id").notNull().references(() => feeGroups.id, { onDelete: "cascade" }),
-  name: text("name").notNull(), // e.g., "Visa/MC Qualified", "Monthly Statement Fee"
+  feeItemGroupId: integer("fee_item_group_id").references(() => feeItemGroups.id, { onDelete: "cascade" }), // Optional grouping
+  name: text("name").notNull(), // e.g., "Visa", "MasterCard", "American Express"
   description: text("description"),
   valueType: text("value_type").notNull(), // "amount", "percentage", "placeholder"
   defaultValue: text("default_value"), // Default value for this fee item
   additionalInfo: text("additional_info"), // Info shown when clicking "i" icon
+  displayOrder: integer("display_order").notNull().default(0),
   isActive: boolean("is_active").notNull().default(true),
   author: text("author").notNull().default("System"), // System or user who created it
   createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -562,6 +579,12 @@ export const insertFeeGroupSchema = createInsertSchema(feeGroups).omit({
   updatedAt: true,
 });
 
+export const insertFeeItemGroupSchema = createInsertSchema(feeItemGroups).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 export const insertFeeItemSchema = createInsertSchema(feeItems).omit({
   id: true,
   createdAt: true,
@@ -599,6 +622,8 @@ export const insertCampaignAssignmentSchema = createInsertSchema(campaignAssignm
 // Campaign management types
 export type FeeGroup = typeof feeGroups.$inferSelect;
 export type InsertFeeGroup = z.infer<typeof insertFeeGroupSchema>;
+export type FeeItemGroup = typeof feeItemGroups.$inferSelect;
+export type InsertFeeItemGroup = z.infer<typeof insertFeeItemGroupSchema>;
 export type FeeItem = typeof feeItems.$inferSelect;
 export type InsertFeeItem = z.infer<typeof insertFeeItemSchema>;
 export type PricingType = typeof pricingTypes.$inferSelect;
@@ -612,7 +637,21 @@ export type InsertCampaignFeeValue = z.infer<typeof insertCampaignFeeValueSchema
 export type CampaignAssignment = typeof campaignAssignments.$inferSelect;
 export type InsertCampaignAssignment = z.infer<typeof insertCampaignAssignmentSchema>;
 
-// Extended types for campaign management
+// Extended types for campaign management with hierarchical structure
+export type FeeItemWithGroup = FeeItem & {
+  feeItemGroup?: FeeItemGroup;
+  feeGroup: FeeGroup;
+};
+
+export type FeeItemGroupWithItems = FeeItemGroup & {
+  feeItems: FeeItem[];
+};
+
+export type FeeGroupWithItemGroups = FeeGroup & {
+  feeItemGroups: FeeItemGroupWithItems[];
+  feeItems: FeeItem[]; // Direct items without groups
+};
+
 export type FeeGroupWithItems = FeeGroup & {
   feeItems: FeeItem[];
 };
@@ -623,6 +662,6 @@ export type PricingTypeWithFeeItems = PricingType & {
 
 export type CampaignWithDetails = Campaign & {
   pricingType: PricingType;
-  feeValues: (CampaignFeeValue & { feeItem: FeeItem & { feeGroup: FeeGroup } })[];
+  feeValues: (CampaignFeeValue & { feeItem: FeeItemWithGroup })[];
   createdByUser?: User;
 };
