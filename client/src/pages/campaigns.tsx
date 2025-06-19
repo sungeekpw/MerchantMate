@@ -218,6 +218,15 @@ export default function CampaignsPage() {
   // Fetch fee items
   const { data: feeItems = [], isLoading: feeItemsLoading } = useQuery<FeeItem[]>({
     queryKey: ['/api/fee-items'],
+    queryFn: async () => {
+      const response = await fetch('/api/fee-items', {
+        credentials: 'include'
+      });
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      return response.json();
+    }
   });
 
   // Filter campaigns based on search and acquirer
