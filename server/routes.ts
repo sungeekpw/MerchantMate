@@ -3082,8 +3082,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const feeGroup = await storage.createFeeGroup(feeGroupData);
       res.status(201).json(feeGroup);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error creating fee group:", error);
+      
+      // Handle duplicate name constraint violation
+      if (error.code === '23505' && error.constraint === 'fee_groups_name_key') {
+        return res.status(400).json({ 
+          message: "A fee group with this name already exists. Please choose a different name." 
+        });
+      }
+      
       res.status(500).json({ message: "Failed to create fee group" });
     }
   });

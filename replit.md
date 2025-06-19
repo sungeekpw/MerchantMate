@@ -478,6 +478,13 @@ The application is configured for deployment on Replit with:
   - Added sample Wells Fargo "E-commerce Campaign" to backend data with 12 assigned merchants and $95,000 revenue
   - Updated TypeScript interfaces to support 'Esquire' | 'Merrick' | 'Wells Fargo' acquirer types
   - Complete Wells Fargo integration across frontend filtering, creation forms, and backend sample data
+- June 19, 2025. Fixed Create Fee Group button functionality and enhanced error handling
+  - Implemented missing form state management for Create Fee Group dialog with proper input bindings
+  - Added createFeeGroup mutation with API integration and cache invalidation
+  - Enhanced error handling for duplicate fee group names with user-friendly messages
+  - Added input validation, loading states, and success notifications
+  - Fixed backend error handling to detect duplicate name constraints and return appropriate 400 status codes
+  - Create Fee Group dialog now fully functional with comprehensive form handling and error management
 - June 19, 2025. Fixed agents endpoint authentication in development mode
   - Resolved 401 Unauthorized errors when accessing /api/agents endpoint
   - Updated requireRole middleware to properly handle session-based authentication in development mode
