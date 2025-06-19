@@ -239,7 +239,46 @@ export const isAuthenticated: RequestHandler = async (req, res, next) => {
 // Role-based access control middleware
 export const requireRole = (allowedRoles: string[]): RequestHandler => {
   return async (req, res, next) => {
-    // First check if user is authenticated
+    // Development mode: use session-based auth
+    if (process.env.NODE_ENV === 'development') {
+      let userId = (req.session as any)?.userId;
+      
+      // Development fallback: auto-authenticate as admin user if no session
+      if (!userId) {
+        userId = 'admin-demo-123'; // Default admin user for development
+        (req.session as any).userId = userId;
+        (req.session as any).sessionId = uuidv4();
+      }
+      
+      try {
+        const dbUser = await storage.getUser(userId);
+        if (!dbUser) {
+          return res.status(401).json({ message: "User not found" });
+        }
+
+        if (dbUser.status !== 'active') {
+          return res.status(403).json({ message: "Account suspended" });
+        }
+
+        if (!allowedRoles.includes(dbUser.role)) {
+          return res.status(403).json({ message: "Insufficient permissions" });
+        }
+
+        // Attach user info to request for use in route handlers
+        (req as any).currentUser = dbUser;
+        req.user = { 
+          id: userId,
+          email: dbUser.email,
+          claims: { sub: userId } 
+        };
+        return next();
+      } catch (error) {
+        console.error("Error checking user role:", error);
+        return res.status(500).json({ message: "Internal server error" });
+      }
+    }
+
+    // Production mode: use Passport authentication
     if (!req.isAuthenticated()) {
       return res.status(401).json({ message: "Unauthorized" });
     }
