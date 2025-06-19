@@ -548,6 +548,84 @@ export default function CampaignsPage() {
           </Card>
         </TabsContent>
 
+        {/* Fee Item Groups Tab */}
+        <TabsContent value="fee-item-groups" className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="relative max-w-sm">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+              <Input
+                placeholder="Search fee item groups..."
+                className="pl-10"
+              />
+            </div>
+            <Button>
+              <Plus className="h-4 w-4 mr-2" />
+              Add Fee Item Group
+            </Button>
+          </div>
+
+          <Card>
+            <CardContent className="p-6">
+              {feeItemGroupsLoading ? (
+                <div className="text-center py-8 text-muted-foreground">Loading fee item groups...</div>
+              ) : feeItemGroups.length === 0 ? (
+                <div className="text-center py-8">
+                  <div className="text-muted-foreground mb-4">No fee item groups found</div>
+                  <Button>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Create Your First Fee Item Group
+                  </Button>
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Fee Group</TableHead>
+                      <TableHead>Description</TableHead>
+                      <TableHead>Display Order</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Fee Items</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {feeItemGroups.map((group) => (
+                      <TableRow key={group.id}>
+                        <TableCell className="font-medium">{group.name}</TableCell>
+                        <TableCell>{feeGroups.find(fg => fg.id === group.feeGroupId)?.name || '—'}</TableCell>
+                        <TableCell>{group.description || '—'}</TableCell>
+                        <TableCell>{group.displayOrder}</TableCell>
+                        <TableCell>
+                          <Badge variant={group.isActive ? "default" : "secondary"}>
+                            {group.isActive ? "Active" : "Inactive"}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>0 items</TableCell>
+                        <TableCell className="text-right">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" className="h-8 w-8 p-0">
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem>
+                                <Edit className="mr-2 h-4 w-4" />
+                                Edit Group
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
         {/* Fee Items Tab */}
         <TabsContent value="fee-items" className="space-y-4">
           <div className="flex items-center justify-between">
