@@ -252,13 +252,58 @@ export interface IStorage {
 
 export class DatabaseStorage implements IStorage {
   // Fee Groups implementation
-  async getAllFeeGroups(): Promise<FeeGroup[]> {
-    return await db.select().from(feeGroups).orderBy(feeGroups.displayOrder);
+  async getAllFeeGroups(): Promise<FeeGroupWithItems[]> {
+    const groups = await db.select().from(feeGroups).orderBy(feeGroups.displayOrder);
+    const result: FeeGroupWithItems[] = [];
+    
+    for (const group of groups) {
+      const feeItems = await db.select().from(feeItems)
+        .where(eq(feeItems.feeGroupId, group.id))
+        .orderBy(feeItems.displayOrder);
+      
+      result.push({
+        ...group,
+        feeItems
+      });
+    }
+    
+    return result;
   }
 
   async getFeeGroup(id: number): Promise<FeeGroup | undefined> {
     const [feeGroup] = await db.select().from(feeGroups).where(eq(feeGroups.id, id));
     return feeGroup || undefined;
+  }
+
+  async getFeeGroupWithItemGroups(id: number): Promise<FeeGroupWithItemGroups | undefined> {
+    const [feeGroup] = await db.select().from(feeGroups).where(eq(feeGroups.id, id));
+    if (!feeGroup) return undefined;
+
+    const itemGroups = await db.select().from(feeItemGroups)
+      .where(eq(feeItemGroups.feeGroupId, id))
+      .orderBy(feeItemGroups.displayOrder);
+
+    const feeItemGroupsWithItems: FeeItemGroupWithItems[] = [];
+    for (const itemGroup of itemGroups) {
+      const items = await db.select().from(feeItems)
+        .where(eq(feeItems.feeItemGroupId, itemGroup.id))
+        .orderBy(feeItems.displayOrder);
+      
+      feeItemGroupsWithItems.push({
+        ...itemGroup,
+        feeItems: items
+      });
+    }
+
+    const directItems = await db.select().from(feeItems)
+      .where(and(eq(feeItems.feeGroupId, id), eq(feeItems.feeItemGroupId, null)))
+      .orderBy(feeItems.displayOrder);
+
+    return {
+      ...feeGroup,
+      feeItemGroups: feeItemGroupsWithItems,
+      feeItems: directItems
+    };
   }
 
   async createFeeGroup(feeGroup: InsertFeeGroup): Promise<FeeGroup> {
@@ -269,6 +314,51 @@ export class DatabaseStorage implements IStorage {
   async updateFeeGroup(id: number, updates: Partial<InsertFeeGroup>): Promise<FeeGroup | undefined> {
     const [updated] = await db.update(feeGroups).set(updates).where(eq(feeGroups.id, id)).returning();
     return updated || undefined;
+  }
+
+  // Fee Item Groups implementation
+  async getAllFeeItemGroups(): Promise<FeeItemGroup[]> {
+    return await db.select().from(feeItemGroups).orderBy(feeItemGroups.displayOrder);
+  }
+
+  async getFeeItemGroup(id: number): Promise<FeeItemGroup | undefined> {
+    const [feeItemGroup] = await db.select().from(feeItemGroups).where(eq(feeItemGroups.id, id));
+    return feeItemGroup || undefined;
+  }
+
+  async getFeeItemGroupsByFeeGroup(feeGroupId: number): Promise<FeeItemGroup[]> {
+    return await db.select().from(feeItemGroups)
+      .where(eq(feeItemGroups.feeGroupId, feeGroupId))
+      .orderBy(feeItemGroups.displayOrder);
+  }
+
+  async getFeeItemGroupWithItems(id: number): Promise<FeeItemGroupWithItems | undefined> {
+    const [feeItemGroup] = await db.select().from(feeItemGroups).where(eq(feeItemGroups.id, id));
+    if (!feeItemGroup) return undefined;
+
+    const items = await db.select().from(feeItems)
+      .where(eq(feeItems.feeItemGroupId, id))
+      .orderBy(feeItems.displayOrder);
+
+    return {
+      ...feeItemGroup,
+      feeItems: items
+    };
+  }
+
+  async createFeeItemGroup(feeItemGroup: InsertFeeItemGroup): Promise<FeeItemGroup> {
+    const [created] = await db.insert(feeItemGroups).values(feeItemGroup).returning();
+    return created;
+  }
+
+  async updateFeeItemGroup(id: number, updates: Partial<InsertFeeItemGroup>): Promise<FeeItemGroup | undefined> {
+    const [updated] = await db.update(feeItemGroups).set(updates).where(eq(feeItemGroups.id, id)).returning();
+    return updated || undefined;
+  }
+
+  async deleteFeeItemGroup(id: number): Promise<boolean> {
+    const result = await db.delete(feeItemGroups).where(eq(feeItemGroups.id, id));
+    return result.rowCount !== null && result.rowCount > 0;
   }
 
   // Fee Items implementation

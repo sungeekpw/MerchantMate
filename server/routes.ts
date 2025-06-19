@@ -3037,6 +3037,155 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
 
   // Campaign Management API endpoints
+
+  // Fee Groups endpoints
+  app.get('/api/fee-groups', requireRole(['admin', 'super_admin']), async (req: any, res) => {
+    try {
+      const feeGroups = await storage.getAllFeeGroups();
+      res.json(feeGroups);
+    } catch (error) {
+      console.error("Error fetching fee groups:", error);
+      res.status(500).json({ message: "Failed to fetch fee groups" });
+    }
+  });
+
+  app.get('/api/fee-groups/:id', requireRole(['admin', 'super_admin']), async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const feeGroup = await storage.getFeeGroupWithItemGroups(id);
+      
+      if (!feeGroup) {
+        return res.status(404).json({ message: "Fee group not found" });
+      }
+      
+      res.json(feeGroup);
+    } catch (error) {
+      console.error("Error fetching fee group:", error);
+      res.status(500).json({ message: "Failed to fetch fee group" });
+    }
+  });
+
+  app.post('/api/fee-groups', requireRole(['admin', 'super_admin']), async (req: any, res) => {
+    try {
+      const { name, description, displayOrder } = req.body;
+      
+      if (!name) {
+        return res.status(400).json({ message: "Fee group name is required" });
+      }
+
+      const feeGroupData = {
+        name,
+        description: description || null,
+        displayOrder: displayOrder || 0,
+        author: req.user?.email || 'System'
+      };
+
+      const feeGroup = await storage.createFeeGroup(feeGroupData);
+      res.status(201).json(feeGroup);
+    } catch (error) {
+      console.error("Error creating fee group:", error);
+      res.status(500).json({ message: "Failed to create fee group" });
+    }
+  });
+
+  // Fee Item Groups endpoints
+  app.get('/api/fee-item-groups', requireRole(['admin', 'super_admin']), async (req: any, res) => {
+    try {
+      const feeGroupId = req.query.feeGroupId;
+      
+      if (feeGroupId) {
+        const feeItemGroups = await storage.getFeeItemGroupsByFeeGroup(parseInt(feeGroupId));
+        res.json(feeItemGroups);
+      } else {
+        const feeItemGroups = await storage.getAllFeeItemGroups();
+        res.json(feeItemGroups);
+      }
+    } catch (error) {
+      console.error("Error fetching fee item groups:", error);
+      res.status(500).json({ message: "Failed to fetch fee item groups" });
+    }
+  });
+
+  app.get('/api/fee-item-groups/:id', requireRole(['admin', 'super_admin']), async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const feeItemGroup = await storage.getFeeItemGroupWithItems(id);
+      
+      if (!feeItemGroup) {
+        return res.status(404).json({ message: "Fee item group not found" });
+      }
+      
+      res.json(feeItemGroup);
+    } catch (error) {
+      console.error("Error fetching fee item group:", error);
+      res.status(500).json({ message: "Failed to fetch fee item group" });
+    }
+  });
+
+  app.post('/api/fee-item-groups', requireRole(['admin', 'super_admin']), async (req: any, res) => {
+    try {
+      const { feeGroupId, name, description, displayOrder } = req.body;
+      
+      if (!feeGroupId || !name) {
+        return res.status(400).json({ message: "Fee group ID and name are required" });
+      }
+
+      const feeItemGroupData = {
+        feeGroupId,
+        name,
+        description: description || null,
+        displayOrder: displayOrder || 0,
+        author: req.user?.email || 'System'
+      };
+
+      const feeItemGroup = await storage.createFeeItemGroup(feeItemGroupData);
+      res.status(201).json(feeItemGroup);
+    } catch (error) {
+      console.error("Error creating fee item group:", error);
+      res.status(500).json({ message: "Failed to create fee item group" });
+    }
+  });
+
+  app.put('/api/fee-item-groups/:id', requireRole(['admin', 'super_admin']), async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { name, description, displayOrder } = req.body;
+      
+      const updateData: any = {};
+      if (name !== undefined) updateData.name = name;
+      if (description !== undefined) updateData.description = description;
+      if (displayOrder !== undefined) updateData.displayOrder = displayOrder;
+      
+      const feeItemGroup = await storage.updateFeeItemGroup(id, updateData);
+      
+      if (!feeItemGroup) {
+        return res.status(404).json({ message: "Fee item group not found" });
+      }
+      
+      res.json(feeItemGroup);
+    } catch (error) {
+      console.error("Error updating fee item group:", error);
+      res.status(500).json({ message: "Failed to update fee item group" });
+    }
+  });
+
+  app.delete('/api/fee-item-groups/:id', requireRole(['admin', 'super_admin']), async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const success = await storage.deleteFeeItemGroup(id);
+      
+      if (success) {
+        res.json({ success: true });
+      } else {
+        res.status(404).json({ message: "Fee item group not found" });
+      }
+    } catch (error) {
+      console.error("Error deleting fee item group:", error);
+      res.status(500).json({ message: "Failed to delete fee item group" });
+    }
+  });
+
+  // Campaigns endpoints
   app.get('/api/campaigns', requireRole(['admin', 'super_admin']), async (req: any, res) => {
     try {
       // For MVP, return empty array until database is properly set up
