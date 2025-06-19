@@ -1,10 +1,11 @@
 import { Link, useLocation } from "wouter";
-import { CreditCard, BarChart3, Store, Users, Receipt, FileText, LogOut, User, MapPin, Shield, Upload, UserPlus, DollarSign } from "lucide-react";
+import { CreditCard, BarChart3, Store, Users, Receipt, FileText, LogOut, User, MapPin, Shield, Upload, UserPlus, DollarSign, ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import { canAccessAnalytics, canAccessMerchants, canAccessAgents, canAccessTransactions } from "@/lib/authUtils";
 import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
 
 const baseNavigation = [
   { name: "Dashboard", href: "/", icon: BarChart3, requiresRole: ['merchant', 'agent', 'admin', 'corporate', 'super_admin'] },
@@ -24,6 +25,7 @@ const baseNavigation = [
 export function Sidebar() {
   const [location] = useLocation();
   const { user, logout } = useAuth();
+  const [isCollapsed, setIsCollapsed] = useState(false);
 
   // Fetch PDF forms that should appear in navigation
   const { data: pdfForms = [] } = useQuery({
@@ -65,31 +67,61 @@ export function Sidebar() {
   };
 
   return (
-    <div className="corecrm-sidebar w-64 min-h-screen flex flex-col">
+    <div className={cn("corecrm-sidebar min-h-screen flex flex-col transition-all duration-300", isCollapsed ? "w-16" : "w-64")}>
       {/* Logo */}
-      <div className="p-6 border-b border-gray-200">
+      <div className={cn("border-b border-gray-200 relative", isCollapsed ? "p-4" : "p-6")}>
         <div className="flex items-center space-x-3">
           <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
             <CreditCard className="w-6 h-6 text-white" />
           </div>
-          <div>
-            <h1 className="text-xl font-bold text-gray-900">CoreCRM</h1>
-            <p className="text-sm text-gray-500">Payment Management</p>
-          </div>
+          {!isCollapsed && (
+            <div>
+              <h1 className="text-xl font-bold text-gray-900">CoreCRM</h1>
+              <p className="text-sm text-gray-500">Payment Management</p>
+            </div>
+          )}
         </div>
+        
+        {/* Collapse Toggle Button */}
+        <button
+          onClick={() => setIsCollapsed(!isCollapsed)}
+          className="absolute -right-3 top-1/2 -translate-y-1/2 w-6 h-6 bg-white border border-gray-200 rounded-full flex items-center justify-center hover:bg-gray-50 transition-colors shadow-sm"
+        >
+          {isCollapsed ? (
+            <ChevronRight className="w-3 h-3 text-gray-600" />
+          ) : (
+            <ChevronLeft className="w-3 h-3 text-gray-600" />
+          )}
+        </button>
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 p-4 space-y-2">
+      <nav className={cn("flex-1 space-y-2", isCollapsed ? "p-2" : "p-4")}>
         {getFilteredNavigation().map((item) => {
           const isActive = location === item.href;
           const Icon = item.icon;
           
           return (
-            <Link key={item.name} href={item.href} className={cn("corecrm-nav-item", isActive && "active")}>
-              <Icon className="w-5 h-5" />
-              <span className="font-medium">{item.name}</span>
-            </Link>
+            <div key={item.name} className="relative group">
+              <Link 
+                href={item.href} 
+                className={cn(
+                  "corecrm-nav-item", 
+                  isActive && "active",
+                  isCollapsed ? "justify-center px-3 py-3" : "px-4 py-2"
+                )}
+              >
+                <Icon className="w-5 h-5" />
+                {!isCollapsed && <span className="font-medium">{item.name}</span>}
+              </Link>
+              
+              {/* Tooltip for collapsed state */}
+              {isCollapsed && (
+                <div className="absolute left-full top-1/2 -translate-y-1/2 ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-50 whitespace-nowrap">
+                  {item.name}
+                </div>
+              )}
+            </div>
           );
         })}
       </nav>

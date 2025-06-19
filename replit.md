@@ -478,6 +478,12 @@ The application is configured for deployment on Replit with:
   - Added sample Wells Fargo "E-commerce Campaign" to backend data with 12 assigned merchants and $95,000 revenue
   - Updated TypeScript interfaces to support 'Esquire' | 'Merrick' | 'Wells Fargo' acquirer types
   - Complete Wells Fargo integration across frontend filtering, creation forms, and backend sample data
+- June 19, 2025. Fixed agents endpoint authentication in development mode
+  - Resolved 401 Unauthorized errors when accessing /api/agents endpoint
+  - Updated requireRole middleware to properly handle session-based authentication in development mode
+  - Added development mode fallback authentication to admin-demo-123 user for role-based endpoints
+  - Agents page now displays all agents correctly with proper authentication handling
+  - Fixed role-based access control to work seamlessly in both development and production environments
 
 ## User Preferences
 Preferred communication style: Simple, everyday language.
