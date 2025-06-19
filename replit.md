@@ -459,6 +459,12 @@ The application is configured for deployment on Replit with:
   - Adjusted header title section width to match CoreCRM sidebar logo section (w-64 = 256px)
   - Created visual alignment between sidebar CoreCRM box and page headers throughout application
   - Enhanced professional appearance with consistent width constraints across navigation and content areas
+- June 19, 2025. Fixed header alignment and subtitle overflow issues
+  - Changed header layout from fixed w-64 to flexible flex-1 with max-w-lg to accommodate subtitle text overflow
+  - Updated padding from px-6 py-4 to p-6 to match CoreCRM sidebar height exactly
+  - Reduced title font size from text-2xl to text-xl for proper proportions matching sidebar
+  - Achieved perfect left corner alignment between CoreCRM sidebar and page headers with identical heights
+  - Eliminated subtitle text overflow while maintaining professional visual consistency
 
 ## User Preferences
 Preferred communication style: Simple, everyday language.

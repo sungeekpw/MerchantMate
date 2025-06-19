@@ -249,6 +249,9 @@ export default function CampaignsPage() {
           </div>
 
           <Card>
+            <CardHeader>
+              <CardTitle>Active Campaigns</CardTitle>
+            </CardHeader>
             <CardContent>
               {campaignsLoading ? (
                 <div className="text-center py-8 text-muted-foreground">Loading campaigns...</div>
