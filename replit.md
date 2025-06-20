@@ -129,6 +129,12 @@ The application is configured for deployment on Replit with:
 - `SESSION_SECRET`: Session encryption key (optional, has fallback)
 
 ## Changelog
+- June 20, 2025. Fixed application startup and database connection issues
+  - Resolved WebSocket connection timeouts to Neon PostgreSQL database causing application startup failures
+  - Optimized database pool configuration with minimal connection count and appropriate timeout settings
+  - Enhanced graceful shutdown handling with timeout protection and error handling
+  - Added uncaught exception and unhandled rejection handlers to prevent hanging connections
+  - Application now starts successfully and maintains stable database connectivity
 - June 17, 2025. Initial setup
 - June 17, 2025. Added Google Maps address validation and autocomplete
   - Integrated Google Maps Geocoding API for address validation
