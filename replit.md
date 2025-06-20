@@ -129,6 +129,11 @@ The application is configured for deployment on Replit with:
 - `SESSION_SECRET`: Session encryption key (optional, has fallback)
 
 ## Changelog
+- June 20, 2025. Implemented auto-save functionality for business ownership section
+  - Added immediate auto-save when users finish entering owner name, email, or ownership percentage
+  - Owner information now saves to database when each field loses focus, not just when clicking Next
+  - Ensures signature request emails work properly as owner data persists when applicants return
+  - Fixed issue where owner information was lost if users navigated away after adding owners but before clicking Next
 - June 20, 2025. Fixed application startup and database connection issues
   - Resolved WebSocket connection timeouts to Neon PostgreSQL database causing application startup failures
   - Optimized database pool configuration with minimal connection count and appropriate timeout settings

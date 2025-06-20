@@ -1869,6 +1869,34 @@ export default function EnhancedPdfWizard() {
           handleFieldChange('owners', newOwners);
         };
 
+        // Auto-save owner data to database when key fields lose focus
+        const handleOwnerBlur = async (index: number, field: string) => {
+          if ((field === 'percentage' || field === 'name' || field === 'email') && isProspectMode && prospectData?.prospect) {
+            const updatedFormData = { ...formData, owners };
+            
+            try {
+              const response = await fetch(`/api/prospects/${prospectData.prospect.id}/save-form-data`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ 
+                  formData: updatedFormData, 
+                  currentStep: currentStep
+                }),
+              });
+              
+              if (response.ok) {
+                console.log(`Auto-saved owner ${index + 1} data after ${field} entry`);
+              } else {
+                console.error('Auto-save failed for owner data:', response.status);
+              }
+            } catch (error) {
+              console.error('Auto-save error for owner data:', error);
+            }
+          }
+        };
+
         return (
           <div className="space-y-6">
             <div className="flex items-center justify-between">
@@ -1979,6 +2007,7 @@ export default function EnhancedPdfWizard() {
                         <Input
                           value={owner.name || ''}
                           onChange={(e) => updateOwner(index, 'name', e.target.value)}
+                          onBlur={() => handleOwnerBlur(index, 'name')}
                           placeholder="Full name"
                           className="mt-1"
                         />
@@ -1990,6 +2019,7 @@ export default function EnhancedPdfWizard() {
                           type="email"
                           value={owner.email || ''}
                           onChange={(e) => updateOwner(index, 'email', e.target.value)}
+                          onBlur={() => handleOwnerBlur(index, 'email')}
                           placeholder="owner@company.com"
                           className="mt-1"
                         />
@@ -2004,6 +2034,7 @@ export default function EnhancedPdfWizard() {
                           step="0.01"
                           value={owner.percentage || ''}
                           onChange={(e) => updateOwner(index, 'percentage', e.target.value)}
+                          onBlur={() => handleOwnerBlur(index, 'percentage')}
                           placeholder="25.00"
                           className="mt-1"
                         />
