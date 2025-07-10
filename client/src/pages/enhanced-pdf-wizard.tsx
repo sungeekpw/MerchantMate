@@ -739,6 +739,14 @@ export default function EnhancedPdfWizard() {
   // Create hardcoded form sections for prospect mode
   const prospectFormSections: FormSection[] = [
     {
+      name: 'Campaign Details',
+      description: 'Campaign information and equipment selection',
+      icon: FileText,
+      fields: [
+        { id: 0, fieldName: 'campaignInfo', fieldType: 'campaign', fieldLabel: 'Campaign Information', isRequired: false, options: null, defaultValue: null, validation: null, position: 0, section: 'Campaign Details' },
+      ]
+    },
+    {
       name: 'Merchant Information',
       description: 'Basic business details, contact information, and location data',
       icon: Building,
@@ -1823,6 +1831,134 @@ export default function EnhancedPdfWizard() {
               readOnly
               className="bg-gray-50 cursor-not-allowed"
             />
+          </div>
+        );
+
+      case 'campaign':
+        if (!prospectData?.campaign) {
+          return (
+            <div className="space-y-4">
+              <div className="text-center py-8 text-gray-500">
+                <p>Campaign information not available</p>
+              </div>
+            </div>
+          );
+        }
+
+        const campaign = prospectData.campaign;
+        const campaignEquipment = prospectData.campaignEquipment || [];
+
+        return (
+          <div className="space-y-6">
+            {/* Campaign Overview Card */}
+            <Card className="border-blue-200 bg-blue-50">
+              <CardHeader className="pb-4">
+                <CardTitle className="text-lg font-semibold text-blue-900 flex items-center gap-2">
+                  <FileText className="w-5 h-5" />
+                  Campaign Details
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-sm font-medium text-gray-700">Campaign Name</Label>
+                    <p className="text-gray-900 font-medium">{campaign.name}</p>
+                  </div>
+                  <div>
+                    <Label className="text-sm font-medium text-gray-700">Acquirer</Label>
+                    <p className="text-gray-900 font-medium">{campaign.acquirer}</p>
+                  </div>
+                  <div>
+                    <Label className="text-sm font-medium text-gray-700">Pricing Type</Label>
+                    <p className="text-gray-900 font-medium">{campaign.pricingType || 'Not configured'}</p>
+                  </div>
+                  <div>
+                    <Label className="text-sm font-medium text-gray-700">Status</Label>
+                    <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
+                      campaign.isActive 
+                        ? 'bg-green-100 text-green-800' 
+                        : 'bg-red-100 text-red-800'
+                    }`}>
+                      {campaign.isActive ? 'Active' : 'Inactive'}
+                    </span>
+                  </div>
+                </div>
+                {campaign.description && (
+                  <div className="mt-4">
+                    <Label className="text-sm font-medium text-gray-700">Description</Label>
+                    <p className="text-gray-700 text-sm mt-1">{campaign.description}</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Equipment Selection */}
+            {campaignEquipment.length > 0 && (
+              <Card>
+                <CardHeader className="pb-4">
+                  <CardTitle className="text-lg font-semibold text-gray-900">
+                    Available Equipment
+                  </CardTitle>
+                  <p className="text-sm text-gray-600">
+                    Select the equipment you would like for your merchant processing setup:
+                  </p>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {campaignEquipment.map((equipment: any) => (
+                      <div
+                        key={equipment.id}
+                        className={`border rounded-lg p-4 cursor-pointer transition-all ${
+                          formData.selectedEquipment?.includes(equipment.id)
+                            ? 'border-blue-500 bg-blue-50'
+                            : 'border-gray-200 hover:border-gray-300'
+                        }`}
+                        onClick={() => {
+                          const currentSelected = formData.selectedEquipment || [];
+                          const isSelected = currentSelected.includes(equipment.id);
+                          const newSelected = isSelected
+                            ? currentSelected.filter((id: number) => id !== equipment.id)
+                            : [...currentSelected, equipment.id];
+                          
+                          handleFieldChange('selectedEquipment', newSelected);
+                        }}
+                      >
+                        <div className="flex items-start gap-3">
+                          {equipment.imageData && (
+                            <img
+                              src={`data:image/jpeg;base64,${equipment.imageData}`}
+                              alt={equipment.name}
+                              className="w-12 h-12 object-cover rounded"
+                            />
+                          )}
+                          <div className="flex-1">
+                            <h4 className="font-medium text-gray-900">{equipment.name}</h4>
+                            <p className="text-sm text-gray-600 mt-1">{equipment.description}</p>
+                            {equipment.specifications && (
+                              <p className="text-xs text-gray-500 mt-2">{equipment.specifications}</p>
+                            )}
+                          </div>
+                          <div className="flex-shrink-0">
+                            <div className={`w-5 h-5 rounded border-2 flex items-center justify-center ${
+                              formData.selectedEquipment?.includes(equipment.id)
+                                ? 'border-blue-500 bg-blue-500'
+                                : 'border-gray-300'
+                            }`}>
+                              {formData.selectedEquipment?.includes(equipment.id) && (
+                                <Check className="w-3 h-3 text-white" />
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="text-sm text-gray-500 mt-4">
+                    You can select multiple equipment items. Final equipment will be confirmed during the approval process.
+                  </p>
+                </CardContent>
+              </Card>
+            )}
           </div>
         );
 

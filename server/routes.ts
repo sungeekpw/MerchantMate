@@ -1515,9 +1515,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get agent information
       const agent = await storage.getAgent(prospect.agentId);
 
+      // Get campaign assignment for this prospect
+      const campaignAssignment = await storage.getProspectCampaignAssignment(prospect.id);
+      let campaign = null;
+      let campaignEquipment = [];
+
+      if (campaignAssignment) {
+        // Get campaign details
+        campaign = await storage.getCampaignWithDetails(campaignAssignment.campaignId);
+        
+        // Get equipment associated with this campaign using the correct method
+        campaignEquipment = await storage.getCampaignEquipment(campaignAssignment.campaignId);
+      }
+
       res.json({
         prospect,
-        agent
+        agent,
+        campaign,
+        campaignEquipment
       });
     } catch (error) {
       console.error("Error fetching prospect by token:", error);

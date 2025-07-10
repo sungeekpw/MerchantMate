@@ -129,6 +129,13 @@ The application is configured for deployment on Replit with:
 - `SESSION_SECRET`: Session encryption key (optional, has fallback)
 
 ## Changelog
+- January 10, 2025. Implemented mandatory campaign selection for prospect creation
+  - Added campaignId field to prospect form schema with required validation
+  - Added Campaign Assignment dropdown to prospect creation form showing campaign name and acquirer
+  - Updated backend API to require campaign selection and automatically create campaignAssignments records
+  - Campaign selection is now mandatory when creating new prospects - users must select from available campaigns
+  - System automatically links prospects to campaigns via campaignAssignments table for tracking and reporting
+  - Enhanced prospect creation workflow with proper campaign-prospect relationship management
 - January 10, 2025. Fixed critical Campaign Management API schema mismatch causing "Failed to fetch campaign" errors
   - Resolved schema inconsistency between users table (varchar IDs) and campaigns table (integer createdBy references)
   - Updated campaigns.createdBy field from integer to varchar to match users.id field type
