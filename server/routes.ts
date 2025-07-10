@@ -3814,14 +3814,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // ============================================================================
-  // EXTERNAL API ENDPOINTS - Authenticated via API Keys
+  // PUBLIC API ENDPOINTS - Authenticated via API Keys
   // ============================================================================
 
-  // Apply API authentication middleware to all /api/external routes
-  app.use('/api/external', logApiRequest, authenticateApiKey);
+  // Apply API authentication middleware to all /api/v1 routes
+  app.use('/api/v1', logApiRequest, authenticateApiKey);
 
-  // External merchants API
-  app.get('/api/external/merchants', requireApiPermission('merchants:read'), async (req: any, res) => {
+  // Public merchants API
+  app.get('/api/v1/merchants', requireApiPermission('merchants:read'), async (req: any, res) => {
     try {
       const merchants = await storage.getAllMerchants();
       res.json(merchants);
@@ -3834,7 +3834,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/external/merchants/:id', requireApiPermission('merchants:read'), async (req: any, res) => {
+  app.get('/api/v1/merchants/:id', requireApiPermission('merchants:read'), async (req: any, res) => {
     try {
       const id = parseInt(req.params.id);
       const merchant = await storage.getMerchant(id);
@@ -3856,7 +3856,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/external/merchants', requireApiPermission('merchants:write'), async (req: any, res) => {
+  app.post('/api/v1/merchants', requireApiPermission('merchants:write'), async (req: any, res) => {
     try {
       const result = insertMerchantSchema.safeParse(req.body);
       if (!result.success) {
@@ -3878,8 +3878,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // External agents API
-  app.get('/api/external/agents', requireApiPermission('agents:read'), async (req: any, res) => {
+  // Public agents API
+  app.get('/api/v1/agents', requireApiPermission('agents:read'), async (req: any, res) => {
     try {
       const agents = await storage.getAllAgents();
       res.json(agents);
@@ -3892,7 +3892,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/external/agents/:id', requireApiPermission('agents:read'), async (req: any, res) => {
+  app.get('/api/v1/agents/:id', requireApiPermission('agents:read'), async (req: any, res) => {
     try {
       const id = parseInt(req.params.id);
       const agent = await storage.getAgent(id);
@@ -3914,8 +3914,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // External transactions API
-  app.get('/api/external/transactions', requireApiPermission('transactions:read'), async (req: any, res) => {
+  // Public transactions API
+  app.get('/api/v1/transactions', requireApiPermission('transactions:read'), async (req: any, res) => {
     try {
       const transactions = await storage.getAllTransactions();
       res.json(transactions);
@@ -3928,7 +3928,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/external/transactions', requireApiPermission('transactions:write'), async (req: any, res) => {
+  app.post('/api/v1/transactions', requireApiPermission('transactions:write'), async (req: any, res) => {
     try {
       const result = insertTransactionSchema.safeParse(req.body);
       if (!result.success) {

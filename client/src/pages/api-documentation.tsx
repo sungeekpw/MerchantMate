@@ -217,7 +217,7 @@ export default function ApiDocumentation() {
                   </CardHeader>
                   <CardContent>
                     <code className="text-sm bg-gray-100 px-2 py-1 rounded">
-                      https://your-domain.replit.app/api
+                      https://your-domain.replit.app/api/v1
                     </code>
                   </CardContent>
                 </Card>
@@ -392,7 +392,7 @@ export default function ApiDocumentation() {
                     <div className="border rounded-lg p-4">
                       <div className="flex items-center gap-2 mb-2">
                         <Badge variant="outline" className="bg-green-50 text-green-700">GET</Badge>
-                        <code className="text-sm">/api/merchants</code>
+                        <code className="text-sm">/api/v1/merchants</code>
                       </div>
                       <p className="text-sm text-gray-600">Retrieve all merchants</p>
                       <p className="text-xs text-gray-500 mt-1">Required permission: merchants:read</p>
@@ -401,7 +401,7 @@ export default function ApiDocumentation() {
                     <div className="border rounded-lg p-4">
                       <div className="flex items-center gap-2 mb-2">
                         <Badge variant="outline" className="bg-green-50 text-green-700">GET</Badge>
-                        <code className="text-sm">/api/merchants/:id</code>
+                        <code className="text-sm">/api/v1/merchants/:id</code>
                       </div>
                       <p className="text-sm text-gray-600">Retrieve a specific merchant by ID</p>
                       <p className="text-xs text-gray-500 mt-1">Required permission: merchants:read</p>
@@ -410,7 +410,7 @@ export default function ApiDocumentation() {
                     <div className="border rounded-lg p-4">
                       <div className="flex items-center gap-2 mb-2">
                         <Badge variant="outline" className="bg-blue-50 text-blue-700">POST</Badge>
-                        <code className="text-sm">/api/merchants</code>
+                        <code className="text-sm">/api/v1/merchants</code>
                       </div>
                       <p className="text-sm text-gray-600">Create a new merchant</p>
                       <p className="text-xs text-gray-500 mt-1">Required permission: merchants:write</p>
@@ -419,7 +419,7 @@ export default function ApiDocumentation() {
                     <div className="border rounded-lg p-4">
                       <div className="flex items-center gap-2 mb-2">
                         <Badge variant="outline" className="bg-yellow-50 text-yellow-700">PUT</Badge>
-                        <code className="text-sm">/api/merchants/:id</code>
+                        <code className="text-sm">/api/v1/merchants/:id</code>
                       </div>
                       <p className="text-sm text-gray-600">Update an existing merchant</p>
                       <p className="text-xs text-gray-500 mt-1">Required permission: merchants:write</p>
@@ -428,7 +428,7 @@ export default function ApiDocumentation() {
                     <div className="border rounded-lg p-4">
                       <div className="flex items-center gap-2 mb-2">
                         <Badge variant="outline" className="bg-red-50 text-red-700">DELETE</Badge>
-                        <code className="text-sm">/api/merchants/:id</code>
+                        <code className="text-sm">/api/v1/merchants/:id</code>
                       </div>
                       <p className="text-sm text-gray-600">Delete a merchant</p>
                       <p className="text-xs text-gray-500 mt-1">Required permission: merchants:delete</p>
@@ -443,7 +443,7 @@ export default function ApiDocumentation() {
                     <div className="border rounded-lg p-4">
                       <div className="flex items-center gap-2 mb-2">
                         <Badge variant="outline" className="bg-green-50 text-green-700">GET</Badge>
-                        <code className="text-sm">/api/agents</code>
+                        <code className="text-sm">/api/v1/agents</code>
                       </div>
                       <p className="text-sm text-gray-600">Retrieve all agents</p>
                       <p className="text-xs text-gray-500 mt-1">Required permission: agents:read</p>
@@ -452,7 +452,7 @@ export default function ApiDocumentation() {
                     <div className="border rounded-lg p-4">
                       <div className="flex items-center gap-2 mb-2">
                         <Badge variant="outline" className="bg-green-50 text-green-700">GET</Badge>
-                        <code className="text-sm">/api/agents/:id</code>
+                        <code className="text-sm">/api/v1/agents/:id</code>
                       </div>
                       <p className="text-sm text-gray-600">Retrieve a specific agent by ID</p>
                       <p className="text-xs text-gray-500 mt-1">Required permission: agents:read</p>
@@ -461,7 +461,7 @@ export default function ApiDocumentation() {
                     <div className="border rounded-lg p-4">
                       <div className="flex items-center gap-2 mb-2">
                         <Badge variant="outline" className="bg-blue-50 text-blue-700">POST</Badge>
-                        <code className="text-sm">/api/agents</code>
+                        <code className="text-sm">/api/v1/agents</code>
                       </div>
                       <p className="text-sm text-gray-600">Create a new agent</p>
                       <p className="text-xs text-gray-500 mt-1">Required permission: agents:write</p>
@@ -476,7 +476,7 @@ export default function ApiDocumentation() {
                     <div className="border rounded-lg p-4">
                       <div className="flex items-center gap-2 mb-2">
                         <Badge variant="outline" className="bg-green-50 text-green-700">GET</Badge>
-                        <code className="text-sm">/api/transactions</code>
+                        <code className="text-sm">/api/v1/transactions</code>
                       </div>
                       <p className="text-sm text-gray-600">Retrieve all transactions</p>
                       <p className="text-xs text-gray-500 mt-1">Required permission: transactions:read</p>
@@ -485,7 +485,7 @@ export default function ApiDocumentation() {
                     <div className="border rounded-lg p-4">
                       <div className="flex items-center gap-2 mb-2">
                         <Badge variant="outline" className="bg-blue-50 text-blue-700">POST</Badge>
-                        <code className="text-sm">/api/transactions</code>
+                        <code className="text-sm">/api/v1/transactions</code>
                       </div>
                       <p className="text-sm text-gray-600">Create a new transaction</p>
                       <p className="text-xs text-gray-500 mt-1">Required permission: transactions:write</p>
