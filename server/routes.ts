@@ -3274,14 +3274,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.put('/api/campaigns/:id', requireRole(['admin', 'super_admin']), async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
-      const { feeValues, equipmentIds, ...campaignData } = req.body;
+      const { feeValues, equipmentIds, pricingTypeIds, ...campaignData } = req.body;
+      
+      console.log('Campaign update request:', { id, campaignData, feeValues, equipmentIds, pricingTypeIds });
       
       // Get current user from session
       const session = req.session as SessionData;
       const userId = session?.userId;
       
+      // Handle pricing type ID properly - take the first one if it's an array
+      const pricingTypeId = Array.isArray(pricingTypeIds) && pricingTypeIds.length > 0 
+        ? pricingTypeIds[0] 
+        : campaignData.pricingTypeId;
+      
       const updateCampaign = {
         ...campaignData,
+        pricingTypeId,
         updatedBy: userId ? parseInt(userId.replace('admin-demo-', '')) : undefined,
       };
 
@@ -3291,6 +3299,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: 'Campaign not found' });
       }
       
+      console.log('Campaign updated successfully:', campaign);
       res.json(campaign);
     } catch (error) {
       console.error('Error updating campaign:', error);

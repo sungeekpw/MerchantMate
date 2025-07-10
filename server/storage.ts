@@ -558,10 +558,7 @@ export class DatabaseStorage implements IStorage {
 
 
 
-  async updateCampaign(id: number, updates: Partial<InsertCampaign>): Promise<Campaign | undefined> {
-    const [updated] = await db.update(campaigns).set(updates).where(eq(campaigns.id, id)).returning();
-    return updated || undefined;
-  }
+
 
   async deactivateCampaign(id: number): Promise<boolean> {
     const result = await db.update(campaigns).set({ isActive: false }).where(eq(campaigns.id, id));
