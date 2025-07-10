@@ -620,13 +620,13 @@ export const campaigns = pgTable("campaigns", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(), // Campaign name (not required to be unique)
   description: text("description"),
-  pricingTypeId: integer("pricing_type_id").notNull().references(() => pricingTypes.id),
+  pricingTypeId: integer("pricing_type_id").references(() => pricingTypes.id),
   acquirer: text("acquirer").notNull(), // "Esquire", "Merrick", etc.
   currency: text("currency").notNull().default("USD"),
   equipment: text("equipment"), // Deprecated - use campaignEquipment junction table instead
   isActive: boolean("is_active").notNull().default(true),
   isDefault: boolean("is_default").notNull().default(false), // If this is a default campaign
-  createdBy: integer("created_by").references(() => users.id),
+  createdBy: varchar("created_by").references(() => users.id),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -650,7 +650,7 @@ export const campaignAssignments = pgTable("campaign_assignments", {
   campaignId: integer("campaign_id").notNull().references(() => campaigns.id),
   prospectId: integer("prospect_id").references(() => merchantProspects.id, { onDelete: "cascade" }),
   applicationId: integer("application_id"), // Future reference to applications table
-  assignedBy: integer("assigned_by").references(() => users.id),
+  assignedBy: varchar("assigned_by").references(() => users.id),
   assignedAt: timestamp("assigned_at").defaultNow().notNull(),
   isActive: boolean("is_active").notNull().default(true),
 });

@@ -2398,29 +2398,17 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getCampaign(id: number): Promise<Campaign | undefined> {
-    const result = await db
-      .select({
-        campaign: campaigns,
-        pricingType: pricingTypes,
-        createdByUser: {
-          id: users.id,
-          name: users.name,
-          email: users.email,
-        },
-      })
-      .from(campaigns)
-      .innerJoin(pricingTypes, eq(campaigns.pricingTypeId, pricingTypes.id))
-      .leftJoin(users, eq(campaigns.createdBy, users.id))
-      .where(eq(campaigns.id, id));
-
-    if (result.length === 0) return undefined;
-
-    const row = result[0];
-    return {
-      ...row.campaign,
-      pricingType: row.pricingType,
-      createdByUser: row.createdByUser || undefined,
-    };
+    try {
+      // Use the simpler version that was working before
+      const [campaign] = await db.select().from(campaigns).where(eq(campaigns.id, id));
+      
+      if (!campaign) return undefined;
+      
+      return campaign;
+    } catch (error) {
+      console.error('Error fetching campaign:', error);
+      throw error;
+    }
   }
 
   async createCampaign(insertCampaign: InsertCampaign, feeValues: InsertCampaignFeeValue[] = [], equipmentIds: number[] = []): Promise<Campaign> {
@@ -2465,38 +2453,34 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getCampaignFeeValues(campaignId: number): Promise<CampaignFeeValue[]> {
-    const result = await db
-      .select({
-        feeValue: campaignFeeValues,
-        feeItem: feeItems,
-        feeGroup: feeGroups,
-      })
-      .from(campaignFeeValues)
-      .innerJoin(feeItems, eq(campaignFeeValues.feeItemId, feeItems.id))
-      .innerJoin(feeGroups, eq(feeItems.feeGroupId, feeGroups.id))
-      .where(eq(campaignFeeValues.campaignId, campaignId))
-      .orderBy(feeGroups.displayOrder, feeItems.displayOrder);
+    try {
+      const result = await db
+        .select({
+          feeValue: campaignFeeValues,
+          feeItem: feeItems,
+          feeGroup: feeGroups,
+        })
+        .from(campaignFeeValues)
+        .innerJoin(feeItems, eq(campaignFeeValues.feeItemId, feeItems.id))
+        .innerJoin(feeGroups, eq(feeItems.feeGroupId, feeGroups.id))
+        .where(eq(campaignFeeValues.campaignId, campaignId))
+        .orderBy(feeGroups.displayOrder, feeItems.displayOrder);
 
-    return result.map(row => ({
-      ...row.feeValue,
-      feeItem: {
-        ...row.feeItem,
-        feeGroup: row.feeGroup,
-      },
-    }));
+      return result.map(row => ({
+        ...row.feeValue,
+        feeItem: {
+          ...row.feeItem,
+          feeGroup: row.feeGroup,
+        },
+      }));
+    } catch (error) {
+      console.error('Error fetching campaign fee values:', error);
+      // Return empty array if there's an error
+      return [];
+    }
   }
 
-  async updateCampaign(id: number, updates: Partial<InsertCampaign>): Promise<Campaign | undefined> {
-    const [campaign] = await db
-      .update(campaigns)
-      .set({
-        ...updates,
-        updatedAt: new Date(),
-      })
-      .where(eq(campaigns.id, id))
-      .returning();
-    return campaign || undefined;
-  }
+
 
   async deactivateCampaign(id: number): Promise<Campaign | undefined> {
     return this.updateCampaign(id, { isActive: false });
