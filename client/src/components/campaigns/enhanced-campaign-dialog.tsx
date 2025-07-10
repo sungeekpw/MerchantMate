@@ -57,6 +57,7 @@ interface EquipmentItem {
   name: string;
   description?: string;
   imageUrl?: string;
+  imageData?: string;
   specifications?: string;
   isActive: boolean;
 }
@@ -604,9 +605,9 @@ export function EnhancedCampaignDialog({ open, onOpenChange, onCampaignCreated }
                             />
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center space-x-3 mb-2">
-                                {item.imageUrl && (
+                                {(item.imageUrl || item.imageData) && (
                                   <img
-                                    src={item.imageUrl}
+                                    src={item.imageUrl || item.imageData}
                                     alt={item.name}
                                     className="w-12 h-12 object-contain rounded bg-muted p-1"
                                   />
