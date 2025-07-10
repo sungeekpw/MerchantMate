@@ -508,35 +508,38 @@ export default function CampaignsPage() {
             <CardContent>
               {campaignToEdit.equipment && campaignToEdit.equipment.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {campaignToEdit.equipment.map((equipment) => (
-                    <div key={equipment.id} className="border rounded-lg p-4 space-y-3">
-                      <div className="flex items-center space-x-3">
-                        {(equipment.imageUrl || equipment.imageData) && (
-                          <img
-                            src={equipment.imageData ? `data:image/png;base64,${equipment.imageData}` : equipment.imageUrl}
-                            alt={equipment.name}
-                            className="w-12 h-12 object-cover rounded"
-                          />
+                  {campaignToEdit.equipment.map((campaignEquipment) => {
+                    const equipment = campaignEquipment.equipmentItem || campaignEquipment;
+                    return (
+                      <div key={campaignEquipment.id} className="border rounded-lg p-4 space-y-3">
+                        <div className="flex items-center space-x-3">
+                          {(equipment.imageUrl || equipment.imageData) && (
+                            <img
+                              src={equipment.imageData ? `data:image/png;base64,${equipment.imageData}` : equipment.imageUrl}
+                              alt={equipment.name}
+                              className="w-12 h-12 object-cover rounded"
+                            />
+                          )}
+                          <div>
+                            <h3 className="font-medium">{equipment.name}</h3>
+                            <Badge variant="secondary" className="text-xs">
+                              {equipment.isActive ? 'Active' : 'Inactive'}
+                            </Badge>
+                          </div>
+                        </div>
+                        {equipment.description && (
+                          <p className="text-sm text-muted-foreground">
+                            {equipment.description}
+                          </p>
                         )}
-                        <div>
-                          <h3 className="font-medium">{equipment.name}</h3>
-                          <Badge variant="secondary" className="text-xs">
-                            {equipment.isActive ? 'Active' : 'Inactive'}
-                          </Badge>
-                        </div>
+                        {equipment.specifications && (
+                          <div className="text-xs text-muted-foreground">
+                            <strong>Specs:</strong> {String(equipment.specifications)}
+                          </div>
+                        )}
                       </div>
-                      {equipment.description && (
-                        <p className="text-sm text-muted-foreground">
-                          {equipment.description}
-                        </p>
-                      )}
-                      {equipment.specifications && (
-                        <div className="text-xs text-muted-foreground">
-                          <strong>Specs:</strong> {String(equipment.specifications)}
-                        </div>
-                      )}
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               ) : (
                 <div className="text-center py-8 text-muted-foreground">
