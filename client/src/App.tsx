@@ -436,6 +436,23 @@ function AuthenticatedApp() {
               );
             }}
           </Route>
+          <Route path="/campaigns/:id/edit">
+            {() => {
+              if (!canAccessAgentManagement(user)) return <NotFound />;
+              const pageInfo = { title: "Edit Campaign" };
+              return (
+                <>
+                  <Header 
+                    title={pageInfo.title} 
+                    onSearch={setGlobalSearch}
+                  />
+                  <main className="flex-1 overflow-auto bg-gray-50">
+                    <Campaigns />
+                  </main>
+                </>
+              );
+            }}
+          </Route>
           <Route path="/equipment">
             {() => {
               if (!canAccessAgentManagement(user)) return <NotFound />;

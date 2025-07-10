@@ -235,7 +235,7 @@ export interface IStorage {
   getCampaignWithDetails(id: number): Promise<CampaignWithDetails | undefined>;
   getCampaignsByAcquirer(acquirer: string): Promise<CampaignWithDetails[]>;
   createCampaign(campaign: InsertCampaign, feeValues?: InsertCampaignFeeValue[], equipmentIds?: number[]): Promise<Campaign>;
-  updateCampaign(id: number, updates: Partial<InsertCampaign>): Promise<Campaign | undefined>;
+  updateCampaign(id: number, updates: Partial<InsertCampaign>, feeValues?: InsertCampaignFeeValue[], equipmentIds?: number[]): Promise<Campaign | undefined>;
   deactivateCampaign(id: number): Promise<boolean>;
   searchCampaigns(query: string): Promise<CampaignWithDetails[]>;
   
@@ -2514,6 +2514,58 @@ export class DatabaseStorage implements IStorage {
       .orderBy(campaignEquipment.displayOrder);
 
     return result.map(row => row.equipment);
+  }
+
+  async updateCampaign(id: number, updates: Partial<InsertCampaign>, feeValues: InsertCampaignFeeValue[] = [], equipmentIds: number[] = []): Promise<Campaign | undefined> {
+    // Update campaign
+    const [campaign] = await db
+      .update(campaigns)
+      .set({
+        ...updates,
+        updatedAt: new Date(),
+      })
+      .where(eq(campaigns.id, id))
+      .returning();
+
+    if (!campaign) return undefined;
+
+    // Update campaign fee values if provided
+    if (feeValues.length > 0) {
+      // Delete existing fee values
+      await db.delete(campaignFeeValues).where(eq(campaignFeeValues.campaignId, id));
+      
+      // Insert new fee values
+      await db
+        .insert(campaignFeeValues)
+        .values(
+          feeValues.map(feeValue => ({
+            ...feeValue,
+            campaignId: id,
+            valueType: feeValue.valueType || 'percentage',
+            updatedAt: new Date(),
+          }))
+        );
+    }
+
+    // Update equipment associations if provided
+    if (equipmentIds.length > 0) {
+      // Delete existing equipment associations
+      await db.delete(campaignEquipment).where(eq(campaignEquipment.campaignId, id));
+      
+      // Insert new equipment associations
+      await db
+        .insert(campaignEquipment)
+        .values(
+          equipmentIds.map((equipmentItemId, index) => ({
+            campaignId: id,
+            equipmentItemId,
+            isRequired: false,
+            displayOrder: index + 1,
+          }))
+        );
+    }
+
+    return campaign;
   }
 
   // API Key operations implementation

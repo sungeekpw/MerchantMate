@@ -3260,6 +3260,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.put('/api/campaigns/:id', requireRole(['admin', 'super_admin']), async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { feeValues, equipmentIds, ...campaignData } = req.body;
+      
+      // Get current user from session
+      const session = req.session as SessionData;
+      const userId = session?.userId;
+      
+      const updateCampaign = {
+        ...campaignData,
+        updatedBy: userId ? parseInt(userId.replace('admin-demo-', '')) : undefined,
+      };
+
+      const campaign = await storage.updateCampaign(id, updateCampaign, feeValues || [], equipmentIds || []);
+      
+      if (!campaign) {
+        return res.status(404).json({ error: 'Campaign not found' });
+      }
+      
+      res.json(campaign);
+    } catch (error) {
+      console.error('Error updating campaign:', error);
+      res.status(500).json({ error: 'Failed to update campaign' });
+    }
+  });
+
   // Pricing Types
   app.get('/api/pricing-types', requireRole(['admin', 'super_admin']), async (req: Request, res: Response) => {
     try {
