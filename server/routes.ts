@@ -3193,231 +3193,149 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Campaigns endpoints
-  app.get('/api/campaigns', requireRole(['admin', 'super_admin']), async (req: any, res) => {
+  // Campaign Management API endpoints
+  
+  // Campaigns
+  app.get('/api/campaigns', requireRole(['admin', 'super_admin']), async (req: Request, res: Response) => {
     try {
-      // For MVP, return empty array until database is properly set up
-      res.json([]);
+      const campaigns = await storage.getAllCampaigns();
+      res.json(campaigns);
     } catch (error) {
-      console.error("Error fetching campaigns:", error);
-      res.status(500).json({ message: "Failed to fetch campaigns" });
+      console.error('Error fetching campaigns:', error);
+      res.status(500).json({ error: 'Failed to fetch campaigns' });
     }
   });
 
-  app.get('/api/pricing-types', requireRole(['admin', 'super_admin']), async (req: any, res) => {
+  app.post('/api/campaigns', requireRole(['admin', 'super_admin']), async (req: Request, res: Response) => {
     try {
-      // For MVP, return basic pricing types until database is properly set up
-      const pricingTypes = [
-        { id: 1, name: "Interchange +", description: "Interchange plus pricing structure", isActive: true },
-        { id: 2, name: "Flat Rate", description: "Simple flat rate pricing", isActive: true },
-        { id: 3, name: "Tiered", description: "Tiered pricing structure", isActive: true },
-        { id: 4, name: "Dual", description: "Dual pricing structure", isActive: true }
-      ];
+      const { feeValues, ...campaignData } = req.body;
+      
+      // Get current user from session
+      const session = req.session as SessionData;
+      const userId = session?.userId;
+      
+      const insertCampaign = {
+        ...campaignData,
+        createdBy: userId ? parseInt(userId.replace('admin-demo-', '')) : undefined,
+      };
+
+      const campaign = await storage.createCampaign(insertCampaign, feeValues || []);
+      res.status(201).json(campaign);
+    } catch (error) {
+      console.error('Error creating campaign:', error);
+      res.status(500).json({ error: 'Failed to create campaign' });
+    }
+  });
+
+  app.get('/api/campaigns/:id', requireRole(['admin', 'super_admin']), async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      const campaign = await storage.getCampaign(id);
+      
+      if (!campaign) {
+        return res.status(404).json({ error: 'Campaign not found' });
+      }
+      
+      res.json(campaign);
+    } catch (error) {
+      console.error('Error fetching campaign:', error);
+      res.status(500).json({ error: 'Failed to fetch campaign' });
+    }
+  });
+
+  app.post('/api/campaigns/:id/deactivate', requireRole(['admin', 'super_admin']), async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      const campaign = await storage.deactivateCampaign(id);
+      
+      if (!campaign) {
+        return res.status(404).json({ error: 'Campaign not found' });
+      }
+      
+      res.json(campaign);
+    } catch (error) {
+      console.error('Error deactivating campaign:', error);
+      res.status(500).json({ error: 'Failed to deactivate campaign' });
+    }
+  });
+
+  // Pricing Types
+  app.get('/api/pricing-types', requireRole(['admin', 'super_admin']), async (req: Request, res: Response) => {
+    try {
+      const pricingTypes = await storage.getAllPricingTypes();
       res.json(pricingTypes);
     } catch (error) {
-      console.error("Error fetching pricing types:", error);
-      res.status(500).json({ message: "Failed to fetch pricing types" });
+      console.error('Error fetching pricing types:', error);
+      res.status(500).json({ error: 'Failed to fetch pricing types' });
     }
   });
 
-  app.post('/api/campaigns/:id/deactivate', isAuthenticated, async (req: any, res) => {
+  app.get('/api/pricing-types/:id/fee-items', requireRole(['admin', 'super_admin']), async (req: Request, res: Response) => {
     try {
-      // For MVP, return success response
-      res.json({ success: true, message: "Campaign deactivated successfully" });
+      const id = parseInt(req.params.id);
+      const feeItems = await storage.getPricingTypeFeeItems(id);
+      res.json(feeItems);
     } catch (error) {
-      console.error("Error deactivating campaign:", error);
-      res.status(500).json({ message: "Failed to deactivate campaign" });
+      console.error('Error fetching pricing type fee items:', error);
+      res.status(500).json({ error: 'Failed to fetch fee items' });
+    }
+  });
+
+  app.post('/api/pricing-types', requireRole(['admin', 'super_admin']), async (req: Request, res: Response) => {
+    try {
+      const pricingType = await storage.createPricingType(req.body);
+      res.status(201).json(pricingType);
+    } catch (error) {
+      console.error('Error creating pricing type:', error);
+      res.status(500).json({ error: 'Failed to create pricing type' });
     }
   });
 
   // Fee Groups API endpoints
-  app.get('/api/fee-groups', isAuthenticated, async (req: any, res) => {
+  app.get('/api/fee-groups', requireRole(['admin', 'super_admin']), async (req: Request, res: Response) => {
     try {
-      // Enhanced fee groups with comprehensive data structure
-      const feeGroups = [
-        {
-          id: 1,
-          name: "Processing Fees",
-          description: "Core transaction processing fees",
-          displayOrder: 1,
-          isActive: true,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          feeItems: []
-        },
-        {
-          id: 2,
-          name: "Monthly Fees",
-          description: "Recurring monthly service fees",
-          displayOrder: 2,
-          isActive: true,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          feeItems: []
-        },
-        {
-          id: 3,
-          name: "Equipment Fees",
-          description: "Terminal and equipment related fees",
-          displayOrder: 3,
-          isActive: true,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          feeItems: []
-        },
-        {
-          id: 4,
-          name: "Setup & One-Time Fees",
-          description: "Initial setup and one-time charges",
-          displayOrder: 4,
-          isActive: true,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          feeItems: []
-        }
-      ];
+      const feeGroups = await storage.getAllFeeGroups();
       res.json(feeGroups);
     } catch (error) {
       console.error("Error fetching fee groups:", error);
-      res.status(500).json({ message: "Failed to fetch fee groups" });
+      res.status(500).json({ error: "Failed to fetch fee groups" });
     }
   });
 
-  app.post('/api/fee-groups', isAuthenticated, async (req: any, res) => {
+  app.post('/api/fee-groups', requireRole(['admin', 'super_admin']), async (req: Request, res: Response) => {
     try {
-      const { name, description, displayOrder } = req.body;
-      
-      if (!name) {
-        return res.status(400).json({ message: "Fee group name is required" });
-      }
-
-      const newFeeGroup = {
-        id: Date.now(), // Simple ID generation for MVP
-        name,
-        description,
-        displayOrder: displayOrder || 999,
-        isActive: true,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        feeItems: []
-      };
-
-      res.status(201).json(newFeeGroup);
+      const feeGroup = await storage.createFeeGroup(req.body);
+      res.status(201).json(feeGroup);
     } catch (error) {
       console.error("Error creating fee group:", error);
-      res.status(500).json({ message: "Failed to create fee group" });
+      
+      // Check for duplicate name constraint
+      if (error && typeof error === 'object' && 'code' in error && error.code === '23505') {
+        return res.status(400).json({ error: "A fee group with this name already exists" });
+      }
+      
+      res.status(500).json({ error: "Failed to create fee group" });
     }
   });
 
   // Fee Items API endpoints
-  app.get('/api/fee-items', isAuthenticated, async (req: any, res) => {
+  app.get('/api/fee-items', requireRole(['admin', 'super_admin']), async (req: Request, res: Response) => {
     try {
-      // Enhanced fee items with comprehensive data structure
-      const feeItems = [
-        {
-          id: 1,
-          name: "Qualified Rate",
-          description: "Standard qualified transaction rate",
-          feeGroupId: 1,
-          defaultValue: "2.65",
-          valueType: "percentage",
-          isRequired: true,
-          displayOrder: 1,
-          isActive: true,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          feeGroup: { id: 1, name: "Processing Fees" }
-        },
-        {
-          id: 2,
-          name: "Mid-Qualified Rate",
-          description: "Mid-qualified transaction rate",
-          feeGroupId: 1,
-          defaultValue: "3.15",
-          valueType: "percentage",
-          isRequired: true,
-          displayOrder: 2,
-          isActive: true,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          feeGroup: { id: 1, name: "Processing Fees" }
-        },
-        {
-          id: 3,
-          name: "Non-Qualified Rate",
-          description: "Non-qualified transaction rate",
-          feeGroupId: 1,
-          defaultValue: "3.85",
-          valueType: "percentage",
-          isRequired: true,
-          displayOrder: 3,
-          isActive: true,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          feeGroup: { id: 1, name: "Processing Fees" }
-        },
-        {
-          id: 4,
-          name: "Monthly Statement Fee",
-          description: "Monthly statement processing fee",
-          feeGroupId: 2,
-          defaultValue: "15.00",
-          valueType: "fixed",
-          isRequired: false,
-          displayOrder: 1,
-          isActive: true,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          feeGroup: { id: 2, name: "Monthly Fees" }
-        },
-        {
-          id: 5,
-          name: "Gateway Fee",
-          description: "Monthly gateway access fee",
-          feeGroupId: 2,
-          defaultValue: "25.00",
-          valueType: "fixed",
-          isRequired: false,
-          displayOrder: 2,
-          isActive: true,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          feeGroup: { id: 2, name: "Monthly Fees" }
-        }
-      ];
+      const feeItems = await storage.getAllFeeItems();
       res.json(feeItems);
     } catch (error) {
       console.error("Error fetching fee items:", error);
-      res.status(500).json({ message: "Failed to fetch fee items" });
+      res.status(500).json({ error: "Failed to fetch fee items" });
     }
   });
 
-  app.post('/api/fee-items', isAuthenticated, async (req: any, res) => {
+  app.post('/api/fee-items', requireRole(['admin', 'super_admin']), async (req: Request, res: Response) => {
     try {
-      const { name, description, feeGroupId, defaultValue, valueType, isRequired, displayOrder } = req.body;
-      
-      if (!name || !feeGroupId || !valueType) {
-        return res.status(400).json({ message: "Fee item name, fee group, and value type are required" });
-      }
-
-      const newFeeItem = {
-        id: Date.now(), // Simple ID generation for MVP
-        name,
-        description,
-        feeGroupId: parseInt(feeGroupId),
-        defaultValue,
-        valueType,
-        isRequired: isRequired || false,
-        displayOrder: displayOrder || 999,
-        isActive: true,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      };
-
-      res.status(201).json(newFeeItem);
+      const feeItem = await storage.createFeeItem(req.body);
+      res.status(201).json(feeItem);
     } catch (error) {
       console.error("Error creating fee item:", error);
-      res.status(500).json({ message: "Failed to create fee item" });
+      res.status(500).json({ error: "Failed to create fee item" });
     }
   });
 

@@ -17,6 +17,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Plus, Search, Settings, DollarSign, MoreHorizontal, Eye, Edit, Trash2, ExternalLink, Users, TrendingUp, FileText, AlertCircle, CheckCircle2, Link, Copy, Layers } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { queryClient } from '@/lib/queryClient';
+import { EnhancedCampaignDialog } from '@/components/campaigns/enhanced-campaign-dialog';
 
 // Core interfaces for Campaign Management
 interface Campaign {
@@ -797,61 +798,14 @@ export default function CampaignsPage() {
         </TabsContent>
       </Tabs>
 
-      {/* Add Campaign Dialog */}
-      <Dialog open={showAddCampaign} onOpenChange={setShowAddCampaign}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Add New Campaign</DialogTitle>
-            <DialogDescription>
-              Create a new pricing campaign for merchant applications
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label>Campaign Name *</Label>
-              <Input placeholder="Enter campaign name" maxLength={50} />
-            </div>
-            <div>
-              <Label>Description</Label>
-              <Textarea placeholder="Enter description (optional)" maxLength={300} />
-            </div>
-            <div>
-              <Label>Pricing Type *</Label>
-              <Select>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select pricing type" />
-                </SelectTrigger>
-                <SelectContent>
-                  {pricingTypes.map((type) => (
-                    <SelectItem key={type.id} value={type.id.toString()}>
-                      {type.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label>Acquirer *</Label>
-              <Select>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select acquirer" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Esquire">Esquire</SelectItem>
-                  <SelectItem value="Merrick">Merrick</SelectItem>
-                  <SelectItem value="Wells Fargo">Wells Fargo</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowAddCampaign(false)}>
-              Cancel
-            </Button>
-            <Button>Create Campaign</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* Enhanced Campaign Dialog */}
+      <EnhancedCampaignDialog 
+        open={showAddCampaign} 
+        onOpenChange={setShowAddCampaign}
+        onCampaignCreated={() => {
+          queryClient.invalidateQueries({ queryKey: ['/api/campaigns'] });
+        }}
+      />
 
       {/* Add Fee Group Dialog */}
       <Dialog open={showAddFeeGroup} onOpenChange={setShowAddFeeGroup}>
