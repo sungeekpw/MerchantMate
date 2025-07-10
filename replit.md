@@ -586,6 +586,13 @@ The application is configured for deployment on Replit with:
   - Equipment thumbnails now display correctly using base64 encoded images from database
   - Complete equipment information now visible including name, description, specifications, and status
   - Enhanced campaign detail view provides comprehensive equipment and fee structure visualization
+- January 10, 2025. Fixed pricing type display issue in campaign detail view
+  - Resolved database type mismatch error where getCampaignWithDetails method had incompatible joins
+  - Fixed Campaign 10 missing pricing type by assigning Dual pricing type (ID 5) in database
+  - Updated getCampaignWithDetails method to handle pricing type joins without user table conflicts
+  - Enhanced getCampaignFeeValues method to include proper fee item and fee group relationships
+  - Campaign detail view now correctly displays "Dual" pricing type instead of "Not configured"
+  - Complete campaign configuration now visible with both pricing type overview and detailed fee structure table
 - January 10, 2025. Completed API endpoint migration from /api/external to /api/v1 for public access
   - Fixed critical API accessibility issue by creating missing api_keys table in the database
   - Updated all API endpoints from /api/external to /api/v1 for proper public access and better API versioning
