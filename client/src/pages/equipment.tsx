@@ -422,6 +422,33 @@ export default function Equipment() {
           </Dialog>
         </div>
 
+        {/* Equipment Summary */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Equipment Summary</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="text-center">
+                <div className="text-2xl font-bold">{equipmentItems.length}</div>
+                <div className="text-sm text-gray-500">Total Equipment</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold">{equipmentItems.filter((item: EquipmentItem) => item.isActive).length}</div>
+                <div className="text-sm text-gray-500">Active</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold">{categories.length}</div>
+                <div className="text-sm text-gray-500">Categories</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold">{[...new Set(equipmentItems.map((item: EquipmentItem) => item.manufacturer))].length}</div>
+                <div className="text-sm text-gray-500">Manufacturers</div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Equipment Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {isLoading ? (
@@ -495,33 +522,6 @@ export default function Equipment() {
             ))
           )}
         </div>
-
-        {/* Summary Stats */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Equipment Summary</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="text-center">
-                <div className="text-2xl font-bold">{equipmentItems.length}</div>
-                <div className="text-sm text-gray-500">Total Equipment</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold">{equipmentItems.filter((item: EquipmentItem) => item.isActive).length}</div>
-                <div className="text-sm text-gray-500">Active</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold">{categories.length}</div>
-                <div className="text-sm text-gray-500">Categories</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold">{[...new Set(equipmentItems.map((item: EquipmentItem) => item.manufacturer))].length}</div>
-                <div className="text-sm text-gray-500">Manufacturers</div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
     </div>
   );
 }
