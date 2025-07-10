@@ -554,7 +554,7 @@ export function EnhancedCampaignDialog({ open, onOpenChange, onCampaignCreated }
                                       step={item.valueType === 'percentage' ? '0.01' : '0.01'}
                                       min="0"
                                       placeholder={item.valueType === 'placeholder' ? 'Enter value' : '0.00'}
-                                      value={feeValues[item.id] || ''}
+                                      value={feeValues[item.id] ?? ''}
                                       onChange={(e) => handleFeeValueChange(item.id, e.target.value)}
                                       className="pr-8"
                                     />

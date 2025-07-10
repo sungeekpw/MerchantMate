@@ -340,7 +340,7 @@ export default function Equipment() {
                   <div className="space-y-4">
                     <div className="space-y-2">
                       <Label htmlFor="image">Equipment Image</Label>
-                      <div className="flex items-center gap-4">
+                      <div className="space-y-3">
                         <Input
                           id="image"
                           type="file"
@@ -348,10 +348,9 @@ export default function Equipment() {
                           onChange={handleImageUpload}
                           className="file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-primary file:text-primary-foreground"
                         />
-                        <Button variant="outline" size="sm">
-                          <Upload className="w-4 h-4 mr-2" />
-                          Upload
-                        </Button>
+                        <p className="text-sm text-muted-foreground">
+                          Choose an image file. The image will be automatically included when you save the equipment.
+                        </p>
                       </div>
                     </div>
                     
@@ -435,7 +434,16 @@ export default function Equipment() {
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-2">
+                  <div className="space-y-3">
+                    {equipment.imageData && (
+                      <div className="w-full h-32 bg-gray-50 rounded-lg flex items-center justify-center overflow-hidden">
+                        <img
+                          src={equipment.imageData}
+                          alt={equipment.name}
+                          className="max-w-full max-h-full object-contain"
+                        />
+                      </div>
+                    )}
                     <CardDescription>{equipment.description}</CardDescription>
                     <div className="text-sm text-gray-600">
                       <p><strong>Manufacturer:</strong> {equipment.manufacturer}</p>
