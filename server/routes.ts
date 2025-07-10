@@ -3586,7 +3586,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/campaigns", requireRole(['admin', 'super_admin']), async (req: Request, res: Response) => {
     try {
-      const campaign = await storage.createCampaign(req.body);
+      const { equipmentIds = [], feeValues = [], ...campaignData } = req.body;
+      const campaign = await storage.createCampaign(campaignData, feeValues, equipmentIds);
       res.status(201).json(campaign);
     } catch (error) {
       console.error("Error creating campaign:", error);
@@ -3601,6 +3602,63 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error deactivating campaign:", error);
       res.status(500).json({ message: "Failed to deactivate campaign" });
+    }
+  });
+
+  // Equipment Items API
+  app.get("/api/equipment-items", isAuthenticated, async (req, res) => {
+    try {
+      const equipmentItems = await storage.getAllEquipmentItems();
+      res.json(equipmentItems);
+    } catch (error) {
+      console.error('Error fetching equipment items:', error);
+      res.status(500).json({ message: 'Failed to fetch equipment items' });
+    }
+  });
+
+  app.post("/api/equipment-items", requireRole(['admin', 'super_admin']), async (req, res) => {
+    try {
+      const { insertEquipmentItemSchema } = await import("@shared/schema");
+      const validated = insertEquipmentItemSchema.parse(req.body);
+      const equipmentItem = await storage.createEquipmentItem(validated);
+      res.json(equipmentItem);
+    } catch (error) {
+      console.error('Error creating equipment item:', error);
+      res.status(500).json({ message: 'Failed to create equipment item' });
+    }
+  });
+
+  app.put("/api/equipment-items/:id", requireRole(['admin', 'super_admin']), async (req, res) => {
+    try {
+      const { insertEquipmentItemSchema } = await import("@shared/schema");
+      const id = parseInt(req.params.id);
+      const validated = insertEquipmentItemSchema.partial().parse(req.body);
+      const equipmentItem = await storage.updateEquipmentItem(id, validated);
+      
+      if (!equipmentItem) {
+        return res.status(404).json({ message: 'Equipment item not found' });
+      }
+      
+      res.json(equipmentItem);
+    } catch (error) {
+      console.error('Error updating equipment item:', error);
+      res.status(500).json({ message: 'Failed to update equipment item' });
+    }
+  });
+
+  app.delete("/api/equipment-items/:id", requireRole(['admin', 'super_admin']), async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const success = await storage.deleteEquipmentItem(id);
+      
+      if (!success) {
+        return res.status(404).json({ message: 'Equipment item not found' });
+      }
+      
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Error deleting equipment item:', error);
+      res.status(500).json({ message: 'Failed to delete equipment item' });
     }
   });
 
