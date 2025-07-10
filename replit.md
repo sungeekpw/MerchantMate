@@ -614,6 +614,15 @@ The application is configured for deployment on Replit with:
   - Systematically updated all merchant, agent, and transaction API endpoints to use /api/v1 prefix
   - Updated API Documentation page to reflect correct public endpoint URLs with new /api/v1 base path
   - Complete API system now ready for external integrator access with consistent versioned endpoints
+- January 10, 2025. Implemented comprehensive campaign details display and equipment selection in merchant application wizard
+  - Added Campaign Details section as first step in enhanced PDF wizard showing campaign overview and equipment selection
+  - Enhanced backend API (/api/prospects/token/:token) to include campaign and equipment data for prospects
+  - Created campaign overview card displaying name, acquirer, pricing type, and status in read-only format
+  - Implemented interactive equipment selection with thumbnails, descriptions, and checkbox functionality
+  - Fixed missing campaign_assignments table in database causing prospect creation failures
+  - Added proper React object rendering for pricing type display to prevent rendering errors
+  - Campaign assignment system now fully operational with prospects linked to campaigns and equipment selection
+  - Equipment selection saves to form data with proper state management for application processing
 
 ## User Preferences
 Preferred communication style: Simple, everyday language.
