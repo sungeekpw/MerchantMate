@@ -616,7 +616,24 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getCampaignFeeValues(campaignId: number): Promise<CampaignFeeValue[]> {
-    return await db.select().from(campaignFeeValues).where(eq(campaignFeeValues.campaignId, campaignId));
+    const result = await db
+      .select({
+        feeValue: campaignFeeValues,
+        feeItem: feeItems,
+        feeGroup: feeGroups,
+      })
+      .from(campaignFeeValues)
+      .leftJoin(feeItems, eq(campaignFeeValues.feeItemId, feeItems.id))
+      .leftJoin(feeGroups, eq(feeItems.feeGroupId, feeGroups.id))
+      .where(eq(campaignFeeValues.campaignId, campaignId));
+
+    return result.map(row => ({
+      ...row.feeValue,
+      feeItem: row.feeItem ? {
+        ...row.feeItem,
+        feeGroup: row.feeGroup || undefined,
+      } : undefined,
+    }));
   }
 
   async updateCampaignFeeValue(id: number, value: string): Promise<CampaignFeeValue | undefined> {
