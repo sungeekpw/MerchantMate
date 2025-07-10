@@ -311,11 +311,21 @@ export function EnhancedCampaignDialog({
     }
   };
 
-  const handleFeeValueChange = (feeItemId: number, value: string) => {
+  const handleFeeValueChange = (feeItemId: number, value: string, pricingTypeId: number) => {
     setFeeValues(prev => ({
       ...prev,
       [feeItemId]: value,
     }));
+    
+    // Mark pricing type as configured if any fee value is set
+    if (value && value.trim() !== '') {
+      setActivePricingTypes(prev => {
+        if (!prev.includes(pricingTypeId)) {
+          return [...prev, pricingTypeId];
+        }
+        return prev;
+      });
+    }
   };
 
   const formatValueType = (valueType: string) => {
@@ -547,13 +557,15 @@ export function EnhancedCampaignDialog({
                     <div className="text-sm text-muted-foreground mb-4">
                       {activePricingTypes.length} of {pricingTypesWithFeeItems.length} pricing types configured
                     </div>
-                    <Accordion type="multiple" value={expandedPricingTypes} className="w-full">
+                    <Accordion 
+                      type="multiple" 
+                      value={expandedPricingTypes} 
+                      onValueChange={setExpandedPricingTypes}
+                      className="w-full"
+                    >
                       {pricingTypesWithFeeItems.map((pricingType) => (
                         <AccordionItem key={pricingType.id} value={pricingType.id.toString()}>
-                          <AccordionTrigger 
-                            className="text-left hover:no-underline"
-                            onClick={() => togglePricingType(pricingType.id)}
-                          >
+                          <AccordionTrigger className="text-left hover:no-underline">
                             <div className="flex items-center justify-between w-full pr-4">
                               <div className="flex items-center space-x-3">
                                 <div className="flex items-center space-x-2">
@@ -627,7 +639,7 @@ export function EnhancedCampaignDialog({
                                                 min="0"
                                                 placeholder={item.valueType === 'placeholder' ? 'Enter value' : '0.00'}
                                                 value={feeValues[item.id] ?? ''}
-                                                onChange={(e) => handleFeeValueChange(item.id, e.target.value)}
+                                                onChange={(e) => handleFeeValueChange(item.id, e.target.value, pricingType.id)}
                                                 className="pr-8"
                                               />
                                               <div className="absolute right-2 top-1/2 transform -translate-y-1/2 text-muted-foreground flex items-center">
