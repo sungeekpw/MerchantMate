@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -83,6 +83,7 @@ export function EnhancedCampaignDialog({ open, onOpenChange, onCampaignCreated }
   const [selectedPricingType, setSelectedPricingType] = useState<PricingType | null>(null);
   const [selectedEquipment, setSelectedEquipment] = useState<number[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const defaultsSetRef = useRef(false);
 
   // Data queries
   const { data: pricingTypes = [], isLoading: pricingTypesLoading } = useQuery({
@@ -175,15 +176,17 @@ export function EnhancedCampaignDialog({ open, onOpenChange, onCampaignCreated }
       const pricingType = pricingTypes.find(pt => pt.id.toString() === formData.pricingTypeId);
       setSelectedPricingType(pricingType || null);
       setFeeValues({}); // Reset fee values when pricing type changes
+      defaultsSetRef.current = false; // Reset defaults when pricing type changes
     } else {
       setSelectedPricingType(null);
       setFeeValues({});
+      defaultsSetRef.current = false;
     }
   }, [formData.pricingTypeId, pricingTypes]);
 
   // Set default values for fee items (only when fee items data changes)
   useEffect(() => {
-    if (availableFeeItems.length > 0 && Object.keys(feeValues).length === 0) {
+    if (availableFeeItems.length > 0 && !defaultsSetRef.current) {
       const newFeeValues: Record<number, string> = {};
       availableFeeItems.forEach((item: FeeItem) => {
         if (item.defaultValue) {
@@ -192,6 +195,7 @@ export function EnhancedCampaignDialog({ open, onOpenChange, onCampaignCreated }
       });
       if (Object.keys(newFeeValues).length > 0) {
         setFeeValues(newFeeValues);
+        defaultsSetRef.current = true;
       }
     }
   }, [availableFeeItems.length, selectedPricingType?.id]);
@@ -209,6 +213,7 @@ export function EnhancedCampaignDialog({ open, onOpenChange, onCampaignCreated }
     setSelectedPricingType(null);
     setSelectedEquipment([]);
     setErrors({});
+    defaultsSetRef.current = false;
   };
 
   const handleEquipmentChange = (equipmentId: number, checked: boolean) => {
