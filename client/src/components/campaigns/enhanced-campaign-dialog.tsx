@@ -12,7 +12,8 @@ import { Separator } from '@/components/ui/separator';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Plus, DollarSign, Percent, Info, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { Plus, DollarSign, Percent, Info, AlertCircle, CheckCircle2, Package, Check } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
 import { queryClient } from '@/lib/queryClient';
 
@@ -50,6 +51,15 @@ interface CampaignFeeValue {
   value: string;
 }
 
+interface EquipmentItem {
+  id: number;
+  name: string;
+  description?: string;
+  imageUrl?: string;
+  specifications?: string;
+  isActive: boolean;
+}
+
 interface EnhancedCampaignDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -71,6 +81,7 @@ export function EnhancedCampaignDialog({ open, onOpenChange, onCampaignCreated }
   
   const [feeValues, setFeeValues] = useState<Record<number, string>>({});
   const [selectedPricingType, setSelectedPricingType] = useState<PricingType | null>(null);
+  const [selectedEquipment, setSelectedEquipment] = useState<number[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   // Data queries
@@ -108,6 +119,18 @@ export function EnhancedCampaignDialog({ open, onOpenChange, onCampaignCreated }
       return response.json();
     },
     enabled: !!selectedPricingType?.id,
+  });
+
+  // Get equipment items
+  const { data: equipmentItems = [], isLoading: equipmentLoading } = useQuery({
+    queryKey: ['/api/equipment-items'],
+    queryFn: async () => {
+      const response = await fetch('/api/equipment-items', {
+        credentials: 'include'
+      });
+      if (!response.ok) throw new Error('Failed to fetch equipment items');
+      return response.json();
+    },
   });
 
   // Create campaign mutation
@@ -158,12 +181,12 @@ export function EnhancedCampaignDialog({ open, onOpenChange, onCampaignCreated }
     }
   }, [formData.pricingTypeId, pricingTypes]);
 
-  // Set default values for fee items
+  // Set default values for fee items (only when availableFeeItems changes)
   useEffect(() => {
     if (availableFeeItems.length > 0) {
       const newFeeValues: Record<number, string> = {};
       availableFeeItems.forEach((item: FeeItem) => {
-        if (item.defaultValue && !feeValues[item.id]) {
+        if (item.defaultValue) {
           newFeeValues[item.id] = item.defaultValue;
         }
       });
@@ -184,7 +207,18 @@ export function EnhancedCampaignDialog({ open, onOpenChange, onCampaignCreated }
     });
     setFeeValues({});
     setSelectedPricingType(null);
+    setSelectedEquipment([]);
     setErrors({});
+  };
+
+  const handleEquipmentChange = (equipmentId: number, checked: boolean) => {
+    setSelectedEquipment(prev => {
+      if (checked) {
+        return [...prev, equipmentId];
+      } else {
+        return prev.filter(id => id !== equipmentId);
+      }
+    });
   };
 
   const validateForm = () => {
@@ -218,6 +252,7 @@ export function EnhancedCampaignDialog({ open, onOpenChange, onCampaignCreated }
     const campaignData = {
       ...formData,
       pricingTypeId: parseInt(formData.pricingTypeId),
+      equipmentIds: selectedEquipment,
       feeValues: Object.entries(feeValues).map(([feeItemId, value]) => ({
         feeItemId: parseInt(feeItemId),
         value: value.toString(),
@@ -347,28 +382,107 @@ export function EnhancedCampaignDialog({ open, onOpenChange, onCampaignCreated }
                   </div>
 
                   <div>
-                    <Label htmlFor="equipment">Equipment (Optional)</Label>
+                    <Label htmlFor="currency">Currency</Label>
                     <Input
-                      id="equipment"
-                      placeholder="Equipment information"
-                      value={formData.equipment}
-                      onChange={(e) => setFormData(prev => ({ ...prev, equipment: e.target.value }))}
+                      id="currency"
+                      value={formData.currency}
+                      disabled
+                      className="bg-muted"
                     />
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Currently set to USD. Future enhancements will allow currency selection.
+                    </p>
                   </div>
                 </div>
 
-                <div>
-                  <Label htmlFor="currency">Currency</Label>
-                  <Input
-                    id="currency"
-                    value={formData.currency}
-                    disabled
-                    className="bg-muted"
-                  />
-                  <p className="text-sm text-muted-foreground mt-1">
-                    Currently set to USD. Future enhancements will allow currency selection.
-                  </p>
-                </div>
+
+              </CardContent>
+            </Card>
+
+            {/* Equipment Selection */}
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center">
+                  <Package className="h-4 w-4 mr-2" />
+                  Equipment Selection
+                </CardTitle>
+                <CardDescription>
+                  Choose equipment items to associate with this campaign (optional)
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {equipmentLoading ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    Loading equipment...
+                  </div>
+                ) : equipmentItems.length === 0 ? (
+                  <Alert>
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription>
+                      No equipment items are available. Contact an administrator to add equipment.
+                    </AlertDescription>
+                  </Alert>
+                ) : (
+                  <div className="space-y-4">
+                    <div className="text-sm text-muted-foreground mb-3">
+                      {selectedEquipment.length} of {equipmentItems.length} equipment items selected
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {equipmentItems.map((item: EquipmentItem) => (
+                        <div
+                          key={item.id}
+                          className={`border rounded-lg p-4 transition-all ${
+                            selectedEquipment.includes(item.id)
+                              ? 'border-primary bg-primary/5 ring-1 ring-primary/20'
+                              : 'border-border hover:border-primary/50'
+                          }`}
+                        >
+                          <div className="flex items-start space-x-3">
+                            <Checkbox
+                              id={`equipment-${item.id}`}
+                              checked={selectedEquipment.includes(item.id)}
+                              onCheckedChange={(checked) => 
+                                handleEquipmentChange(item.id, checked as boolean)
+                              }
+                              className="mt-1"
+                            />
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center space-x-3 mb-2">
+                                {item.imageUrl && (
+                                  <img
+                                    src={item.imageUrl}
+                                    alt={item.name}
+                                    className="w-12 h-12 object-contain rounded bg-muted p-1"
+                                  />
+                                )}
+                                <div className="flex-1">
+                                  <Label htmlFor={`equipment-${item.id}`} className="text-sm font-medium cursor-pointer">
+                                    {item.name}
+                                  </Label>
+                                  {selectedEquipment.includes(item.id) && (
+                                    <Check className="h-4 w-4 text-primary ml-1 inline" />
+                                  )}
+                                </div>
+                              </div>
+                              
+                              {item.description && (
+                                <p className="text-xs text-muted-foreground mb-2">
+                                  {item.description}
+                                </p>
+                              )}
+                              
+                              {item.specifications && (
+                                <div className="text-xs text-muted-foreground">
+                                  <span className="font-medium">Specs:</span> {item.specifications}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
 

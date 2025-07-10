@@ -1,4 +1,4 @@
-import { merchants, agents, transactions, users, loginAttempts, twoFactorCodes, userDashboardPreferences, agentMerchants, locations, addresses, pdfForms, pdfFormFields, pdfFormSubmissions, merchantProspects, prospectOwners, prospectSignatures, feeGroups, feeItemGroups, feeItems, pricingTypes, pricingTypeFeeItems, campaigns, campaignFeeValues, campaignAssignments, type Merchant, type Agent, type Transaction, type User, type InsertMerchant, type InsertAgent, type InsertTransaction, type UpsertUser, type MerchantWithAgent, type TransactionWithMerchant, type LoginAttempt, type TwoFactorCode, type UserDashboardPreference, type InsertUserDashboardPreference, type AgentMerchant, type InsertAgentMerchant, type Location, type InsertLocation, type Address, type InsertAddress, type LocationWithAddresses, type MerchantWithLocations, type PdfForm, type InsertPdfForm, type PdfFormField, type InsertPdfFormField, type PdfFormSubmission, type InsertPdfFormSubmission, type PdfFormWithFields, type MerchantProspect, type InsertMerchantProspect, type MerchantProspectWithAgent, type ProspectOwner, type InsertProspectOwner, type ProspectSignature, type InsertProspectSignature, type FeeGroup, type InsertFeeGroup, type FeeItemGroup, type InsertFeeItemGroup, type FeeItem, type InsertFeeItem, type PricingType, type InsertPricingType, type PricingTypeFeeItem, type InsertPricingTypeFeeItem, type Campaign, type InsertCampaign, type CampaignFeeValue, type InsertCampaignFeeValue, type CampaignAssignment, type InsertCampaignAssignment, type FeeGroupWithItems, type FeeItemGroupWithItems, type FeeGroupWithItemGroups, type PricingTypeWithFeeItems, type CampaignWithDetails } from "@shared/schema";
+import { merchants, agents, transactions, users, loginAttempts, twoFactorCodes, userDashboardPreferences, agentMerchants, locations, addresses, pdfForms, pdfFormFields, pdfFormSubmissions, merchantProspects, prospectOwners, prospectSignatures, feeGroups, feeItemGroups, feeItems, pricingTypes, pricingTypeFeeItems, campaigns, campaignFeeValues, campaignAssignments, equipmentItems, campaignEquipment, type Merchant, type Agent, type Transaction, type User, type InsertMerchant, type InsertAgent, type InsertTransaction, type UpsertUser, type MerchantWithAgent, type TransactionWithMerchant, type LoginAttempt, type TwoFactorCode, type UserDashboardPreference, type InsertUserDashboardPreference, type AgentMerchant, type InsertAgentMerchant, type Location, type InsertLocation, type Address, type InsertAddress, type LocationWithAddresses, type MerchantWithLocations, type PdfForm, type InsertPdfForm, type PdfFormField, type InsertPdfFormField, type PdfFormSubmission, type InsertPdfFormSubmission, type PdfFormWithFields, type MerchantProspect, type InsertMerchantProspect, type MerchantProspectWithAgent, type ProspectOwner, type InsertProspectOwner, type ProspectSignature, type InsertProspectSignature, type FeeGroup, type InsertFeeGroup, type FeeItemGroup, type InsertFeeItemGroup, type FeeItem, type InsertFeeItem, type PricingType, type InsertPricingType, type PricingTypeFeeItem, type InsertPricingTypeFeeItem, type Campaign, type InsertCampaign, type CampaignFeeValue, type InsertCampaignFeeValue, type CampaignAssignment, type InsertCampaignAssignment, type EquipmentItem, type InsertEquipmentItem, type CampaignEquipment, type InsertCampaignEquipment, type FeeGroupWithItems, type FeeItemGroupWithItems, type FeeGroupWithItemGroups, type PricingTypeWithFeeItems, type CampaignWithDetails } from "@shared/schema";
 import { db } from "./db";
 import { eq, or, and, gte, sql, desc, inArray, like } from "drizzle-orm";
 
@@ -234,7 +234,7 @@ export interface IStorage {
   getCampaign(id: number): Promise<Campaign | undefined>;
   getCampaignWithDetails(id: number): Promise<CampaignWithDetails | undefined>;
   getCampaignsByAcquirer(acquirer: string): Promise<CampaignWithDetails[]>;
-  createCampaign(campaign: InsertCampaign): Promise<Campaign>;
+  createCampaign(campaign: InsertCampaign, feeValues?: InsertCampaignFeeValue[], equipmentIds?: number[]): Promise<Campaign>;
   updateCampaign(id: number, updates: Partial<InsertCampaign>): Promise<Campaign | undefined>;
   deactivateCampaign(id: number): Promise<boolean>;
   searchCampaigns(query: string): Promise<CampaignWithDetails[]>;
@@ -248,6 +248,19 @@ export interface IStorage {
   assignCampaignToProspect(campaignId: number, prospectId: number, assignedBy: string): Promise<CampaignAssignment>;
   getCampaignAssignments(campaignId: number): Promise<CampaignAssignment[]>;
   getProspectCampaignAssignment(prospectId: number): Promise<CampaignAssignment | undefined>;
+
+  // Equipment Items
+  getAllEquipmentItems(): Promise<EquipmentItem[]>;
+  getEquipmentItem(id: number): Promise<EquipmentItem | undefined>;
+  createEquipmentItem(equipmentItem: InsertEquipmentItem): Promise<EquipmentItem>;
+  updateEquipmentItem(id: number, updates: Partial<InsertEquipmentItem>): Promise<EquipmentItem | undefined>;
+  deleteEquipmentItem(id: number): Promise<boolean>;
+
+  // Campaign Equipment
+  getCampaignEquipment(campaignId: number): Promise<(CampaignEquipment & { equipmentItem: EquipmentItem })[]>;
+  addEquipmentToCampaign(campaignId: number, equipmentItemId: number, isRequired?: boolean, displayOrder?: number): Promise<CampaignEquipment>;
+  removeEquipmentFromCampaign(campaignId: number, equipmentItemId: number): Promise<boolean>;
+  updateCampaignEquipment(campaignId: number, equipmentItemId: number, updates: Partial<InsertCampaignEquipment>): Promise<CampaignEquipment | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -524,10 +537,7 @@ export class DatabaseStorage implements IStorage {
     }));
   }
 
-  async createCampaign(campaign: InsertCampaign): Promise<Campaign> {
-    const [created] = await db.insert(campaigns).values(campaign).returning();
-    return created;
-  }
+
 
   async updateCampaign(id: number, updates: Partial<InsertCampaign>): Promise<Campaign | undefined> {
     const [updated] = await db.update(campaigns).set(updates).where(eq(campaigns.id, id)).returning();
@@ -618,6 +628,82 @@ export class DatabaseStorage implements IStorage {
   async getProspectCampaignAssignment(prospectId: number): Promise<CampaignAssignment | undefined> {
     const [assignment] = await db.select().from(campaignAssignments).where(eq(campaignAssignments.prospectId, prospectId));
     return assignment || undefined;
+  }
+
+  // Equipment Items implementation
+  async getAllEquipmentItems(): Promise<EquipmentItem[]> {
+    return await db.select().from(equipmentItems).where(eq(equipmentItems.isActive, true)).orderBy(equipmentItems.name);
+  }
+
+  async getEquipmentItem(id: number): Promise<EquipmentItem | undefined> {
+    const [item] = await db.select().from(equipmentItems).where(eq(equipmentItems.id, id));
+    return item || undefined;
+  }
+
+  async createEquipmentItem(equipmentItem: InsertEquipmentItem): Promise<EquipmentItem> {
+    const [created] = await db.insert(equipmentItems).values(equipmentItem).returning();
+    return created;
+  }
+
+  async updateEquipmentItem(id: number, updates: Partial<InsertEquipmentItem>): Promise<EquipmentItem | undefined> {
+    const [updated] = await db.update(equipmentItems).set({
+      ...updates,
+      updatedAt: new Date()
+    }).where(eq(equipmentItems.id, id)).returning();
+    return updated || undefined;
+  }
+
+  async deleteEquipmentItem(id: number): Promise<boolean> {
+    const result = await db.update(equipmentItems).set({ isActive: false }).where(eq(equipmentItems.id, id));
+    return result.rowCount > 0;
+  }
+
+  // Campaign Equipment implementation
+  async getCampaignEquipment(campaignId: number): Promise<(CampaignEquipment & { equipmentItem: EquipmentItem })[]> {
+    const result = await db
+      .select({
+        campaignEquipment: campaignEquipment,
+        equipmentItem: equipmentItems,
+      })
+      .from(campaignEquipment)
+      .innerJoin(equipmentItems, eq(campaignEquipment.equipmentItemId, equipmentItems.id))
+      .where(eq(campaignEquipment.campaignId, campaignId))
+      .orderBy(campaignEquipment.displayOrder);
+
+    return result.map(row => ({
+      ...row.campaignEquipment,
+      equipmentItem: row.equipmentItem,
+    }));
+  }
+
+  async addEquipmentToCampaign(campaignId: number, equipmentItemId: number, isRequired: boolean = false, displayOrder: number = 0): Promise<CampaignEquipment> {
+    const [created] = await db.insert(campaignEquipment).values({
+      campaignId,
+      equipmentItemId,
+      isRequired,
+      displayOrder,
+    }).returning();
+    return created;
+  }
+
+  async removeEquipmentFromCampaign(campaignId: number, equipmentItemId: number): Promise<boolean> {
+    const result = await db.delete(campaignEquipment)
+      .where(and(
+        eq(campaignEquipment.campaignId, campaignId),
+        eq(campaignEquipment.equipmentItemId, equipmentItemId)
+      ));
+    return result.rowCount > 0;
+  }
+
+  async updateCampaignEquipment(campaignId: number, equipmentItemId: number, updates: Partial<InsertCampaignEquipment>): Promise<CampaignEquipment | undefined> {
+    const [updated] = await db.update(campaignEquipment)
+      .set(updates)
+      .where(and(
+        eq(campaignEquipment.campaignId, campaignId),
+        eq(campaignEquipment.equipmentItemId, equipmentItemId)
+      ))
+      .returning();
+    return updated || undefined;
   }
   async getMerchant(id: number): Promise<Merchant | undefined> {
     const [merchant] = await db.select().from(merchants).where(eq(merchants.id, id));
@@ -2255,8 +2341,24 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Campaigns
-  async getAllCampaigns(): Promise<Campaign[]> {
-    return await db.select().from(campaigns).orderBy(desc(campaigns.createdAt));
+  async getAllCampaigns(): Promise<CampaignWithDetails[]> {
+    const result = await db
+      .select({
+        campaign: campaigns,
+        pricingType: pricingTypes,
+        createdByUser: users,
+      })
+      .from(campaigns)
+      .leftJoin(pricingTypes, eq(campaigns.pricingTypeId, pricingTypes.id))
+      .leftJoin(users, eq(campaigns.createdBy, users.id))
+      .orderBy(desc(campaigns.createdAt));
+
+    return result.map(row => ({
+      ...row.campaign,
+      pricingType: row.pricingType!,
+      createdByUser: row.createdByUser || undefined,
+      feeValues: [], // Will be loaded separately when needed
+    }));
   }
 
   async getCampaign(id: number): Promise<Campaign | undefined> {
@@ -2285,7 +2387,7 @@ export class DatabaseStorage implements IStorage {
     };
   }
 
-  async createCampaign(insertCampaign: InsertCampaign, feeValues: InsertCampaignFeeValue[]): Promise<Campaign> {
+  async createCampaign(insertCampaign: InsertCampaign, feeValues: InsertCampaignFeeValue[] = [], equipmentIds: number[] = []): Promise<Campaign> {
     // Create campaign
     const [campaign] = await db
       .insert(campaigns)
@@ -2303,6 +2405,21 @@ export class DatabaseStorage implements IStorage {
           feeValues.map(feeValue => ({
             ...feeValue,
             campaignId: campaign.id,
+            updatedAt: new Date(),
+          }))
+        );
+    }
+
+    // Associate equipment with campaign
+    if (equipmentIds.length > 0) {
+      await db
+        .insert(campaignEquipment)
+        .values(
+          equipmentIds.map((equipmentItemId, index) => ({
+            campaignId: campaign.id,
+            equipmentItemId,
+            isRequired: false,
+            displayOrder: index + 1,
             updatedAt: new Date(),
           }))
         );

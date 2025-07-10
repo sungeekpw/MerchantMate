@@ -533,6 +533,31 @@ export const pricingTypeFeeItems = pgTable("pricing_type_fee_items", {
   uniquePricingTypeFeeItem: unique().on(table.pricingTypeId, table.feeItemId),
 }));
 
+// Equipment Items table - stores available equipment with images
+export const equipmentItems = pgTable("equipment_items", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  description: text("description"),
+  imageUrl: text("image_url"), // URL to equipment image
+  imageData: text("image_data"), // Base64 encoded image data as fallback
+  category: text("category"), // e.g., "Terminal", "Reader", "POS System"
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// Campaign Equipment junction table - links campaigns to multiple equipment items
+export const campaignEquipment = pgTable("campaign_equipment", {
+  id: serial("id").primaryKey(),
+  campaignId: integer("campaign_id").notNull().references(() => campaigns.id, { onDelete: "cascade" }),
+  equipmentItemId: integer("equipment_item_id").notNull().references(() => equipmentItems.id, { onDelete: "cascade" }),
+  isRequired: boolean("is_required").notNull().default(false),
+  displayOrder: integer("display_order").notNull().default(0),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => ({
+  uniqueCampaignEquipment: unique().on(table.campaignId, table.equipmentItemId),
+}));
+
 // Campaigns table - pricing plans that can be assigned to merchant applications
 export const campaigns = pgTable("campaigns", {
   id: serial("id").primaryKey(),
@@ -541,7 +566,7 @@ export const campaigns = pgTable("campaigns", {
   pricingTypeId: integer("pricing_type_id").notNull().references(() => pricingTypes.id),
   acquirer: text("acquirer").notNull(), // "Esquire", "Merrick", etc.
   currency: text("currency").notNull().default("USD"),
-  equipment: text("equipment"), // Optional equipment information
+  equipment: text("equipment"), // Deprecated - use campaignEquipment junction table instead
   isActive: boolean("is_active").notNull().default(true),
   isDefault: boolean("is_default").notNull().default(false), // If this is a default campaign
   createdBy: integer("created_by").references(() => users.id),
@@ -621,6 +646,23 @@ export const insertCampaignAssignmentSchema = createInsertSchema(campaignAssignm
   id: true,
   assignedAt: true,
 });
+
+export const insertEquipmentItemSchema = createInsertSchema(equipmentItems).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertCampaignEquipmentSchema = createInsertSchema(campaignEquipment).omit({
+  id: true,
+  createdAt: true,
+});
+
+// Equipment management types
+export type EquipmentItem = typeof equipmentItems.$inferSelect;
+export type InsertEquipmentItem = z.infer<typeof insertEquipmentItemSchema>;
+export type CampaignEquipment = typeof campaignEquipment.$inferSelect;
+export type InsertCampaignEquipment = z.infer<typeof insertCampaignEquipmentSchema>;
 
 // Campaign management types
 export type FeeGroup = typeof feeGroups.$inferSelect;
