@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -184,21 +184,24 @@ export function EnhancedCampaignDialog({ open, onOpenChange, onCampaignCreated }
     }
   }, [formData.pricingTypeId, pricingTypes]);
 
+  // Memoize fee items to prevent unnecessary re-renders
+  const memoizedFeeItems = useMemo(() => availableFeeItems, [availableFeeItems.length]);
+
   // Set default values for fee items (only when fee items data changes)
   useEffect(() => {
-    if (availableFeeItems.length > 0 && !defaultsSetRef.current) {
+    if (memoizedFeeItems.length > 0 && selectedPricingType?.id && !defaultsSetRef.current) {
       const newFeeValues: Record<number, string> = {};
-      availableFeeItems.forEach((item: FeeItem) => {
+      memoizedFeeItems.forEach((item: FeeItem) => {
         if (item.defaultValue) {
           newFeeValues[item.id] = item.defaultValue;
         }
       });
       if (Object.keys(newFeeValues).length > 0) {
         setFeeValues(newFeeValues);
-        defaultsSetRef.current = true;
       }
+      defaultsSetRef.current = true;
     }
-  }, [availableFeeItems.length, selectedPricingType?.id]);
+  }, [memoizedFeeItems.length, selectedPricingType?.id]);
 
   const resetForm = () => {
     setFormData({
@@ -291,15 +294,17 @@ export function EnhancedCampaignDialog({ open, onOpenChange, onCampaignCreated }
     }
   };
 
-  // Group fee items by fee group
-  const groupedFeeItems = availableFeeItems.reduce((groups: Record<string, FeeItem[]>, item: FeeItem) => {
-    const groupName = item.feeGroup?.name || 'Other';
-    if (!groups[groupName]) {
-      groups[groupName] = [];
-    }
-    groups[groupName].push(item);
-    return groups;
-  }, {});
+  // Group fee items by fee group - using memoized items
+  const groupedFeeItems = useMemo(() => {
+    return memoizedFeeItems.reduce((groups: Record<string, FeeItem[]>, item: FeeItem) => {
+      const groupName = item.feeGroup?.name || 'Other';
+      if (!groups[groupName]) {
+        groups[groupName] = [];
+      }
+      groups[groupName].push(item);
+      return groups;
+    }, {});
+  }, [memoizedFeeItems]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
