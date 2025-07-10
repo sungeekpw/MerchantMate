@@ -129,6 +129,14 @@ The application is configured for deployment on Replit with:
 - `SESSION_SECRET`: Session encryption key (optional, has fallback)
 
 ## Changelog
+- January 10, 2025. Implemented expandable navigation with Equipment sub-item under Campaigns
+  - Added Equipment as sub-navigation item under Campaigns with expandable menu functionality
+  - Created comprehensive Equipment management page with image upload capabilities and equipment data management
+  - Added Equipment route to App.tsx and integrated equipment management interface into the application structure
+  - Updated sidebar navigation to support hierarchical menu structure with expand/collapse functionality
+  - Equipment now accessible as sub-item under Campaigns with proper role-based access control
+  - Equipment management page includes comprehensive equipment data display, filtering, and CRUD operations
+  - Successfully tested equipment associations with campaigns (campaign 9 linked to Clover Flex and Square Reader)
 - June 20, 2025. Implemented auto-save functionality for business ownership section
   - Added immediate auto-save when users finish entering owner name, email, or ownership percentage
   - Owner information now saves to database when each field loses focus, not just when clicking Next

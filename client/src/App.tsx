@@ -39,6 +39,7 @@ import ApplicationView from "@/pages/application-view";
 import ApplicationPrint from "@/pages/application-print";
 import AgentDashboard from "@/pages/agent-dashboard";
 import Campaigns from "@/pages/campaigns";
+import Equipment from "@/pages/equipment";
 import NotFound from "@/pages/not-found";
 import Landing from "@/pages/landing";
 import Auth from "@/pages/auth";
@@ -135,6 +136,16 @@ function AuthenticatedApp() {
         return {
           title: "Form Wizard",
           subtitle: "Complete merchant application step by step"
+        };
+      case "/campaigns":
+        return {
+          title: "Campaign Management",
+          subtitle: "Manage pricing campaigns and merchant assignments"
+        };
+      case "/equipment":
+        return {
+          title: "Equipment Management",
+          subtitle: "Manage payment equipment and processing devices"
         };
       default:
         return {
@@ -405,7 +416,7 @@ function AuthenticatedApp() {
           <Route path="/campaigns">
             {() => {
               if (!canAccessAgentManagement(user)) return <NotFound />;
-              const pageInfo = { title: "Campaign Management" };
+              const pageInfo = getPageInfo("/campaigns");
               return (
                 <>
                   <Header 
@@ -414,6 +425,23 @@ function AuthenticatedApp() {
                   />
                   <main className="flex-1 overflow-auto bg-gray-50">
                     <Campaigns />
+                  </main>
+                </>
+              );
+            }}
+          </Route>
+          <Route path="/equipment">
+            {() => {
+              if (!canAccessAgentManagement(user)) return <NotFound />;
+              const pageInfo = getPageInfo("/equipment");
+              return (
+                <>
+                  <Header 
+                    title={pageInfo.title} 
+                    onSearch={setGlobalSearch}
+                  />
+                  <main className="flex-1 overflow-auto bg-gray-50">
+                    <Equipment />
                   </main>
                 </>
               );
