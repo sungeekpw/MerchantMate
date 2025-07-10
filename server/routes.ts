@@ -3574,105 +3574,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Campaigns endpoints
-  app.get("/api/campaigns", isAuthenticated, async (req, res) => {
+  app.get("/api/campaigns", requireRole(['admin', 'super_admin']), async (req: Request, res: Response) => {
     try {
-      // Return sample campaigns for development
-      const campaigns = [
-        {
-          id: 1,
-          name: "Standard Retail Campaign",
-          description: "Default pricing for retail merchants",
-          acquirer: "Esquire",
-          pricingType: {
-            id: 1,
-            name: "Standard Pricing"
-          },
-          isActive: true,
-          isDefault: true,
-          createdAt: new Date().toISOString(),
-          createdByUser: {
-            name: "Admin User",
-            email: "admin@corecrm.com"
-          },
-          assignedMerchants: 15,
-          totalRevenue: 125000,
-          feeValues: []
-        },
-        {
-          id: 2,
-          name: "Restaurant Campaign",
-          description: "Specialized pricing for restaurant businesses",
-          acquirer: "Merrick",
-          pricingType: {
-            id: 2,
-            name: "Restaurant Pricing"
-          },
-          isActive: true,
-          isDefault: false,
-          createdAt: new Date().toISOString(),
-          createdByUser: {
-            name: "Admin User",
-            email: "admin@corecrm.com"
-          },
-          assignedMerchants: 8,
-          totalRevenue: 89000,
-          feeValues: []
-        },
-        {
-          id: 3,
-          name: "E-commerce Campaign",
-          description: "Optimized pricing for online businesses",
-          acquirer: "Wells Fargo",
-          pricingType: {
-            id: 3,
-            name: "E-commerce Pricing"
-          },
-          isActive: true,
-          isDefault: false,
-          createdAt: new Date().toISOString(),
-          createdByUser: {
-            name: "Admin User",
-            email: "admin@corecrm.com"
-          },
-          assignedMerchants: 12,
-          totalRevenue: 95000,
-          feeValues: []
-        }
-      ];
+      const campaigns = await storage.getAllCampaigns();
       res.json(campaigns);
     } catch (error) {
       console.error("Error fetching campaigns:", error);
-      res.status(500).json({ message: "Failed to fetch campaigns" });
+      res.status(500).json({ error: "Failed to fetch campaigns" });
     }
   });
 
-  app.post("/api/campaigns", requireRole(['admin', 'super_admin']), async (req, res) => {
+  app.post("/api/campaigns", requireRole(['admin', 'super_admin']), async (req: Request, res: Response) => {
     try {
-      const { name, description, acquirer, pricingTypeId, isDefault, feeValues } = req.body;
-      const newCampaign = {
-        id: Date.now(),
-        name,
-        description,
-        acquirer,
-        pricingType: {
-          id: pricingTypeId,
-          name: "Selected Pricing Type"
-        },
-        isActive: true,
-        isDefault: isDefault || false,
-        createdAt: new Date().toISOString(),
-        createdByUser: {
-          name: "Current User",
-          email: "user@corecrm.com"
-        },
-        assignedMerchants: 0,
-        totalRevenue: 0,
-        feeValues: feeValues || []
-      };
-      res.status(201).json(newCampaign);
+      const campaign = await storage.createCampaign(req.body);
+      res.status(201).json(campaign);
     } catch (error) {
       console.error("Error creating campaign:", error);
-      res.status(500).json({ message: "Failed to create campaign" });
+      res.status(500).json({ error: "Failed to create campaign" });
     }
   });
 
