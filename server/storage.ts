@@ -2154,6 +2154,237 @@ export class DatabaseStorage implements IStorage {
     await db.delete(prospectOwners);
     await db.delete(merchantProspects);
   }
+
+  // Campaign Management Operations
+  
+  // Fee Groups
+  async getAllFeeGroups(): Promise<FeeGroup[]> {
+    return await db
+      .select()
+      .from(feeGroups)
+      .orderBy(feeGroups.displayOrder, feeGroups.name);
+  }
+
+  async createFeeGroup(insertFeeGroup: InsertFeeGroup): Promise<FeeGroup> {
+    const [feeGroup] = await db
+      .insert(feeGroups)
+      .values({
+        ...insertFeeGroup,
+        updatedAt: new Date(),
+      })
+      .returning();
+    return feeGroup;
+  }
+
+  async updateFeeGroup(id: number, updates: Partial<InsertFeeGroup>): Promise<FeeGroup | undefined> {
+    const [feeGroup] = await db
+      .update(feeGroups)
+      .set({
+        ...updates,
+        updatedAt: new Date(),
+      })
+      .where(eq(feeGroups.id, id))
+      .returning();
+    return feeGroup || undefined;
+  }
+
+  // Fee Item Groups
+  async getAllFeeItemGroups(): Promise<FeeItemGroup[]> {
+    return await db
+      .select()
+      .from(feeItemGroups)
+      .orderBy(feeItemGroups.feeGroupId, feeItemGroups.displayOrder, feeItemGroups.name);
+  }
+
+  async createFeeItemGroup(insertFeeItemGroup: InsertFeeItemGroup): Promise<FeeItemGroup> {
+    const [feeItemGroup] = await db
+      .insert(feeItemGroups)
+      .values({
+        ...insertFeeItemGroup,
+        updatedAt: new Date(),
+      })
+      .returning();
+    return feeItemGroup;
+  }
+
+  // Fee Items
+  async getAllFeeItems(): Promise<FeeItem[]> {
+    return await db
+      .select()
+      .from(feeItems)
+      .orderBy(feeItems.feeGroupId, feeItems.displayOrder, feeItems.name);
+  }
+
+  async getFeeItemsByGroup(feeGroupId: number): Promise<FeeItem[]> {
+    return await db
+      .select()
+      .from(feeItems)
+      .where(eq(feeItems.feeGroupId, feeGroupId))
+      .orderBy(feeItems.displayOrder, feeItems.name);
+  }
+
+  async createFeeItem(insertFeeItem: InsertFeeItem): Promise<FeeItem> {
+    const [feeItem] = await db
+      .insert(feeItems)
+      .values({
+        ...insertFeeItem,
+        updatedAt: new Date(),
+      })
+      .returning();
+    return feeItem;
+  }
+
+  // Pricing Types
+  async getAllPricingTypes(): Promise<PricingType[]> {
+    return await db
+      .select()
+      .from(pricingTypes)
+      .where(eq(pricingTypes.isActive, true))
+      .orderBy(pricingTypes.name);
+  }
+
+  async getPricingTypeFeeItems(pricingTypeId: number): Promise<FeeItem[]> {
+    const result = await db
+      .select({
+        feeItem: feeItems,
+        feeGroup: feeGroups,
+      })
+      .from(pricingTypeFeeItems)
+      .innerJoin(feeItems, eq(pricingTypeFeeItems.feeItemId, feeItems.id))
+      .innerJoin(feeGroups, eq(feeItems.feeGroupId, feeGroups.id))
+      .where(eq(pricingTypeFeeItems.pricingTypeId, pricingTypeId))
+      .orderBy(feeGroups.displayOrder, feeItems.displayOrder);
+
+    return result.map(row => ({
+      ...row.feeItem,
+      feeGroup: row.feeGroup,
+    }));
+  }
+
+  async createPricingType(insertPricingType: InsertPricingType): Promise<PricingType> {
+    const [pricingType] = await db
+      .insert(pricingTypes)
+      .values({
+        ...insertPricingType,
+        updatedAt: new Date(),
+      })
+      .returning();
+    return pricingType;
+  }
+
+  // Campaigns
+  async getAllCampaigns(): Promise<Campaign[]> {
+    const result = await db
+      .select({
+        campaign: campaigns,
+        pricingType: pricingTypes,
+        createdByUser: {
+          id: users.id,
+          name: users.name,
+          email: users.email,
+        },
+      })
+      .from(campaigns)
+      .innerJoin(pricingTypes, eq(campaigns.pricingTypeId, pricingTypes.id))
+      .leftJoin(users, eq(campaigns.createdBy, users.id))
+      .orderBy(desc(campaigns.createdAt));
+
+    return result.map(row => ({
+      ...row.campaign,
+      pricingType: row.pricingType,
+      createdByUser: row.createdByUser || undefined,
+    }));
+  }
+
+  async getCampaign(id: number): Promise<Campaign | undefined> {
+    const result = await db
+      .select({
+        campaign: campaigns,
+        pricingType: pricingTypes,
+        createdByUser: {
+          id: users.id,
+          name: users.name,
+          email: users.email,
+        },
+      })
+      .from(campaigns)
+      .innerJoin(pricingTypes, eq(campaigns.pricingTypeId, pricingTypes.id))
+      .leftJoin(users, eq(campaigns.createdBy, users.id))
+      .where(eq(campaigns.id, id));
+
+    if (result.length === 0) return undefined;
+
+    const row = result[0];
+    return {
+      ...row.campaign,
+      pricingType: row.pricingType,
+      createdByUser: row.createdByUser || undefined,
+    };
+  }
+
+  async createCampaign(insertCampaign: InsertCampaign, feeValues: InsertCampaignFeeValue[]): Promise<Campaign> {
+    // Create campaign
+    const [campaign] = await db
+      .insert(campaigns)
+      .values({
+        ...insertCampaign,
+        updatedAt: new Date(),
+      })
+      .returning();
+
+    // Create campaign fee values
+    if (feeValues.length > 0) {
+      await db
+        .insert(campaignFeeValues)
+        .values(
+          feeValues.map(feeValue => ({
+            ...feeValue,
+            campaignId: campaign.id,
+            updatedAt: new Date(),
+          }))
+        );
+    }
+
+    return campaign;
+  }
+
+  async getCampaignFeeValues(campaignId: number): Promise<CampaignFeeValue[]> {
+    const result = await db
+      .select({
+        feeValue: campaignFeeValues,
+        feeItem: feeItems,
+        feeGroup: feeGroups,
+      })
+      .from(campaignFeeValues)
+      .innerJoin(feeItems, eq(campaignFeeValues.feeItemId, feeItems.id))
+      .innerJoin(feeGroups, eq(feeItems.feeGroupId, feeGroups.id))
+      .where(eq(campaignFeeValues.campaignId, campaignId))
+      .orderBy(feeGroups.displayOrder, feeItems.displayOrder);
+
+    return result.map(row => ({
+      ...row.feeValue,
+      feeItem: {
+        ...row.feeItem,
+        feeGroup: row.feeGroup,
+      },
+    }));
+  }
+
+  async updateCampaign(id: number, updates: Partial<InsertCampaign>): Promise<Campaign | undefined> {
+    const [campaign] = await db
+      .update(campaigns)
+      .set({
+        ...updates,
+        updatedAt: new Date(),
+      })
+      .where(eq(campaigns.id, id))
+      .returning();
+    return campaign || undefined;
+  }
+
+  async deactivateCampaign(id: number): Promise<Campaign | undefined> {
+    return this.updateCampaign(id, { isActive: false });
+  }
 }
 
 export const storage = new DatabaseStorage();
