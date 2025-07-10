@@ -593,6 +593,13 @@ The application is configured for deployment on Replit with:
   - Enhanced getCampaignFeeValues method to include proper fee item and fee group relationships
   - Campaign detail view now correctly displays "Dual" pricing type instead of "Not configured"
   - Complete campaign configuration now visible with both pricing type overview and detailed fee structure table
+- January 10, 2025. Fixed accordion expansion issue in Enhanced Campaign Dialog
+  - Resolved accordion not expanding in Edit Campaign dialog by removing conflicting onClick handler from AccordionTrigger
+  - Added proper onValueChange handler to accordion for correct state management
+  - Updated handleFeeValueChange function to automatically mark pricing types as configured when fee values are entered
+  - Enhanced accordion functionality with proper expand/collapse behavior and pricing type tracking
+  - Pricing Type Configuration accordion now expands and collapses correctly allowing fee configuration
+  - Complete campaign editing workflow now functional with working accordion interface
 - January 10, 2025. Completed API endpoint migration from /api/external to /api/v1 for public access
   - Fixed critical API accessibility issue by creating missing api_keys table in the database
   - Updated all API endpoints from /api/external to /api/v1 for proper public access and better API versioning
