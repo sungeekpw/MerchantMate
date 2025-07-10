@@ -1185,12 +1185,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Insufficient permissions" });
       }
       
-      const result = insertMerchantProspectSchema.safeParse(req.body);
+      // Extract campaignId from request body for campaign assignment
+      const { campaignId, ...prospectData } = req.body;
+      
+      // Validate campaign assignment is provided
+      if (!campaignId || campaignId === 0) {
+        return res.status(400).json({ message: "Campaign assignment is required" });
+      }
+      
+      const result = insertMerchantProspectSchema.safeParse(prospectData);
       if (!result.success) {
         return res.status(400).json({ message: "Invalid prospect data", errors: result.error.errors });
       }
 
       const prospect = await storage.createMerchantProspect(result.data);
+      
+      // Create campaign assignment
+      await storage.assignCampaignToProspect(campaignId, prospect.id, userId);
       
       // Fetch agent information for email
       const agent = await storage.getAgent(prospect.agentId);
