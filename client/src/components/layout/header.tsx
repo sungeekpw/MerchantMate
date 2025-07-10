@@ -7,11 +7,10 @@ import { formatDateInUserTimezone, getTimezoneAbbreviation } from "@/lib/timezon
 
 interface HeaderProps {
   title: string;
-  subtitle: string;
   onSearch?: (query: string) => void;
 }
 
-export function Header({ title, subtitle, onSearch }: HeaderProps) {
+export function Header({ title, onSearch }: HeaderProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const { user } = useAuth();
 
@@ -51,7 +50,6 @@ export function Header({ title, subtitle, onSearch }: HeaderProps) {
       <div className="flex items-center justify-between">
         <div className="flex-1 p-6 max-w-lg">
           <h2 className="text-xl font-bold text-gray-900">{title}</h2>
-          <p className="text-sm text-gray-500">{subtitle}</p>
         </div>
         <div className="flex items-center space-x-4 px-6 py-4">
           {/* Last Login Info */}

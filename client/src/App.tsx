@@ -156,7 +156,6 @@ function AuthenticatedApp() {
                 <>
                   <Header 
                     title={pageInfo.title} 
-                    subtitle={pageInfo.subtitle}
                     onSearch={setGlobalSearch}
                   />
                   <main className="flex-1 overflow-auto bg-gray-50">
@@ -167,7 +166,6 @@ function AuthenticatedApp() {
                 <>
                   <Header 
                     title="Merchants" 
-                    subtitle="Manage merchant profiles and settings"
                     onSearch={setGlobalSearch}
                   />
                   <main className="flex-1 overflow-auto bg-gray-50">
@@ -185,7 +183,6 @@ function AuthenticatedApp() {
                 <>
                   <Header 
                     title={pageInfo.title} 
-                    subtitle={pageInfo.subtitle}
                     onSearch={setGlobalSearch}
                   />
                   <main className="flex-1 overflow-auto bg-gray-50">
@@ -203,7 +200,6 @@ function AuthenticatedApp() {
                 <>
                   <Header 
                     title={pageInfo.title} 
-                    subtitle={pageInfo.subtitle}
                     onSearch={setGlobalSearch}
                   />
                   <main className="flex-1 overflow-auto bg-gray-50">
@@ -221,7 +217,6 @@ function AuthenticatedApp() {
                 <>
                   <Header 
                     title={pageInfo.title} 
-                    subtitle={pageInfo.subtitle}
                     onSearch={setGlobalSearch}
                   />
                   <main className="flex-1 overflow-auto bg-gray-50">
@@ -239,7 +234,6 @@ function AuthenticatedApp() {
                 <>
                   <Header 
                     title={pageInfo.title} 
-                    subtitle={pageInfo.subtitle}
                     onSearch={setGlobalSearch}
                   />
                   <main className="flex-1 overflow-auto bg-gray-50">
@@ -257,7 +251,6 @@ function AuthenticatedApp() {
                 <>
                   <Header 
                     title={pageInfo.title} 
-                    subtitle={pageInfo.subtitle}
                     onSearch={setGlobalSearch}
                   />
                   <main className="flex-1 overflow-auto bg-gray-50">
@@ -275,7 +268,6 @@ function AuthenticatedApp() {
                 <>
                   <Header 
                     title={pageInfo.title} 
-                    subtitle={pageInfo.subtitle}
                     onSearch={setGlobalSearch}
                   />
                   <main className="flex-1 overflow-auto bg-gray-50">
@@ -293,7 +285,6 @@ function AuthenticatedApp() {
                 <>
                   <Header 
                     title={pageInfo.title} 
-                    subtitle={pageInfo.subtitle}
                     onSearch={setGlobalSearch}
                   />
                   <main className="flex-1 overflow-auto bg-gray-50">
@@ -310,7 +301,6 @@ function AuthenticatedApp() {
                 <>
                   <Header 
                     title={pageInfo.title} 
-                    subtitle={pageInfo.subtitle}
                     onSearch={setGlobalSearch}
                   />
                   <main className="flex-1 overflow-auto bg-gray-50">
@@ -327,7 +317,6 @@ function AuthenticatedApp() {
                 <>
                   <Header 
                     title={pageInfo.title} 
-                    subtitle={pageInfo.subtitle}
                     onSearch={setGlobalSearch}
                   />
                   <main className="flex-1 overflow-auto bg-gray-50">
@@ -350,12 +339,11 @@ function AuthenticatedApp() {
 
           <Route path="/form-application/:id">
             {(params) => {
-              const pageInfo = { title: "Application Form", subtitle: "Dynamic form application page" };
+              const pageInfo = { title: "Application Form" };
               return (
                 <>
                   <Header 
                     title={pageInfo.title} 
-                    subtitle={pageInfo.subtitle}
                     onSearch={setGlobalSearch}
                   />
                   <main className="flex-1 overflow-auto bg-gray-50">
@@ -368,12 +356,11 @@ function AuthenticatedApp() {
           <Route path="/prospects">
             {() => {
               if (!canAccessAgentManagement(user)) return <NotFound />;
-              const pageInfo = { title: "Merchant Prospects", subtitle: "Manage merchant prospects and leads" };
+              const pageInfo = { title: "Merchant Prospects" };
               return (
                 <>
                   <Header 
                     title={pageInfo.title} 
-                    subtitle={pageInfo.subtitle}
                     onSearch={setGlobalSearch}
                   />
                   <main className="flex-1 overflow-auto bg-gray-50">
@@ -385,12 +372,11 @@ function AuthenticatedApp() {
           </Route>
           <Route path="/agent-dashboard">
             {() => {
-              const pageInfo = { title: "Agent Dashboard", subtitle: "Manage your merchant applications and track progress" };
+              const pageInfo = { title: "Agent Dashboard" };
               return (
                 <>
                   <Header 
                     title={pageInfo.title} 
-                    subtitle={pageInfo.subtitle}
                     onSearch={setGlobalSearch}
                   />
                   <main className="flex-1 overflow-auto bg-gray-50">
@@ -402,12 +388,11 @@ function AuthenticatedApp() {
           </Route>
           <Route path="/application-view/:id">
             {() => {
-              const pageInfo = { title: "Application View", subtitle: "Detailed view of merchant application" };
+              const pageInfo = { title: "Application View" };
               return (
                 <>
                   <Header 
                     title={pageInfo.title} 
-                    subtitle={pageInfo.subtitle}
                     onSearch={setGlobalSearch}
                   />
                   <main className="flex-1 overflow-auto bg-gray-50">
@@ -420,12 +405,11 @@ function AuthenticatedApp() {
           <Route path="/campaigns">
             {() => {
               if (!canAccessAgentManagement(user)) return <NotFound />;
-              const pageInfo = { title: "Campaign Management", subtitle: "Create and manage pricing campaigns for merchant applications" };
+              const pageInfo = { title: "Campaign Management" };
               return (
                 <>
                   <Header 
                     title={pageInfo.title} 
-                    subtitle={pageInfo.subtitle}
                     onSearch={setGlobalSearch}
                   />
                   <main className="flex-1 overflow-auto bg-gray-50">
