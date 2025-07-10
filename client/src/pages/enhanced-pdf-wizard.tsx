@@ -1870,7 +1870,11 @@ export default function EnhancedPdfWizard() {
                   </div>
                   <div>
                     <Label className="text-sm font-medium text-gray-700">Pricing Type</Label>
-                    <p className="text-gray-900 font-medium">{campaign.pricingType || 'Not configured'}</p>
+                    <p className="text-gray-900 font-medium">
+                      {typeof campaign.pricingType === 'object' && campaign.pricingType?.name 
+                        ? campaign.pricingType.name 
+                        : campaign.pricingType || 'Not configured'}
+                    </p>
                   </div>
                   <div>
                     <Label className="text-sm font-medium text-gray-700">Status</Label>
