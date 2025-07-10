@@ -82,6 +82,7 @@ export function EnhancedCampaignDialog({ open, onOpenChange, onCampaignCreated }
   const [feeValues, setFeeValues] = useState<Record<number, string>>({});
   const [selectedEquipment, setSelectedEquipment] = useState<number[]>([]);
   const [activePricingTypes, setActivePricingTypes] = useState<number[]>([]);
+  const [expandedPricingTypes, setExpandedPricingTypes] = useState<string[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const defaultsSetRef = useRef(false);
 
@@ -190,6 +191,7 @@ export function EnhancedCampaignDialog({ open, onOpenChange, onCampaignCreated }
     setFeeValues({});
     setSelectedEquipment([]);
     setActivePricingTypes([]);
+    setExpandedPricingTypes([]);
     setErrors({});
     defaultsSetRef.current = false;
   };
@@ -295,6 +297,17 @@ export function EnhancedCampaignDialog({ open, onOpenChange, onCampaignCreated }
     });
   };
 
+  // Handle expand all functionality
+  const handleExpandAll = () => {
+    const allPricingTypeIds = pricingTypesWithFeeItems.map(pt => pt.id.toString());
+    setExpandedPricingTypes(allPricingTypeIds);
+    setActivePricingTypes(pricingTypesWithFeeItems.map(pt => pt.id));
+  };
+
+  const handleCollapseAll = () => {
+    setExpandedPricingTypes([]);
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden">
@@ -386,108 +399,37 @@ export function EnhancedCampaignDialog({ open, onOpenChange, onCampaignCreated }
               </CardContent>
             </Card>
 
-            {/* Equipment Selection */}
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base flex items-center">
-                  <Package className="h-4 w-4 mr-2" />
-                  Equipment Selection
-                </CardTitle>
-                <CardDescription>
-                  Choose equipment items to associate with this campaign (optional)
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {equipmentLoading ? (
-                  <div className="text-center py-8 text-muted-foreground">
-                    Loading equipment...
-                  </div>
-                ) : equipmentItems.length === 0 ? (
-                  <Alert>
-                    <AlertCircle className="h-4 w-4" />
-                    <AlertDescription>
-                      No equipment items are available. Contact an administrator to add equipment.
-                    </AlertDescription>
-                  </Alert>
-                ) : (
-                  <div className="space-y-4">
-                    <div className="text-sm text-muted-foreground mb-3">
-                      {selectedEquipment.length} of {equipmentItems.length} equipment items selected
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {equipmentItems.map((item: EquipmentItem) => (
-                        <div
-                          key={item.id}
-                          className={`border rounded-lg p-4 transition-all ${
-                            selectedEquipment.includes(item.id)
-                              ? 'border-primary bg-primary/5 ring-1 ring-primary/20'
-                              : 'border-border hover:border-primary/50'
-                          }`}
-                        >
-                          <div className="flex items-start space-x-3">
-                            <Checkbox
-                              id={`equipment-${item.id}`}
-                              checked={selectedEquipment.includes(item.id)}
-                              onCheckedChange={(checked) => 
-                                handleEquipmentChange(item.id, checked as boolean)
-                              }
-                              className="mt-1"
-                            />
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center space-x-3 mb-2">
-                                {item.imageUrl && (
-                                  <img
-                                    src={item.imageUrl}
-                                    alt={item.name}
-                                    className="w-12 h-12 object-contain rounded bg-muted p-1"
-                                  />
-                                )}
-                                <div className="flex-1">
-                                  <Label htmlFor={`equipment-${item.id}`} className="text-sm font-medium cursor-pointer">
-                                    {item.name}
-                                  </Label>
-                                  {selectedEquipment.includes(item.id) && (
-                                    <Check className="h-4 w-4 text-primary ml-1 inline" />
-                                  )}
-                                </div>
-                              </div>
-                              
-                              {item.description && (
-                                <p className="text-xs text-muted-foreground mb-2">
-                                  {item.description}
-                                </p>
-                              )}
-                              
-                              {item.specifications && typeof item.specifications === 'string' && item.specifications.trim() && (
-                                <div className="text-xs text-muted-foreground">
-                                  <span className="font-medium">Specs:</span> {item.specifications}
-                                </div>
-                              )}
-                              {item.specifications && typeof item.specifications === 'object' && item.specifications !== null && Object.keys(item.specifications).length > 0 && (
-                                <div className="text-xs text-muted-foreground">
-                                  <span className="font-medium">Specs:</span> {JSON.stringify(item.specifications)}
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
             {/* Pricing Types Configuration */}
             <Card>
               <CardHeader className="pb-3">
-                <CardTitle className="text-base flex items-center">
-                  <DollarSign className="h-4 w-4 mr-2" />
-                  Pricing Types Configuration *
-                </CardTitle>
-                <CardDescription>
-                  Configure fees for different pricing types. Expand each pricing type to set fee values.
-                </CardDescription>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="text-base flex items-center">
+                      <DollarSign className="h-4 w-4 mr-2" />
+                      Pricing Types Configuration *
+                    </CardTitle>
+                    <CardDescription>
+                      Configure fees for different pricing types. Expand each pricing type to set fee values.
+                    </CardDescription>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={handleExpandAll}
+                      disabled={pricingTypesWithFeeItems.length === 0}
+                    >
+                      Expand All
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={handleCollapseAll}
+                    >
+                      Collapse All
+                    </Button>
+                  </div>
+                </div>
               </CardHeader>
               <CardContent>
                 {pricingTypeFeeItemsQueries.isLoading ? (
@@ -506,7 +448,7 @@ export function EnhancedCampaignDialog({ open, onOpenChange, onCampaignCreated }
                     <div className="text-sm text-muted-foreground mb-4">
                       {activePricingTypes.length} of {pricingTypesWithFeeItems.length} pricing types configured
                     </div>
-                    <Accordion type="multiple" value={activePricingTypes.map(String)} className="w-full">
+                    <Accordion type="multiple" value={expandedPricingTypes} className="w-full">
                       {pricingTypesWithFeeItems.map((pricingType) => (
                         <AccordionItem key={pricingType.id} value={pricingType.id.toString()}>
                           <AccordionTrigger 
@@ -608,6 +550,98 @@ export function EnhancedCampaignDialog({ open, onOpenChange, onCampaignCreated }
                         </AccordionItem>
                       ))}
                     </Accordion>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Equipment Selection */}
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center">
+                  <Package className="h-4 w-4 mr-2" />
+                  Equipment Selection
+                </CardTitle>
+                <CardDescription>
+                  Choose equipment items to associate with this campaign (optional)
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {equipmentLoading ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    Loading equipment...
+                  </div>
+                ) : equipmentItems.length === 0 ? (
+                  <Alert>
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription>
+                      No equipment items are available. Contact an administrator to add equipment.
+                    </AlertDescription>
+                  </Alert>
+                ) : (
+                  <div className="space-y-4">
+                    <div className="text-sm text-muted-foreground mb-3">
+                      {selectedEquipment.length} of {equipmentItems.length} equipment items selected
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {equipmentItems.map((item: EquipmentItem) => (
+                        <div
+                          key={item.id}
+                          className={`border rounded-lg p-4 transition-all ${
+                            selectedEquipment.includes(item.id)
+                              ? 'border-primary bg-primary/5 ring-1 ring-primary/20'
+                              : 'border-border hover:border-primary/50'
+                          }`}
+                        >
+                          <div className="flex items-start space-x-3">
+                            <Checkbox
+                              id={`equipment-${item.id}`}
+                              checked={selectedEquipment.includes(item.id)}
+                              onCheckedChange={(checked) => 
+                                handleEquipmentChange(item.id, checked as boolean)
+                              }
+                              className="mt-1"
+                            />
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center space-x-3 mb-2">
+                                {item.imageUrl && (
+                                  <img
+                                    src={item.imageUrl}
+                                    alt={item.name}
+                                    className="w-12 h-12 object-contain rounded bg-muted p-1"
+                                  />
+                                )}
+                                <div className="flex-1">
+                                  <Label htmlFor={`equipment-${item.id}`} className="text-sm font-medium cursor-pointer">
+                                    {item.name}
+                                  </Label>
+                                  {selectedEquipment.includes(item.id) && (
+                                    <Check className="h-4 w-4 text-primary ml-1 inline" />
+                                  )}
+                                </div>
+                              </div>
+                              
+                              {item.description && (
+                                <p className="text-xs text-muted-foreground mb-2">
+                                  {item.description}
+                                </p>
+                              )}
+                              
+                              {item.specifications && typeof item.specifications === 'string' && item.specifications.trim() && (
+                                <div className="text-xs text-muted-foreground">
+                                  <span className="font-medium">Specs:</span> {item.specifications}
+                                </div>
+                              )}
+                              {item.specifications && typeof item.specifications === 'object' && item.specifications !== null && Object.keys(item.specifications).length > 0 && (
+                                <div className="text-xs text-muted-foreground">
+                                  <span className="font-medium">Specs:</span> {JSON.stringify(item.specifications)}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 )}
               </CardContent>
