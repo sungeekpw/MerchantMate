@@ -40,6 +40,7 @@ import ApplicationPrint from "@/pages/application-print";
 import AgentDashboard from "@/pages/agent-dashboard";
 import Campaigns from "@/pages/campaigns";
 import Equipment from "@/pages/equipment";
+import ApiDocumentation from "@/pages/api-documentation";
 import NotFound from "@/pages/not-found";
 import Landing from "@/pages/landing";
 import Auth from "@/pages/auth";
@@ -146,6 +147,11 @@ function AuthenticatedApp() {
         return {
           title: "Equipment Management",
           subtitle: "Manage payment equipment and processing devices"
+        };
+      case "/api-documentation":
+        return {
+          title: "API Documentation",
+          subtitle: "Comprehensive API reference for external integrations"
         };
       default:
         return {
@@ -442,6 +448,23 @@ function AuthenticatedApp() {
                   />
                   <main className="flex-1 overflow-auto bg-gray-50">
                     <Equipment />
+                  </main>
+                </>
+              );
+            }}
+          </Route>
+          <Route path="/api-documentation">
+            {() => {
+              if (!canAccessSecurityDashboard(user)) return <NotFound />;
+              const pageInfo = getPageInfo("/api-documentation");
+              return (
+                <>
+                  <Header 
+                    title={pageInfo.title} 
+                    onSearch={setGlobalSearch}
+                  />
+                  <main className="flex-1 overflow-auto bg-gray-50">
+                    <ApiDocumentation />
                   </main>
                 </>
               );
