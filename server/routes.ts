@@ -3605,6 +3605,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/campaigns/:id/equipment", requireRole(['admin', 'super_admin']), async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const equipment = await storage.getCampaignEquipment(id);
+      res.json(equipment);
+    } catch (error) {
+      console.error("Error fetching campaign equipment:", error);
+      res.status(500).json({ message: "Failed to fetch campaign equipment" });
+    }
+  });
+
   // Equipment Items API
   app.get("/api/equipment-items", isAuthenticated, async (req, res) => {
     try {

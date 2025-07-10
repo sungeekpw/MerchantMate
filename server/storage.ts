@@ -2482,6 +2482,20 @@ export class DatabaseStorage implements IStorage {
   async deactivateCampaign(id: number): Promise<Campaign | undefined> {
     return this.updateCampaign(id, { isActive: false });
   }
+
+  async getCampaignEquipment(campaignId: number): Promise<EquipmentItem[]> {
+    const result = await db
+      .select({
+        equipment: equipmentItems,
+        campaignEquipment: campaignEquipment,
+      })
+      .from(campaignEquipment)
+      .innerJoin(equipmentItems, eq(campaignEquipment.equipmentItemId, equipmentItems.id))
+      .where(eq(campaignEquipment.campaignId, campaignId))
+      .orderBy(campaignEquipment.displayOrder);
+
+    return result.map(row => row.equipment);
+  }
 }
 
 export const storage = new DatabaseStorage();
