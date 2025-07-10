@@ -2,7 +2,8 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuthRoutes } from "./authRoutes";
-import { insertMerchantSchema, insertAgentSchema, insertTransactionSchema, insertLocationSchema, insertAddressSchema, insertPdfFormSchema } from "@shared/schema";
+import { insertMerchantSchema, insertAgentSchema, insertTransactionSchema, insertLocationSchema, insertAddressSchema, insertPdfFormSchema, insertApiKeySchema } from "@shared/schema";
+import { authenticateApiKey, requireApiPermission, logApiRequest, generateApiKey } from "./apiAuth";
 import { setupAuth, isAuthenticated, requireRole, requirePermission } from "./replitAuth";
 import { z } from "zod";
 import session from "express-session";
@@ -3670,6 +3671,282 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error deleting equipment item:', error);
       res.status(500).json({ message: 'Failed to delete equipment item' });
+    }
+  });
+
+  // ============================================================================
+  // API KEY MANAGEMENT ROUTES - Admin Only
+  // ============================================================================
+
+  // Get all API keys
+  app.get("/api/admin/api-keys", requireRole(['admin', 'super_admin']), async (req, res) => {
+    try {
+      const apiKeys = await storage.getAllApiKeys();
+      // Don't send the secret in the response
+      const safeApiKeys = apiKeys.map(key => ({
+        ...key,
+        keySecret: undefined,
+      }));
+      res.json(safeApiKeys);
+    } catch (error) {
+      console.error("Error fetching API keys:", error);
+      res.status(500).json({ message: "Failed to fetch API keys" });
+    }
+  });
+
+  // Create new API key
+  app.post("/api/admin/api-keys", requireRole(['admin', 'super_admin']), async (req: any, res) => {
+    try {
+      const result = insertApiKeySchema.safeParse(req.body);
+      if (!result.success) {
+        return res.status(400).json({ 
+          message: "Invalid API key data", 
+          errors: result.error.errors 
+        });
+      }
+
+      // Generate key pair
+      const { keyId, keySecret, fullKey } = await generateApiKey();
+
+      // Hash the secret for storage
+      const bcrypt = await import("bcrypt");
+      const hashedSecret = await bcrypt.hash(keySecret, 12);
+
+      // Create API key record
+      const apiKeyData = {
+        ...result.data,
+        keyId,
+        keySecret: hashedSecret,
+        createdBy: req.user?.claims?.sub || req.session?.userId || 'admin-demo-123',
+      };
+
+      const apiKey = await storage.createApiKey(apiKeyData);
+
+      // Return the full key only once
+      res.status(201).json({
+        ...apiKey,
+        keySecret: undefined, // Don't include hashed secret
+        fullKey, // Only returned on creation
+      });
+    } catch (error) {
+      console.error("Error creating API key:", error);
+      if (error.code === '23505') { // Unique constraint violation
+        return res.status(400).json({ message: "API key name already exists" });
+      }
+      res.status(500).json({ message: "Failed to create API key" });
+    }
+  });
+
+  // Update API key
+  app.patch("/api/admin/api-keys/:id", requireRole(['admin', 'super_admin']), async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { name, organizationName, contactEmail, permissions, rateLimit, isActive, expiresAt } = req.body;
+
+      const updateData: any = {};
+      if (name !== undefined) updateData.name = name;
+      if (organizationName !== undefined) updateData.organizationName = organizationName;
+      if (contactEmail !== undefined) updateData.contactEmail = contactEmail;
+      if (permissions !== undefined) updateData.permissions = permissions;
+      if (rateLimit !== undefined) updateData.rateLimit = rateLimit;
+      if (isActive !== undefined) updateData.isActive = isActive;
+      if (expiresAt !== undefined) updateData.expiresAt = expiresAt ? new Date(expiresAt) : null;
+
+      const apiKey = await storage.updateApiKey(id, updateData);
+      if (!apiKey) {
+        return res.status(404).json({ message: "API key not found" });
+      }
+
+      // Don't send the secret
+      res.json({
+        ...apiKey,
+        keySecret: undefined,
+      });
+    } catch (error) {
+      console.error("Error updating API key:", error);
+      res.status(500).json({ message: "Failed to update API key" });
+    }
+  });
+
+  // Delete API key
+  app.delete("/api/admin/api-keys/:id", requireRole(['admin', 'super_admin']), async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const success = await storage.deleteApiKey(id);
+      
+      if (!success) {
+        return res.status(404).json({ message: "API key not found" });
+      }
+      
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting API key:", error);
+      res.status(500).json({ message: "Failed to delete API key" });
+    }
+  });
+
+  // Get API usage statistics
+  app.get("/api/admin/api-keys/:id/usage", requireRole(['admin', 'super_admin']), async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const timeRange = req.query.timeRange as string || '24h';
+      
+      const stats = await storage.getApiUsageStats(id, timeRange);
+      res.json(stats);
+    } catch (error) {
+      console.error("Error fetching API usage stats:", error);
+      res.status(500).json({ message: "Failed to fetch API usage statistics" });
+    }
+  });
+
+  // Get API request logs
+  app.get("/api/admin/api-logs", requireRole(['admin', 'super_admin']), async (req, res) => {
+    try {
+      const apiKeyId = req.query.apiKeyId ? parseInt(req.query.apiKeyId as string) : undefined;
+      const limit = req.query.limit ? parseInt(req.query.limit as string) : 100;
+      
+      const logs = await storage.getApiRequestLogs(apiKeyId, limit);
+      res.json(logs);
+    } catch (error) {
+      console.error("Error fetching API logs:", error);
+      res.status(500).json({ message: "Failed to fetch API logs" });
+    }
+  });
+
+  // ============================================================================
+  // EXTERNAL API ENDPOINTS - Authenticated via API Keys
+  // ============================================================================
+
+  // Apply API authentication middleware to all /api/external routes
+  app.use('/api/external', logApiRequest, authenticateApiKey);
+
+  // External merchants API
+  app.get('/api/external/merchants', requireApiPermission('merchants:read'), async (req: any, res) => {
+    try {
+      const merchants = await storage.getAllMerchants();
+      res.json(merchants);
+    } catch (error) {
+      console.error('Error fetching merchants via API:', error);
+      res.status(500).json({ 
+        error: 'Internal server error',
+        message: 'Failed to fetch merchants' 
+      });
+    }
+  });
+
+  app.get('/api/external/merchants/:id', requireApiPermission('merchants:read'), async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const merchant = await storage.getMerchant(id);
+      
+      if (!merchant) {
+        return res.status(404).json({ 
+          error: 'Not found',
+          message: 'Merchant not found' 
+        });
+      }
+      
+      res.json(merchant);
+    } catch (error) {
+      console.error('Error fetching merchant via API:', error);
+      res.status(500).json({ 
+        error: 'Internal server error',
+        message: 'Failed to fetch merchant' 
+      });
+    }
+  });
+
+  app.post('/api/external/merchants', requireApiPermission('merchants:write'), async (req: any, res) => {
+    try {
+      const result = insertMerchantSchema.safeParse(req.body);
+      if (!result.success) {
+        return res.status(400).json({ 
+          error: 'Validation error',
+          message: 'Invalid merchant data',
+          details: result.error.errors 
+        });
+      }
+
+      const merchant = await storage.createMerchant(result.data);
+      res.status(201).json(merchant);
+    } catch (error) {
+      console.error('Error creating merchant via API:', error);
+      res.status(500).json({ 
+        error: 'Internal server error',
+        message: 'Failed to create merchant' 
+      });
+    }
+  });
+
+  // External agents API
+  app.get('/api/external/agents', requireApiPermission('agents:read'), async (req: any, res) => {
+    try {
+      const agents = await storage.getAllAgents();
+      res.json(agents);
+    } catch (error) {
+      console.error('Error fetching agents via API:', error);
+      res.status(500).json({ 
+        error: 'Internal server error',
+        message: 'Failed to fetch agents' 
+      });
+    }
+  });
+
+  app.get('/api/external/agents/:id', requireApiPermission('agents:read'), async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const agent = await storage.getAgent(id);
+      
+      if (!agent) {
+        return res.status(404).json({ 
+          error: 'Not found',
+          message: 'Agent not found' 
+        });
+      }
+      
+      res.json(agent);
+    } catch (error) {
+      console.error('Error fetching agent via API:', error);
+      res.status(500).json({ 
+        error: 'Internal server error',
+        message: 'Failed to fetch agent' 
+      });
+    }
+  });
+
+  // External transactions API
+  app.get('/api/external/transactions', requireApiPermission('transactions:read'), async (req: any, res) => {
+    try {
+      const transactions = await storage.getAllTransactions();
+      res.json(transactions);
+    } catch (error) {
+      console.error('Error fetching transactions via API:', error);
+      res.status(500).json({ 
+        error: 'Internal server error',
+        message: 'Failed to fetch transactions' 
+      });
+    }
+  });
+
+  app.post('/api/external/transactions', requireApiPermission('transactions:write'), async (req: any, res) => {
+    try {
+      const result = insertTransactionSchema.safeParse(req.body);
+      if (!result.success) {
+        return res.status(400).json({ 
+          error: 'Validation error',
+          message: 'Invalid transaction data',
+          details: result.error.errors 
+        });
+      }
+
+      const transaction = await storage.createTransaction(result.data);
+      res.status(201).json(transaction);
+    } catch (error) {
+      console.error('Error creating transaction via API:', error);
+      res.status(500).json({ 
+        error: 'Internal server error',
+        message: 'Failed to create transaction' 
+      });
     }
   });
 

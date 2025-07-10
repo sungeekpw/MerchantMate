@@ -98,6 +98,42 @@ export const agentMerchants = pgTable("agent_merchants", {
   assignedBy: text("assigned_by"), // user ID who made the assignment
 });
 
+// API Keys for external integrations
+export const apiKeys = pgTable("api_keys", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(), // Human-readable name for the API key
+  keyId: text("key_id").notNull().unique(), // Public key identifier (e.g., ak_12345...)
+  keySecret: text("key_secret").notNull(), // Hashed secret key
+  organizationName: text("organization_name"), // Organization using this API key
+  contactEmail: text("contact_email").notNull(),
+  permissions: jsonb("permissions").notNull().default('[]'), // Array of permission strings
+  rateLimit: integer("rate_limit").default(1000), // Requests per hour
+  isActive: boolean("is_active").default(true),
+  lastUsedAt: timestamp("last_used_at"),
+  expiresAt: timestamp("expires_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// API Request Logs for monitoring and analytics
+export const apiRequestLogs = pgTable("api_request_logs", {
+  id: serial("id").primaryKey(),
+  apiKeyId: integer("api_key_id").references(() => apiKeys.id, { onDelete: "cascade" }),
+  endpoint: text("endpoint").notNull(),
+  method: text("method").notNull(),
+  statusCode: integer("status_code").notNull(),
+  responseTime: integer("response_time"), // in milliseconds
+  userAgent: text("user_agent"),
+  ipAddress: text("ip_address"),
+  requestSize: integer("request_size"), // in bytes
+  responseSize: integer("response_size"), // in bytes
+  errorMessage: text("error_message"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => ({
+  apiKeyIdIdx: index("api_key_id_idx").on(table.apiKeyId),
+  createdAtIdx: index("created_at_idx").on(table.createdAt),
+}));
+
 export const insertMerchantSchema = createInsertSchema(merchants).omit({
   id: true,
   createdAt: true,
@@ -338,6 +374,24 @@ export type InsertProspectOwner = z.infer<typeof insertProspectOwnerSchema>;
 export type ProspectOwner = typeof prospectOwners.$inferSelect;
 export type InsertProspectSignature = z.infer<typeof insertProspectSignatureSchema>;
 export type ProspectSignature = typeof prospectSignatures.$inferSelect;
+
+// API Key schemas
+export const insertApiKeySchema = createInsertSchema(apiKeys).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  lastUsedAt: true,
+});
+
+export const insertApiRequestLogSchema = createInsertSchema(apiRequestLogs).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertApiKey = z.infer<typeof insertApiKeySchema>;
+export type ApiKey = typeof apiKeys.$inferSelect;
+export type InsertApiRequestLog = z.infer<typeof insertApiRequestLogSchema>;
+export type ApiRequestLog = typeof apiRequestLogs.$inferSelect;
 
 // PDF Form schemas
 export const pdfForms = pgTable("pdf_forms", {

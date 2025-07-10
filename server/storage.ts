@@ -1,6 +1,6 @@
-import { merchants, agents, transactions, users, loginAttempts, twoFactorCodes, userDashboardPreferences, agentMerchants, locations, addresses, pdfForms, pdfFormFields, pdfFormSubmissions, merchantProspects, prospectOwners, prospectSignatures, feeGroups, feeItemGroups, feeItems, pricingTypes, pricingTypeFeeItems, campaigns, campaignFeeValues, campaignAssignments, equipmentItems, campaignEquipment, type Merchant, type Agent, type Transaction, type User, type InsertMerchant, type InsertAgent, type InsertTransaction, type UpsertUser, type MerchantWithAgent, type TransactionWithMerchant, type LoginAttempt, type TwoFactorCode, type UserDashboardPreference, type InsertUserDashboardPreference, type AgentMerchant, type InsertAgentMerchant, type Location, type InsertLocation, type Address, type InsertAddress, type LocationWithAddresses, type MerchantWithLocations, type PdfForm, type InsertPdfForm, type PdfFormField, type InsertPdfFormField, type PdfFormSubmission, type InsertPdfFormSubmission, type PdfFormWithFields, type MerchantProspect, type InsertMerchantProspect, type MerchantProspectWithAgent, type ProspectOwner, type InsertProspectOwner, type ProspectSignature, type InsertProspectSignature, type FeeGroup, type InsertFeeGroup, type FeeItemGroup, type InsertFeeItemGroup, type FeeItem, type InsertFeeItem, type PricingType, type InsertPricingType, type PricingTypeFeeItem, type InsertPricingTypeFeeItem, type Campaign, type InsertCampaign, type CampaignFeeValue, type InsertCampaignFeeValue, type CampaignAssignment, type InsertCampaignAssignment, type EquipmentItem, type InsertEquipmentItem, type CampaignEquipment, type InsertCampaignEquipment, type FeeGroupWithItems, type FeeItemGroupWithItems, type FeeGroupWithItemGroups, type PricingTypeWithFeeItems, type CampaignWithDetails } from "@shared/schema";
+import { merchants, agents, transactions, users, loginAttempts, twoFactorCodes, userDashboardPreferences, agentMerchants, locations, addresses, pdfForms, pdfFormFields, pdfFormSubmissions, merchantProspects, prospectOwners, prospectSignatures, feeGroups, feeItemGroups, feeItems, pricingTypes, pricingTypeFeeItems, campaigns, campaignFeeValues, campaignAssignments, equipmentItems, campaignEquipment, apiKeys, apiRequestLogs, type Merchant, type Agent, type Transaction, type User, type InsertMerchant, type InsertAgent, type InsertTransaction, type UpsertUser, type MerchantWithAgent, type TransactionWithMerchant, type LoginAttempt, type TwoFactorCode, type UserDashboardPreference, type InsertUserDashboardPreference, type AgentMerchant, type InsertAgentMerchant, type Location, type InsertLocation, type Address, type InsertAddress, type LocationWithAddresses, type MerchantWithLocations, type PdfForm, type InsertPdfForm, type PdfFormField, type InsertPdfFormField, type PdfFormSubmission, type InsertPdfFormSubmission, type PdfFormWithFields, type MerchantProspect, type InsertMerchantProspect, type MerchantProspectWithAgent, type ProspectOwner, type InsertProspectOwner, type ProspectSignature, type InsertProspectSignature, type FeeGroup, type InsertFeeGroup, type FeeItemGroup, type InsertFeeItemGroup, type FeeItem, type InsertFeeItem, type PricingType, type InsertPricingType, type PricingTypeFeeItem, type InsertPricingTypeFeeItem, type Campaign, type InsertCampaign, type CampaignFeeValue, type InsertCampaignFeeValue, type CampaignAssignment, type InsertCampaignAssignment, type EquipmentItem, type InsertEquipmentItem, type CampaignEquipment, type InsertCampaignEquipment, type FeeGroupWithItems, type FeeItemGroupWithItems, type FeeGroupWithItemGroups, type PricingTypeWithFeeItems, type CampaignWithDetails, type ApiKey, type InsertApiKey, type ApiRequestLog, type InsertApiRequestLog } from "@shared/schema";
 import { db } from "./db";
-import { eq, or, and, gte, sql, desc, inArray, like } from "drizzle-orm";
+import { eq, or, and, gte, sql, desc, inArray, like, ilike } from "drizzle-orm";
 
 export interface IStorage {
   // Merchant operations
@@ -261,6 +261,25 @@ export interface IStorage {
   addEquipmentToCampaign(campaignId: number, equipmentItemId: number, isRequired?: boolean, displayOrder?: number): Promise<CampaignEquipment>;
   removeEquipmentFromCampaign(campaignId: number, equipmentItemId: number): Promise<boolean>;
   updateCampaignEquipment(campaignId: number, equipmentItemId: number, updates: Partial<InsertCampaignEquipment>): Promise<CampaignEquipment | undefined>;
+
+  // API Key operations
+  getAllApiKeys(): Promise<ApiKey[]>;
+  getApiKey(id: number): Promise<ApiKey | undefined>;
+  getApiKeyByKeyId(keyId: string): Promise<ApiKey | undefined>;
+  createApiKey(apiKey: InsertApiKey): Promise<ApiKey>;
+  updateApiKey(id: number, updates: Partial<InsertApiKey>): Promise<ApiKey | undefined>;
+  updateApiKeyLastUsed(id: number): Promise<void>;
+  deleteApiKey(id: number): Promise<boolean>;
+  
+  // API Request Log operations
+  createApiRequestLog(log: InsertApiRequestLog): Promise<ApiRequestLog>;
+  getApiRequestLogs(apiKeyId?: number, limit?: number): Promise<ApiRequestLog[]>;
+  getApiUsageStats(apiKeyId: number, timeRange: string): Promise<{
+    totalRequests: number;
+    successfulRequests: number;
+    errorRequests: number;
+    averageResponseTime: number;
+  }>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -2495,6 +2514,106 @@ export class DatabaseStorage implements IStorage {
       .orderBy(campaignEquipment.displayOrder);
 
     return result.map(row => row.equipment);
+  }
+
+  // API Key operations implementation
+  async getAllApiKeys(): Promise<ApiKey[]> {
+    return await db.select().from(apiKeys).orderBy(desc(apiKeys.createdAt));
+  }
+
+  async getApiKey(id: number): Promise<ApiKey | undefined> {
+    const [apiKey] = await db.select().from(apiKeys).where(eq(apiKeys.id, id));
+    return apiKey || undefined;
+  }
+
+  async getApiKeyByKeyId(keyId: string): Promise<ApiKey | undefined> {
+    const [apiKey] = await db.select().from(apiKeys).where(eq(apiKeys.keyId, keyId));
+    return apiKey || undefined;
+  }
+
+  async createApiKey(apiKey: InsertApiKey): Promise<ApiKey> {
+    const [created] = await db.insert(apiKeys).values(apiKey).returning();
+    return created;
+  }
+
+  async updateApiKey(id: number, updates: Partial<InsertApiKey>): Promise<ApiKey | undefined> {
+    const [updated] = await db.update(apiKeys)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(apiKeys.id, id))
+      .returning();
+    return updated || undefined;
+  }
+
+  async updateApiKeyLastUsed(id: number): Promise<void> {
+    await db.update(apiKeys)
+      .set({ lastUsedAt: new Date() })
+      .where(eq(apiKeys.id, id));
+  }
+
+  async deleteApiKey(id: number): Promise<boolean> {
+    const result = await db.delete(apiKeys).where(eq(apiKeys.id, id));
+    return result.rowCount !== null && result.rowCount > 0;
+  }
+
+  // API Request Log operations implementation
+  async createApiRequestLog(log: InsertApiRequestLog): Promise<ApiRequestLog> {
+    const [created] = await db.insert(apiRequestLogs).values(log).returning();
+    return created;
+  }
+
+  async getApiRequestLogs(apiKeyId?: number, limit: number = 100): Promise<ApiRequestLog[]> {
+    let query = db.select().from(apiRequestLogs);
+    
+    if (apiKeyId) {
+      query = query.where(eq(apiRequestLogs.apiKeyId, apiKeyId));
+    }
+    
+    return await query.orderBy(desc(apiRequestLogs.createdAt)).limit(limit);
+  }
+
+  async getApiUsageStats(apiKeyId: number, timeRange: string): Promise<{
+    totalRequests: number;
+    successfulRequests: number;
+    errorRequests: number;
+    averageResponseTime: number;
+  }> {
+    // Calculate time range
+    const now = new Date();
+    const since = new Date();
+    
+    switch (timeRange) {
+      case '24h':
+        since.setHours(now.getHours() - 24);
+        break;
+      case '7d':
+        since.setDate(now.getDate() - 7);
+        break;
+      case '30d':
+        since.setDate(now.getDate() - 30);
+        break;
+      default:
+        since.setHours(now.getHours() - 24);
+    }
+
+    const logs = await db.select().from(apiRequestLogs)
+      .where(and(
+        eq(apiRequestLogs.apiKeyId, apiKeyId),
+        gte(apiRequestLogs.createdAt, since)
+      ));
+
+    const totalRequests = logs.length;
+    const successfulRequests = logs.filter(log => log.statusCode >= 200 && log.statusCode < 400).length;
+    const errorRequests = logs.filter(log => log.statusCode >= 400).length;
+    const averageResponseTime = logs.length > 0 
+      ? logs.reduce((sum, log) => sum + (log.responseTime || 0), 0) / logs.length 
+      : 0;
+
+    return {
+      totalRequests,
+      successfulRequests,
+      errorRequests,
+      averageResponseTime: Math.round(averageResponseTime),
+    };
   }
 }
 
