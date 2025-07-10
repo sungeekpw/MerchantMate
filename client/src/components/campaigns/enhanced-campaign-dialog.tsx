@@ -384,7 +384,9 @@ export function EnhancedCampaignDialog({
       });
       
       // Set active pricing types
-      setActivePricingTypes([editCampaignData.pricingType.id]);
+      if (editCampaignData.pricingType?.id) {
+        setActivePricingTypes([editCampaignData.pricingType.id]);
+      }
       
       // Set fee values if available
       if (editCampaignData.feeValues) {
