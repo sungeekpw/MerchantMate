@@ -2342,23 +2342,40 @@ export class DatabaseStorage implements IStorage {
 
   // Campaigns
   async getAllCampaigns(): Promise<CampaignWithDetails[]> {
-    const result = await db
-      .select({
-        campaign: campaigns,
-        pricingType: pricingTypes,
-        createdByUser: users,
-      })
-      .from(campaigns)
-      .leftJoin(pricingTypes, eq(campaigns.pricingTypeId, pricingTypes.id))
-      .leftJoin(users, eq(campaigns.createdBy, users.id))
-      .orderBy(desc(campaigns.createdAt));
+    try {
+      // First get all campaigns
+      const campaignList = await db
+        .select()
+        .from(campaigns)
+        .where(eq(campaigns.isActive, true))
+        .orderBy(desc(campaigns.createdAt));
 
-    return result.map(row => ({
-      ...row.campaign,
-      pricingType: row.pricingType!,
-      createdByUser: row.createdByUser || undefined,
-      feeValues: [], // Will be loaded separately when needed
-    }));
+      // Get all pricing types for lookup
+      const allPricingTypes = await db
+        .select()
+        .from(pricingTypes);
+
+      // Map campaigns with their pricing types
+      return campaignList.map(campaign => {
+        const pricingType = allPricingTypes.find(pt => pt.id === campaign.pricingTypeId);
+        return {
+          ...campaign,
+          pricingType: pricingType || {
+            id: campaign.pricingTypeId,
+            name: 'Unknown',
+            description: '',
+            isActive: true,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          },
+          createdByUser: undefined,
+          feeValues: [],
+        };
+      });
+    } catch (error) {
+      console.error('Campaigns query error:', error);
+      throw error;
+    }
   }
 
   async getCampaign(id: number): Promise<Campaign | undefined> {
@@ -2405,6 +2422,7 @@ export class DatabaseStorage implements IStorage {
           feeValues.map(feeValue => ({
             ...feeValue,
             campaignId: campaign.id,
+            valueType: feeValue.valueType || 'percentage', // Use provided valueType or default
             updatedAt: new Date(),
           }))
         );
@@ -2420,7 +2438,6 @@ export class DatabaseStorage implements IStorage {
             equipmentItemId,
             isRequired: false,
             displayOrder: index + 1,
-            updatedAt: new Date(),
           }))
         );
     }

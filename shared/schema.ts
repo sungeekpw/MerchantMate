@@ -580,6 +580,7 @@ export const campaignFeeValues = pgTable("campaign_fee_values", {
   campaignId: integer("campaign_id").notNull().references(() => campaigns.id, { onDelete: "cascade" }),
   feeItemId: integer("fee_item_id").notNull().references(() => feeItems.id, { onDelete: "cascade" }),
   value: text("value").notNull(), // The actual fee value (amount, percentage, or placeholder text)
+  valueType: text("value_type").notNull().default("percentage"), // Type of value: 'percentage', 'amount', 'placeholder'
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 }, (table) => ({

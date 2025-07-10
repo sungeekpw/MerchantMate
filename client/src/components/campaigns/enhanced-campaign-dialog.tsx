@@ -181,9 +181,9 @@ export function EnhancedCampaignDialog({ open, onOpenChange, onCampaignCreated }
     }
   }, [formData.pricingTypeId, pricingTypes]);
 
-  // Set default values for fee items (only when availableFeeItems changes)
+  // Set default values for fee items (only when fee items data changes)
   useEffect(() => {
-    if (availableFeeItems.length > 0) {
+    if (availableFeeItems.length > 0 && Object.keys(feeValues).length === 0) {
       const newFeeValues: Record<number, string> = {};
       availableFeeItems.forEach((item: FeeItem) => {
         if (item.defaultValue) {
@@ -191,10 +191,10 @@ export function EnhancedCampaignDialog({ open, onOpenChange, onCampaignCreated }
         }
       });
       if (Object.keys(newFeeValues).length > 0) {
-        setFeeValues(prev => ({ ...prev, ...newFeeValues }));
+        setFeeValues(newFeeValues);
       }
     }
-  }, [availableFeeItems]);
+  }, [availableFeeItems.length, selectedPricingType?.id]);
 
   const resetForm = () => {
     setFormData({
