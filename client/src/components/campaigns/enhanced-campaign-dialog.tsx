@@ -184,14 +184,11 @@ export function EnhancedCampaignDialog({ open, onOpenChange, onCampaignCreated }
     }
   }, [formData.pricingTypeId, pricingTypes]);
 
-  // Memoize fee items to prevent unnecessary re-renders
-  const memoizedFeeItems = useMemo(() => availableFeeItems, [availableFeeItems.length]);
-
   // Set default values for fee items (only when fee items data changes)
   useEffect(() => {
-    if (memoizedFeeItems.length > 0 && selectedPricingType?.id && !defaultsSetRef.current) {
+    if (availableFeeItems.length > 0 && selectedPricingType?.id && !defaultsSetRef.current) {
       const newFeeValues: Record<number, string> = {};
-      memoizedFeeItems.forEach((item: FeeItem) => {
+      availableFeeItems.forEach((item: FeeItem) => {
         if (item.defaultValue) {
           newFeeValues[item.id] = item.defaultValue;
         }
@@ -201,7 +198,7 @@ export function EnhancedCampaignDialog({ open, onOpenChange, onCampaignCreated }
       }
       defaultsSetRef.current = true;
     }
-  }, [memoizedFeeItems.length, selectedPricingType?.id]);
+  }, [availableFeeItems.length, selectedPricingType?.id]);
 
   const resetForm = () => {
     setFormData({
@@ -294,9 +291,9 @@ export function EnhancedCampaignDialog({ open, onOpenChange, onCampaignCreated }
     }
   };
 
-  // Group fee items by fee group - using memoized items
+  // Group fee items by fee group
   const groupedFeeItems = useMemo(() => {
-    return memoizedFeeItems.reduce((groups: Record<string, FeeItem[]>, item: FeeItem) => {
+    return availableFeeItems.reduce((groups: Record<string, FeeItem[]>, item: FeeItem) => {
       const groupName = item.feeGroup?.name || 'Other';
       if (!groups[groupName]) {
         groups[groupName] = [];
@@ -304,7 +301,7 @@ export function EnhancedCampaignDialog({ open, onOpenChange, onCampaignCreated }
       groups[groupName].push(item);
       return groups;
     }, {});
-  }, [memoizedFeeItems]);
+  }, [availableFeeItems.length]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -481,9 +478,14 @@ export function EnhancedCampaignDialog({ open, onOpenChange, onCampaignCreated }
                                 </p>
                               )}
                               
-                              {item.specifications && (
+                              {item.specifications && typeof item.specifications === 'string' && item.specifications.trim() && (
                                 <div className="text-xs text-muted-foreground">
                                   <span className="font-medium">Specs:</span> {item.specifications}
+                                </div>
+                              )}
+                              {item.specifications && typeof item.specifications === 'object' && item.specifications !== null && Object.keys(item.specifications).length > 0 && (
+                                <div className="text-xs text-muted-foreground">
+                                  <span className="font-medium">Specs:</span> {JSON.stringify(item.specifications)}
                                 </div>
                               )}
                             </div>
@@ -563,7 +565,7 @@ export function EnhancedCampaignDialog({ open, onOpenChange, onCampaignCreated }
                                       onChange={(e) => handleFeeValueChange(item.id, e.target.value)}
                                       className="pr-8"
                                     />
-                                    <div className="absolute right-2 top-1/2 transform -translate-y-1/2 text-muted-foreground">
+                                    <div className="absolute right-2 top-1/2 transform -translate-y-1/2 text-muted-foreground flex items-center">
                                       {getValueIcon(item.valueType)}
                                       <span className="text-xs ml-1">
                                         {formatValueType(item.valueType)}
