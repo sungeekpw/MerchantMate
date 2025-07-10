@@ -182,23 +182,7 @@ export function EnhancedCampaignDialog({ open, onOpenChange, onCampaignCreated }
       setFeeValues({});
       defaultsSetRef.current = false;
     }
-  }, [formData.pricingTypeId, pricingTypes]);
-
-  // Set default values for fee items (only when fee items data changes)
-  useEffect(() => {
-    if (availableFeeItems.length > 0 && selectedPricingType?.id && !defaultsSetRef.current) {
-      const newFeeValues: Record<number, string> = {};
-      availableFeeItems.forEach((item: FeeItem) => {
-        if (item.defaultValue) {
-          newFeeValues[item.id] = item.defaultValue;
-        }
-      });
-      if (Object.keys(newFeeValues).length > 0) {
-        setFeeValues(newFeeValues);
-      }
-      defaultsSetRef.current = true;
-    }
-  }, [availableFeeItems.length, selectedPricingType?.id]);
+  }, [formData.pricingTypeId, pricingTypes.length]);
 
   const resetForm = () => {
     setFormData({
