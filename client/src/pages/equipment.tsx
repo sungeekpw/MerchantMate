@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Plus, Search, Edit, Trash2, Upload, Monitor, CreditCard, Smartphone } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { Header } from "@/components/layout/header";
+
 
 interface EquipmentItem {
   id: number;
@@ -202,10 +202,7 @@ export default function Equipment() {
   const categories = [...new Set(equipmentItems.map((item: EquipmentItem) => item.category))];
 
   return (
-    <div className="space-y-8">
-      <Header title="Equipment Management" />
-      
-      <div className="p-6 space-y-6">
+    <div className="p-6 space-y-6">
         {/* Search and Actions */}
         <div className="flex items-center justify-between gap-4">
           <div className="relative flex-1 max-w-md">
@@ -463,7 +460,6 @@ export default function Equipment() {
             </div>
           </CardContent>
         </Card>
-      </div>
     </div>
   );
 }
