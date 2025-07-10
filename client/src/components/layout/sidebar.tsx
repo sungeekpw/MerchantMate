@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { CreditCard, BarChart3, Store, Users, Receipt, FileText, LogOut, User, MapPin, Shield, Upload, UserPlus, DollarSign, ChevronLeft, ChevronRight } from "lucide-react";
+import { CreditCard, BarChart3, Store, Users, Receipt, FileText, LogOut, User, MapPin, Shield, Upload, UserPlus, DollarSign, ChevronLeft, ChevronRight, Monitor, ChevronDown, ChevronUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import { canAccessAnalytics, canAccessMerchants, canAccessAgents, canAccessTransactions } from "@/lib/authUtils";
@@ -14,7 +14,15 @@ const baseNavigation = [
   { name: "Locations", href: "/locations", icon: MapPin, requiresRole: ['merchant'] },
   { name: "Agents", href: "/agents", icon: Users, requiresRole: ['admin', 'corporate', 'super_admin'] },
   { name: "Prospects", href: "/prospects", icon: UserPlus, requiresRole: ['admin', 'corporate', 'super_admin'] },
-  { name: "Campaigns", href: "/campaigns", icon: DollarSign, requiresRole: ['admin', 'super_admin'] },
+  { 
+    name: "Campaigns", 
+    href: "/campaigns", 
+    icon: DollarSign, 
+    requiresRole: ['admin', 'super_admin'],
+    subItems: [
+      { name: "Equipment", href: "/equipment", icon: Monitor, requiresRole: ['admin', 'super_admin'] }
+    ]
+  },
   { name: "Transactions", href: "/transactions", icon: Receipt, requiresRole: ['merchant', 'agent', 'admin', 'corporate', 'super_admin'] },
   { name: "PDF Forms", href: "/pdf-forms", icon: Upload, requiresRole: ['admin', 'super_admin'] },
   { name: "Users", href: "/users", icon: User, requiresRole: ['admin', 'corporate', 'super_admin'] },
@@ -26,6 +34,7 @@ export function Sidebar() {
   const [location] = useLocation();
   const { user, logout } = useAuth();
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [expandedItems, setExpandedItems] = useState<string[]>([]);
 
   // Fetch PDF forms that should appear in navigation
   const { data: pdfForms = [] } = useQuery({
@@ -40,15 +49,28 @@ export function Sidebar() {
     enabled: !!user
   });
 
+  const toggleExpanded = (itemName: string) => {
+    setExpandedItems(prev => 
+      prev.includes(itemName) 
+        ? prev.filter(name => name !== itemName)
+        : [...prev, itemName]
+    );
+  };
+
   const getFilteredNavigation = () => {
     if (!user) return [];
     
     const userRole = (user as any)?.role;
     
-    // Filter base navigation
+    // Filter base navigation with sub-items
     const filteredBase = baseNavigation.filter(item => {
       return item.requiresRole.includes(userRole);
-    });
+    }).map(item => ({
+      ...item,
+      subItems: (item as any).subItems?.filter((subItem: any) => 
+        subItem.requiresRole.includes(userRole)
+      ) || []
+    }));
 
     // Add dynamic PDF form navigation items - automatically creates dedicated pages
     const dynamicNavItems = pdfForms
@@ -60,7 +82,8 @@ export function Sidebar() {
         name: form.navigationTitle || form.name,
         href: `/form-application/${form.id}`,
         icon: FileText,
-        requiresRole: form.allowedRoles
+        requiresRole: form.allowedRoles,
+        subItems: []
       }));
 
     return [...filteredBase, ...dynamicNavItems];
@@ -97,28 +120,79 @@ export function Sidebar() {
 
       {/* Navigation */}
       <nav className={cn("flex-1 space-y-2", isCollapsed ? "p-2" : "p-4")}>
-        {getFilteredNavigation().map((item) => {
+        {getFilteredNavigation().map((item: any) => {
           const isActive = location === item.href;
+          const hasSubItems = item.subItems && item.subItems.length > 0;
+          const isExpanded = expandedItems.includes(item.name);
           const Icon = item.icon;
           
           return (
             <div key={item.name} className="relative group">
-              <Link 
-                href={item.href} 
-                className={cn(
-                  "corecrm-nav-item", 
-                  isActive && "active",
-                  isCollapsed ? "justify-center px-3 py-3" : "px-4 py-2"
+              {/* Main Navigation Item */}
+              <div className="flex items-center">
+                <Link 
+                  href={item.href} 
+                  className={cn(
+                    "corecrm-nav-item flex-1", 
+                    isActive && "active",
+                    isCollapsed ? "justify-center px-3 py-3" : "px-4 py-2",
+                    hasSubItems && !isCollapsed && "pr-2"
+                  )}
+                >
+                  <Icon className="w-5 h-5" />
+                  {!isCollapsed && <span className="font-medium">{item.name}</span>}
+                </Link>
+                
+                {/* Expand/Collapse Button */}
+                {hasSubItems && !isCollapsed && (
+                  <button
+                    onClick={() => toggleExpanded(item.name)}
+                    className="p-1 hover:bg-gray-100 rounded transition-colors"
+                  >
+                    {isExpanded ? (
+                      <ChevronUp className="w-4 h-4 text-gray-500" />
+                    ) : (
+                      <ChevronDown className="w-4 h-4 text-gray-500" />
+                    )}
+                  </button>
                 )}
-              >
-                <Icon className="w-5 h-5" />
-                {!isCollapsed && <span className="font-medium">{item.name}</span>}
-              </Link>
+              </div>
+              
+              {/* Sub-items */}
+              {hasSubItems && !isCollapsed && isExpanded && (
+                <div className="ml-4 mt-1 space-y-1 border-l border-gray-200 pl-4">
+                  {item.subItems.map((subItem: any) => {
+                    const isSubActive = location === subItem.href;
+                    const SubIcon = subItem.icon;
+                    
+                    return (
+                      <Link
+                        key={subItem.name}
+                        href={subItem.href}
+                        className={cn(
+                          "flex items-center space-x-3 px-3 py-2 text-sm rounded-lg transition-colors",
+                          isSubActive 
+                            ? "bg-primary text-primary-foreground font-medium" 
+                            : "text-gray-700 hover:bg-gray-100"
+                        )}
+                      >
+                        <SubIcon className="w-4 h-4" />
+                        <span>{subItem.name}</span>
+                      </Link>
+                    );
+                  })}
+                </div>
+              )}
               
               {/* Tooltip for collapsed state */}
               {isCollapsed && (
                 <div className="absolute left-full top-1/2 -translate-y-1/2 ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-50 whitespace-nowrap">
                   {item.name}
+                  {hasSubItems && (
+                    <div className="mt-1 text-xs text-gray-300">
+                      {item.subItems.map((sub: any) => sub.name).join(', ')}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
