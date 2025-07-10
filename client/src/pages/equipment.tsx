@@ -19,6 +19,8 @@ interface EquipmentItem {
   category: string;
   manufacturer: string;
   modelNumber: string;
+  imageUrl?: string;
+  imageData?: string;
   specifications: any;
   isActive: boolean;
   createdAt: string;
@@ -32,6 +34,8 @@ interface EquipmentFormData {
   manufacturer: string;
   modelNumber: string;
   specifications: string;
+  imageUrl?: string;
+  imageData?: string;
 }
 
 export default function Equipment() {
@@ -73,7 +77,8 @@ export default function Equipment() {
         credentials: 'include',
         body: JSON.stringify({
           ...data,
-          specifications: data.specifications ? JSON.parse(data.specifications) : {}
+          specifications: data.specifications ? JSON.parse(data.specifications) : {},
+          imageData: selectedImage ? await convertFileToBase64(selectedImage) : undefined
         })
       });
       if (!response.ok) throw new Error('Failed to create equipment');
@@ -99,7 +104,8 @@ export default function Equipment() {
         credentials: 'include',
         body: JSON.stringify({
           ...data,
-          specifications: data.specifications ? JSON.parse(data.specifications) : {}
+          specifications: data.specifications ? JSON.parse(data.specifications) : {},
+          imageData: selectedImage ? await convertFileToBase64(selectedImage) : undefined
         })
       });
       if (!response.ok) throw new Error('Failed to update equipment');
@@ -158,6 +164,14 @@ export default function Equipment() {
       modelNumber: equipment.modelNumber,
       specifications: JSON.stringify(equipment.specifications, null, 2),
     });
+    
+    // Load existing image if available
+    if (equipment.imageData) {
+      setImagePreview(equipment.imageData);
+    } else {
+      setImagePreview(null);
+    }
+    setSelectedImage(null);
   };
 
   const handleSubmit = () => {
@@ -178,6 +192,16 @@ export default function Equipment() {
       };
       reader.readAsDataURL(file);
     }
+  };
+
+  // Helper function to convert file to base64
+  const convertFileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
   };
 
   const getCategoryIcon = (category: string) => {

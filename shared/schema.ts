@@ -541,6 +541,9 @@ export const equipmentItems = pgTable("equipment_items", {
   imageUrl: text("image_url"), // URL to equipment image
   imageData: text("image_data"), // Base64 encoded image data as fallback
   category: text("category"), // e.g., "Terminal", "Reader", "POS System"
+  manufacturer: text("manufacturer"), // Equipment manufacturer
+  modelNumber: text("model_number"), // Equipment model number
+  specifications: jsonb("specifications").default("{}"), // Equipment specifications as JSON
   isActive: boolean("is_active").notNull().default(true),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
