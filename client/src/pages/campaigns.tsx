@@ -177,8 +177,15 @@ export default function CampaignsPage() {
   });
 
   // Fetch campaigns
-  const { data: campaigns = [], isLoading: campaignsLoading } = useQuery<Campaign[]>({
+  const { data: campaigns = [], isLoading: campaignsLoading, refetch: refetchCampaigns } = useQuery<Campaign[]>({
     queryKey: ['/api/campaigns'],
+    queryFn: async () => {
+      const response = await fetch('/api/campaigns', {
+        credentials: 'include'
+      });
+      if (!response.ok) throw new Error('Failed to fetch campaigns');
+      return response.json();
+    },
   });
 
   // Fetch pricing types for campaign creation
