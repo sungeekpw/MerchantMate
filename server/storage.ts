@@ -519,11 +519,9 @@ export class DatabaseStorage implements IStorage {
       .select({
         campaign: campaigns,
         pricingType: pricingTypes,
-        createdByUser: users,
       })
       .from(campaigns)
       .leftJoin(pricingTypes, eq(campaigns.pricingTypeId, pricingTypes.id))
-      .leftJoin(users, eq(campaigns.createdBy, users.id))
       .where(eq(campaigns.id, id));
 
     if (result.length === 0) return undefined;
@@ -531,8 +529,8 @@ export class DatabaseStorage implements IStorage {
     const row = result[0];
     return {
       ...row.campaign,
-      pricingType: row.pricingType!,
-      createdByUser: row.createdByUser || undefined,
+      pricingType: row.pricingType || undefined,
+      createdByUser: undefined,
     };
   }
 
