@@ -475,25 +475,7 @@ export class DatabaseStorage implements IStorage {
     ).orderBy(pricingTypes.name);
   }
 
-  // Campaigns implementation
-  async getAllCampaigns(): Promise<CampaignWithDetails[]> {
-    const result = await db
-      .select({
-        campaign: campaigns,
-        pricingType: pricingTypes,
-        createdByUser: users,
-      })
-      .from(campaigns)
-      .leftJoin(pricingTypes, eq(campaigns.pricingTypeId, pricingTypes.id))
-      .leftJoin(users, eq(campaigns.createdByUserId, users.id))
-      .orderBy(desc(campaigns.createdAt));
-
-    return result.map(row => ({
-      ...row.campaign,
-      pricingType: row.pricingType!,
-      createdByUser: row.createdByUser || undefined,
-    }));
-  }
+  // Campaigns implementation (removed duplicate - using the simpler one above)
 
   async getCampaign(id: number): Promise<Campaign | undefined> {
     const [campaign] = await db.select().from(campaigns).where(eq(campaigns.id, id));
@@ -509,7 +491,7 @@ export class DatabaseStorage implements IStorage {
       })
       .from(campaigns)
       .leftJoin(pricingTypes, eq(campaigns.pricingTypeId, pricingTypes.id))
-      .leftJoin(users, eq(campaigns.createdByUserId, users.id))
+      .leftJoin(users, eq(campaigns.createdBy, users.id))
       .where(eq(campaigns.id, id));
 
     if (result.length === 0) return undefined;
@@ -531,7 +513,7 @@ export class DatabaseStorage implements IStorage {
       })
       .from(campaigns)
       .leftJoin(pricingTypes, eq(campaigns.pricingTypeId, pricingTypes.id))
-      .leftJoin(users, eq(campaigns.createdByUserId, users.id))
+      .leftJoin(users, eq(campaigns.createdBy, users.id))
       .where(eq(campaigns.acquirer, acquirer))
       .orderBy(desc(campaigns.createdAt));
 
@@ -566,7 +548,7 @@ export class DatabaseStorage implements IStorage {
       })
       .from(campaigns)
       .leftJoin(pricingTypes, eq(campaigns.pricingTypeId, pricingTypes.id))
-      .leftJoin(users, eq(campaigns.createdByUserId, users.id))
+      .leftJoin(users, eq(campaigns.createdBy, users.id))
       .where(
         or(
           ilike(campaigns.name, `%${query}%`),
@@ -2274,26 +2256,7 @@ export class DatabaseStorage implements IStorage {
 
   // Campaigns
   async getAllCampaigns(): Promise<Campaign[]> {
-    const result = await db
-      .select({
-        campaign: campaigns,
-        pricingType: pricingTypes,
-        createdByUser: {
-          id: users.id,
-          name: users.name,
-          email: users.email,
-        },
-      })
-      .from(campaigns)
-      .innerJoin(pricingTypes, eq(campaigns.pricingTypeId, pricingTypes.id))
-      .leftJoin(users, eq(campaigns.createdBy, users.id))
-      .orderBy(desc(campaigns.createdAt));
-
-    return result.map(row => ({
-      ...row.campaign,
-      pricingType: row.pricingType,
-      createdByUser: row.createdByUser || undefined,
-    }));
+    return await db.select().from(campaigns).orderBy(desc(campaigns.createdAt));
   }
 
   async getCampaign(id: number): Promise<Campaign | undefined> {
