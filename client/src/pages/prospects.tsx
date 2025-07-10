@@ -387,6 +387,7 @@ export default function Prospects() {
 // Inline Prospect Modal Component
 const formSchema = insertMerchantProspectSchema.extend({
   notes: z.string().optional(),
+  campaignId: z.number().min(1, "Campaign selection is required"),
 });
 
 type FormData = z.infer<typeof formSchema>;
@@ -419,6 +420,7 @@ function ProspectModal({ isOpen, onClose, prospect }: ProspectModalProps) {
       agentId: agentDefaultId,
       status: "pending",
       notes: "",
+      campaignId: 0,
     },
   });
 
@@ -432,6 +434,7 @@ function ProspectModal({ isOpen, onClose, prospect }: ProspectModalProps) {
         agentId: prospect.agentId,
         status: prospect.status,
         notes: prospect.notes || "",
+        campaignId: 0, // Default to 0 when editing existing prospects
       });
     } else {
       form.reset({
@@ -441,6 +444,7 @@ function ProspectModal({ isOpen, onClose, prospect }: ProspectModalProps) {
         agentId: agentDefaultId,
         status: "pending",
         notes: "",
+        campaignId: 0,
       });
     }
   }, [prospect, form, agentDefaultId]);
@@ -452,6 +456,18 @@ function ProspectModal({ isOpen, onClose, prospect }: ProspectModalProps) {
       const response = await fetch("/api/agents");
       if (!response.ok) throw new Error('Failed to fetch agents');
       return response.json() as Promise<Agent[]>;
+    },
+  });
+
+  // Fetch campaigns for the dropdown
+  const { data: campaigns = [] } = useQuery({
+    queryKey: ["/api/campaigns"],
+    queryFn: async () => {
+      const response = await fetch("/api/campaigns", {
+        credentials: 'include'
+      });
+      if (!response.ok) throw new Error('Failed to fetch campaigns');
+      return response.json();
     },
   });
 
@@ -631,6 +647,34 @@ function ProspectModal({ isOpen, onClose, prospect }: ProspectModalProps) {
                       </SelectContent>
                     </Select>
                   )}
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="campaignId"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Campaign Assignment *</FormLabel>
+                  <Select
+                    value={field.value.toString()}
+                    onValueChange={(value) => field.onChange(parseInt(value))}
+                  >
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select a campaign" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {campaigns.map((campaign: any) => (
+                        <SelectItem key={campaign.id} value={campaign.id.toString()}>
+                          {campaign.name} - {campaign.acquirer}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   <FormMessage />
                 </FormItem>
               )}
