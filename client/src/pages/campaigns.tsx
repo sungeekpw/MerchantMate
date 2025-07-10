@@ -173,9 +173,11 @@ export default function CampaignsPage() {
   const [editCampaignId, setEditCampaignId] = useState<number | null>(null);
   const [editCampaignData, setEditCampaignData] = useState<Campaign | null>(null);
 
-  // Check if we're in edit mode
+  // Check if we're in edit mode or view mode
   const isEditMode = location.includes('/edit');
-  const campaignIdFromUrl = isEditMode ? parseInt(location.split('/')[2]) : null;
+  const isViewMode = location.match(/^\/campaigns\/\d+$/) && !isEditMode; // /campaigns/9 but not /campaigns/9/edit
+  const campaignIdFromUrl = isEditMode ? parseInt(location.split('/')[2]) : 
+                           isViewMode ? parseInt(location.split('/')[2]) : null;
 
   // Fee Group form state
   const [feeGroupForm, setFeeGroupForm] = useState({
@@ -359,6 +361,145 @@ export default function CampaignsPage() {
       displayOrder: feeGroupForm.displayOrder || 1,
     });
   };
+
+  // If we're in view mode, show individual campaign details
+  if (isViewMode && campaignToEdit) {
+    return (
+      <div className="p-6 space-y-6">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <Button 
+              variant="ghost" 
+              onClick={() => window.location.href = '/campaigns'}
+              className="flex items-center gap-2"
+            >
+              ← Back to Campaigns
+            </Button>
+            <div>
+              <h1 className="text-2xl font-bold">{campaignToEdit.name}</h1>
+              <p className="text-muted-foreground">Campaign #{campaignToEdit.id}</p>
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <Button 
+              variant="outline" 
+              onClick={() => window.location.href = `/campaigns/${campaignToEdit.id}/edit`}
+            >
+              <Edit className="h-4 w-4 mr-2" />
+              Edit Campaign
+            </Button>
+            <Button 
+              onClick={() => window.open(`/merchant-application?campaign=${campaignToEdit.id}`, '_blank')}
+            >
+              <ExternalLink className="h-4 w-4 mr-2" />
+              Open Application Form
+            </Button>
+          </div>
+        </div>
+
+        <div className="grid gap-6">
+          {/* Campaign Overview */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Campaign Overview</CardTitle>
+            </CardHeader>
+            <CardContent className="grid gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div>
+                  <Label className="text-sm font-medium text-muted-foreground">Campaign Name</Label>
+                  <p className="text-lg font-medium">{campaignToEdit.name}</p>
+                </div>
+                <div>
+                  <Label className="text-sm font-medium text-muted-foreground">Acquirer</Label>
+                  <p className="text-lg font-medium">{campaignToEdit.acquirer}</p>
+                </div>
+                <div>
+                  <Label className="text-sm font-medium text-muted-foreground">Pricing Type</Label>
+                  <p className="text-lg font-medium">{campaignToEdit.pricingType?.name || 'Not configured'}</p>
+                </div>
+                <div>
+                  <Label className="text-sm font-medium text-muted-foreground">Status</Label>
+                  <div className="flex gap-2 mt-1">
+                    <Badge variant={campaignToEdit.isActive ? "default" : "secondary"}>
+                      {campaignToEdit.isActive ? "Active" : "Inactive"}
+                    </Badge>
+                    {campaignToEdit.isDefault && (
+                      <Badge variant="outline">Default</Badge>
+                    )}
+                  </div>
+                </div>
+              </div>
+              {campaignToEdit.description && (
+                <div>
+                  <Label className="text-sm font-medium text-muted-foreground">Description</Label>
+                  <p className="text-base">{campaignToEdit.description}</p>
+                </div>
+              )}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-sm font-medium text-muted-foreground">Created Date</Label>
+                  <p className="text-base">{new Date(campaignToEdit.createdAt).toLocaleDateString()}</p>
+                </div>
+                <div>
+                  <Label className="text-sm font-medium text-muted-foreground">Created By</Label>
+                  <p className="text-base">{campaignToEdit.createdByUser?.name || 'System'}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Fee Structure */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Fee Structure</CardTitle>
+              <CardDescription>
+                Pricing configuration for this campaign
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {campaignToEdit.feeValues && campaignToEdit.feeValues.length > 0 ? (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Fee Item</TableHead>
+                      <TableHead>Fee Group</TableHead>
+                      <TableHead>Value</TableHead>
+                      <TableHead>Type</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {campaignToEdit.feeValues.map((feeValue) => (
+                      <TableRow key={feeValue.id}>
+                        <TableCell className="font-medium">
+                          {feeValue.feeItem?.name || 'Unknown Fee Item'}
+                        </TableCell>
+                        <TableCell>
+                          {feeValue.feeItem?.feeGroup?.name || 'Unknown Group'}
+                        </TableCell>
+                        <TableCell className="font-mono">
+                          {feeValue.value}
+                          {feeValue.valueType === 'percentage' && '%'}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline">
+                            {feeValue.valueType}
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  No fee structure configured for this campaign
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 space-y-6">
