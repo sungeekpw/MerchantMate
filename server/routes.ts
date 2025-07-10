@@ -3231,7 +3231,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/campaigns/:id', requireRole(['admin', 'super_admin']), async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
-      const campaign = await storage.getCampaign(id);
+      const campaign = await storage.getCampaignWithDetails(id);
       
       if (!campaign) {
         return res.status(404).json({ error: 'Campaign not found' });
