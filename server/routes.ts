@@ -3208,7 +3208,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post('/api/campaigns', requireRole(['admin', 'super_admin']), async (req: Request, res: Response) => {
     try {
-      const { feeValues, ...campaignData } = req.body;
+      const { feeValues, equipmentIds, ...campaignData } = req.body;
       
       // Get current user from session
       const session = req.session as SessionData;
@@ -3219,7 +3219,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         createdBy: userId ? parseInt(userId.replace('admin-demo-', '')) : undefined,
       };
 
-      const campaign = await storage.createCampaign(insertCampaign, feeValues || []);
+      const campaign = await storage.createCampaign(insertCampaign, feeValues || [], equipmentIds || []);
       res.status(201).json(campaign);
     } catch (error) {
       console.error('Error creating campaign:', error);
