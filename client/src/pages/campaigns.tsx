@@ -477,12 +477,12 @@ export default function CampaignsPage() {
                           {feeValue.feeItem?.feeGroup?.name || 'Unknown Group'}
                         </TableCell>
                         <TableCell className="font-mono">
-                          {feeValue.value}
+                          {String(feeValue.value)}
                           {feeValue.valueType === 'percentage' && '%'}
                         </TableCell>
                         <TableCell>
                           <Badge variant="outline">
-                            {feeValue.valueType}
+                            {String(feeValue.valueType || 'percentage')}
                           </Badge>
                         </TableCell>
                       </TableRow>
@@ -532,7 +532,7 @@ export default function CampaignsPage() {
                       )}
                       {equipment.specifications && (
                         <div className="text-xs text-muted-foreground">
-                          <strong>Specs:</strong> {equipment.specifications}
+                          <strong>Specs:</strong> {String(equipment.specifications)}
                         </div>
                       )}
                     </div>
