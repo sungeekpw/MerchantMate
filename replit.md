@@ -559,6 +559,13 @@ The application is configured for deployment on Replit with:
   - Enhanced information hierarchy with key statistics (Total Equipment, Active, Categories, Manufacturers) displayed before individual equipment items
   - Improved user experience with logical flow where users see summary totals first, then browse equipment grid
   - All equipment management functionality remains intact including search, add, edit, and delete operations
+- January 10, 2025. Completed API endpoint migration from /api/external to /api/v1 for public access
+  - Fixed critical API accessibility issue by creating missing api_keys table in the database
+  - Updated all API endpoints from /api/external to /api/v1 for proper public access and better API versioning
+  - Configured API middleware to properly handle public authentication with API keys
+  - Systematically updated all merchant, agent, and transaction API endpoints to use /api/v1 prefix
+  - Updated API Documentation page to reflect correct public endpoint URLs with new /api/v1 base path
+  - Complete API system now ready for external integrator access with consistent versioned endpoints
 
 ## User Preferences
 Preferred communication style: Simple, everyday language.
