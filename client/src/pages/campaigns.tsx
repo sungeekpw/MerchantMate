@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
+import { useLocation } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -161,6 +162,7 @@ interface CreateCampaignData {
 
 export default function CampaignsPage() {
   const { toast } = useToast();
+  const [location] = useLocation();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedAcquirer, setSelectedAcquirer] = useState<string>('all');
   const [showAddCampaign, setShowAddCampaign] = useState(false);
@@ -168,6 +170,12 @@ export default function CampaignsPage() {
   const [showAddFeeItem, setShowAddFeeItem] = useState(false);
   const [showAddPricingType, setShowAddPricingType] = useState(false);
   const [selectedFeeGroup, setSelectedFeeGroup] = useState<number | null>(null);
+  const [editCampaignId, setEditCampaignId] = useState<number | null>(null);
+  const [editCampaignData, setEditCampaignData] = useState<Campaign | null>(null);
+
+  // Check if we're in edit mode
+  const isEditMode = location.includes('/edit');
+  const campaignIdFromUrl = isEditMode ? parseInt(location.split('/')[2]) : null;
 
   // Fee Group form state
   const [feeGroupForm, setFeeGroupForm] = useState({
@@ -236,6 +244,31 @@ export default function CampaignsPage() {
       return response.json();
     }
   });
+
+  // Fetch individual campaign for editing
+  const { data: campaignToEdit } = useQuery<Campaign>({
+    queryKey: ['/api/campaigns', campaignIdFromUrl],
+    queryFn: async () => {
+      const response = await fetch(`/api/campaigns/${campaignIdFromUrl}`, {
+        credentials: 'include'
+      });
+      if (!response.ok) throw new Error('Failed to fetch campaign');
+      return response.json();
+    },
+    enabled: !!campaignIdFromUrl,
+  });
+
+  // Effect to set edit mode when URL changes
+  useEffect(() => {
+    if (isEditMode && campaignIdFromUrl && campaignToEdit) {
+      setEditCampaignId(campaignIdFromUrl);
+      setEditCampaignData(campaignToEdit);
+      setShowAddCampaign(true); // Open the dialog in edit mode
+    } else if (!isEditMode) {
+      setEditCampaignId(null);
+      setEditCampaignData(null);
+    }
+  }, [isEditMode, campaignIdFromUrl, campaignToEdit]);
 
   // Filter campaigns based on search and acquirer
   const filteredCampaigns = campaigns.filter(campaign => {
@@ -808,10 +841,20 @@ export default function CampaignsPage() {
       {/* Enhanced Campaign Dialog */}
       <EnhancedCampaignDialog 
         open={showAddCampaign} 
-        onOpenChange={setShowAddCampaign}
+        onOpenChange={(open) => {
+          setShowAddCampaign(open);
+          if (!open && isEditMode) {
+            window.location.href = '/campaigns';
+          }
+        }}
         onCampaignCreated={() => {
           queryClient.invalidateQueries({ queryKey: ['/api/campaigns'] });
+          if (isEditMode) {
+            window.location.href = '/campaigns';
+          }
         }}
+        editCampaignId={editCampaignId}
+        editCampaignData={editCampaignData}
       />
 
       {/* Add Fee Group Dialog */}

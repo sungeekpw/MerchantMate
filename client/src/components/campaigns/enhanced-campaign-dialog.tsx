@@ -62,13 +62,36 @@ interface EquipmentItem {
   isActive: boolean;
 }
 
+interface Campaign {
+  id: number;
+  name: string;
+  description?: string;
+  acquirer: string;
+  pricingType: {
+    id: number;
+    name: string;
+  };
+  isActive: boolean;
+  isDefault: boolean;
+  createdAt: string;
+  feeValues?: CampaignFeeValue[];
+}
+
 interface EnhancedCampaignDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onCampaignCreated?: () => void;
+  editCampaignId?: number | null;
+  editCampaignData?: Campaign | null;
 }
 
-export function EnhancedCampaignDialog({ open, onOpenChange, onCampaignCreated }: EnhancedCampaignDialogProps) {
+export function EnhancedCampaignDialog({ 
+  open, 
+  onOpenChange, 
+  onCampaignCreated, 
+  editCampaignId, 
+  editCampaignData 
+}: EnhancedCampaignDialogProps) {
   const { toast } = useToast();
   
   // Form state
@@ -181,6 +204,42 @@ export function EnhancedCampaignDialog({ open, onOpenChange, onCampaignCreated }
     },
   });
 
+  // Update campaign mutation
+  const updateCampaignMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const response = await fetch(`/api/campaigns/${editCampaignId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify(data),
+      });
+      if (!response.ok) {
+        const error = await response.text();
+        throw new Error(error || 'Failed to update campaign');
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Campaign Updated",
+        description: "Campaign has been updated successfully",
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/campaigns'] });
+      resetForm();
+      onOpenChange(false);
+      onCampaignCreated?.();
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
   const resetForm = () => {
     setFormData({
       name: '',
@@ -245,7 +304,11 @@ export function EnhancedCampaignDialog({ open, onOpenChange, onCampaignCreated }
       })),
     };
 
-    createCampaignMutation.mutate(campaignData);
+    if (editCampaignId) {
+      updateCampaignMutation.mutate(campaignData);
+    } else {
+      createCampaignMutation.mutate(campaignData);
+    }
   };
 
   const handleFeeValueChange = (feeItemId: number, value: string) => {
@@ -309,13 +372,46 @@ export function EnhancedCampaignDialog({ open, onOpenChange, onCampaignCreated }
     setExpandedPricingTypes([]);
   };
 
+  // Effect to populate form data when editing
+  useEffect(() => {
+    if (editCampaignData && open) {
+      setFormData({
+        name: editCampaignData.name,
+        description: editCampaignData.description || '',
+        acquirer: editCampaignData.acquirer,
+        equipment: '',
+        currency: 'USD',
+      });
+      
+      // Set active pricing types
+      setActivePricingTypes([editCampaignData.pricingType.id]);
+      
+      // Set fee values if available
+      if (editCampaignData.feeValues) {
+        const feeValueMap: Record<number, string> = {};
+        editCampaignData.feeValues.forEach(fv => {
+          feeValueMap[fv.feeItemId] = fv.value;
+        });
+        setFeeValues(feeValueMap);
+      }
+    } else if (!editCampaignData && open) {
+      // Reset form when opening for creation
+      resetForm();
+    }
+  }, [editCampaignData, open]);
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden">
         <DialogHeader>
-          <DialogTitle>Create New Campaign</DialogTitle>
+          <DialogTitle>
+            {editCampaignId ? 'Edit Campaign' : 'Create New Campaign'}
+          </DialogTitle>
           <DialogDescription>
-            Define a pricing campaign with custom fee structures for merchant applications
+            {editCampaignId 
+              ? 'Update this pricing campaign with custom fee structures for merchant applications'
+              : 'Define a pricing campaign with custom fee structures for merchant applications'
+            }
           </DialogDescription>
         </DialogHeader>
         
@@ -656,9 +752,12 @@ export function EnhancedCampaignDialog({ open, onOpenChange, onCampaignCreated }
           </Button>
           <Button 
             onClick={handleSubmit}
-            disabled={createCampaignMutation.isPending || activePricingTypes.length === 0}
+            disabled={createCampaignMutation.isPending || updateCampaignMutation.isPending || activePricingTypes.length === 0}
           >
-            {createCampaignMutation.isPending ? 'Creating...' : 'Create Campaign'}
+            {editCampaignId 
+              ? (updateCampaignMutation.isPending ? "Updating..." : "Update Campaign")
+              : (createCampaignMutation.isPending ? 'Creating...' : 'Create Campaign')
+            }
           </Button>
         </DialogFooter>
       </DialogContent>
