@@ -129,6 +129,13 @@ The application is configured for deployment on Replit with:
 - `SESSION_SECRET`: Session encryption key (optional, has fallback)
 
 ## Changelog
+- January 10, 2025. Fixed critical Campaign Management API schema mismatch causing "Failed to fetch campaign" errors
+  - Resolved schema inconsistency between users table (varchar IDs) and campaigns table (integer createdBy references)
+  - Updated campaigns.createdBy field from integer to varchar to match users.id field type
+  - Fixed campaignAssignments.assignedBy field from integer to varchar for consistency
+  - Simplified getCampaign method to return basic campaign data without complex joins
+  - Campaign API endpoints now working correctly for both individual campaigns and campaign lists
+  - All campaign creation, editing, and retrieval functionality restored
 - January 10, 2025. Implemented expandable navigation with Equipment sub-item under Campaigns
   - Added Equipment as sub-navigation item under Campaigns with expandable menu functionality
   - Created comprehensive Equipment management page with image upload capabilities and equipment data management
