@@ -12,7 +12,8 @@ import { Separator } from '@/components/ui/separator';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Plus, DollarSign, Percent, Info, AlertCircle, CheckCircle2, Package, Check } from 'lucide-react';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { Plus, DollarSign, Percent, Info, AlertCircle, CheckCircle2, Package, Check, ChevronDown, ChevronRight } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
 import { queryClient } from '@/lib/queryClient';
@@ -73,15 +74,14 @@ export function EnhancedCampaignDialog({ open, onOpenChange, onCampaignCreated }
   const [formData, setFormData] = useState({
     name: '',
     description: '',
-    pricingTypeId: '',
     acquirer: '',
     equipment: '',
     currency: 'USD',
   });
   
   const [feeValues, setFeeValues] = useState<Record<number, string>>({});
-  const [selectedPricingType, setSelectedPricingType] = useState<PricingType | null>(null);
   const [selectedEquipment, setSelectedEquipment] = useState<number[]>([]);
+  const [activePricingTypes, setActivePricingTypes] = useState<number[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const defaultsSetRef = useRef(false);
 
@@ -108,18 +108,27 @@ export function EnhancedCampaignDialog({ open, onOpenChange, onCampaignCreated }
     },
   });
 
-  // Get fee items for selected pricing type
-  const { data: availableFeeItems = [], isLoading: feeItemsLoading } = useQuery({
-    queryKey: ['/api/pricing-types', selectedPricingType?.id, 'fee-items'],
+  // Create queries for fee items for each pricing type
+  const pricingTypeFeeItemsQueries = useQuery({
+    queryKey: ['/api/pricing-types-with-fee-items'],
     queryFn: async () => {
-      if (!selectedPricingType?.id) return [];
-      const response = await fetch(`/api/pricing-types/${selectedPricingType.id}/fee-items`, {
-        credentials: 'include'
-      });
-      if (!response.ok) throw new Error('Failed to fetch fee items');
-      return response.json();
+      const pricingTypesWithFeeItems = await Promise.all(
+        pricingTypes.map(async (pt) => {
+          try {
+            const response = await fetch(`/api/pricing-types/${pt.id}/fee-items`, {
+              credentials: 'include'
+            });
+            if (!response.ok) return { ...pt, feeItems: [] };
+            const feeItems = await response.json();
+            return { ...pt, feeItems };
+          } catch (error) {
+            return { ...pt, feeItems: [] };
+          }
+        })
+      );
+      return pricingTypesWithFeeItems;
     },
-    enabled: !!selectedPricingType?.id,
+    enabled: pricingTypes.length > 0,
   });
 
   // Get equipment items
@@ -170,32 +179,17 @@ export function EnhancedCampaignDialog({ open, onOpenChange, onCampaignCreated }
     },
   });
 
-  // Handle pricing type change
-  useEffect(() => {
-    if (formData.pricingTypeId) {
-      const pricingType = pricingTypes.find(pt => pt.id.toString() === formData.pricingTypeId);
-      setSelectedPricingType(pricingType || null);
-      setFeeValues({}); // Reset fee values when pricing type changes
-      defaultsSetRef.current = false; // Reset defaults when pricing type changes
-    } else {
-      setSelectedPricingType(null);
-      setFeeValues({});
-      defaultsSetRef.current = false;
-    }
-  }, [formData.pricingTypeId, pricingTypes.length]);
-
   const resetForm = () => {
     setFormData({
       name: '',
       description: '',
-      pricingTypeId: '',
       acquirer: '',
       equipment: '',
       currency: 'USD',
     });
     setFeeValues({});
-    setSelectedPricingType(null);
     setSelectedEquipment([]);
+    setActivePricingTypes([]);
     setErrors({});
     defaultsSetRef.current = false;
   };
@@ -223,8 +217,8 @@ export function EnhancedCampaignDialog({ open, onOpenChange, onCampaignCreated }
       newErrors.description = 'Description must be 300 characters or less';
     }
     
-    if (!formData.pricingTypeId) {
-      newErrors.pricingTypeId = 'Pricing type is required';
+    if (activePricingTypes.length === 0) {
+      newErrors.pricingTypes = 'At least one pricing type must be configured';
     }
     
     if (!formData.acquirer) {
@@ -240,7 +234,7 @@ export function EnhancedCampaignDialog({ open, onOpenChange, onCampaignCreated }
 
     const campaignData = {
       ...formData,
-      pricingTypeId: parseInt(formData.pricingTypeId),
+      pricingTypeIds: activePricingTypes,
       equipmentIds: selectedEquipment,
       feeValues: Object.entries(feeValues).map(([feeItemId, value]) => ({
         feeItemId: parseInt(feeItemId),
@@ -275,9 +269,12 @@ export function EnhancedCampaignDialog({ open, onOpenChange, onCampaignCreated }
     }
   };
 
-  // Group fee items by fee group
-  const groupedFeeItems = useMemo(() => {
-    return availableFeeItems.reduce((groups: Record<string, FeeItem[]>, item: FeeItem) => {
+  // Get pricing types with fee items data
+  const pricingTypesWithFeeItems = pricingTypeFeeItemsQueries.data || [];
+  
+  // Helper function to group fee items by fee group for each pricing type
+  const groupFeeItemsByGroup = (feeItems: FeeItem[]) => {
+    return feeItems.reduce((groups: Record<string, FeeItem[]>, item: FeeItem) => {
       const groupName = item.feeGroup?.name || 'Other';
       if (!groups[groupName]) {
         groups[groupName] = [];
@@ -285,7 +282,18 @@ export function EnhancedCampaignDialog({ open, onOpenChange, onCampaignCreated }
       groups[groupName].push(item);
       return groups;
     }, {});
-  }, [availableFeeItems.length]);
+  };
+
+  // Handle pricing type toggle
+  const togglePricingType = (pricingTypeId: number) => {
+    setActivePricingTypes(prev => {
+      if (prev.includes(pricingTypeId)) {
+        return prev.filter(id => id !== pricingTypeId);
+      } else {
+        return [...prev, pricingTypeId];
+      }
+    });
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -352,39 +360,27 @@ export function EnhancedCampaignDialog({ open, onOpenChange, onCampaignCreated }
                   )}
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="pricingType">Pricing Type *</Label>
-                    <Select value={formData.pricingTypeId} onValueChange={(value) => setFormData(prev => ({ ...prev, pricingTypeId: value }))}>
-                      <SelectTrigger className={errors.pricingTypeId ? 'border-destructive' : ''}>
-                        <SelectValue placeholder="Select pricing type" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {pricingTypes.map((type: PricingType) => (
-                          <SelectItem key={type.id} value={type.id.toString()}>
-                            {type.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    {errors.pricingTypeId && (
-                      <p className="text-sm text-destructive mt-1">{errors.pricingTypeId}</p>
-                    )}
-                  </div>
-
-                  <div>
-                    <Label htmlFor="currency">Currency</Label>
-                    <Input
-                      id="currency"
-                      value={formData.currency}
-                      disabled
-                      className="bg-muted"
-                    />
-                    <p className="text-sm text-muted-foreground mt-1">
-                      Currently set to USD. Future enhancements will allow currency selection.
-                    </p>
-                  </div>
+                <div>
+                  <Label htmlFor="currency">Currency</Label>
+                  <Input
+                    id="currency"
+                    value={formData.currency}
+                    disabled
+                    className="bg-muted"
+                  />
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Currently set to USD. Future enhancements will allow currency selection.
+                  </p>
                 </div>
+                
+                {errors.pricingTypes && (
+                  <Alert className="border-destructive">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription className="text-destructive">
+                      {errors.pricingTypes}
+                    </AlertDescription>
+                  </Alert>
+                )}
 
 
               </CardContent>
@@ -482,91 +478,140 @@ export function EnhancedCampaignDialog({ open, onOpenChange, onCampaignCreated }
               </CardContent>
             </Card>
 
-            {/* Fee Configuration */}
-            {selectedPricingType && (
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-base">Fee Configuration</CardTitle>
-                  <CardDescription>
-                    Configure fee values for the selected pricing type: {selectedPricingType.name}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {feeItemsLoading ? (
-                    <div className="text-center py-8 text-muted-foreground">
-                      Loading fee items...
+            {/* Pricing Types Configuration */}
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center">
+                  <DollarSign className="h-4 w-4 mr-2" />
+                  Pricing Types Configuration *
+                </CardTitle>
+                <CardDescription>
+                  Configure fees for different pricing types. Expand each pricing type to set fee values.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {pricingTypeFeeItemsQueries.isLoading ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    Loading pricing types...
+                  </div>
+                ) : pricingTypesWithFeeItems.length === 0 ? (
+                  <Alert>
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription>
+                      No pricing types are available. Contact an administrator to add pricing types.
+                    </AlertDescription>
+                  </Alert>
+                ) : (
+                  <div className="space-y-4">
+                    <div className="text-sm text-muted-foreground mb-4">
+                      {activePricingTypes.length} of {pricingTypesWithFeeItems.length} pricing types configured
                     </div>
-                  ) : Object.keys(groupedFeeItems).length === 0 ? (
-                    <Alert>
-                      <AlertCircle className="h-4 w-4" />
-                      <AlertDescription>
-                        No fee items are configured for the selected pricing type.
-                      </AlertDescription>
-                    </Alert>
-                  ) : (
-                    <div className="space-y-6">
-                      {Object.entries(groupedFeeItems).map(([groupName, items]) => (
-                        <div key={groupName}>
-                          <h4 className="font-medium text-sm mb-3 flex items-center">
-                            <Badge variant="outline" className="mr-2">{groupName}</Badge>
-                            <span className="text-muted-foreground">
-                              {items.length} item{items.length !== 1 ? 's' : ''}
-                            </span>
-                          </h4>
-                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                            {items.map((item: FeeItem) => (
-                              <div key={item.id} className="border rounded-lg p-3 space-y-2">
-                                <div className="flex items-center justify-between">
-                                  <Label htmlFor={`fee-${item.id}`} className="text-sm font-medium">
-                                    {item.name}
-                                  </Label>
-                                  {item.additionalInfo && (
-                                    <button
-                                      type="button"
-                                      className="text-muted-foreground hover:text-foreground"
-                                      title={item.additionalInfo}
-                                    >
-                                      <Info className="h-3 w-3" />
-                                    </button>
+                    <Accordion type="multiple" value={activePricingTypes.map(String)} className="w-full">
+                      {pricingTypesWithFeeItems.map((pricingType) => (
+                        <AccordionItem key={pricingType.id} value={pricingType.id.toString()}>
+                          <AccordionTrigger 
+                            className="text-left hover:no-underline"
+                            onClick={() => togglePricingType(pricingType.id)}
+                          >
+                            <div className="flex items-center justify-between w-full pr-4">
+                              <div className="flex items-center space-x-3">
+                                <div className="flex items-center space-x-2">
+                                  <h3 className="font-medium">{pricingType.name}</h3>
+                                  {activePricingTypes.includes(pricingType.id) && (
+                                    <Badge variant="default" className="text-xs">
+                                      Configured
+                                    </Badge>
                                   )}
                                 </div>
-                                
-                                {item.description && (
-                                  <p className="text-xs text-muted-foreground">
-                                    {item.description}
-                                  </p>
-                                )}
-                                
-                                <div className="flex items-center space-x-2">
-                                  <div className="relative flex-1">
-                                    <Input
-                                      id={`fee-${item.id}`}
-                                      type={item.valueType === 'placeholder' ? 'text' : 'number'}
-                                      step={item.valueType === 'percentage' ? '0.01' : '0.01'}
-                                      min="0"
-                                      placeholder={item.valueType === 'placeholder' ? 'Enter value' : '0.00'}
-                                      value={feeValues[item.id] ?? ''}
-                                      onChange={(e) => handleFeeValueChange(item.id, e.target.value)}
-                                      className="pr-8"
-                                    />
-                                    <div className="absolute right-2 top-1/2 transform -translate-y-1/2 text-muted-foreground flex items-center">
-                                      {getValueIcon(item.valueType)}
-                                      <span className="text-xs ml-1">
-                                        {formatValueType(item.valueType)}
+                              </div>
+                              <div className="text-sm text-muted-foreground">
+                                {pricingType.feeItems?.length || 0} fee items
+                              </div>
+                            </div>
+                          </AccordionTrigger>
+                          <AccordionContent>
+                            {pricingType.description && (
+                              <p className="text-sm text-muted-foreground mb-4">
+                                {pricingType.description}
+                              </p>
+                            )}
+                            
+                            {!pricingType.feeItems || pricingType.feeItems.length === 0 ? (
+                              <Alert>
+                                <AlertCircle className="h-4 w-4" />
+                                <AlertDescription>
+                                  No fee items are configured for this pricing type.
+                                </AlertDescription>
+                              </Alert>
+                            ) : (
+                              <div className="space-y-6">
+                                {Object.entries(groupFeeItemsByGroup(pricingType.feeItems)).map(([groupName, items]) => (
+                                  <div key={groupName}>
+                                    <h4 className="font-medium text-sm mb-3 flex items-center">
+                                      <Badge variant="outline" className="mr-2">{groupName}</Badge>
+                                      <span className="text-muted-foreground">
+                                        {items.length} item{items.length !== 1 ? 's' : ''}
                                       </span>
+                                    </h4>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                                      {items.map((item: FeeItem) => (
+                                        <div key={item.id} className="border rounded-lg p-3 space-y-2">
+                                          <div className="flex items-center justify-between">
+                                            <Label htmlFor={`fee-${item.id}`} className="text-sm font-medium">
+                                              {item.name}
+                                            </Label>
+                                            {item.additionalInfo && (
+                                              <button
+                                                type="button"
+                                                className="text-muted-foreground hover:text-foreground"
+                                                title={item.additionalInfo}
+                                              >
+                                                <Info className="h-3 w-3" />
+                                              </button>
+                                            )}
+                                          </div>
+                                          
+                                          {item.description && (
+                                            <p className="text-xs text-muted-foreground">
+                                              {item.description}
+                                            </p>
+                                          )}
+                                          
+                                          <div className="flex items-center space-x-2">
+                                            <div className="relative flex-1">
+                                              <Input
+                                                id={`fee-${item.id}`}
+                                                type={item.valueType === 'placeholder' ? 'text' : 'number'}
+                                                step={item.valueType === 'percentage' ? '0.01' : '0.01'}
+                                                min="0"
+                                                placeholder={item.valueType === 'placeholder' ? 'Enter value' : '0.00'}
+                                                value={feeValues[item.id] ?? ''}
+                                                onChange={(e) => handleFeeValueChange(item.id, e.target.value)}
+                                                className="pr-8"
+                                              />
+                                              <div className="absolute right-2 top-1/2 transform -translate-y-1/2 text-muted-foreground flex items-center">
+                                                {getValueIcon(item.valueType)}
+                                                <span className="text-xs ml-1">
+                                                  {formatValueType(item.valueType)}
+                                                </span>
+                                              </div>
+                                            </div>
+                                          </div>
+                                        </div>
+                                      ))}
                                     </div>
                                   </div>
-                                </div>
+                                ))}
                               </div>
-                            ))}
-                          </div>
-                        </div>
+                            )}
+                          </AccordionContent>
+                        </AccordionItem>
                       ))}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            )}
+                    </Accordion>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </div>
         </ScrollArea>
 
@@ -576,7 +621,7 @@ export function EnhancedCampaignDialog({ open, onOpenChange, onCampaignCreated }
           </Button>
           <Button 
             onClick={handleSubmit}
-            disabled={createCampaignMutation.isPending || !selectedPricingType}
+            disabled={createCampaignMutation.isPending || activePricingTypes.length === 0}
           >
             {createCampaignMutation.isPending ? 'Creating...' : 'Create Campaign'}
           </Button>
