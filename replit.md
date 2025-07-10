@@ -548,6 +548,12 @@ The application is configured for deployment on Replit with:
   - Updated all page routing configurations to remove subtitle properties
   - Simplified page header layout to display only page titles for cleaner interface
   - Header component now consistently shows only title across entire application
+- January 10, 2025. Fixed equipment thumbnail display in campaign creation dialog
+  - Updated EnhancedCampaignDialog to check for both imageUrl and imageData fields for equipment items
+  - Added imageData field to TypeScript EquipmentItem interface for proper type support
+  - Equipment thumbnails now display correctly using base64 encoded images stored in database
+  - All existing equipment items (Clover Flex, Square Reader, Verifone P400) show proper 48x48 pixel thumbnails
+  - Enhanced image source handling to fallback to imageData when imageUrl is not available
 
 ## User Preferences
 Preferred communication style: Simple, everyday language.
