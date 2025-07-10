@@ -90,8 +90,13 @@ export default function Equipment() {
       resetForm();
       toast({ title: "Success", description: "Equipment item created successfully" });
     },
-    onError: () => {
-      toast({ title: "Error", description: "Failed to create equipment item", variant: "destructive" });
+    onError: (error: any) => {
+      console.error('Create equipment error:', error);
+      toast({ 
+        title: "Error", 
+        description: error.message || "Failed to create equipment item", 
+        variant: "destructive" 
+      });
     }
   });
 
@@ -117,8 +122,13 @@ export default function Equipment() {
       resetForm();
       toast({ title: "Success", description: "Equipment item updated successfully" });
     },
-    onError: () => {
-      toast({ title: "Error", description: "Failed to update equipment item", variant: "destructive" });
+    onError: (error: any) => {
+      console.error('Update equipment error:', error);
+      toast({ 
+        title: "Error", 
+        description: error.message || "Failed to update equipment item", 
+        variant: "destructive" 
+      });
     }
   });
 
@@ -185,6 +195,26 @@ export default function Equipment() {
   const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
+      // Check file size (limit to 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        toast({ 
+          title: "File too large", 
+          description: "Please select an image smaller than 5MB", 
+          variant: "destructive" 
+        });
+        return;
+      }
+      
+      // Check file type
+      if (!file.type.startsWith('image/')) {
+        toast({ 
+          title: "Invalid file type", 
+          description: "Please select an image file", 
+          variant: "destructive" 
+        });
+        return;
+      }
+      
       setSelectedImage(file);
       const reader = new FileReader();
       reader.onload = (e) => {
@@ -349,7 +379,7 @@ export default function Equipment() {
                           className="file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-primary file:text-primary-foreground"
                         />
                         <p className="text-sm text-muted-foreground">
-                          Choose an image file. The image will be automatically included when you save the equipment.
+                          Choose an image file (max 5MB). The image will be automatically included when you save the equipment.
                         </p>
                       </div>
                     </div>
