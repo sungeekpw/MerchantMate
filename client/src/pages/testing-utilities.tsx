@@ -5,7 +5,9 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
-import { Trash2, RefreshCw, Database, CheckCircle } from "lucide-react";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Trash2, RefreshCw, Database, CheckCircle, X } from "lucide-react";
 
 interface ResetResult {
   success: boolean;
@@ -23,6 +25,7 @@ export default function TestingUtilities() {
     formData: false,
   });
   const [lastResult, setLastResult] = useState<ResetResult | null>(null);
+  const [showAuditModal, setShowAuditModal] = useState(false);
   const queryClient = useQueryClient();
 
   // Reset testing data mutation
@@ -46,6 +49,7 @@ export default function TestingUtilities() {
     },
     onSuccess: (data) => {
       setLastResult(data);
+      setShowAuditModal(true);
       // Invalidate relevant queries
       queryClient.invalidateQueries({ queryKey: ["/api/prospects"] });
       queryClient.invalidateQueries({ queryKey: ["/api/campaigns"] });
@@ -75,6 +79,7 @@ export default function TestingUtilities() {
         counts: { prospects: data.deleted?.prospects || 0 },
         message: data.message
       });
+      setShowAuditModal(true);
       queryClient.invalidateQueries({ queryKey: ["/api/prospects"] });
       queryClient.invalidateQueries({ queryKey: ["/api/agent"] });
     },
@@ -317,6 +322,82 @@ export default function TestingUtilities() {
           </CardContent>
         </Card>
       )}
+
+      {/* Audit Modal */}
+      <Dialog open={showAuditModal} onOpenChange={setShowAuditModal}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CheckCircle className="h-5 w-5 text-green-600" />
+              Data Reset Complete
+            </DialogTitle>
+            <DialogDescription>
+              The following data has been successfully removed from the database:
+            </DialogDescription>
+          </DialogHeader>
+          
+          {lastResult && (
+            <div className="space-y-4">
+              {/* Summary */}
+              <div className="bg-muted/50 p-4 rounded-lg">
+                <p className="text-sm font-medium text-center">
+                  {lastResult.message || "Operation completed successfully"}
+                </p>
+              </div>
+
+              {/* Audit Table */}
+              {Object.keys(lastResult.counts).length > 0 && (
+                <div>
+                  <h4 className="font-medium mb-3">Records Removed:</h4>
+                  <div className="border rounded-lg">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Table Name</TableHead>
+                          <TableHead className="text-right">Rows Deleted</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {Object.entries(lastResult.counts).map(([tableName, count]) => (
+                          <TableRow key={tableName}>
+                            <TableCell className="font-medium">{tableName}</TableCell>
+                            <TableCell className="text-right">
+                              <Badge variant="outline">{count}</Badge>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </div>
+              )}
+
+              {/* Categories Cleared */}
+              {lastResult.cleared.length > 0 && (
+                <div>
+                  <h4 className="font-medium mb-2">Data Categories Cleared:</h4>
+                  <div className="flex flex-wrap gap-1">
+                    {lastResult.cleared.map((item) => (
+                      <Badge key={item} variant="secondary">{item}</Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="flex justify-end">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowAuditModal(false)}
+                  className="flex items-center gap-2"
+                >
+                  <X className="h-4 w-4" />
+                  Close
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
