@@ -40,6 +40,7 @@ import ApplicationPrint from "@/pages/application-print";
 import AgentDashboard from "@/pages/agent-dashboard";
 import Campaigns from "@/pages/campaigns";
 import Equipment from "@/pages/equipment";
+import EmailManagement from "@/pages/email-management";
 import ApiDocumentation from "@/pages/api-documentation";
 import TestingUtilities from "@/pages/testing-utilities";
 import NotFound from "@/pages/not-found";
@@ -128,6 +129,11 @@ function AuthenticatedApp() {
         return {
           title: "Security Dashboard",
           subtitle: "Monitor login attempts and security metrics"
+        };
+      case "/email-management":
+        return {
+          title: "Email Management",
+          subtitle: "Manage email templates and track communication activity"
         };
       case "/pdf-forms":
         return {
@@ -307,6 +313,23 @@ function AuthenticatedApp() {
                   />
                   <main className="flex-1 overflow-auto bg-gray-50">
                     <Security />
+                  </main>
+                </>
+              );
+            }}
+          </Route>
+          <Route path="/email-management">
+            {() => {
+              if (!user || (user.role !== 'admin' && user.role !== 'super_admin')) return <NotFound />;
+              const pageInfo = getPageInfo("/email-management");
+              return (
+                <>
+                  <Header 
+                    title={pageInfo.title} 
+                    onSearch={setGlobalSearch}
+                  />
+                  <main className="flex-1 overflow-auto bg-gray-50">
+                    <EmailManagement />
                   </main>
                 </>
               );

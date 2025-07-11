@@ -1,4 +1,4 @@
-import { merchants, agents, transactions, users, loginAttempts, twoFactorCodes, userDashboardPreferences, agentMerchants, locations, addresses, pdfForms, pdfFormFields, pdfFormSubmissions, merchantProspects, prospectOwners, prospectSignatures, feeGroups, feeItemGroups, feeItems, pricingTypes, pricingTypeFeeItems, campaigns, campaignFeeValues, campaignAssignments, equipmentItems, campaignEquipment, apiKeys, apiRequestLogs, type Merchant, type Agent, type Transaction, type User, type InsertMerchant, type InsertAgent, type InsertTransaction, type UpsertUser, type MerchantWithAgent, type TransactionWithMerchant, type LoginAttempt, type TwoFactorCode, type UserDashboardPreference, type InsertUserDashboardPreference, type AgentMerchant, type InsertAgentMerchant, type Location, type InsertLocation, type Address, type InsertAddress, type LocationWithAddresses, type MerchantWithLocations, type PdfForm, type InsertPdfForm, type PdfFormField, type InsertPdfFormField, type PdfFormSubmission, type InsertPdfFormSubmission, type PdfFormWithFields, type MerchantProspect, type InsertMerchantProspect, type MerchantProspectWithAgent, type ProspectOwner, type InsertProspectOwner, type ProspectSignature, type InsertProspectSignature, type FeeGroup, type InsertFeeGroup, type FeeItemGroup, type InsertFeeItemGroup, type FeeItem, type InsertFeeItem, type PricingType, type InsertPricingType, type PricingTypeFeeItem, type InsertPricingTypeFeeItem, type Campaign, type InsertCampaign, type CampaignFeeValue, type InsertCampaignFeeValue, type CampaignAssignment, type InsertCampaignAssignment, type EquipmentItem, type InsertEquipmentItem, type CampaignEquipment, type InsertCampaignEquipment, type FeeGroupWithItems, type FeeItemGroupWithItems, type FeeGroupWithItemGroups, type PricingTypeWithFeeItems, type CampaignWithDetails, type ApiKey, type InsertApiKey, type ApiRequestLog, type InsertApiRequestLog } from "@shared/schema";
+import { merchants, agents, transactions, users, loginAttempts, twoFactorCodes, userDashboardPreferences, agentMerchants, locations, addresses, pdfForms, pdfFormFields, pdfFormSubmissions, merchantProspects, prospectOwners, prospectSignatures, feeGroups, feeItemGroups, feeItems, pricingTypes, pricingTypeFeeItems, campaigns, campaignFeeValues, campaignAssignments, equipmentItems, campaignEquipment, apiKeys, apiRequestLogs, emailTemplates, emailActivity, emailTriggers, type Merchant, type Agent, type Transaction, type User, type InsertMerchant, type InsertAgent, type InsertTransaction, type UpsertUser, type MerchantWithAgent, type TransactionWithMerchant, type LoginAttempt, type TwoFactorCode, type UserDashboardPreference, type InsertUserDashboardPreference, type AgentMerchant, type InsertAgentMerchant, type Location, type InsertLocation, type Address, type InsertAddress, type LocationWithAddresses, type MerchantWithLocations, type PdfForm, type InsertPdfForm, type PdfFormField, type InsertPdfFormField, type PdfFormSubmission, type InsertPdfFormSubmission, type PdfFormWithFields, type MerchantProspect, type InsertMerchantProspect, type MerchantProspectWithAgent, type ProspectOwner, type InsertProspectOwner, type ProspectSignature, type InsertProspectSignature, type FeeGroup, type InsertFeeGroup, type FeeItemGroup, type InsertFeeItemGroup, type FeeItem, type InsertFeeItem, type PricingType, type InsertPricingType, type PricingTypeFeeItem, type InsertPricingTypeFeeItem, type Campaign, type InsertCampaign, type CampaignFeeValue, type InsertCampaignFeeValue, type CampaignAssignment, type InsertCampaignAssignment, type EquipmentItem, type InsertEquipmentItem, type CampaignEquipment, type InsertCampaignEquipment, type FeeGroupWithItems, type FeeItemGroupWithItems, type FeeGroupWithItemGroups, type PricingTypeWithFeeItems, type CampaignWithDetails, type ApiKey, type InsertApiKey, type ApiRequestLog, type InsertApiRequestLog, type EmailTemplate, type InsertEmailTemplate, type EmailActivity, type InsertEmailActivity, type EmailTrigger, type InsertEmailTrigger } from "@shared/schema";
 import { db } from "./db";
 import { eq, or, and, gte, sql, desc, inArray, like, ilike } from "drizzle-orm";
 
@@ -118,6 +118,31 @@ export interface IStorage {
   getProspectSignaturesByProspect(prospectId: number): Promise<ProspectSignature[]>;
   getProspectOwnerBySignatureToken(token: string): Promise<ProspectOwner | undefined>;
   getProspectOwnerByEmailAndProspectId(email: string, prospectId: number): Promise<ProspectOwner | undefined>;
+
+  // Email Management operations
+  getAllEmailTemplates(): Promise<EmailTemplate[]>;
+  getEmailTemplate(id: number): Promise<EmailTemplate | undefined>;
+  getEmailTemplateByName(name: string): Promise<EmailTemplate | undefined>;
+  createEmailTemplate(template: InsertEmailTemplate): Promise<EmailTemplate>;
+  updateEmailTemplate(id: number, updates: Partial<InsertEmailTemplate>): Promise<EmailTemplate | undefined>;
+  deleteEmailTemplate(id: number): Promise<boolean>;
+  
+  getAllEmailTriggers(): Promise<EmailTrigger[]>;
+  getEmailTrigger(id: number): Promise<EmailTrigger | undefined>;
+  createEmailTrigger(trigger: InsertEmailTrigger): Promise<EmailTrigger>;
+  updateEmailTrigger(id: number, updates: Partial<InsertEmailTrigger>): Promise<EmailTrigger | undefined>;
+  deleteEmailTrigger(id: number): Promise<boolean>;
+  
+  logEmailActivity(activity: InsertEmailActivity): Promise<EmailActivity>;
+  getEmailActivity(limit?: number, filters?: { status?: string; templateId?: number; recipientEmail?: string }): Promise<EmailActivity[]>;
+  getEmailActivityStats(): Promise<{
+    totalSent: number;
+    totalOpened: number;
+    totalClicked: number;
+    totalFailed: number;
+    openRate: number;
+    clickRate: number;
+  }>;
 
   // Admin operations
   clearAllProspectData(): Promise<void>;
@@ -2763,6 +2788,117 @@ export class DatabaseStorage implements IStorage {
       successfulRequests,
       errorRequests,
       averageResponseTime: Math.round(averageResponseTime),
+    };
+  }
+
+  // Email Management implementations
+  async getAllEmailTemplates(): Promise<EmailTemplate[]> {
+    return await db.select().from(emailTemplates).orderBy(emailTemplates.createdAt);
+  }
+
+  async getEmailTemplate(id: number): Promise<EmailTemplate | undefined> {
+    const result = await db.select().from(emailTemplates).where(eq(emailTemplates.id, id));
+    return result[0];
+  }
+
+  async getEmailTemplateByName(name: string): Promise<EmailTemplate | undefined> {
+    const result = await db.select().from(emailTemplates).where(eq(emailTemplates.name, name));
+    return result[0];
+  }
+
+  async createEmailTemplate(template: InsertEmailTemplate): Promise<EmailTemplate> {
+    const result = await db.insert(emailTemplates).values(template).returning();
+    return result[0];
+  }
+
+  async updateEmailTemplate(id: number, updates: Partial<InsertEmailTemplate>): Promise<EmailTemplate | undefined> {
+    const result = await db.update(emailTemplates)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(emailTemplates.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async deleteEmailTemplate(id: number): Promise<boolean> {
+    const result = await db.delete(emailTemplates).where(eq(emailTemplates.id, id));
+    return result.rowCount > 0;
+  }
+
+  async getAllEmailTriggers(): Promise<EmailTrigger[]> {
+    return await db.select().from(emailTriggers).orderBy(emailTriggers.createdAt);
+  }
+
+  async getEmailTrigger(id: number): Promise<EmailTrigger | undefined> {
+    const result = await db.select().from(emailTriggers).where(eq(emailTriggers.id, id));
+    return result[0];
+  }
+
+  async createEmailTrigger(trigger: InsertEmailTrigger): Promise<EmailTrigger> {
+    const result = await db.insert(emailTriggers).values(trigger).returning();
+    return result[0];
+  }
+
+  async updateEmailTrigger(id: number, updates: Partial<InsertEmailTrigger>): Promise<EmailTrigger | undefined> {
+    const result = await db.update(emailTriggers)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(emailTriggers.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async deleteEmailTrigger(id: number): Promise<boolean> {
+    const result = await db.delete(emailTriggers).where(eq(emailTriggers.id, id));
+    return result.rowCount > 0;
+  }
+
+  async logEmailActivity(activity: InsertEmailActivity): Promise<EmailActivity> {
+    const result = await db.insert(emailActivity).values(activity).returning();
+    return result[0];
+  }
+
+  async getEmailActivity(limit = 100, filters?: { status?: string; templateId?: number; recipientEmail?: string }): Promise<EmailActivity[]> {
+    let query = db.select().from(emailActivity);
+    
+    if (filters) {
+      const conditions = [];
+      if (filters.status) conditions.push(eq(emailActivity.status, filters.status));
+      if (filters.templateId) conditions.push(eq(emailActivity.templateId, filters.templateId));
+      if (filters.recipientEmail) conditions.push(ilike(emailActivity.recipientEmail, `%${filters.recipientEmail}%`));
+      
+      if (conditions.length > 0) {
+        query = query.where(and(...conditions));
+      }
+    }
+    
+    return await query.orderBy(desc(emailActivity.sentAt)).limit(limit);
+  }
+
+  async getEmailActivityStats(): Promise<{
+    totalSent: number;
+    totalOpened: number;
+    totalClicked: number;
+    totalFailed: number;
+    openRate: number;
+    clickRate: number;
+  }> {
+    const stats = await db.select({
+      totalSent: sql<number>`count(*)`,
+      totalOpened: sql<number>`count(case when ${emailActivity.openedAt} is not null then 1 end)`,
+      totalClicked: sql<number>`count(case when ${emailActivity.clickedAt} is not null then 1 end)`,
+      totalFailed: sql<number>`count(case when ${emailActivity.status} = 'failed' then 1 end)`,
+    }).from(emailActivity);
+
+    const result = stats[0];
+    const openRate = result.totalSent > 0 ? (result.totalOpened / result.totalSent) * 100 : 0;
+    const clickRate = result.totalSent > 0 ? (result.totalClicked / result.totalSent) * 100 : 0;
+
+    return {
+      totalSent: result.totalSent,
+      totalOpened: result.totalOpened,
+      totalClicked: result.totalClicked,
+      totalFailed: result.totalFailed,
+      openRate: Math.round(openRate * 100) / 100,
+      clickRate: Math.round(clickRate * 100) / 100,
     };
   }
 }

@@ -902,3 +902,64 @@ export type AuditLogWithSecurityEvent = AuditLog & {
 export type SecurityEventWithAuditLog = SecurityEvent & {
   auditLog?: AuditLog;
 };
+
+// Email Management Tables
+export const emailTemplates = pgTable('email_templates', {
+  id: serial('id').primaryKey(),
+  name: varchar('name', { length: 100 }).notNull().unique(),
+  description: text('description'),
+  subject: text('subject').notNull(),
+  htmlContent: text('html_content').notNull(),
+  textContent: text('text_content'),
+  variables: jsonb('variables'), // JSON array of available variables
+  category: varchar('category', { length: 50 }).notNull(), // prospect, authentication, notification, etc.
+  isActive: boolean('is_active').default(true),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+});
+
+export const emailActivity = pgTable('email_activity', {
+  id: serial('id').primaryKey(),
+  templateId: integer('template_id').references(() => emailTemplates.id),
+  templateName: varchar('template_name', { length: 100 }).notNull(),
+  recipientEmail: varchar('recipient_email', { length: 255 }).notNull(),
+  recipientName: varchar('recipient_name', { length: 255 }),
+  subject: text('subject').notNull(),
+  status: varchar('status', { length: 20 }).notNull(), // sent, failed, bounced, opened, clicked
+  errorMessage: text('error_message'),
+  triggerSource: varchar('trigger_source', { length: 100 }), // api endpoint, manual, scheduled
+  triggeredBy: varchar('triggered_by', { length: 255 }), // user ID or system
+  metadata: jsonb('metadata'), // Additional context data
+  sentAt: timestamp('sent_at').defaultNow(),
+  openedAt: timestamp('opened_at'),
+  clickedAt: timestamp('clicked_at'),
+}, (table) => ({
+  templateIdIdx: index("email_activity_template_id_idx").on(table.templateId),
+  recipientEmailIdx: index("email_activity_recipient_email_idx").on(table.recipientEmail),
+  statusIdx: index("email_activity_status_idx").on(table.status),
+  sentAtIdx: index("email_activity_sent_at_idx").on(table.sentAt),
+}));
+
+export const emailTriggers = pgTable('email_triggers', {
+  id: serial('id').primaryKey(),
+  name: varchar('name', { length: 100 }).notNull().unique(),
+  description: text('description'),
+  templateId: integer('template_id').references(() => emailTemplates.id),
+  triggerEvent: varchar('trigger_event', { length: 100 }).notNull(), // prospect_created, signature_requested, etc.
+  isActive: boolean('is_active').default(true),
+  conditions: jsonb('conditions'), // Conditions for triggering
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+});
+
+// Email Management Zod schemas and types
+export const insertEmailTemplateSchema = createInsertSchema(emailTemplates);
+export const insertEmailActivitySchema = createInsertSchema(emailActivity);
+export const insertEmailTriggerSchema = createInsertSchema(emailTriggers);
+
+export type EmailTemplate = typeof emailTemplates.$inferSelect;
+export type InsertEmailTemplate = z.infer<typeof insertEmailTemplateSchema>;
+export type EmailActivity = typeof emailActivity.$inferSelect;
+export type InsertEmailActivity = z.infer<typeof insertEmailActivitySchema>;
+export type EmailTrigger = typeof emailTriggers.$inferSelect;
+export type InsertEmailTrigger = z.infer<typeof insertEmailTriggerSchema>;

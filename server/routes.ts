@@ -4282,6 +4282,211 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ============================================================================
+  // EMAIL MANAGEMENT API ENDPOINTS - Admin Only
+  // ============================================================================
+
+  // Get all email templates
+  app.get("/api/admin/email-templates", requireRole(['admin', 'super_admin']), async (req, res) => {
+    try {
+      const templates = await storage.getAllEmailTemplates();
+      res.json(templates);
+    } catch (error) {
+      console.error("Error fetching email templates:", error);
+      res.status(500).json({ message: "Failed to fetch email templates" });
+    }
+  });
+
+  // Get single email template
+  app.get("/api/admin/email-templates/:id", requireRole(['admin', 'super_admin']), async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const template = await storage.getEmailTemplate(id);
+      
+      if (!template) {
+        return res.status(404).json({ message: "Email template not found" });
+      }
+      
+      res.json(template);
+    } catch (error) {
+      console.error("Error fetching email template:", error);
+      res.status(500).json({ message: "Failed to fetch email template" });
+    }
+  });
+
+  // Create email template
+  app.post("/api/admin/email-templates", requireRole(['admin', 'super_admin']), async (req, res) => {
+    try {
+      const { insertEmailTemplateSchema } = await import("@shared/schema");
+      const result = insertEmailTemplateSchema.safeParse(req.body);
+      
+      if (!result.success) {
+        return res.status(400).json({ 
+          message: "Invalid email template data", 
+          errors: result.error.errors 
+        });
+      }
+
+      const template = await storage.createEmailTemplate(result.data);
+      res.status(201).json(template);
+    } catch (error) {
+      console.error("Error creating email template:", error);
+      if (error.code === '23505') { // Unique constraint violation
+        return res.status(400).json({ message: "Email template name already exists" });
+      }
+      res.status(500).json({ message: "Failed to create email template" });
+    }
+  });
+
+  // Update email template
+  app.put("/api/admin/email-templates/:id", requireRole(['admin', 'super_admin']), async (req, res) => {
+    try {
+      const { insertEmailTemplateSchema } = await import("@shared/schema");
+      const id = parseInt(req.params.id);
+      const result = insertEmailTemplateSchema.partial().safeParse(req.body);
+      
+      if (!result.success) {
+        return res.status(400).json({ 
+          message: "Invalid email template data", 
+          errors: result.error.errors 
+        });
+      }
+
+      const template = await storage.updateEmailTemplate(id, result.data);
+      
+      if (!template) {
+        return res.status(404).json({ message: "Email template not found" });
+      }
+      
+      res.json(template);
+    } catch (error) {
+      console.error("Error updating email template:", error);
+      res.status(500).json({ message: "Failed to update email template" });
+    }
+  });
+
+  // Delete email template
+  app.delete("/api/admin/email-templates/:id", requireRole(['admin', 'super_admin']), async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const success = await storage.deleteEmailTemplate(id);
+      
+      if (!success) {
+        return res.status(404).json({ message: "Email template not found" });
+      }
+      
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting email template:", error);
+      res.status(500).json({ message: "Failed to delete email template" });
+    }
+  });
+
+  // Get all email triggers
+  app.get("/api/admin/email-triggers", requireRole(['admin', 'super_admin']), async (req, res) => {
+    try {
+      const triggers = await storage.getAllEmailTriggers();
+      res.json(triggers);
+    } catch (error) {
+      console.error("Error fetching email triggers:", error);
+      res.status(500).json({ message: "Failed to fetch email triggers" });
+    }
+  });
+
+  // Create email trigger
+  app.post("/api/admin/email-triggers", requireRole(['admin', 'super_admin']), async (req, res) => {
+    try {
+      const { insertEmailTriggerSchema } = await import("@shared/schema");
+      const result = insertEmailTriggerSchema.safeParse(req.body);
+      
+      if (!result.success) {
+        return res.status(400).json({ 
+          message: "Invalid email trigger data", 
+          errors: result.error.errors 
+        });
+      }
+
+      const trigger = await storage.createEmailTrigger(result.data);
+      res.status(201).json(trigger);
+    } catch (error) {
+      console.error("Error creating email trigger:", error);
+      res.status(500).json({ message: "Failed to create email trigger" });
+    }
+  });
+
+  // Update email trigger
+  app.put("/api/admin/email-triggers/:id", requireRole(['admin', 'super_admin']), async (req, res) => {
+    try {
+      const { insertEmailTriggerSchema } = await import("@shared/schema");
+      const id = parseInt(req.params.id);
+      const result = insertEmailTriggerSchema.partial().safeParse(req.body);
+      
+      if (!result.success) {
+        return res.status(400).json({ 
+          message: "Invalid email trigger data", 
+          errors: result.error.errors 
+        });
+      }
+
+      const trigger = await storage.updateEmailTrigger(id, result.data);
+      
+      if (!trigger) {
+        return res.status(404).json({ message: "Email trigger not found" });
+      }
+      
+      res.json(trigger);
+    } catch (error) {
+      console.error("Error updating email trigger:", error);
+      res.status(500).json({ message: "Failed to update email trigger" });
+    }
+  });
+
+  // Delete email trigger
+  app.delete("/api/admin/email-triggers/:id", requireRole(['admin', 'super_admin']), async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const success = await storage.deleteEmailTrigger(id);
+      
+      if (!success) {
+        return res.status(404).json({ message: "Email trigger not found" });
+      }
+      
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting email trigger:", error);
+      res.status(500).json({ message: "Failed to delete email trigger" });
+    }
+  });
+
+  // Get email activity
+  app.get("/api/admin/email-activity", requireRole(['admin', 'super_admin']), async (req, res) => {
+    try {
+      const limit = req.query.limit ? parseInt(req.query.limit as string) : 100;
+      const filters: any = {};
+      
+      if (req.query.status) filters.status = req.query.status as string;
+      if (req.query.templateId) filters.templateId = parseInt(req.query.templateId as string);
+      if (req.query.recipientEmail) filters.recipientEmail = req.query.recipientEmail as string;
+      
+      const activity = await storage.getEmailActivity(limit, filters);
+      res.json(activity);
+    } catch (error) {
+      console.error("Error fetching email activity:", error);
+      res.status(500).json({ message: "Failed to fetch email activity" });
+    }
+  });
+
+  // Get email activity statistics
+  app.get("/api/admin/email-stats", requireRole(['admin', 'super_admin']), async (req, res) => {
+    try {
+      const stats = await storage.getEmailActivityStats();
+      res.json(stats);
+    } catch (error) {
+      console.error("Error fetching email statistics:", error);
+      res.status(500).json({ message: "Failed to fetch email statistics" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
