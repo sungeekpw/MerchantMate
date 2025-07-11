@@ -10,15 +10,30 @@ neonConfig.webSocketConstructor = ws;
 neonConfig.pipelineConnect = false;
 neonConfig.fetchConnectionCache = true;
 
-if (!process.env.DATABASE_URL) {
+// Determine which database URL to use based on environment
+const getDatabaseUrl = () => {
+  if (process.env.NODE_ENV === 'test') {
+    return process.env.TEST_DATABASE_URL || process.env.DATABASE_URL;
+  }
+  if (process.env.NODE_ENV === 'development') {
+    return process.env.DEV_DATABASE_URL || process.env.DATABASE_URL;
+  }
+  return process.env.DATABASE_URL; // Production
+};
+
+const databaseUrl = getDatabaseUrl();
+
+if (!databaseUrl) {
   throw new Error(
     "DATABASE_URL must be set. Did you forget to provision a database?",
   );
 }
 
+console.log(`Using database for ${process.env.NODE_ENV || 'production'} environment`);
+
 // Create pool with minimal settings for maximum stability
 export const pool = new Pool({ 
-  connectionString: process.env.DATABASE_URL,
+  connectionString: databaseUrl,
   max: 1, // Minimal pool size to avoid connection issues
   idleTimeoutMillis: 60000, // 1 minute
   connectionTimeoutMillis: 5000, // 5 seconds (reduced)
