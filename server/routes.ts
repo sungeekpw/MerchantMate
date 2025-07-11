@@ -2737,9 +2737,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Security endpoints - admin only
-  app.get("/api/security/login-attempts", isAuthenticated, requireRole(["admin", "super_admin"]), adminDbMiddleware, async (req: RequestWithDB, res) => {
+  app.get("/api/security/login-attempts", isAuthenticated, requireRole(["admin", "super_admin"]), async (req, res) => {
     try {
-      const db = getRequestDB(req);
+      const { db } = await import("./db");
       const { loginAttempts } = await import("@shared/schema");
       const { desc } = await import("drizzle-orm");
       
@@ -2955,9 +2955,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/security/metrics", isAuthenticated, requireRole(["admin", "super_admin"]), adminDbMiddleware, async (req: RequestWithDB, res) => {
+  app.get("/api/security/metrics", isAuthenticated, requireRole(["admin", "super_admin"]), async (req, res) => {
     try {
-      const db = getRequestDB(req);
+      const { db } = await import("./db");
       const { loginAttempts } = await import("@shared/schema");
       const { count, gte, and, eq } = await import("drizzle-orm");
       
