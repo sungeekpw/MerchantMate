@@ -547,13 +547,7 @@ export default function Security() {
           {/* Security Events Tab */}
           <TabsContent value="security-events" className="space-y-4">
             <Card>
-              <CardHeader>
-                <CardTitle>Security Events</CardTitle>
-                <CardDescription>
-                  High-priority security incidents requiring investigation
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
+              <CardContent className="pt-6">
                 {eventsLoading ? (
                   <div className="flex items-center justify-center py-8">
                     <div className="text-sm text-gray-500">Loading security events...</div>
