@@ -648,6 +648,17 @@ The application is configured for deployment on Replit with:
   - Added automatic modal display after successful data reset operations with proper React Query cache invalidation
   - Testing Utilities now provides complete audit transparency showing exactly what data was removed from database
   - Successfully tested clearing 4 signatures, 4 owners, and 5 prospects with comprehensive audit reporting
+- January 10, 2025. Completed URL-driven database environment switching system for isolated testing
+  - Created dynamic database connection system supporting production, test, and development environments
+  - Added middleware to extract database environment from URL parameters (?db=test), HTTP headers, or subdomains
+  - Built database environment selector dropdown in Testing Utilities with real-time switching functionality
+  - Created comprehensive DATABASE_ENVIRONMENTS.md documentation with usage examples and security guidelines
+  - Added API endpoint (/api/admin/db-environment) to display current database environment status
+  - Implemented automatic URL updates and environment detection when switching between databases
+  - Enhanced Testing Utilities to target selected database environment for all reset operations
+  - System maintains separate connection pools for each environment with automatic cleanup
+  - Database switching restricted to super_admin users only for security isolation
+  - Complete URL-driven workflow: select environment → URL updates → database switches → operations target correct environment
 
 ## User Preferences
 Preferred communication style: Simple, everyday language.
