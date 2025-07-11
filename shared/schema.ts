@@ -768,3 +768,137 @@ export type CampaignWithDetails = Campaign & {
   feeValues: (CampaignFeeValue & { feeItem: FeeItemWithGroup })[];
   createdByUser?: User;
 };
+
+// SOC2 Compliance - Comprehensive Audit Trail System
+export const auditLogs = pgTable("audit_logs", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id", { length: 255 }), // Can be null for system actions
+  userEmail: text("user_email"), // Cached for performance and retention
+  sessionId: text("session_id"), // Session identifier
+  ipAddress: text("ip_address").notNull(), // Client IP address
+  userAgent: text("user_agent"), // Browser/client information
+  
+  // Action details
+  action: text("action").notNull(), // create, read, update, delete, login, logout, etc.
+  resource: text("resource").notNull(), // prospects, campaigns, users, etc.
+  resourceId: text("resource_id"), // ID of affected resource
+  
+  // Request details
+  method: text("method"), // GET, POST, PUT, DELETE
+  endpoint: text("endpoint"), // API endpoint called
+  requestParams: jsonb("request_params"), // Query parameters
+  requestBody: jsonb("request_body"), // Request payload (sanitized)
+  
+  // Response details
+  statusCode: integer("status_code"), // HTTP response code
+  responseTime: integer("response_time"), // Response time in milliseconds
+  
+  // Change tracking
+  oldValues: jsonb("old_values"), // Previous state (for updates/deletes)
+  newValues: jsonb("new_values"), // New state (for creates/updates)
+  
+  // Risk and compliance
+  riskLevel: text("risk_level").notNull().default("low"), // low, medium, high, critical
+  complianceFlags: jsonb("compliance_flags"), // SOC2, GDPR, PCI flags
+  dataClassification: text("data_classification"), // public, internal, confidential, restricted
+  
+  // Metadata
+  environment: text("environment").default("production"), // production, test, dev
+  applicationVersion: text("application_version"), // App version for audit trail
+  tags: jsonb("tags"), // Additional searchable tags
+  notes: text("notes"), // Human-readable description
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => ({
+  userIdIdx: index("audit_logs_user_id_idx").on(table.userId),
+  actionIdx: index("audit_logs_action_idx").on(table.action),
+  resourceIdx: index("audit_logs_resource_idx").on(table.resource),
+  ipAddressIdx: index("audit_logs_ip_address_idx").on(table.ipAddress),
+  createdAtIdx: index("audit_logs_created_at_idx").on(table.createdAt),
+  riskLevelIdx: index("audit_logs_risk_level_idx").on(table.riskLevel),
+  environmentIdx: index("audit_logs_environment_idx").on(table.environment),
+}));
+
+// Security Events - High-risk actions requiring special attention
+export const securityEvents = pgTable("security_events", {
+  id: serial("id").primaryKey(),
+  auditLogId: integer("audit_log_id").references(() => auditLogs.id),
+  
+  eventType: text("event_type").notNull(), // failed_login, data_breach, permission_escalation, etc.
+  severity: text("severity").notNull(), // info, warning, error, critical
+  alertStatus: text("alert_status").default("new"), // new, investigating, resolved, false_positive
+  
+  // Detection details
+  detectionMethod: text("detection_method"), // automatic, manual, external
+  detectedAt: timestamp("detected_at").defaultNow().notNull(),
+  detectedBy: text("detected_by"), // system, user_id, external_system
+  
+  // Investigation
+  assignedTo: varchar("assigned_to", { length: 255 }), // Security team member
+  investigationNotes: text("investigation_notes"),
+  resolution: text("resolution"),
+  resolvedAt: timestamp("resolved_at"),
+  resolvedBy: varchar("resolved_by", { length: 255 }),
+  
+  // Additional context
+  affectedUsers: jsonb("affected_users"), // Array of affected user IDs
+  affectedResources: jsonb("affected_resources"), // Array of affected resources
+  mitigationActions: jsonb("mitigation_actions"), // Actions taken to resolve
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => ({
+  eventTypeIdx: index("security_events_event_type_idx").on(table.eventType),
+  severityIdx: index("security_events_severity_idx").on(table.severity),
+  alertStatusIdx: index("security_events_alert_status_idx").on(table.alertStatus),
+  detectedAtIdx: index("security_events_detected_at_idx").on(table.detectedAt),
+}));
+
+// Data Access Logs - Track sensitive data access
+export const dataAccessLogs = pgTable("data_access_logs", {
+  id: serial("id").primaryKey(),
+  auditLogId: integer("audit_log_id").references(() => auditLogs.id),
+  
+  userId: varchar("user_id", { length: 255 }).notNull(),
+  dataType: text("data_type").notNull(), // pii, financial, auth, etc.
+  tableName: text("table_name").notNull(),
+  recordId: text("record_id"),
+  fieldAccessed: text("field_accessed"), // Specific field if applicable
+  
+  accessType: text("access_type").notNull(), // read, write, delete, export
+  accessReason: text("access_reason"), // business_need, support, audit, etc.
+  dataVolume: integer("data_volume"), // Number of records accessed
+  
+  // Compliance tracking
+  lawfulBasis: text("lawful_basis"), // GDPR lawful basis
+  retentionPeriod: integer("retention_period"), // Days to retain access log
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => ({
+  userIdIdx: index("data_access_logs_user_id_idx").on(table.userId),
+  dataTypeIdx: index("data_access_logs_data_type_idx").on(table.dataType),
+  tableNameIdx: index("data_access_logs_table_name_idx").on(table.tableName),
+  accessTypeIdx: index("data_access_logs_access_type_idx").on(table.accessType),
+  createdAtIdx: index("data_access_logs_created_at_idx").on(table.createdAt),
+}));
+
+// Zod schemas and TypeScript types for audit system
+export const insertAuditLogSchema = createInsertSchema(auditLogs);
+export const insertSecurityEventSchema = createInsertSchema(securityEvents);
+export const insertDataAccessLogSchema = createInsertSchema(dataAccessLogs);
+
+export type AuditLog = typeof auditLogs.$inferSelect;
+export type InsertAuditLog = z.infer<typeof insertAuditLogSchema>;
+export type SecurityEvent = typeof securityEvents.$inferSelect;
+export type InsertSecurityEvent = z.infer<typeof insertSecurityEventSchema>;
+export type DataAccessLog = typeof dataAccessLogs.$inferSelect;
+export type InsertDataAccessLog = z.infer<typeof insertDataAccessLogSchema>;
+
+// Extended types for audit dashboard
+export type AuditLogWithSecurityEvent = AuditLog & {
+  securityEvent?: SecurityEvent;
+};
+
+export type SecurityEventWithAuditLog = SecurityEvent & {
+  auditLog?: AuditLog;
+};
