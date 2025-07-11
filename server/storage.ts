@@ -121,6 +121,18 @@ export interface IStorage {
 
   // Admin operations
   clearAllProspectData(): Promise<void>;
+  
+  // Testing utilities
+  resetTestingData(options?: {
+    prospects?: boolean;
+    campaigns?: boolean;
+    equipment?: boolean;
+    signatures?: boolean;
+    formData?: boolean;
+  }): Promise<{
+    cleared: string[];
+    counts: Record<string, number>;
+  }>;
 
   // Agent-Merchant associations
   getAgentMerchants(agentId: number): Promise<Merchant[]>;
@@ -2252,6 +2264,96 @@ export class DatabaseStorage implements IStorage {
     await db.delete(prospectSignatures);
     await db.delete(prospectOwners);
     await db.delete(merchantProspects);
+  }
+
+  // Testing utilities
+  async resetTestingData(options: {
+    prospects?: boolean;
+    campaigns?: boolean;
+    equipment?: boolean;
+    signatures?: boolean;
+    formData?: boolean;
+  } = {}): Promise<{
+    cleared: string[];
+    counts: Record<string, number>;
+  }> {
+    const cleared: string[] = [];
+    const counts: Record<string, number> = {};
+
+    // Default to clearing all if no options specified
+    const defaultOptions = {
+      prospects: true,
+      campaigns: false,
+      equipment: false,
+      signatures: true,
+      formData: true,
+      ...options
+    };
+
+    try {
+      // Clear prospect signatures
+      if (defaultOptions.signatures) {
+        const signatureCount = await db.select().from(prospectSignatures);
+        counts.signatures = signatureCount.length;
+        await db.delete(prospectSignatures);
+        cleared.push('prospect signatures');
+      }
+
+      // Clear prospect owners
+      if (defaultOptions.prospects) {
+        const ownerCount = await db.select().from(prospectOwners);
+        counts.owners = ownerCount.length;
+        await db.delete(prospectOwners);
+        cleared.push('prospect owners');
+      }
+
+      // Clear form data only (reset to pending status)
+      if (defaultOptions.formData && !defaultOptions.prospects) {
+        const prospects = await db.select().from(merchantProspects);
+        counts.formDataCleared = prospects.length;
+        
+        // Reset all prospects to pending status and clear form data
+        await db.update(merchantProspects).set({
+          status: 'pending',
+          formData: null,
+          currentStep: 0,
+          updatedAt: new Date()
+        });
+        cleared.push('form data reset');
+      }
+
+      // Clear all prospects completely
+      if (defaultOptions.prospects) {
+        const prospectCount = await db.select().from(merchantProspects);
+        counts.prospects = prospectCount.length;
+        await db.delete(merchantProspects);
+        cleared.push('prospects');
+      }
+
+      // Clear campaign assignments (keeping campaigns but removing prospect links)
+      if (defaultOptions.campaigns) {
+        const assignmentCount = await db.select().from(campaignAssignments);
+        counts.campaignAssignments = assignmentCount.length;
+        await db.delete(campaignAssignments);
+        cleared.push('campaign assignments');
+      }
+
+      // Clear equipment assignments (keeping equipment but removing campaign links)
+      if (defaultOptions.equipment) {
+        const equipmentCount = await db.select().from(campaignEquipment);
+        counts.equipmentAssignments = equipmentCount.length;
+        await db.delete(campaignEquipment);
+        cleared.push('equipment assignments');
+      }
+
+      return {
+        cleared,
+        counts
+      };
+    } catch (error) {
+      console.error('Error in resetTestingData:', error);
+      throw error;
+    }
   }
 
   // Campaign Management Operations
