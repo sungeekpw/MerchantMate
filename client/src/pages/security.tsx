@@ -349,12 +349,12 @@ export default function Security() {
                     />
                   </div>
                   
-                  <Select value={auditSearchParams.action || ''} onValueChange={(value) => handleAuditSearch({ action: value || undefined })}>
+                  <Select value={auditSearchParams.action || 'all'} onValueChange={(value) => handleAuditSearch({ action: value === 'all' ? undefined : value })}>
                     <SelectTrigger>
                       <SelectValue placeholder="Filter by action" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">All Actions</SelectItem>
+                      <SelectItem value="all">All Actions</SelectItem>
                       <SelectItem value="create">Create</SelectItem>
                       <SelectItem value="read">Read</SelectItem>
                       <SelectItem value="update">Update</SelectItem>
@@ -364,12 +364,12 @@ export default function Security() {
                     </SelectContent>
                   </Select>
 
-                  <Select value={auditSearchParams.riskLevel || ''} onValueChange={(value) => handleAuditSearch({ riskLevel: value || undefined })}>
+                  <Select value={auditSearchParams.riskLevel || 'all'} onValueChange={(value) => handleAuditSearch({ riskLevel: value === 'all' ? undefined : value })}>
                     <SelectTrigger>
                       <SelectValue placeholder="Filter by risk level" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">All Risk Levels</SelectItem>
+                      <SelectItem value="all">All Risk Levels</SelectItem>
                       <SelectItem value="low">Low</SelectItem>
                       <SelectItem value="medium">Medium</SelectItem>
                       <SelectItem value="high">High</SelectItem>
@@ -377,12 +377,12 @@ export default function Security() {
                     </SelectContent>
                   </Select>
 
-                  <Select value={auditSearchParams.resource || ''} onValueChange={(value) => handleAuditSearch({ resource: value || undefined })}>
+                  <Select value={auditSearchParams.resource || 'all'} onValueChange={(value) => handleAuditSearch({ resource: value === 'all' ? undefined : value })}>
                     <SelectTrigger>
                       <SelectValue placeholder="Filter by resource" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">All Resources</SelectItem>
+                      <SelectItem value="all">All Resources</SelectItem>
                       <SelectItem value="prospects">Prospects</SelectItem>
                       <SelectItem value="campaigns">Campaigns</SelectItem>
                       <SelectItem value="authentication">Authentication</SelectItem>
