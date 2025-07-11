@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Trash2, RefreshCw, Database, CheckCircle, X, Server, Shield, TestTube, Settings } from "lucide-react";
 
 interface ResetResult {
@@ -27,12 +28,29 @@ export default function TestingUtilities() {
   });
   const [lastResult, setLastResult] = useState<ResetResult | null>(null);
   const [showAuditModal, setShowAuditModal] = useState(false);
+  const [selectedDbEnv, setSelectedDbEnv] = useState<string>('default');
   const queryClient = useQueryClient();
+
+  // Query to get current database environment
+  const { data: dbEnvironment } = useQuery({
+    queryKey: ["/api/admin/db-environment"],
+    queryFn: async () => {
+      const response = await fetch("/api/admin/db-environment", {
+        credentials: "include",
+      });
+      if (!response.ok) throw new Error("Failed to fetch database environment");
+      return response.json();
+    },
+  });
 
   // Reset testing data mutation
   const resetDataMutation = useMutation({
     mutationFn: async (options: Record<string, boolean>) => {
-      const response = await fetch("/api/admin/reset-testing-data", {
+      const url = selectedDbEnv !== 'default' 
+        ? `/api/admin/reset-testing-data?db=${selectedDbEnv}`
+        : "/api/admin/reset-testing-data";
+      
+      const response = await fetch(url, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -153,6 +171,53 @@ export default function TestingUtilities() {
           Development tools for resetting test data and cleaning up the database.
         </p>
       </div>
+
+      {/* Database Environment Selector */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Server className="h-5 w-5" />
+            Database Environment
+          </CardTitle>
+          <CardDescription>
+            Select which database environment to operate on. URL-driven switching allows ?db=test parameter.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {dbEnvironment && (
+            <div className="p-4 bg-muted/50 rounded-lg">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-medium">Current Environment: {dbEnvironment.environment}</p>
+                  <p className="text-sm text-muted-foreground">{dbEnvironment.message}</p>
+                </div>
+                <Badge variant={dbEnvironment.isUsingCustomDB ? "secondary" : "default"}>
+                  {dbEnvironment.isUsingCustomDB ? "Custom DB" : "Default"}
+                </Badge>
+              </div>
+            </div>
+          )}
+          
+          <div className="flex items-center gap-4">
+            <div className="flex-1">
+              <label className="text-sm font-medium">Target Database:</label>
+              <Select value={selectedDbEnv} onValueChange={setSelectedDbEnv}>
+                <SelectTrigger className="mt-1">
+                  <SelectValue placeholder="Select database environment" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="default">Default (Production)</SelectItem>
+                  <SelectItem value="test">Test Database (?db=test)</SelectItem>
+                  <SelectItem value="dev">Development Database (?db=dev)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="text-xs text-muted-foreground mt-6">
+              You can also use URL parameters: ?db=test or ?db=dev
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       <div className="grid gap-6 md:grid-cols-2">
         {/* Selective Reset Tool */}

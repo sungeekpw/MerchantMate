@@ -12,6 +12,7 @@ import multer from "multer";
 import { pdfFormParser } from "./pdfParser";
 import { emailService } from "./emailService";
 import { v4 as uuidv4 } from "uuid";
+import { dbEnvironmentMiddleware, adminDbMiddleware, getRequestDB, type RequestWithDB } from "./dbMiddleware";
 
 
 // Helper function to get default widgets for a user role
@@ -1603,8 +1604,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Database environment status (Super Admin only)
+  app.get("/api/admin/db-environment", requireRole(['super_admin']), adminDbMiddleware, (req: RequestWithDB, res) => {
+    const dbEnv = req.dbEnv || 'default';
+    const isUsingCustomDB = !!req.dbEnv;
+    
+    res.json({
+      success: true,
+      environment: dbEnv,
+      isUsingCustomDB,
+      message: isUsingCustomDB 
+        ? `Using ${dbEnv} database environment`
+        : 'Using default production database'
+    });
+  });
+
   // Comprehensive testing data reset utility (Super Admin only)
-  app.post("/api/admin/reset-testing-data", requireRole(['super_admin']), async (req, res) => {
+  app.post("/api/admin/reset-testing-data", requireRole(['super_admin']), adminDbMiddleware, async (req: RequestWithDB, res) => {
     try {
       const options = req.body || {};
       
