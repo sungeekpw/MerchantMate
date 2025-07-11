@@ -6,7 +6,6 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Trash2, RefreshCw, Database, CheckCircle } from "lucide-react";
-import { apiRequest } from "@/lib/queryClient";
 
 interface ResetResult {
   success: boolean;
@@ -29,14 +28,21 @@ export default function TestingUtilities() {
   // Reset testing data mutation
   const resetDataMutation = useMutation({
     mutationFn: async (options: Record<string, boolean>) => {
-      const response = await apiRequest("/api/admin/reset-testing-data", {
+      const response = await fetch("/api/admin/reset-testing-data", {
         method: "POST",
-        body: JSON.stringify(options),
         headers: {
           "Content-Type": "application/json",
         },
+        credentials: "include",
+        body: JSON.stringify(options),
       });
-      return response;
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ message: response.statusText }));
+        throw new Error(errorData.message || "Failed to reset testing data");
+      }
+      
+      return response.json();
     },
     onSuccess: (data) => {
       setLastResult(data);
@@ -50,10 +56,17 @@ export default function TestingUtilities() {
   // Clear all prospects mutation (legacy method)
   const clearProspectsMutation = useMutation({
     mutationFn: async () => {
-      const response = await apiRequest("/api/admin/clear-prospects", {
+      const response = await fetch("/api/admin/clear-prospects", {
         method: "DELETE",
+        credentials: "include",
       });
-      return response;
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ message: response.statusText }));
+        throw new Error(errorData.message || "Failed to clear prospects");
+      }
+      
+      return response.json();
     },
     onSuccess: (data) => {
       setLastResult({
