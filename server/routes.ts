@@ -2739,6 +2739,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Security endpoints - admin only
   app.get("/api/security/login-attempts", isAuthenticated, requireRole(["admin", "super_admin"]), async (req, res) => {
     try {
+      console.log("Fetching login attempts...");
       const { db } = await import("./db");
       const { loginAttempts } = await import("@shared/schema");
       const { desc } = await import("drizzle-orm");
@@ -2747,6 +2748,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .orderBy(desc(loginAttempts.createdAt))
         .limit(100);
       
+      console.log("Login attempts found:", attempts.length);
       res.json(attempts);
     } catch (error) {
       console.error("Failed to fetch login attempts:", error);
@@ -2957,6 +2959,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/security/metrics", isAuthenticated, requireRole(["admin", "super_admin"]), async (req, res) => {
     try {
+      console.log("Fetching security metrics...");
       const { db } = await import("./db");
       const { loginAttempts } = await import("@shared/schema");
       const { count, gte, and, eq } = await import("drizzle-orm");
@@ -2998,13 +3001,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
           eq(loginAttempts.success, false)
         ));
 
-      res.json({
+      const metrics = {
         totalLoginAttempts: totalAttempts[0]?.count || 0,
         successfulLogins: successfulLogins[0]?.count || 0,
         failedLogins: failedLogins[0]?.count || 0,
         uniqueIPs: uniqueIPs.length || 0,
         recentFailedAttempts: recentFailedAttempts[0]?.count || 0
-      });
+      };
+
+      console.log("Security metrics:", metrics);
+      res.json(metrics);
     } catch (error) {
       console.error("Failed to fetch security metrics:", error);
       res.status(500).json({ message: "Failed to fetch security metrics" });

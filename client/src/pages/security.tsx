@@ -95,10 +95,24 @@ export default function Security() {
 
   const { data: loginAttempts = [], isLoading: attemptsLoading } = useQuery<LoginAttempt[]>({
     queryKey: ["/api/security/login-attempts"],
+    queryFn: async () => {
+      const response = await fetch("/api/security/login-attempts", {
+        credentials: "include",
+      });
+      if (!response.ok) throw new Error("Failed to fetch login attempts");
+      return response.json();
+    },
   });
 
   const { data: metrics, isLoading: metricsLoading } = useQuery<SecurityMetrics>({
     queryKey: ["/api/security/metrics"],
+    queryFn: async () => {
+      const response = await fetch("/api/security/metrics", {
+        credentials: "include",
+      });
+      if (!response.ok) throw new Error("Failed to fetch security metrics");
+      return response.json();
+    },
   });
 
   // Enhanced audit logs query with search functionality
