@@ -41,6 +41,7 @@ import AgentDashboard from "@/pages/agent-dashboard";
 import Campaigns from "@/pages/campaigns";
 import Equipment from "@/pages/equipment";
 import ApiDocumentation from "@/pages/api-documentation";
+import TestingUtilities from "@/pages/testing-utilities";
 import NotFound from "@/pages/not-found";
 import Landing from "@/pages/landing";
 import Auth from "@/pages/auth";
@@ -499,6 +500,25 @@ function AuthenticatedApp() {
                   />
                   <main className="flex-1 overflow-auto bg-gray-50">
                     <ApiDocumentation />
+                  </main>
+                </>
+              );
+            }}
+          </Route>
+          <Route path="/testing-utilities">
+            {() => {
+              if (!canAccessSecurityDashboard(user)) return <NotFound />;
+              const pageInfo = { title: "Testing Utilities" };
+              return (
+                <>
+                  <Header 
+                    title={pageInfo.title} 
+                    onSearch={setGlobalSearch}
+                  />
+                  <main className="flex-1 overflow-auto bg-gray-50">
+                    <div className="container mx-auto p-6">
+                      <TestingUtilities />
+                    </div>
                   </main>
                 </>
               );

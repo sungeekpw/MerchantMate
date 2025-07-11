@@ -1603,6 +1603,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Comprehensive testing data reset utility (Super Admin only)
+  app.post("/api/admin/reset-testing-data", requireRole(['super_admin']), async (req, res) => {
+    try {
+      const options = req.body || {};
+      
+      // Validate options
+      const validOptions = ['prospects', 'campaigns', 'equipment', 'signatures', 'formData'];
+      const invalidOptions = Object.keys(options).filter(key => !validOptions.includes(key));
+      
+      if (invalidOptions.length > 0) {
+        return res.status(400).json({
+          success: false,
+          message: `Invalid options: ${invalidOptions.join(', ')}. Valid options: ${validOptions.join(', ')}`
+        });
+      }
+
+      const result = await storage.resetTestingData(options);
+
+      console.log(`Super Admin reset testing data:`, {
+        options,
+        result
+      });
+
+      res.json({
+        success: true,
+        message: "Testing data reset completed",
+        ...result
+      });
+    } catch (error) {
+      console.error("Error resetting testing data:", error);
+      res.status(500).json({ 
+        success: false,
+        message: "Failed to reset testing data",
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
   // Update prospect status to "in progress" when they start filling out the form
   app.post("/api/prospects/:id/start-application", async (req, res) => {
     try {
