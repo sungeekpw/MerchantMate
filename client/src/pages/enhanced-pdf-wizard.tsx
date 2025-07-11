@@ -1861,6 +1861,16 @@ export default function EnhancedPdfWizard() {
         );
 
       case 'readonly':
+        const readonlyValue = (() => {
+          if (!value) {
+            return field.fieldName === 'yearsInBusiness' ? 'Enter business start date to calculate' : 'Loading...';
+          }
+          if (typeof value === 'object') {
+            return JSON.stringify(value);
+          }
+          return String(value);
+        })();
+        
         return (
           <div className="space-y-2">
             <Label htmlFor={field.fieldName} className="text-sm font-medium text-gray-700">
@@ -1869,7 +1879,7 @@ export default function EnhancedPdfWizard() {
             <Input
               id={field.fieldName}
               type="text"
-              value={value || (field.fieldName === 'yearsInBusiness' ? 'Enter business start date to calculate' : 'Loading...')}
+              value={readonlyValue}
               readOnly
               className="bg-gray-50 cursor-not-allowed"
             />
@@ -1889,6 +1899,10 @@ export default function EnhancedPdfWizard() {
 
         const campaign = prospectData.campaign;
         const campaignEquipment = prospectData.campaignEquipment || [];
+        
+        // Debug logging
+        console.log('Campaign object:', campaign);
+        console.log('Campaign pricingType:', campaign.pricingType);
 
         return (
           <div className="space-y-6">
@@ -1904,11 +1918,11 @@ export default function EnhancedPdfWizard() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <Label className="text-sm font-medium text-gray-700">Campaign Name</Label>
-                    <p className="text-gray-900 font-medium">{campaign.name}</p>
+                    <p className="text-gray-900 font-medium">{String(campaign.name || 'N/A')}</p>
                   </div>
                   <div>
                     <Label className="text-sm font-medium text-gray-700">Acquirer</Label>
-                    <p className="text-gray-900 font-medium">{campaign.acquirer}</p>
+                    <p className="text-gray-900 font-medium">{String(campaign.acquirer || 'N/A')}</p>
                   </div>
                   <div>
                     <Label className="text-sm font-medium text-gray-700">Pricing Type</Label>
@@ -1916,7 +1930,7 @@ export default function EnhancedPdfWizard() {
                       {(() => {
                         if (!campaign.pricingType) return 'Not configured';
                         if (typeof campaign.pricingType === 'string') return campaign.pricingType;
-                        if (typeof campaign.pricingType === 'object' && campaign.pricingType.name) return campaign.pricingType.name;
+                        if (typeof campaign.pricingType === 'object' && campaign.pricingType.name) return String(campaign.pricingType.name);
                         return 'Not configured';
                       })()}
                     </p>
@@ -1935,7 +1949,7 @@ export default function EnhancedPdfWizard() {
                 {campaign.description && (
                   <div className="mt-4">
                     <Label className="text-sm font-medium text-gray-700">Description</Label>
-                    <p className="text-gray-700 text-sm mt-1">{campaign.description}</p>
+                    <p className="text-gray-700 text-sm mt-1">{String(campaign.description)}</p>
                   </div>
                 )}
               </CardContent>
@@ -1981,10 +1995,10 @@ export default function EnhancedPdfWizard() {
                             />
                           )}
                           <div className="flex-1">
-                            <h4 className="font-medium text-gray-900">{equipment.name}</h4>
-                            <p className="text-sm text-gray-600 mt-1">{equipment.description}</p>
+                            <h4 className="font-medium text-gray-900">{String(equipment.name || 'Equipment')}</h4>
+                            <p className="text-sm text-gray-600 mt-1">{String(equipment.description || '')}</p>
                             {equipment.specifications && (
-                              <p className="text-xs text-gray-500 mt-2">{equipment.specifications}</p>
+                              <p className="text-xs text-gray-500 mt-2">{String(equipment.specifications)}</p>
                             )}
                           </div>
                           <div className="flex-shrink-0">
