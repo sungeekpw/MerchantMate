@@ -632,6 +632,13 @@ The application is configured for deployment on Replit with:
   - Resolved "Objects are not valid as a React child" errors that were preventing equipment section navigation
   - Fixed equipment thumbnail image display by properly handling existing data URL format in base64 encoded images
   - Equipment selection now fully functional with proper image thumbnails, interactive checkboxes, and form data persistence
+- January 10, 2025. Fixed critical validation bug caused by section index shift after Equipment Selection addition
+  - Resolved validation logic using hardcoded section indices instead of section names
+  - Fixed Business Ownership validation to check by section name rather than index position
+  - Corrected Merchant Information section showing false validation errors after Equipment Selection was added
+  - Updated validation logic from hardcoded index checks to section.name comparisons for future-proof validation
+  - Merchant Information section now properly shows as completed (green) instead of showing yellow warning triangle
+  - Section validation system now resilient to section reordering and additions
 
 ## User Preferences
 Preferred communication style: Simple, everyday language.
