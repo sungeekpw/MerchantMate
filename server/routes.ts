@@ -5,6 +5,7 @@ import { setupAuthRoutes } from "./authRoutes";
 import { insertMerchantSchema, insertAgentSchema, insertTransactionSchema, insertLocationSchema, insertAddressSchema, insertPdfFormSchema, insertApiKeySchema } from "@shared/schema";
 import { authenticateApiKey, requireApiPermission, logApiRequest, generateApiKey } from "./apiAuth";
 import { setupAuth, isAuthenticated, requireRole, requirePermission } from "./replitAuth";
+import { auditService } from "./auditService";
 import { z } from "zod";
 import session from "express-session";
 import connectPg from "connect-pg-simple";
@@ -92,6 +93,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     },
     name: 'connect.sid'
   }));
+
+  // Apply audit middleware to track all system activities for SOC2 compliance
+  app.use(auditService.auditMiddleware());
 
   // Address autocomplete endpoint using Google Places API
   app.post('/api/address-autocomplete', async (req, res) => {
@@ -2747,6 +2751,207 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Failed to fetch login attempts:", error);
       res.status(500).json({ message: "Failed to fetch login attempts" });
+    }
+  });
+
+  // Comprehensive Audit Logs API - SOC2 Compliance
+  app.get("/api/security/audit-logs", isAuthenticated, requireRole(["admin", "super_admin"]), adminDbMiddleware, async (req: RequestWithDB, res) => {
+    try {
+      const db = getRequestDB(req);
+      const { auditLogs } = await import("@shared/schema");
+      const { desc, and, like, eq, gte, lte, sql } = await import("drizzle-orm");
+      
+      const {
+        search,
+        action,
+        resource,
+        riskLevel,
+        userId,
+        startDate,
+        endDate,
+        limit = 50,
+        offset = 0
+      } = req.query;
+
+      let conditions = [];
+      
+      // Search across multiple fields
+      if (search) {
+        conditions.push(
+          sql`(${auditLogs.userEmail} ILIKE ${`%${search}%`} OR 
+               ${auditLogs.userId} ILIKE ${`%${search}%`} OR 
+               ${auditLogs.action} ILIKE ${`%${search}%`} OR 
+               ${auditLogs.resource} ILIKE ${`%${search}%`} OR 
+               ${auditLogs.ipAddress} ILIKE ${`%${search}%`} OR 
+               ${auditLogs.notes} ILIKE ${`%${search}%`})`
+        );
+      }
+      
+      // Filter by specific fields
+      if (action) conditions.push(eq(auditLogs.action, action as string));
+      if (resource) conditions.push(eq(auditLogs.resource, resource as string));
+      if (riskLevel) conditions.push(eq(auditLogs.riskLevel, riskLevel as string));
+      if (userId) conditions.push(eq(auditLogs.userId, userId as string));
+      
+      // Date range filtering
+      if (startDate) conditions.push(gte(auditLogs.createdAt, new Date(startDate as string)));
+      if (endDate) conditions.push(lte(auditLogs.createdAt, new Date(endDate as string)));
+
+      const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+      
+      const logs = await db.select()
+        .from(auditLogs)
+        .where(whereClause)
+        .orderBy(desc(auditLogs.createdAt))
+        .limit(Number(limit))
+        .offset(Number(offset));
+      
+      res.json(logs);
+    } catch (error) {
+      console.error("Failed to fetch audit logs:", error);
+      res.status(500).json({ message: "Failed to fetch audit logs" });
+    }
+  });
+
+  // Security Events API
+  app.get("/api/security/events", isAuthenticated, requireRole(["admin", "super_admin"]), adminDbMiddleware, async (req: RequestWithDB, res) => {
+    try {
+      const db = getRequestDB(req);
+      const { securityEvents } = await import("@shared/schema");
+      const { desc } = await import("drizzle-orm");
+      
+      const events = await db.select()
+        .from(securityEvents)
+        .orderBy(desc(securityEvents.detectedAt))
+        .limit(100);
+      
+      res.json(events);
+    } catch (error) {
+      console.error("Failed to fetch security events:", error);
+      res.status(500).json({ message: "Failed to fetch security events" });
+    }
+  });
+
+  // Audit Metrics API
+  app.get("/api/security/audit-metrics", isAuthenticated, requireRole(["admin", "super_admin"]), adminDbMiddleware, async (req: RequestWithDB, res) => {
+    try {
+      const db = getRequestDB(req);
+      const { auditLogs, securityEvents } = await import("@shared/schema");
+      const { count, gte, eq, and } = await import("drizzle-orm");
+      
+      const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+      
+      // Get total audit logs
+      const totalLogs = await db.select({ count: count() }).from(auditLogs)
+        .where(gte(auditLogs.createdAt, thirtyDaysAgo));
+      
+      // Get high risk actions
+      const highRiskActions = await db.select({ count: count() }).from(auditLogs)
+        .where(and(
+          gte(auditLogs.createdAt, thirtyDaysAgo),
+          eq(auditLogs.riskLevel, 'high')
+        ));
+      
+      // Get critical risk actions
+      const criticalRiskActions = await db.select({ count: count() }).from(auditLogs)
+        .where(and(
+          gte(auditLogs.createdAt, thirtyDaysAgo),
+          eq(auditLogs.riskLevel, 'critical')
+        ));
+      
+      // Get security events count
+      const totalSecurityEvents = await db.select({ count: count() }).from(securityEvents)
+        .where(gte(securityEvents.createdAt, thirtyDaysAgo));
+      
+      res.json({
+        totalLogs: totalLogs[0]?.count || 0,
+        highRiskActions: (highRiskActions[0]?.count || 0) + (criticalRiskActions[0]?.count || 0),
+        securityEvents: totalSecurityEvents[0]?.count || 0,
+      });
+    } catch (error) {
+      console.error("Failed to fetch audit metrics:", error);
+      res.status(500).json({ message: "Failed to fetch audit metrics" });
+    }
+  });
+
+  // Audit Log Export API
+  app.get("/api/security/audit-logs/export", isAuthenticated, requireRole(["admin", "super_admin"]), adminDbMiddleware, async (req: RequestWithDB, res) => {
+    try {
+      const db = getRequestDB(req);
+      const { auditLogs } = await import("@shared/schema");
+      const { desc, and, like, eq, gte, lte, sql } = await import("drizzle-orm");
+      
+      const {
+        search,
+        action,
+        resource,
+        riskLevel,
+        userId,
+        startDate,
+        endDate
+      } = req.query;
+
+      let conditions = [];
+      
+      // Apply same filters as the main endpoint
+      if (search) {
+        conditions.push(
+          sql`(${auditLogs.userEmail} ILIKE ${`%${search}%`} OR 
+               ${auditLogs.userId} ILIKE ${`%${search}%`} OR 
+               ${auditLogs.action} ILIKE ${`%${search}%`} OR 
+               ${auditLogs.resource} ILIKE ${`%${search}%`} OR 
+               ${auditLogs.ipAddress} ILIKE ${`%${search}%`})`
+        );
+      }
+      
+      if (action) conditions.push(eq(auditLogs.action, action as string));
+      if (resource) conditions.push(eq(auditLogs.resource, resource as string));
+      if (riskLevel) conditions.push(eq(auditLogs.riskLevel, riskLevel as string));
+      if (userId) conditions.push(eq(auditLogs.userId, userId as string));
+      if (startDate) conditions.push(gte(auditLogs.createdAt, new Date(startDate as string)));
+      if (endDate) conditions.push(lte(auditLogs.createdAt, new Date(endDate as string)));
+
+      const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+      
+      const logs = await db.select()
+        .from(auditLogs)
+        .where(whereClause)
+        .orderBy(desc(auditLogs.createdAt))
+        .limit(10000); // Maximum export limit
+      
+      // Generate CSV
+      const headers = [
+        'ID', 'User ID', 'User Email', 'Action', 'Resource', 'Resource ID',
+        'IP Address', 'Risk Level', 'Status Code', 'Method', 'Endpoint',
+        'Environment', 'Timestamp', 'Notes'
+      ];
+      
+      const csvContent = [
+        headers.join(','),
+        ...logs.map(log => [
+          log.id,
+          log.userId || '',
+          log.userEmail || '',
+          log.action,
+          log.resource,
+          log.resourceId || '',
+          log.ipAddress,
+          log.riskLevel,
+          log.statusCode || '',
+          log.method || '',
+          log.endpoint || '',
+          log.environment || '',
+          log.createdAt,
+          (log.notes || '').replace(/,/g, ';')
+        ].join(','))
+      ].join('\n');
+      
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', 'attachment; filename=audit-logs.csv');
+      res.send(csvContent);
+    } catch (error) {
+      console.error("Failed to export audit logs:", error);
+      res.status(500).json({ message: "Failed to export audit logs" });
     }
   });
 
