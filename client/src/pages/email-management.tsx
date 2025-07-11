@@ -51,7 +51,6 @@ import {
   Search
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { Header } from '@/components/layout/header';
 import { format } from 'date-fns';
 
 interface EmailTemplate {
@@ -296,13 +295,14 @@ const EmailManagement: React.FC = () => {
     if (activityFilters.search && !item.recipientEmail.toLowerCase().includes(activityFilters.search.toLowerCase())) {
       return false;
     }
+    if (activityFilters.templateId && activityFilters.templateId !== 'all' && item.templateId.toString() !== activityFilters.templateId) {
+      return false;
+    }
     return true;
   });
 
   return (
     <div className="space-y-6 p-6">
-      <Header title="Email Management" />
-      
       {/* Statistics Cards */}
       {stats && (
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
@@ -593,7 +593,7 @@ const EmailManagement: React.FC = () => {
                       <SelectValue placeholder="All templates" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">All templates</SelectItem>
+                      <SelectItem value="all">All templates</SelectItem>
                       {templates.map((template: EmailTemplate) => (
                         <SelectItem key={template.id} value={template.id.toString()}>
                           {template.name}
