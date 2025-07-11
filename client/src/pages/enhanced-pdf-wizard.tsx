@@ -9,7 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
-import { Building, FileText, CheckCircle, ArrowLeft, ArrowRight, Users, Upload, Signature, PenTool, Type, RotateCcw, Check, X, AlertTriangle } from 'lucide-react';
+import { Building, FileText, CheckCircle, ArrowLeft, ArrowRight, Users, Upload, Signature, PenTool, Type, RotateCcw, Check, X, AlertTriangle, Monitor } from 'lucide-react';
 
 interface FormField {
   id: number;
@@ -535,6 +535,17 @@ export default function EnhancedPdfWizard() {
       }
     }
 
+    // Special equipment validation for Equipment Selection section
+    if (section.name === 'Equipment Selection') {
+      const selectedEquipment = formData.selectedEquipment || [];
+      const campaignEquipment = prospectData?.campaignEquipment || [];
+      
+      // Check if equipment selection is required but not selected
+      if (campaignEquipment.length > 0 && selectedEquipment.length === 0) {
+        hasErrors = true;
+      }
+    }
+
     // For debugging, log validation status
     if (sectionIndex === 2) {
       console.log(`Section ${sectionIndex} (${section.name}) validation:`, {
@@ -623,6 +634,17 @@ export default function EnhancedPdfWizard() {
       loadOwnersWithSignatures(prospectData.prospect.id);
     }
   }, [prospectData, isProspectMode]);
+
+  // Auto-select equipment if only one option available
+  useEffect(() => {
+    if (prospectData?.campaignEquipment && prospectData.campaignEquipment.length === 1) {
+      const singleEquipment = prospectData.campaignEquipment[0];
+      if (!formData.selectedEquipment || formData.selectedEquipment.length === 0) {
+        console.log('Auto-selecting single equipment option:', singleEquipment.name);
+        handleFieldChange('selectedEquipment', [singleEquipment.id]);
+      }
+    }
+  }, [prospectData, formData.selectedEquipment]);
 
   // Debug form data changes
   useEffect(() => {
@@ -737,94 +759,114 @@ export default function EnhancedPdfWizard() {
   }, [prospectData, isProspectMode, initialDataLoaded]);
 
   // Create hardcoded form sections for prospect mode
-  const prospectFormSections: FormSection[] = [
-    {
-      name: 'Campaign Details',
-      description: 'Campaign information and equipment selection',
-      icon: FileText,
-      fields: [
-        { id: 0, fieldName: 'campaignInfo', fieldType: 'campaign', fieldLabel: 'Campaign Information', isRequired: false, options: null, defaultValue: null, validation: null, position: 0, section: 'Campaign Details' },
-      ]
-    },
-    {
-      name: 'Merchant Information',
-      description: 'Basic business details, contact information, and location data',
-      icon: Building,
-      fields: [
-        { id: 1, fieldName: 'assignedAgent', fieldType: 'readonly', fieldLabel: 'Assigned Agent', isRequired: false, options: null, defaultValue: null, validation: null, position: 1, section: 'Merchant Information' },
-        { id: 2, fieldName: 'companyName', fieldType: 'text', fieldLabel: 'Company Name', isRequired: true, options: null, defaultValue: null, validation: null, position: 2, section: 'Merchant Information' },
-        { id: 3, fieldName: 'companyEmail', fieldType: 'email', fieldLabel: 'Company Email', isRequired: true, options: null, defaultValue: null, validation: null, position: 3, section: 'Merchant Information' },
-        { id: 4, fieldName: 'companyPhone', fieldType: 'phone', fieldLabel: 'Company Phone', isRequired: true, options: null, defaultValue: null, validation: null, position: 4, section: 'Merchant Information' },
-        { id: 5, fieldName: 'address', fieldType: 'text', fieldLabel: 'Business Address', isRequired: true, options: null, defaultValue: null, validation: null, position: 5, section: 'Merchant Information' },
-        { id: 6, fieldName: 'addressLine2', fieldType: 'text', fieldLabel: 'Address Line 2', isRequired: false, options: null, defaultValue: null, validation: null, position: 6, section: 'Merchant Information' },
-        { id: 7, fieldName: 'city', fieldType: 'text', fieldLabel: 'City', isRequired: true, options: null, defaultValue: null, validation: null, position: 7, section: 'Merchant Information' },
-        { id: 8, fieldName: 'state', fieldType: 'select', fieldLabel: 'State', isRequired: true, options: [
-          'Alabama', 'Alaska', 'Arizona', 'Arkansas', 'California', 'Colorado', 'Connecticut', 'Delaware', 
-          'Florida', 'Georgia', 'Hawaii', 'Idaho', 'Illinois', 'Indiana', 'Iowa', 'Kansas', 'Kentucky', 
-          'Louisiana', 'Maine', 'Maryland', 'Massachusetts', 'Michigan', 'Minnesota', 'Mississippi', 
-          'Missouri', 'Montana', 'Nebraska', 'Nevada', 'New Hampshire', 'New Jersey', 'New Mexico', 
-          'New York', 'North Carolina', 'North Dakota', 'Ohio', 'Oklahoma', 'Oregon', 'Pennsylvania', 
-          'Rhode Island', 'South Carolina', 'South Dakota', 'Tennessee', 'Texas', 'Utah', 'Vermont', 
-          'Virginia', 'Washington', 'West Virginia', 'Wisconsin', 'Wyoming'
-        ], defaultValue: null, validation: null, position: 8, section: 'Merchant Information' },
-        { id: 9, fieldName: 'zipCode', fieldType: 'text', fieldLabel: 'ZIP Code', isRequired: true, options: null, defaultValue: null, validation: null, position: 9, section: 'Merchant Information' },
-      ]
-    },
-    {
-      name: 'Business Type & Tax Information',
-      description: 'Business structure, tax identification, and regulatory compliance',
-      icon: FileText,
-      fields: [
-        { id: 9, fieldName: 'federalTaxId', fieldType: 'text', fieldLabel: 'Federal Tax ID (EIN)', isRequired: true, options: null, defaultValue: null, validation: null, position: 9, section: 'Business Type & Tax Information' },
-        { id: 10, fieldName: 'businessType', fieldType: 'select', fieldLabel: 'Business Type', isRequired: true, options: ['Corporation', 'LLC', 'Partnership', 'Sole Proprietorship'], defaultValue: null, validation: null, position: 10, section: 'Business Type & Tax Information' },
-        { id: 11, fieldName: 'stateFiled', fieldType: 'select', fieldLabel: 'State Filed', isRequired: true, options: [
-          'Alabama', 'Alaska', 'Arizona', 'Arkansas', 'California', 'Colorado', 'Connecticut', 'Delaware', 
-          'Florida', 'Georgia', 'Hawaii', 'Idaho', 'Illinois', 'Indiana', 'Iowa', 'Kansas', 'Kentucky', 
-          'Louisiana', 'Maine', 'Maryland', 'Massachusetts', 'Michigan', 'Minnesota', 'Mississippi', 
-          'Missouri', 'Montana', 'Nebraska', 'Nevada', 'New Hampshire', 'New Jersey', 'New Mexico', 
-          'New York', 'North Carolina', 'North Dakota', 'Ohio', 'Oklahoma', 'Oregon', 'Pennsylvania', 
-          'Rhode Island', 'South Carolina', 'South Dakota', 'Tennessee', 'Texas', 'Utah', 'Vermont', 
-          'Virginia', 'Washington', 'West Virginia', 'Wisconsin', 'Wyoming'
-        ], defaultValue: null, validation: null, position: 11, section: 'Business Type & Tax Information' },
-        { id: 12, fieldName: 'businessStartDate', fieldType: 'date', fieldLabel: 'Business Start Date', isRequired: true, options: null, defaultValue: null, validation: null, position: 12, section: 'Business Type & Tax Information' },
-        { id: 13, fieldName: 'yearsInBusiness', fieldType: 'readonly', fieldLabel: 'Years in Business', isRequired: false, options: null, defaultValue: null, validation: null, position: 13, section: 'Business Type & Tax Information' },
-      ]
-    },
-    {
-      name: 'Business Ownership',
-      description: 'Ownership structure and signature requirements for owners with 25% or more ownership',
-      icon: Users,
-      fields: [
-        { id: 15, fieldName: 'owners', fieldType: 'ownership', fieldLabel: 'Business Owners', isRequired: true, options: null, defaultValue: null, validation: null, position: 15, section: 'Business Ownership' },
-      ]
-    },
-    {
-      name: 'Products, Services & Processing',
-      description: 'Business operations, products sold, and payment processing preferences',
-      icon: CheckCircle,
-      fields: [
-        { id: 16, fieldName: 'businessDescription', fieldType: 'textarea', fieldLabel: 'Business Description', isRequired: true, options: null, defaultValue: null, validation: null, position: 16, section: 'Products, Services & Processing' },
-        { id: 17, fieldName: 'productsServices', fieldType: 'textarea', fieldLabel: 'Products/Services Sold', isRequired: true, options: null, defaultValue: null, validation: null, position: 17, section: 'Products, Services & Processing' },
-        { id: 18, fieldName: 'processingMethod', fieldType: 'select', fieldLabel: 'Primary Processing Method', isRequired: true, options: ['In-Person (Card Present)', 'Online (Card Not Present)', 'Both'], defaultValue: null, validation: null, position: 18, section: 'Products, Services & Processing' },
-      ]
-    },
-    {
-      name: 'Transaction Information',
-      description: 'Financial data, volume estimates, and transaction processing details',
-      icon: ArrowRight,
-      fields: [
-        { id: 19, fieldName: 'monthlyVolume', fieldType: 'number', fieldLabel: 'Expected Monthly Processing Volume ($)', isRequired: true, options: null, defaultValue: null, validation: null, position: 19, section: 'Transaction Information' },
-        { id: 20, fieldName: 'averageTicket', fieldType: 'number', fieldLabel: 'Average Transaction Amount ($)', isRequired: true, options: null, defaultValue: null, validation: null, position: 20, section: 'Transaction Information' },
-        { id: 21, fieldName: 'highestTicket', fieldType: 'number', fieldLabel: 'Highest Single Transaction ($)', isRequired: true, options: null, defaultValue: null, validation: null, position: 21, section: 'Transaction Information' },
-      ]
+  const createProspectFormSections = (): FormSection[] => {
+    const baseSections = [
+      {
+        name: 'Campaign Details',
+        description: 'Campaign information and overview',
+        icon: FileText,
+        fields: [
+          { id: 0, fieldName: 'campaignInfo', fieldType: 'campaign', fieldLabel: 'Campaign Information', isRequired: false, options: null, defaultValue: null, validation: null, position: 0, section: 'Campaign Details' },
+        ]
+      },
+    ];
+
+    // Add equipment section if campaign has equipment
+    const campaignEquipment = prospectData?.campaignEquipment || [];
+    if (campaignEquipment.length > 0) {
+      baseSections.push({
+        name: 'Equipment Selection',
+        description: 'Choose your preferred payment processing equipment',
+        icon: Monitor,
+        fields: [
+          { id: 0.5, fieldName: 'selectedEquipment', fieldType: 'equipment', fieldLabel: 'Select Equipment', isRequired: true, options: null, defaultValue: null, validation: null, position: 0.5, section: 'Equipment Selection' },
+        ]
+      });
     }
-  ];
+
+    baseSections.push(
+      {
+        name: 'Merchant Information',
+        description: 'Basic business details, contact information, and location data',
+        icon: Building,
+        fields: [
+          { id: 1, fieldName: 'assignedAgent', fieldType: 'readonly', fieldLabel: 'Assigned Agent', isRequired: false, options: null, defaultValue: null, validation: null, position: 1, section: 'Merchant Information' },
+          { id: 2, fieldName: 'companyName', fieldType: 'text', fieldLabel: 'Company Name', isRequired: true, options: null, defaultValue: null, validation: null, position: 2, section: 'Merchant Information' },
+          { id: 3, fieldName: 'companyEmail', fieldType: 'email', fieldLabel: 'Company Email', isRequired: true, options: null, defaultValue: null, validation: null, position: 3, section: 'Merchant Information' },
+          { id: 4, fieldName: 'companyPhone', fieldType: 'phone', fieldLabel: 'Company Phone', isRequired: true, options: null, defaultValue: null, validation: null, position: 4, section: 'Merchant Information' },
+          { id: 5, fieldName: 'address', fieldType: 'text', fieldLabel: 'Business Address', isRequired: true, options: null, defaultValue: null, validation: null, position: 5, section: 'Merchant Information' },
+          { id: 6, fieldName: 'addressLine2', fieldType: 'text', fieldLabel: 'Address Line 2', isRequired: false, options: null, defaultValue: null, validation: null, position: 6, section: 'Merchant Information' },
+          { id: 7, fieldName: 'city', fieldType: 'text', fieldLabel: 'City', isRequired: true, options: null, defaultValue: null, validation: null, position: 7, section: 'Merchant Information' },
+          { id: 8, fieldName: 'state', fieldType: 'select', fieldLabel: 'State', isRequired: true, options: [
+            'Alabama', 'Alaska', 'Arizona', 'Arkansas', 'California', 'Colorado', 'Connecticut', 'Delaware', 
+            'Florida', 'Georgia', 'Hawaii', 'Idaho', 'Illinois', 'Indiana', 'Iowa', 'Kansas', 'Kentucky', 
+            'Louisiana', 'Maine', 'Maryland', 'Massachusetts', 'Michigan', 'Minnesota', 'Mississippi', 
+            'Missouri', 'Montana', 'Nebraska', 'Nevada', 'New Hampshire', 'New Jersey', 'New Mexico', 
+            'New York', 'North Carolina', 'North Dakota', 'Ohio', 'Oklahoma', 'Oregon', 'Pennsylvania', 
+            'Rhode Island', 'South Carolina', 'South Dakota', 'Tennessee', 'Texas', 'Utah', 'Vermont', 
+            'Virginia', 'Washington', 'West Virginia', 'Wisconsin', 'Wyoming'
+          ], defaultValue: null, validation: null, position: 8, section: 'Merchant Information' },
+          { id: 9, fieldName: 'zipCode', fieldType: 'text', fieldLabel: 'ZIP Code', isRequired: true, options: null, defaultValue: null, validation: null, position: 9, section: 'Merchant Information' },
+        ]
+      },
+      {
+        name: 'Business Type & Tax Information',
+        description: 'Business structure, tax identification, and regulatory compliance',
+        icon: FileText,
+        fields: [
+          { id: 9, fieldName: 'federalTaxId', fieldType: 'text', fieldLabel: 'Federal Tax ID (EIN)', isRequired: true, options: null, defaultValue: null, validation: null, position: 9, section: 'Business Type & Tax Information' },
+          { id: 10, fieldName: 'businessType', fieldType: 'select', fieldLabel: 'Business Type', isRequired: true, options: ['Corporation', 'LLC', 'Partnership', 'Sole Proprietorship'], defaultValue: null, validation: null, position: 10, section: 'Business Type & Tax Information' },
+          { id: 11, fieldName: 'stateFiled', fieldType: 'select', fieldLabel: 'State Filed', isRequired: true, options: [
+            'Alabama', 'Alaska', 'Arizona', 'Arkansas', 'California', 'Colorado', 'Connecticut', 'Delaware', 
+            'Florida', 'Georgia', 'Hawaii', 'Idaho', 'Illinois', 'Indiana', 'Iowa', 'Kansas', 'Kentucky', 
+            'Louisiana', 'Maine', 'Maryland', 'Massachusetts', 'Michigan', 'Minnesota', 'Mississippi', 
+            'Missouri', 'Montana', 'Nebraska', 'Nevada', 'New Hampshire', 'New Jersey', 'New Mexico', 
+            'New York', 'North Carolina', 'North Dakota', 'Ohio', 'Oklahoma', 'Oregon', 'Pennsylvania', 
+            'Rhode Island', 'South Carolina', 'South Dakota', 'Tennessee', 'Texas', 'Utah', 'Vermont', 
+            'Virginia', 'Washington', 'West Virginia', 'Wisconsin', 'Wyoming'
+          ], defaultValue: null, validation: null, position: 11, section: 'Business Type & Tax Information' },
+          { id: 12, fieldName: 'businessStartDate', fieldType: 'date', fieldLabel: 'Business Start Date', isRequired: true, options: null, defaultValue: null, validation: null, position: 12, section: 'Business Type & Tax Information' },
+          { id: 13, fieldName: 'yearsInBusiness', fieldType: 'readonly', fieldLabel: 'Years in Business', isRequired: false, options: null, defaultValue: null, validation: null, position: 13, section: 'Business Type & Tax Information' },
+        ]
+      },
+      {
+        name: 'Business Ownership',
+        description: 'Ownership structure and signature requirements for owners with 25% or more ownership',
+        icon: Users,
+        fields: [
+          { id: 15, fieldName: 'owners', fieldType: 'ownership', fieldLabel: 'Business Owners', isRequired: true, options: null, defaultValue: null, validation: null, position: 15, section: 'Business Ownership' },
+        ]
+      },
+      {
+        name: 'Products, Services & Processing',
+        description: 'Business operations, products sold, and payment processing preferences',
+        icon: CheckCircle,
+        fields: [
+          { id: 16, fieldName: 'businessDescription', fieldType: 'textarea', fieldLabel: 'Business Description', isRequired: true, options: null, defaultValue: null, validation: null, position: 16, section: 'Products, Services & Processing' },
+          { id: 17, fieldName: 'productsServices', fieldType: 'textarea', fieldLabel: 'Products/Services Sold', isRequired: true, options: null, defaultValue: null, validation: null, position: 17, section: 'Products, Services & Processing' },
+          { id: 18, fieldName: 'processingMethod', fieldType: 'select', fieldLabel: 'Primary Processing Method', isRequired: true, options: ['In-Person (Card Present)', 'Online (Card Not Present)', 'Both'], defaultValue: null, validation: null, position: 18, section: 'Products, Services & Processing' },
+        ]
+      },
+      {
+        name: 'Transaction Information',
+        description: 'Financial data, volume estimates, and transaction processing details',
+        icon: ArrowRight,
+        fields: [
+          { id: 19, fieldName: 'monthlyVolume', fieldType: 'number', fieldLabel: 'Expected Monthly Processing Volume ($)', isRequired: true, options: null, defaultValue: null, validation: null, position: 19, section: 'Transaction Information' },
+          { id: 20, fieldName: 'averageTicket', fieldType: 'number', fieldLabel: 'Average Transaction Amount ($)', isRequired: true, options: null, defaultValue: null, validation: null, position: 20, section: 'Transaction Information' },
+          { id: 21, fieldName: 'highestTicket', fieldType: 'number', fieldLabel: 'Highest Single Transaction ($)', isRequired: true, options: null, defaultValue: null, validation: null, position: 21, section: 'Transaction Information' },
+        ]
+      }
+    );
+
+    return baseSections;
+  };
 
   // Create enhanced sections with descriptions and icons
   let sections: FormSection[] = [];
   
   if (isProspectMode) {
-    sections = prospectFormSections;
+    sections = createProspectFormSections();
   } else if (pdfForm?.fields) {
     sections = [
       {
@@ -1963,6 +2005,79 @@ export default function EnhancedPdfWizard() {
                 </CardContent>
               </Card>
             )}
+          </div>
+        );
+
+      case 'equipment':
+        const campaignEquipmentForSelection = prospectData?.campaignEquipment || [];
+        
+        return (
+          <div className="space-y-6">
+            <Card>
+              <CardHeader className="pb-4">
+                <CardTitle className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                  <Monitor className="w-5 h-5" />
+                  Equipment Selection
+                </CardTitle>
+                <p className="text-sm text-gray-600">
+                  Select the equipment you would like for your merchant processing setup:
+                </p>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {campaignEquipmentForSelection.map((equipment: any) => (
+                    <div
+                      key={equipment.id}
+                      className={`border rounded-lg p-4 cursor-pointer transition-all ${
+                        formData.selectedEquipment?.includes(equipment.id)
+                          ? 'border-blue-500 bg-blue-50'
+                          : 'border-gray-200 hover:border-gray-300'
+                      }`}
+                      onClick={() => {
+                        const currentSelected = formData.selectedEquipment || [];
+                        const isSelected = currentSelected.includes(equipment.id);
+                        const newSelected = isSelected
+                          ? currentSelected.filter((id: number) => id !== equipment.id)
+                          : [...currentSelected, equipment.id];
+                        
+                        handleFieldChange('selectedEquipment', newSelected);
+                      }}
+                    >
+                      <div className="flex items-start gap-3">
+                        {equipment.imageData && (
+                          <img
+                            src={`data:image/jpeg;base64,${equipment.imageData}`}
+                            alt={equipment.name}
+                            className="w-12 h-12 object-cover rounded"
+                          />
+                        )}
+                        <div className="flex-1">
+                          <h4 className="font-medium text-gray-900">{equipment.name}</h4>
+                          <p className="text-sm text-gray-600 mt-1">{equipment.description}</p>
+                          {equipment.specifications && (
+                            <p className="text-xs text-gray-500 mt-2">{equipment.specifications}</p>
+                          )}
+                        </div>
+                        <div className="flex-shrink-0">
+                          <div className={`w-5 h-5 rounded border-2 flex items-center justify-center ${
+                            formData.selectedEquipment?.includes(equipment.id)
+                              ? 'border-blue-500 bg-blue-500'
+                              : 'border-gray-300'
+                          }`}>
+                            {formData.selectedEquipment?.includes(equipment.id) && (
+                              <Check className="w-3 h-3 text-white" />
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <p className="text-sm text-gray-500 mt-4">
+                  You can select multiple equipment items. Final equipment will be confirmed during the approval process.
+                </p>
+              </CardContent>
+            </Card>
           </div>
         );
 
