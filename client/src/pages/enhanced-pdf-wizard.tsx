@@ -515,7 +515,7 @@ export default function EnhancedPdfWizard() {
     }
 
     // Special ownership validation for Business Ownership section
-    if (sectionIndex === 2) { // Business Ownership section
+    if (section.name === 'Business Ownership') { // Business Ownership section
       const owners = formData.owners || [];
       const totalPercentage = owners.reduce((sum: number, owner: any) => sum + (parseFloat(owner.percentage) || 0), 0);
       
@@ -547,11 +547,9 @@ export default function EnhancedPdfWizard() {
     }
 
     // For debugging, log validation status
-    if (sectionIndex === 2) {
+    if (section.name === 'Merchant Information') {
       console.log(`Section ${sectionIndex} (${section.name}) validation:`, {
-        hasErrors,
-        owners: formData.owners,
-        totalPercentage: formData.owners?.reduce((sum: number, owner: any) => sum + (parseFloat(owner.percentage) || 0), 0)
+        hasErrors
       });
     }
 
@@ -2467,9 +2465,9 @@ export default function EnhancedPdfWizard() {
                     const hasValidationIssues = getSectionValidationStatus(index);
                     const showWarning = isVisited && hasValidationIssues && !isActive;
                     
-                    // Debug logging for section 2 (Business Ownership)
-                    if (index === 2) {
-                      console.log(`Section 2 status:`, {
+                    // Debug logging for Merchant Information section
+                    if (section.name === 'Merchant Information') {
+                      console.log(`Section ${index} (${section.name}) status:`, {
                         isVisited,
                         hasValidationIssues,
                         showWarning,
