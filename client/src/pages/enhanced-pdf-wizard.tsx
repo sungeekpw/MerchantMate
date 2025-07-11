@@ -1997,8 +1997,8 @@ export default function EnhancedPdfWizard() {
                       <div className="flex items-start gap-3">
                         {equipment.imageData && (
                           <img
-                            src={`data:image/jpeg;base64,${equipment.imageData}`}
-                            alt={equipment.name}
+                            src={equipment.imageData.startsWith('data:') ? equipment.imageData : `data:image/jpeg;base64,${equipment.imageData}`}
+                            alt={String(equipment.name || 'Equipment')}
                             className="w-12 h-12 object-cover rounded"
                           />
                         )}
