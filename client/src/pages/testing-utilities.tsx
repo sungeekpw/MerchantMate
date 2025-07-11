@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -32,16 +32,46 @@ export default function TestingUtilities() {
   const queryClient = useQueryClient();
 
   // Query to get current database environment
-  const { data: dbEnvironment } = useQuery({
-    queryKey: ["/api/admin/db-environment"],
+  const { data: dbEnvironment, refetch: refetchDbEnvironment } = useQuery({
+    queryKey: ["/api/admin/db-environment", selectedDbEnv],
     queryFn: async () => {
-      const response = await fetch("/api/admin/db-environment", {
+      const url = selectedDbEnv !== 'default' 
+        ? `/api/admin/db-environment?db=${selectedDbEnv}`
+        : "/api/admin/db-environment";
+      
+      const response = await fetch(url, {
         credentials: "include",
       });
       if (!response.ok) throw new Error("Failed to fetch database environment");
       return response.json();
     },
   });
+
+  // Function to handle database environment change
+  const handleDbEnvChange = (newEnv: string) => {
+    setSelectedDbEnv(newEnv);
+    
+    // Update URL to reflect database environment
+    const url = new URL(window.location.href);
+    if (newEnv !== 'default') {
+      url.searchParams.set('db', newEnv);
+    } else {
+      url.searchParams.delete('db');
+    }
+    window.history.replaceState({}, '', url.toString());
+    
+    // Refetch environment status
+    refetchDbEnvironment();
+  };
+
+  // Initialize selected environment from URL parameter
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const dbParam = urlParams.get('db');
+    if (dbParam && ['test', 'dev'].includes(dbParam)) {
+      setSelectedDbEnv(dbParam);
+    }
+  }, []);
 
   // Reset testing data mutation
   const resetDataMutation = useMutation({
@@ -201,7 +231,7 @@ export default function TestingUtilities() {
           <div className="flex items-center gap-4">
             <div className="flex-1">
               <label className="text-sm font-medium">Target Database:</label>
-              <Select value={selectedDbEnv} onValueChange={setSelectedDbEnv}>
+              <Select value={selectedDbEnv} onValueChange={handleDbEnvChange}>
                 <SelectTrigger className="mt-1">
                   <SelectValue placeholder="Select database environment" />
                 </SelectTrigger>
