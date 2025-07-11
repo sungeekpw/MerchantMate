@@ -623,6 +623,13 @@ The application is configured for deployment on Replit with:
   - Added proper React object rendering for pricing type display to prevent rendering errors
   - Campaign assignment system now fully operational with prospects linked to campaigns and equipment selection
   - Equipment selection saves to form data with proper state management for application processing
+- January 10, 2025. Separated equipment selection into dedicated navigation section
+  - Moved equipment selection from Campaign Details section to its own dedicated "Equipment Selection" navigation section
+  - Fixed React object rendering errors by converting all equipment properties (name, description, specifications) to strings
+  - Enhanced navigation flow with Equipment Selection appearing between Campaign Details and Merchant Information
+  - Auto-selection logic works for single equipment campaigns, interactive checkboxes for multiple equipment options
+  - Cleaner separation of concerns with Campaign Details focusing only on campaign overview and Equipment Selection handling equipment choice
+  - Resolved "Objects are not valid as a React child" errors that were preventing equipment section navigation
 
 ## User Preferences
 Preferred communication style: Simple, everyday language.
