@@ -22,7 +22,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
-import { Plus, Search, Edit, Trash2, Mail, Calendar, User, Send, Download } from "lucide-react";
+import { Plus, Search, Edit, Trash2, Mail, Calendar, User, Send, Download, ChevronDown, ChevronRight, Users } from "lucide-react";
 import { insertMerchantProspectSchema, type MerchantProspectWithAgent, type Agent } from "@shared/schema";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
@@ -30,6 +30,19 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+
+// Interface for agent prospect summary
+interface AgentProspectSummary {
+  agent: Agent;
+  prospects: MerchantProspectWithAgent[];
+  statusCounts: Record<string, number>;
+  totalCount: number;
+}
 
 export default function Prospects() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -37,8 +50,10 @@ export default function Prospects() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProspect, setEditingProspect] = useState<MerchantProspectWithAgent | undefined>();
   const [resendingEmail, setResendingEmail] = useState<number | null>(null);
+  const [expandedAgents, setExpandedAgents] = useState<Set<number>>(new Set());
 
   const { toast } = useToast();
+  const { user } = useAuth();
   const queryClient = useQueryClient();
 
   const { data: prospects = [], isLoading } = useQuery({
@@ -131,6 +146,57 @@ export default function Prospects() {
     }
     return true;
   });
+
+  // Group prospects by agent for admin users
+  const agentProspectSummaries: AgentProspectSummary[] = (() => {
+    if (user?.role !== 'super_admin' && user?.role !== 'admin' && user?.role !== 'corporate') {
+      return [];
+    }
+
+    // Create a map of agents with their prospects
+    const agentMap = new Map<number, AgentProspectSummary>();
+    
+    // Initialize map with all agents
+    const allAgents = new Set(filteredProspects.map(p => p.agent).filter(Boolean));
+    allAgents.forEach(agent => {
+      if (agent) {
+        agentMap.set(agent.id, {
+          agent,
+          prospects: [],
+          statusCounts: {},
+          totalCount: 0
+        });
+      }
+    });
+
+    // Add prospects to their respective agents
+    filteredProspects.forEach(prospect => {
+      if (prospect.agent) {
+        const summary = agentMap.get(prospect.agent.id);
+        if (summary) {
+          summary.prospects.push(prospect);
+          summary.statusCounts[prospect.status] = (summary.statusCounts[prospect.status] || 0) + 1;
+          summary.totalCount++;
+        }
+      }
+    });
+
+    return Array.from(agentMap.values()).sort((a, b) => 
+      `${a.agent.firstName} ${a.agent.lastName}`.localeCompare(`${b.agent.firstName} ${b.agent.lastName}`)
+    );
+  })();
+
+  const toggleAgentExpansion = (agentId: number) => {
+    setExpandedAgents(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(agentId)) {
+        newSet.delete(agentId);
+      } else {
+        newSet.add(agentId);
+      }
+      return newSet;
+    });
+  };
 
   const handleDelete = (prospect: MerchantProspectWithAgent) => {
     if (confirm(`Are you sure you want to delete ${prospect.firstName} ${prospect.lastName}?`)) {
@@ -230,146 +296,322 @@ export default function Prospects() {
             </div>
           </div>
 
-          {/* Table */}
-          <div className="border rounded-lg">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Prospect</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Agent</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Created</TableHead>
-                  <TableHead>Submitted</TableHead>
-                  <TableHead className="w-32">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {isLoading ? (
-                  Array.from({ length: 5 }).map((_, i) => (
-                    <TableRow key={i}>
-                      <TableCell>
-                        <div className="flex items-center space-x-3">
-                          <Skeleton className="w-8 h-8 rounded-full" />
-                          <Skeleton className="h-4 w-32" />
+          {/* Agent-based hierarchical view for admin users */}
+          {(user?.role === 'super_admin' || user?.role === 'admin' || user?.role === 'corporate') ? (
+            <div className="space-y-4">
+              {isLoading ? (
+                Array.from({ length: 3 }).map((_, i) => (
+                  <Card key={i}>
+                    <CardHeader>
+                      <div className="flex items-center space-x-3">
+                        <Skeleton className="w-6 h-6" />
+                        <Skeleton className="w-8 h-8 rounded-full" />
+                        <Skeleton className="h-5 w-32" />
+                        <div className="flex space-x-2">
+                          <Skeleton className="h-6 w-16" />
+                          <Skeleton className="h-6 w-16" />
+                          <Skeleton className="h-6 w-16" />
                         </div>
-                      </TableCell>
-                      <TableCell><Skeleton className="h-4 w-32" /></TableCell>
-                      <TableCell><Skeleton className="h-4 w-24" /></TableCell>
-                      <TableCell><Skeleton className="h-4 w-20" /></TableCell>
-                      <TableCell><Skeleton className="h-4 w-16" /></TableCell>
-                      <TableCell><Skeleton className="h-4 w-16" /></TableCell>
-                      <TableCell><Skeleton className="h-4 w-20" /></TableCell>
-                    </TableRow>
-                  ))
-                ) : filteredProspects.length === 0 ? (
+                      </div>
+                    </CardHeader>
+                  </Card>
+                ))
+              ) : agentProspectSummaries.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">
+                  {searchQuery || statusFilter !== "all" ? "No prospects found matching your filters" : "No prospects found"}
+                </div>
+              ) : (
+                agentProspectSummaries.map((summary) => (
+                  <Collapsible
+                    key={summary.agent.id}
+                    open={expandedAgents.has(summary.agent.id)}
+                    onOpenChange={() => toggleAgentExpansion(summary.agent.id)}
+                  >
+                    <Card className="border-l-4 border-l-blue-500">
+                      <CollapsibleTrigger asChild>
+                        <CardHeader className="cursor-pointer hover:bg-gray-50 transition-colors">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center space-x-3">
+                              {expandedAgents.has(summary.agent.id) ? (
+                                <ChevronDown className="w-5 h-5 text-gray-500" />
+                              ) : (
+                                <ChevronRight className="w-5 h-5 text-gray-500" />
+                              )}
+                              <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                                <Users className="w-5 h-5 text-blue-600" />
+                              </div>
+                              <div>
+                                <h3 className="font-semibold text-lg text-gray-900">
+                                  {summary.agent.firstName} {summary.agent.lastName}
+                                </h3>
+                                <p className="text-sm text-gray-500">{summary.agent.email}</p>
+                              </div>
+                            </div>
+                            <div className="flex items-center space-x-4">
+                              <div className="text-right">
+                                <div className="text-2xl font-bold text-gray-900">{summary.totalCount}</div>
+                                <div className="text-sm text-gray-500">Total Prospects</div>
+                              </div>
+                              <div className="flex space-x-2">
+                                {Object.entries(summary.statusCounts).map(([status, count]) => (
+                                  <Badge
+                                    key={status}
+                                    className={`text-xs ${getStatusBadge(status)}`}
+                                    variant="outline"
+                                  >
+                                    {status}: {count}
+                                  </Badge>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+                        </CardHeader>
+                      </CollapsibleTrigger>
+                      <CollapsibleContent>
+                        <CardContent className="pt-0">
+                          <div className="border rounded-lg">
+                            <Table>
+                              <TableHeader>
+                                <TableRow>
+                                  <TableHead>Prospect</TableHead>
+                                  <TableHead>Email</TableHead>
+                                  <TableHead>Status</TableHead>
+                                  <TableHead>Created</TableHead>
+                                  <TableHead>Submitted</TableHead>
+                                  <TableHead className="w-32">Actions</TableHead>
+                                </TableRow>
+                              </TableHeader>
+                              <TableBody>
+                                {summary.prospects.map((prospect) => (
+                                  <TableRow key={prospect.id}>
+                                    <TableCell>
+                                      <div className="flex items-center space-x-3">
+                                        <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                                          <User className="w-4 h-4 text-blue-600" />
+                                        </div>
+                                        <div className="font-medium text-gray-900">
+                                          {prospect.firstName} {prospect.lastName}
+                                        </div>
+                                      </div>
+                                    </TableCell>
+                                    <TableCell className="text-gray-500">{prospect.email}</TableCell>
+                                    <TableCell>
+                                      <Badge className={`text-xs ${getStatusBadge(prospect.status)}`}>
+                                        {prospect.status === 'in_progress' ? 'In Progress' : prospect.status.charAt(0).toUpperCase() + prospect.status.slice(1)}
+                                      </Badge>
+                                    </TableCell>
+                                    <TableCell className="text-gray-500">
+                                      <div className="flex items-center text-sm">
+                                        <Calendar className="w-3 h-3 mr-1" />
+                                        {new Date(prospect.createdAt).toLocaleDateString()}
+                                      </div>
+                                    </TableCell>
+                                    <TableCell className="text-gray-500">
+                                      {prospect.status === 'submitted' || prospect.status === 'applied' ? (
+                                        <div className="flex items-center text-sm text-green-600">
+                                          <Calendar className="w-3 h-3 mr-1" />
+                                          {new Date(prospect.updatedAt).toLocaleDateString()}
+                                        </div>
+                                      ) : (
+                                        "—"
+                                      )}
+                                    </TableCell>
+                                    <TableCell>
+                                      <div className="flex items-center space-x-2">
+                                        {(prospect.status === 'submitted' || prospect.status === 'applied') && (
+                                          <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={() => handleDownloadPDF(prospect)}
+                                            title="Download application PDF"
+                                          >
+                                            <Download className="w-4 h-4" />
+                                          </Button>
+                                        )}
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          onClick={() => handleResendInvitation(prospect)}
+                                          disabled={resendingEmail === prospect.id || resendInvitationMutation.isPending}
+                                          title="Resend invitation email"
+                                        >
+                                          <Send className="w-4 h-4" />
+                                        </Button>
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          onClick={() => copyProspectLink(prospect)}
+                                          title="Copy validation link"
+                                        >
+                                          <Mail className="w-4 h-4" />
+                                        </Button>
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          onClick={() => handleEdit(prospect)}
+                                          disabled={prospect.status !== 'pending'}
+                                          title={prospect.status !== 'pending' ? 'Can only edit prospects with pending status' : 'Edit prospect'}
+                                        >
+                                          <Edit className="w-4 h-4" />
+                                        </Button>
+                                        {(prospect.status === 'pending' || prospect.status === 'contacted') && (
+                                          <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={() => handleDelete(prospect)}
+                                            disabled={deleteMutation.isPending}
+                                            title="Delete prospect"
+                                          >
+                                            <Trash2 className="w-4 h-4" />
+                                          </Button>
+                                        )}
+                                      </div>
+                                    </TableCell>
+                                  </TableRow>
+                                ))}
+                              </TableBody>
+                            </Table>
+                          </div>
+                        </CardContent>
+                      </CollapsibleContent>
+                    </Card>
+                  </Collapsible>
+                ))
+              )}
+            </div>
+          ) : (
+            // Regular table view for non-admin users
+            <div className="border rounded-lg">
+              <Table>
+                <TableHeader>
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8 text-gray-500">
-                      {searchQuery || statusFilter !== "all" ? "No prospects found matching your filters" : "No prospects found"}
-                    </TableCell>
+                    <TableHead>Prospect</TableHead>
+                    <TableHead>Email</TableHead>
+                    <TableHead>Agent</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Created</TableHead>
+                    <TableHead>Submitted</TableHead>
+                    <TableHead className="w-32">Actions</TableHead>
                   </TableRow>
-                ) : (
-                  filteredProspects.map((prospect) => (
-                    <TableRow key={prospect.id}>
-                      <TableCell>
-                        <div className="flex items-center space-x-3">
-                          <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                            <User className="w-4 h-4 text-blue-600" />
+                </TableHeader>
+                <TableBody>
+                  {isLoading ? (
+                    Array.from({ length: 5 }).map((_, i) => (
+                      <TableRow key={i}>
+                        <TableCell>
+                          <div className="flex items-center space-x-3">
+                            <Skeleton className="w-8 h-8 rounded-full" />
+                            <Skeleton className="h-4 w-32" />
                           </div>
-                          <div className="font-medium text-gray-900">
-                            {prospect.firstName} {prospect.lastName}
-                          </div>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-gray-500">{prospect.email}</TableCell>
-                      <TableCell className="text-gray-500">
-                        {prospect.agent ? `${prospect.agent.firstName} ${prospect.agent.lastName}` : "—"}
-                      </TableCell>
-                      <TableCell>
-                        <Badge className={`text-xs ${getStatusBadge(prospect.status)}`}>
-                          {prospect.status === 'in_progress' ? 'In Progress' : prospect.status.charAt(0).toUpperCase() + prospect.status.slice(1)}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-gray-500">
-                        <div className="flex items-center text-sm">
-                          <Calendar className="w-3 h-3 mr-1" />
-                          {new Date(prospect.createdAt).toLocaleDateString()}
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-gray-500">
-                        {prospect.status === 'submitted' || prospect.status === 'applied' ? (
-                          <div className="flex items-center text-sm text-green-600">
-                            <Calendar className="w-3 h-3 mr-1" />
-                            {new Date(prospect.updatedAt).toLocaleDateString()}
-                          </div>
-                        ) : (
-                          "—"
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center space-x-2">
-                          {(prospect.status === 'submitted' || prospect.status === 'applied') && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleDownloadPDF(prospect)}
-                              title="Download application PDF"
-                            >
-                              <Download className="w-4 h-4" />
-                            </Button>
-                          )}
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleResendInvitation(prospect)}
-                            disabled={resendingEmail === prospect.id || resendInvitationMutation.isPending}
-                            title="Resend invitation email"
-                          >
-                            <Send className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => copyProspectLink(prospect)}
-                            title="Copy validation link"
-                          >
-                            <Mail className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleEdit(prospect)}
-                            disabled={prospect.status !== 'pending'}
-                            title={prospect.status !== 'pending' ? 'Can only edit prospects with pending status' : 'Edit prospect'}
-                          >
-                            <Edit className="w-4 h-4" />
-                          </Button>
-                          {(prospect.status === 'pending' || prospect.status === 'contacted') && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleDelete(prospect)}
-                              disabled={deleteMutation.isPending}
-                              title="Delete prospect"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
-                          )}
-                        </div>
+                        </TableCell>
+                        <TableCell><Skeleton className="h-4 w-32" /></TableCell>
+                        <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                        <TableCell><Skeleton className="h-4 w-20" /></TableCell>
+                        <TableCell><Skeleton className="h-4 w-16" /></TableCell>
+                        <TableCell><Skeleton className="h-4 w-16" /></TableCell>
+                        <TableCell><Skeleton className="h-4 w-20" /></TableCell>
+                      </TableRow>
+                    ))
+                  ) : filteredProspects.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={7} className="text-center py-8 text-gray-500">
+                        {searchQuery || statusFilter !== "all" ? "No prospects found matching your filters" : "No prospects found"}
                       </TableCell>
                     </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
-
-          {/* Pagination placeholder */}
-          {filteredProspects.length > 0 && (
-            <div className="flex items-center justify-between mt-6">
-              <div className="text-sm text-gray-500">
-                Showing {filteredProspects.length} of {prospects.length} prospects
-              </div>
+                  ) : (
+                    filteredProspects.map((prospect) => (
+                      <TableRow key={prospect.id}>
+                        <TableCell>
+                          <div className="flex items-center space-x-3">
+                            <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                              <User className="w-4 h-4 text-blue-600" />
+                            </div>
+                            <div className="font-medium text-gray-900">
+                              {prospect.firstName} {prospect.lastName}
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-gray-500">{prospect.email}</TableCell>
+                        <TableCell className="text-gray-500">
+                          {prospect.agent ? `${prospect.agent.firstName} ${prospect.agent.lastName}` : "—"}
+                        </TableCell>
+                        <TableCell>
+                          <Badge className={`text-xs ${getStatusBadge(prospect.status)}`}>
+                            {prospect.status === 'in_progress' ? 'In Progress' : prospect.status.charAt(0).toUpperCase() + prospect.status.slice(1)}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-gray-500">
+                          <div className="flex items-center text-sm">
+                            <Calendar className="w-3 h-3 mr-1" />
+                            {new Date(prospect.createdAt).toLocaleDateString()}
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-gray-500">
+                          {prospect.status === 'submitted' || prospect.status === 'applied' ? (
+                            <div className="flex items-center text-sm text-green-600">
+                              <Calendar className="w-3 h-3 mr-1" />
+                              {new Date(prospect.updatedAt).toLocaleDateString()}
+                            </div>
+                          ) : (
+                            "—"
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center space-x-2">
+                            {(prospect.status === 'submitted' || prospect.status === 'applied') && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleDownloadPDF(prospect)}
+                                title="Download application PDF"
+                              >
+                                <Download className="w-4 h-4" />
+                              </Button>
+                            )}
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleResendInvitation(prospect)}
+                              disabled={resendingEmail === prospect.id || resendInvitationMutation.isPending}
+                              title="Resend invitation email"
+                            >
+                              <Send className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => copyProspectLink(prospect)}
+                              title="Copy validation link"
+                            >
+                              <Mail className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleEdit(prospect)}
+                              disabled={prospect.status !== 'pending'}
+                              title={prospect.status !== 'pending' ? 'Can only edit prospects with pending status' : 'Edit prospect'}
+                            >
+                              <Edit className="w-4 h-4" />
+                            </Button>
+                            {(prospect.status === 'pending' || prospect.status === 'contacted') && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleDelete(prospect)}
+                                disabled={deleteMutation.isPending}
+                                title="Delete prospect"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            )}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
             </div>
           )}
         </CardContent>
