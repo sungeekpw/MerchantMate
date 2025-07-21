@@ -129,6 +129,14 @@ The application is configured for deployment on Replit with:
 - `SESSION_SECRET`: Session encryption key (optional, has fallback)
 
 ## Changelog
+- January 10, 2025. Implemented hierarchical agent-based prospect view for admin users
+  - Completely redesigned Merchant Prospects page with expandable agent sections showing prospect summaries
+  - Added agent cards displaying total prospect counts and status breakdowns with colored badges
+  - Created collapsible sections allowing detailed prospect viewing while maintaining overview perspective
+  - Integrated agent information (name, email) with comprehensive prospect statistics at a glance
+  - Maintained original table view for non-admin users while enhancing admin functionality
+  - Added proper Collapsible component integration with shadcn/ui for smooth expand/collapse interactions
+  - System now provides hierarchical organization: agents → status summaries → individual prospect details
 - January 11, 2025. Fixed critical SOC2 compliance login attempt tracking and database connection issues
   - Resolved database connection inconsistency between authentication system and Security page endpoints
   - Fixed Security page endpoints to use same main database connection as authentication login tracking
