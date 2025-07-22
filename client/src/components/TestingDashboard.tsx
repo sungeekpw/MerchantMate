@@ -138,7 +138,7 @@ export default function TestingDashboard() {
       });
 
       eventSource.addEventListener('error', (event) => {
-        const data = JSON.parse(event.data);
+        const data = JSON.parse((event as any).data);
         setTestOutput(prev => [...prev, `❌ ${data.output}`]);
       });
 
@@ -147,6 +147,14 @@ export default function TestingDashboard() {
         setTestResults(data);
         setIsRunning(false);
         eventSource.close();
+        
+        // Update last run status
+        setTestOutput(prev => [...prev, `✅ Test execution completed at ${data.timestamp}`]);
+        setTestOutput(prev => [...prev, `📊 Result: ${data.success ? 'PASSED' : 'FAILED'} (Exit code: ${data.code})`]);
+        
+        if (data.results) {
+          setTestOutput(prev => [...prev, `📈 Tests: ${data.results.numPassedTests} passed, ${data.results.numFailedTests} failed, ${data.results.numTotalTests} total`]);
+        }
         
         if (runWithCoverage) {
           refetchCoverage();
