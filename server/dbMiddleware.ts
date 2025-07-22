@@ -52,7 +52,7 @@ export const dbEnvironmentMiddleware = (req: RequestWithDB, res: Response, next:
  * Helper function to get the appropriate database connection from request
  */
 export const getRequestDB = (req: RequestWithDB) => {
-  return req.dynamicDB || getDynamicDB();
+  return req.dynamicDB || getDynamicDatabase();
 };
 
 /**
@@ -66,7 +66,7 @@ export const adminDbMiddleware = (req: RequestWithDB, res: Response, next: NextF
     dbEnvironmentMiddleware(req, res, next);
   } else {
     // Regular users always use default database
-    req.dynamicDB = getDynamicDB();
+    req.dynamicDB = getDynamicDatabase();
     next();
   }
 };

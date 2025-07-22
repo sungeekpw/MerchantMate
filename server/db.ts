@@ -62,9 +62,9 @@ export function getDynamicDatabase(environment: string = 'production') {
 // Extract database environment from request
 export function extractDbEnv(req: any): string | null {
   // Force production database for deployed applications
-  const host = req.get ? req.get('host') : req.headers?.host;
-  const isProductionDomain = host?.includes('.replit.app') || 
-                            host?.includes('charrg.com') ||
+  const host = req.get ? req.get('host') : req.headers?.host || '';
+  const isProductionDomain = host.includes('.replit.app') || 
+                            host.includes('charrg.com') ||
                             process.env.NODE_ENV === 'production';
   
   if (isProductionDomain) {
@@ -88,7 +88,6 @@ export function extractDbEnv(req: any): string | null {
   }
   
   // Check subdomain
-  const host = req.headers.host || '';
   if (host.startsWith('test.')) {
     return 'test';
   }
