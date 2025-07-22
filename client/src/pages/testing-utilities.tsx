@@ -281,6 +281,46 @@ export default function TestingUtilities() {
                 </Select>
               </div>
 
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="mt-4"
+                onClick={async () => {
+                  try {
+                    const url = selectedDbEnv !== 'default' 
+                      ? `/api/admin/db-diagnostics?db=${selectedDbEnv}`
+                      : '/api/admin/db-diagnostics';
+                    
+                    const response = await fetch(url, {
+                      credentials: 'include',
+                      mode: 'cors',
+                    });
+                    
+                    if (response.ok) {
+                      const diagnostics = await response.json();
+                      console.log('🔍 Database Connection Diagnostics:');
+                      console.log('Environment:', diagnostics.environment);
+                      console.log('Requested:', diagnostics.requestedEnv);
+                      console.log('URLs:', diagnostics.databaseUrls);
+                      console.log('Current Connection:', diagnostics.currentConnection);
+                      
+                      alert(`Database Diagnostics:
+Environment: ${diagnostics.environment}
+User Count: ${diagnostics.currentConnection.userCount}
+URL: ${diagnostics.currentConnection.url}
+
+Check console for full details.`);
+                    } else {
+                      console.error('Failed to fetch diagnostics:', response.status);
+                    }
+                  } catch (error) {
+                    console.error('Error fetching diagnostics:', error);
+                  }
+                }}
+              >
+                Database Diagnostics
+              </Button>
+              
               <div className="text-xs text-muted-foreground mt-2">
                 You can also use URL parameters: ?db=test or ?db=dev
               </div>
