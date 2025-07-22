@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Search, Edit, Trash2, ChevronDown, ChevronRight, Building2, Mail, Phone, MapPin, Key, User } from "lucide-react";
+import { Plus, Search, Edit, Trash2, ChevronDown, ChevronRight, Building2, Mail, Phone, MapPin, Key, User, UserX } from "lucide-react";
 import { agentsApi } from "@/lib/api";
 import { AgentModal } from "@/components/modals/agent-modal";
 import type { Agent, Merchant } from "@shared/schema";
@@ -104,6 +104,41 @@ export default function Agents() {
   const handleResetPassword = (agent: Agent) => {
     if (window.confirm(`Reset password for ${agent.firstName} ${agent.lastName}?`)) {
       resetPasswordMutation.mutate(agent.id);
+    }
+  };
+
+  const deleteUserAccountMutation = useMutation({
+    mutationFn: async (agentId: number) => {
+      // Get agent user account details first
+      const agent = await agentsApi.getById(agentId);
+      if (!agent.userId) throw new Error('No user account found');
+      
+      const response = await fetch(`/api/users/${agent.userId}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+      if (!response.ok) throw new Error('Failed to delete user account');
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/agents"] });
+      toast({
+        title: "User Account Deleted",
+        description: "Agent and associated user account deleted successfully",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete user account",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleDeleteUserAccount = (agent: Agent) => {
+    if (window.confirm(`Delete user account for ${agent.firstName} ${agent.lastName}? This will permanently remove their login access.`)) {
+      deleteUserAccountMutation.mutate(agent.id);
     }
   };
 
@@ -237,10 +272,12 @@ export default function Agents() {
                       onEdit={() => handleEdit(agent)}
                       onDelete={() => handleDelete(agent)}
                       onResetPassword={() => handleResetPassword(agent)}
+                      onDeleteUserAccount={() => handleDeleteUserAccount(agent)}
                       getStatusBadge={getStatusBadge}
                       useAgentMerchants={useAgentMerchants}
                       isDeleting={deleteMutation.isPending}
                       isResettingPassword={resetPasswordMutation.isPending}
+                      isDeletingUserAccount={deleteUserAccountMutation.isPending}
                     />
                   ))
                 )}
@@ -276,10 +313,12 @@ interface AgentRowWithMerchantsProps {
   onEdit: () => void;
   onDelete: () => void;
   onResetPassword: () => void;
+  onDeleteUserAccount: () => void;
   getStatusBadge: (status: string) => string;
   useAgentMerchants: (agentId: number, enabled: boolean) => any;
   isDeleting: boolean;
   isResettingPassword: boolean;
+  isDeletingUserAccount: boolean;
 }
 
 function AgentRowWithMerchants({
@@ -289,10 +328,12 @@ function AgentRowWithMerchants({
   onEdit,
   onDelete,
   onResetPassword,
+  onDeleteUserAccount,
   getStatusBadge,
   useAgentMerchants,
   isDeleting,
-  isResettingPassword
+  isResettingPassword,
+  isDeletingUserAccount
 }: AgentRowWithMerchantsProps) {
   const { data: merchants = [], isLoading: merchantsLoading } = useAgentMerchants(agent.id, isExpanded);
 
@@ -352,6 +393,15 @@ function AgentRowWithMerchants({
               title="Reset user account password"
             >
               <Key className="w-4 h-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onDeleteUserAccount}
+              disabled={isDeletingUserAccount}
+              title="Delete user account"
+            >
+              <UserX className="w-4 h-4" />
             </Button>
             <Button
               variant="ghost"
