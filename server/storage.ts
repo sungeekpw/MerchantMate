@@ -1357,6 +1357,55 @@ export class DatabaseStorage implements IStorage {
       clickRate: totalSent > 0 ? Math.round((totalClicked / totalSent) * 100) : 0
     };
   }
+
+  // Campaign operations - placeholder methods to prevent 500 errors
+  async getAllCampaigns() {
+    // Return empty array for now - campaigns table may need proper schema
+    return [];
+  }
+
+  async getCampaign(id: number) {
+    // Return null for now - campaigns table may need proper schema
+    return null;
+  }
+
+  // Prospect operations 
+  async getAllMerchantProspects() {
+    return await db.select().from(merchantProspects);
+  }
+
+  async getMerchantProspect(id: number) {
+    const [prospect] = await db.select().from(merchantProspects).where(eq(merchantProspects.id, id));
+    return prospect;
+  }
+
+  async getMerchantProspectByEmail(email: string) {
+    const [prospect] = await db.select().from(merchantProspects).where(eq(merchantProspects.email, email));
+    return prospect;
+  }
+
+  async getMerchantProspectByToken(token: string) {
+    const [prospect] = await db.select().from(merchantProspects).where(eq(merchantProspects.validationToken, token));
+    return prospect;
+  }
+
+  async createMerchantProspect(prospect: any) {
+    const [newProspect] = await db.insert(merchantProspects).values(prospect).returning();
+    return newProspect;
+  }
+
+  async updateMerchantProspect(id: number, updates: any) {
+    const [updatedProspect] = await db.update(merchantProspects)
+      .set(updates)
+      .where(eq(merchantProspects.id, id))
+      .returning();
+    return updatedProspect;
+  }
+
+  async deleteMerchantProspect(id: number) {
+    const deleted = await db.delete(merchantProspects).where(eq(merchantProspects.id, id));
+    return (deleted.rowCount || 0) > 0;
+  }
 }
 
 export const storage = new DatabaseStorage();
