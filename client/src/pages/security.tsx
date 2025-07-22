@@ -92,11 +92,12 @@ export default function Security() {
     offset: 0,
   });
   const [selectedAuditLog, setSelectedAuditLog] = useState<AuditLog | null>(null);
+  const [refreshKey, setRefreshKey] = useState(Date.now());
 
   const { data: loginAttempts = [], isLoading: attemptsLoading } = useQuery<LoginAttempt[]>({
-    queryKey: ["/api/security/login-attempts"],
+    queryKey: ["/api/security/login-attempts", Date.now()],
     queryFn: async () => {
-      const response = await fetch("/api/security/login-attempts", {
+      const response = await fetch(`/api/security/login-attempts?t=${Date.now()}`, {
         credentials: "include",
       });
       if (!response.ok) throw new Error("Failed to fetch login attempts");
@@ -107,13 +108,15 @@ export default function Security() {
   });
 
   const { data: metrics, isLoading: metricsLoading } = useQuery<SecurityMetrics>({
-    queryKey: ["/api/security/metrics"],
+    queryKey: ["/api/security/metrics", refreshKey],
     queryFn: async () => {
-      const response = await fetch("/api/security/metrics", {
+      const response = await fetch(`/api/security/metrics?t=${Date.now()}`, {
         credentials: "include",
       });
       if (!response.ok) throw new Error("Failed to fetch security metrics");
-      return response.json();
+      const data = await response.json();
+      console.log('Security metrics loaded:', data);
+      return data;
     },
     staleTime: 0,
     gcTime: 0,
