@@ -147,6 +147,17 @@ export interface IStorage {
   // Admin operations
   clearAllProspectData(): Promise<void>;
   
+  // Security & Audit operations
+  getAuditLogs(limit?: number): Promise<any[]>;
+  getSecurityEvents(limit?: number): Promise<any[]>;
+  getSecurityMetrics(): Promise<{
+    totalLoginAttempts: number;
+    successfulLogins: number;
+    failedLogins: number;
+    uniqueIPs: number;
+    recentFailedAttempts: number;
+  }>;
+  
   // Testing utilities
   resetTestingData(options?: {
     prospects?: boolean;
@@ -2902,6 +2913,63 @@ export class DatabaseStorage implements IStorage {
       openRate: Math.round(openRate * 100) / 100,
       clickRate: Math.round(clickRate * 100) / 100,
     };
+  }
+
+  // Security & Audit methods
+  async getAuditLogs(limit = 100): Promise<any[]> {
+    try {
+      const { auditLogs } = await import("@shared/schema");
+      return await db.select().from(auditLogs).orderBy(auditLogs.createdAt).limit(limit);
+    } catch (error) {
+      console.log('Audit logs table not available:', error);
+      return [];
+    }
+  }
+
+  async getSecurityEvents(limit = 100): Promise<any[]> {
+    try {
+      const { securityEvents } = await import("@shared/schema");
+      return await db.select().from(securityEvents).orderBy(securityEvents.createdAt).limit(limit);
+    } catch (error) {
+      console.log('Security events table not available:', error);
+      return [];
+    }
+  }
+
+  async getSecurityMetrics(): Promise<{
+    totalLoginAttempts: number;
+    successfulLogins: number;
+    failedLogins: number;
+    uniqueIPs: number;
+    recentFailedAttempts: number;
+  }> {
+    try {
+      const stats = await db.select({
+        totalAttempts: sql<number>`count(*)`,
+        successfulLogins: sql<number>`count(case when ${loginAttempts.success} = true then 1 end)`,
+        failedLogins: sql<number>`count(case when ${loginAttempts.success} = false then 1 end)`,
+        uniqueIPs: sql<number>`count(distinct ${loginAttempts.ipAddress})`,
+        recentFailedAttempts: sql<number>`count(case when ${loginAttempts.success} = false and ${loginAttempts.createdAt} > NOW() - INTERVAL '24 hours' then 1 end)`,
+      }).from(loginAttempts);
+
+      const result = stats[0];
+      return {
+        totalLoginAttempts: result.totalAttempts || 0,
+        successfulLogins: result.successfulLogins || 0,
+        failedLogins: result.failedLogins || 0,
+        uniqueIPs: result.uniqueIPs || 0,
+        recentFailedAttempts: result.recentFailedAttempts || 0,
+      };
+    } catch (error) {
+      console.log('Error fetching security metrics:', error);
+      return {
+        totalLoginAttempts: 0,
+        successfulLogins: 0,
+        failedLogins: 0,
+        uniqueIPs: 0,
+        recentFailedAttempts: 0,
+      };
+    }
   }
 }
 
