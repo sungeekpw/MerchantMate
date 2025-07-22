@@ -11,9 +11,17 @@ export interface RequestWithDB extends Request {
  * Middleware to extract database environment from URL and attach dynamic database connection
  */
 export const dbEnvironmentMiddleware = (req: RequestWithDB, res: Response, next: NextFunction) => {
-  // In production, always use production database - no environment switching allowed
-  if (process.env.NODE_ENV === 'production') {
-    req.dynamicDB = getDynamicDatabase(); // Default to production
+  // Check if we're in a production deployment environment (Replit production domain)
+  const isProductionDomain = req.get('host')?.includes('.replit.app') || 
+                            req.get('host')?.includes('charrg.com') ||
+                            process.env.NODE_ENV === 'production';
+  
+  if (isProductionDomain) {
+    // Force production database for production deployments
+    req.dbEnv = 'production';
+    req.dynamicDB = getDynamicDatabase('production');
+    res.setHeader('X-Database-Environment', 'production');
+    console.log('Production deployment: forcing production database');
     next();
     return;
   }
@@ -31,8 +39,10 @@ export const dbEnvironmentMiddleware = (req: RequestWithDB, res: Response, next:
     
     console.log(`Request using database environment: ${dbEnv}`);
   } else {
-    // Use default database
-    req.dynamicDB = getDynamicDatabase();
+    // Use default database (production for real deployments)
+    req.dbEnv = 'production';
+    req.dynamicDB = getDynamicDatabase('production');
+    res.setHeader('X-Database-Environment', 'production-default');
   }
   
   next();
