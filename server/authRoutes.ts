@@ -14,6 +14,7 @@ declare module "express-session" {
   interface SessionData {
     userId: string;
     sessionId: string;
+    dbEnv: string;
   }
 }
 
@@ -90,9 +91,12 @@ export function setupAuthRoutes(app: Express) {
       const result = await authService.loginWithDB(validatedData, req, dynamicDB);
       
       if (result.success && result.user) {
-        // Store user session data
+        // Store user session data including database environment
         req.session.userId = result.user.id;
         req.session.sessionId = result.sessionId || 'default-session';
+        req.session.dbEnv = req.dbEnv; // Store selected database environment in session
+        
+        console.log(`Session created: userId=${result.user.id}, dbEnv=${req.dbEnv}`);
         
         // Force session save before responding
         req.session.save((err: any) => {
@@ -116,6 +120,7 @@ export function setupAuthRoutes(app: Express) {
 
   // User logout
   app.post('/api/auth/logout', (req: any, res) => {
+    console.log(`Logout: clearing session for user ${req.session?.userId}, dbEnv: ${req.session?.dbEnv}`);
     req.session.destroy((err: any) => {
       if (err) {
         console.error("Logout error:", err);
