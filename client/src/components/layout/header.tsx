@@ -54,8 +54,8 @@ export function Header({ title, onSearch }: HeaderProps) {
     // Listen for custom events from Testing Utilities
     window.addEventListener('dbEnvironmentChanged', handleDbEnvChange as EventListener);
     
-    // Check URL parameters periodically as backup
-    const intervalId = setInterval(updateDbParam, 2000);
+    // Check URL parameters periodically as backup (reduced frequency)
+    const intervalId = setInterval(updateDbParam, 30000);
     
     return () => {
       window.removeEventListener('dbEnvironmentChanged', handleDbEnvChange as EventListener);
@@ -77,7 +77,10 @@ export function Header({ title, onSearch }: HeaderProps) {
       if (!response.ok) return { environment: 'production', version: '1.0' };
       return response.json();
     },
-    refetchInterval: 30000, // Refetch every 30 seconds
+    staleTime: 60000, // Cache for 1 minute
+    gcTime: 300000, // Keep in cache for 5 minutes
+    refetchInterval: false, // Disable automatic refetching
+    refetchOnWindowFocus: false, // Disable refetch on window focus
   });
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
