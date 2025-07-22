@@ -1,8 +1,10 @@
-import { Search, Bell, Clock, MapPin } from "lucide-react";
+import { Search, Bell, Clock, MapPin, Database, AlertTriangle } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
+import { useQuery } from "@tanstack/react-query";
 import { formatDateInUserTimezone, getTimezoneAbbreviation } from "@/lib/timezone";
 
 interface HeaderProps {
@@ -13,6 +15,19 @@ interface HeaderProps {
 export function Header({ title, onSearch }: HeaderProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const { user } = useAuth();
+  
+  // Fetch current database environment
+  const { data: dbEnvironment } = useQuery({
+    queryKey: ['/api/admin/db-environment'],
+    queryFn: async () => {
+      const response = await fetch('/api/admin/db-environment', {
+        credentials: 'include'
+      });
+      if (!response.ok) return { environment: 'production', version: '1.0' };
+      return response.json();
+    },
+    refetchInterval: 30000, // Refetch every 30 seconds
+  });
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const query = e.target.value;
@@ -42,8 +57,38 @@ export function Header({ title, onSearch }: HeaderProps) {
 
   const lastLoginInfo = formatLastLogin(
     user?.lastLoginAt ? (typeof user.lastLoginAt === 'string' ? user.lastLoginAt : user.lastLoginAt.toISOString()) : null, 
-    user?.lastLoginIp
+    user?.lastLoginIp || null
   );
+
+  const getDatabaseBadge = () => {
+    if (!dbEnvironment || dbEnvironment.environment === 'production') return null;
+    
+    const isDevEnvironment = dbEnvironment.environment === 'development' || dbEnvironment.environment === 'dev';
+    const isTestEnvironment = dbEnvironment.environment === 'test';
+    
+    return (
+      <div className="flex items-center space-x-2 border-r border-gray-200 pr-4">
+        <Badge 
+          variant={isTestEnvironment ? "destructive" : "secondary"}
+          className={`flex items-center space-x-1 ${
+            isTestEnvironment ? 'bg-orange-100 text-orange-800 border-orange-200' : 
+            isDevEnvironment ? 'bg-blue-100 text-blue-800 border-blue-200' : ''
+          }`}
+        >
+          <Database className="w-3 h-3" />
+          <span className="font-medium">
+            {dbEnvironment.environment.toUpperCase()} DB
+          </span>
+        </Badge>
+        {(isDevEnvironment || isTestEnvironment) && (
+          <div className="flex items-center space-x-1 text-xs text-orange-600">
+            <AlertTriangle className="w-3 h-3" />
+            <span>Non-Production</span>
+          </div>
+        )}
+      </div>
+    );
+  };
 
   return (
     <header className="bg-white border-b border-gray-200">
@@ -52,6 +97,9 @@ export function Header({ title, onSearch }: HeaderProps) {
           <h2 className="text-xl font-bold text-gray-900">{title}</h2>
         </div>
         <div className="flex items-center space-x-4 px-6 py-4">
+          {/* Database Environment Indicator */}
+          {getDatabaseBadge()}
+          
           {/* Last Login Info */}
           {lastLoginInfo && (
             <div className="flex items-center space-x-3 text-xs text-gray-500 border-r border-gray-200 pr-4">
