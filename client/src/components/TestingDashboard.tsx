@@ -178,20 +178,25 @@ export default function TestingDashboard() {
         setTestResults(data);
         setIsRunning(false);
         
-        // Update status based on results
-        setLastRunStatus(data.success ? 'success' : 'failed');
+        // Update status based on actual test results - if all tests passed, it's success
+        const actualSuccess = data.results && data.results.numFailedTests === 0 && data.results.numTotalTests > 0;
+        setLastRunStatus(actualSuccess ? 'success' : (data.success ? 'success' : 'failed'));
         setLastRunTime(new Date(data.timestamp).toLocaleString());
         
-        // Add to results history
-        setResultsHistory(prev => [data, ...prev.slice(0, 9)]); // Keep last 10 results
+        // Add to results history with corrected success status
+        const correctedResult = {
+          ...data,
+          success: actualSuccess || data.success
+        };
+        setResultsHistory(prev => [correctedResult, ...prev.slice(0, 9)]); // Keep last 10 results
         
         // Clean up reference and close connection
         eventSourceRef.current = null;
         eventSource.close();
         
-        // Update last run status in output
-        const statusIcon = data.success ? '✅' : '❌';
-        const statusText = data.success ? 'PASSED' : 'FAILED';
+        // Update last run status in output with actual success status
+        const statusIcon = actualSuccess ? '✅' : '❌';
+        const statusText = actualSuccess ? 'PASSED' : 'FAILED';
         setTestOutput(prev => [...prev, `${statusIcon} Test execution completed at ${data.timestamp}`]);
         setTestOutput(prev => [...prev, `📊 Result: ${statusText} (Exit code: ${data.code})`]);
         
