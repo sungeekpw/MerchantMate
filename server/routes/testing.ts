@@ -63,7 +63,8 @@ router.get('/run-tests', requireRole(['super_admin']), (req, res) => {
     'Content-Type': 'text/event-stream',
     'Cache-Control': 'no-cache',
     'Connection': 'keep-alive',
-    'Access-Control-Allow-Origin': '*'
+    'Access-Control-Allow-Origin': '*',
+    'X-Accel-Buffering': 'no' // Disable nginx buffering for real-time streaming
   });
 
   const args = ['jest'];
@@ -77,7 +78,8 @@ router.get('/run-tests', requireRole(['super_admin']), (req, res) => {
 
   const jestProcess = spawn('npx', args, {
     cwd: process.cwd(),
-    stdio: ['ignore', 'pipe', 'pipe']
+    stdio: ['ignore', 'pipe', 'pipe'],
+    env: { ...process.env, NODE_ENV: 'test' }
   });
 
   let outputBuffer = '';
@@ -138,7 +140,15 @@ router.get('/run-tests', requireRole(['super_admin']), (req, res) => {
 
   // Handle client disconnect
   req.on('close', () => {
-    jestProcess.kill();
+    if (jestProcess && !jestProcess.killed) {
+      jestProcess.kill('SIGTERM');
+    }
+  });
+  
+  req.on('error', () => {
+    if (jestProcess && !jestProcess.killed) {
+      jestProcess.kill('SIGTERM');
+    }
   });
 });
 

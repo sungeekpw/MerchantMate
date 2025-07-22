@@ -153,10 +153,11 @@ export default function TestingDashboard() {
         }
       });
 
-      eventSource.onerror = () => {
+      eventSource.onerror = (error) => {
+        console.error('EventSource error:', error);
         setIsRunning(false);
         eventSource.close();
-        setTestOutput(prev => [...prev, '❌ Connection to test runner lost']);
+        setTestOutput(prev => [...prev, '❌ Connection to test runner lost - please try again']);
       };
 
       // No additional request needed - SSE connection handles test execution

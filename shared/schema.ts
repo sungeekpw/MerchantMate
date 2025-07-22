@@ -332,11 +332,7 @@ export const userDashboardPreferences = pgTable("user_dashboard_preferences", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
-export const insertUserDashboardPreferenceSchema = createInsertSchema(userDashboardPreferences).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-});
+export const insertUserDashboardPreferenceSchema = createInsertSchema(userDashboardPreferences);
 
 export type InsertUserDashboardPreference = z.infer<typeof insertUserDashboardPreferenceSchema>;
 export type UserDashboardPreference = typeof userDashboardPreferences.$inferSelect;
@@ -667,9 +663,6 @@ export const insertFeeItemGroupSchema = createInsertSchema(feeItemGroups).omit({
   createdAt: true,
   updatedAt: true,
 });
-
-export type FeeItemGroup = typeof feeItemGroups.$inferSelect;
-export type InsertFeeItemGroup = z.infer<typeof insertFeeItemGroupSchema>;
 
 export const insertFeeItemSchema = createInsertSchema(feeItems).omit({
   id: true,

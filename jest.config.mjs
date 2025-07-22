@@ -27,11 +27,6 @@ export default {
   ],
   coverageReporters: ['text', 'lcov', 'html'],
   coverageDirectory: 'coverage',
-  globals: {
-    'ts-jest': {
-      useESM: true
-    }
-  },
   transform: {
     '^.+\\.(ts|tsx)$': ['ts-jest', {
       useESM: true
