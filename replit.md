@@ -169,15 +169,21 @@ Before any deployment, ensure:
 See `TESTING.md` and `TESTING_CHECKLIST.md` for comprehensive testing guidelines and deployment checklist.
 
 ## Changelog
-- January 22, 2025. Successfully implemented database-aware authentication system with complete environment isolation
-  - Fixed authentication system to use database environment parameters during login (?db=dev, ?db=test, ?db=production)
+- January 22, 2025. Successfully implemented database-aware authentication with intuitive UI selection dropdown
+  - Added database selection dropdown to login form appearing only in non-production environments
+  - Users can select between "Development Database" and "Test Database" with helpful descriptions
+  - Production database option removed from dropdown - automatically used when on production URLs
+  - Enhanced login form with database icon, smart environment detection, and clean UX
+  - Login form defaults to development database for faster developer workflow
+  - Complete database isolation maintained: users authenticate only to selected environment
+  - Production environments show clean login form without database selection for security
+  - Fixed authentication system to use database environment parameters during login (?db=dev, ?db=test)
   - Added loginWithDB method to AuthService that searches only the specified database environment
   - Updated login endpoint with dbEnvironmentMiddleware to extract environment from URL parameters
   - Enhanced requireAuth middleware to support database-aware user validation
   - Verified complete database isolation: users created in dev/test databases can only login to their respective environments
   - Cross-database isolation confirmed: dev users cannot login to test database and vice versa
-  - Production database remains protected while allowing isolated development and testing workflows
-  - Database-aware authentication maintains security while enabling multi-environment development workflows
+  - Database-aware authentication provides intuitive UI while maintaining complete security isolation
 - January 22, 2025. Successfully implemented database environment indicator system with comprehensive deployment scripts
   - Added dynamic database environment badge to application header showing current database in use
   - Implemented colored indicators: blue "DEV DB" for development, orange "TEST DB" for test, hidden in production

@@ -60,7 +60,7 @@ export default function Auth() {
     window.location.hostname.includes('test') ||
     window.location.port !== '';
 
-  const [selectedDatabase, setSelectedDatabase] = useState("production");
+  const [selectedDatabase, setSelectedDatabase] = useState("dev");
 
 
 
@@ -71,7 +71,7 @@ export default function Auth() {
       usernameOrEmail: "",
       password: "",
       twoFactorCode: "",
-      database: "production",
+      database: "dev",
     },
   });
 
@@ -104,9 +104,9 @@ export default function Auth() {
         timezone: getUserTimezone()
       };
       
-      // Build URL with database parameter if non-production database selected
+      // Build URL with database parameter in non-production environments
       let url = "/api/auth/login";
-      if (isNonProduction && data.database && data.database !== "production") {
+      if (isNonProduction && data.database) {
         url += `?db=${data.database}`;
       }
       
@@ -316,14 +316,12 @@ export default function Auth() {
                           <SelectValue placeholder="Select database" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="production">Production Database</SelectItem>
                           <SelectItem value="dev">Development Database</SelectItem>
                           <SelectItem value="test">Test Database</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
                     <p className="text-xs text-gray-500">
-                      {selectedDatabase === "production" && "Login to production environment"}
                       {selectedDatabase === "dev" && "Login to isolated development environment"}
                       {selectedDatabase === "test" && "Login to isolated test environment"}
                     </p>
