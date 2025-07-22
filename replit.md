@@ -169,6 +169,17 @@ Before any deployment, ensure:
 See `TESTING.md` and `TESTING_CHECKLIST.md` for comprehensive testing guidelines and deployment checklist.
 
 ## Changelog
+- January 22, 2025. Successfully completed comprehensive user account management system for CRM application
+  - Fixed database schema by adding userId foreign key columns to agents and merchants tables with proper CASCADE constraints
+  - Implemented automatic user account creation system for new agents and merchants with temporary login credentials
+  - Added complete user account CRUD operations including password reset and account deletion functionality
+  - Enhanced agent management interface with user account buttons (reset password, delete account) with confirmation dialogs
+  - Created createAgentWithUser and createMerchantWithUser storage methods for seamless user account integration
+  - Fixed getAgentMerchants method to resolve agent merchant listing functionality
+  - Updated agent creation modal to inform users that login accounts are automatically generated
+  - Implemented comprehensive error handling for duplicate email addresses and database constraints
+  - System now provides complete user lifecycle management: create agent/merchant → auto-generate user account → password reset → account deletion
+  - Database environment switching (production/test/dev) working properly with session persistence across all user operations
 - January 22, 2025. Successfully implemented complete database-aware authentication system with session persistence
   - Added database selection dropdown to login form appearing only in non-production environments
   - Users can select between "Development Database" and "Test Database" with helpful descriptions

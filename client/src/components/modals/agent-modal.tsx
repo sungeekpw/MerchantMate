@@ -131,6 +131,11 @@ export function AgentModal({ isOpen, onClose, agent }: AgentModalProps) {
           <DialogTitle>
             {agent ? "Edit Agent" : "Add New Agent"}
           </DialogTitle>
+          {!agent && (
+            <p className="text-sm text-muted-foreground">
+              A user account with login credentials will be automatically created for this agent.
+            </p>
+          )}
         </DialogHeader>
 
         <Form {...form}>
