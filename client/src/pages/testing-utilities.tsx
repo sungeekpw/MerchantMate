@@ -92,6 +92,9 @@ export default function TestingUtilities() {
       const url = new URL(window.location.href);
       url.searchParams.set('db', storedEnv);
       window.history.replaceState({}, '', url.toString());
+    } else {
+      // Default to 'default' if nothing is stored
+      setSelectedDbEnv('default');
     }
   }, []);
 
