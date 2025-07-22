@@ -16,6 +16,65 @@ import { v4 as uuidv4 } from "uuid";
 import { dbEnvironmentMiddleware, adminDbMiddleware, getRequestDB, type RequestWithDB } from "./dbMiddleware";
 import { users } from "@shared/schema";
 
+// Function to reset testing data using dynamic database connection
+async function resetTestingDataWithDB(db: any, options: Record<string, boolean>) {
+  const result: any = { cleared: [], counts: {} };
+  
+  try {
+    // Import schema tables
+    const schema = await import('@shared/schema');
+    
+    if (options.signatures) {
+      // Clear signatures
+      const deletedSignatures = await db.delete(schema.prospectSignatures);
+      result.cleared.push('signatures');
+      result.counts.signatures = deletedSignatures.length || 0;
+    }
+    
+    if (options.prospects) {
+      // Clear prospects (this will cascade to owners due to foreign key constraints)
+      const deletedOwners = await db.delete(schema.prospectOwners);
+      const deletedProspects = await db.delete(schema.merchantProspects);
+      result.cleared.push('prospects', 'owners');
+      result.counts.prospects = deletedProspects.length || 0;
+      result.counts.owners = deletedOwners.length || 0;
+    }
+    
+    if (options.campaigns) {
+      // Clear campaign assignments
+      const deletedAssignments = await db.delete(schema.campaignAssignments);
+      result.cleared.push('campaign_assignments');
+      result.counts.campaign_assignments = deletedAssignments.length || 0;
+    }
+    
+    if (options.equipment) {
+      // Clear equipment assignments
+      const deletedEquipment = await db.delete(schema.campaignEquipment);
+      result.cleared.push('campaign_equipment');
+      result.counts.campaign_equipment = deletedEquipment.length || 0;
+    }
+    
+    if (options.formData) {
+      // Reset form data by updating prospect status back to 'pending'
+      const { eq } = await import('drizzle-orm');
+      const updatedProspects = await db.update(schema.merchantProspects)
+        .set({ 
+          status: 'pending',
+          applicationStartedAt: null,
+          completedAt: null 
+        })
+        .where(eq(schema.merchantProspects.status, 'in_progress'));
+      
+      result.cleared.push('form_data');
+      result.counts.form_data_reset = updatedProspects.length || 0;
+    }
+    
+    return result;
+  } catch (error) {
+    console.error('Error in resetTestingDataWithDB:', error);
+    throw error;
+  }
+}
 
 // Helper function to get default widgets for a user role
 function getDefaultWidgetsForRole(role: string) {
@@ -1598,7 +1657,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Database environment status (Super Admin only)
-  app.get("/api/admin/db-environment", requireRole(['super_admin']), adminDbMiddleware, (req: RequestWithDB, res) => {
+  app.get("/api/admin/db-environment", requireRole(['super_admin']), dbEnvironmentMiddleware, (req: RequestWithDB, res) => {
     const dbEnv = req.dbEnv || 'production';
     const isUsingCustomDB = !!req.dbEnv;
     
@@ -1615,7 +1674,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Database connection diagnostics (Super Admin only)
-  app.get("/api/admin/db-diagnostics", requireRole(['super_admin']), adminDbMiddleware, async (req: RequestWithDB, res) => {
+  app.get("/api/admin/db-diagnostics", requireRole(['super_admin']), dbEnvironmentMiddleware, async (req: RequestWithDB, res) => {
     try {
       const dbEnv = req.dbEnv || 'production';
       
@@ -1673,7 +1732,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Comprehensive testing data reset utility (Super Admin only)
-  app.post("/api/admin/reset-testing-data", requireRole(['super_admin']), adminDbMiddleware, async (req: RequestWithDB, res) => {
+  app.post("/api/admin/reset-testing-data", requireRole(['super_admin']), dbEnvironmentMiddleware, async (req: RequestWithDB, res) => {
     try {
       const options = req.body || {};
       
@@ -1688,7 +1747,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      const result = await storage.resetTestingData(options);
+      // Use dynamic database connection instead of storage
+      const dynamicDB = getRequestDB(req);
+      const result = await resetTestingDataWithDB(dynamicDB, options);
 
       console.log(`Super Admin reset testing data:`, {
         options,
