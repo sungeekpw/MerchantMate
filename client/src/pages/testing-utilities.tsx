@@ -11,7 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Progress } from "@/components/ui/progress";
 import TestingDashboard from "@/components/TestingDashboard";
-import { Trash2, RefreshCw, Database, CheckCircle, X, Server, Shield, TestTube, Settings, Play, Pause, BarChart3, FileText, AlertCircle, Clock } from "lucide-react";
+import { Trash2, RefreshCw, Database, CheckCircle, X, Server, Shield, ShieldCheck, TestTube, Settings, Play, Pause, BarChart3, FileText, AlertCircle, Clock } from "lucide-react";
 
 interface ResetResult {
   success: boolean;
@@ -239,52 +239,80 @@ export default function TestingUtilities() {
 
         <TabsContent value="utilities" className="space-y-6">
 
-      {/* Database Environment Selector */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Server className="h-5 w-5" />
-            Database Environment
-          </CardTitle>
-          <CardDescription>
-            Select which database environment to operate on. URL-driven switching allows ?db=test parameter.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {dbEnvironment && (
-            <div className="p-4 bg-muted/50 rounded-lg">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium">Current Environment: {dbEnvironment.environment}</p>
-                  <p className="text-sm text-muted-foreground">{dbEnvironment.message}</p>
+      {/* Database Environment Selector - Only show in development builds */}
+      {!import.meta.env.PROD && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Server className="h-5 w-5" />
+              Database Environment
+            </CardTitle>
+            <CardDescription>
+              Select which database environment to operate on. URL-driven switching allows ?db=test parameter.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {dbEnvironment && (
+              <div className="p-4 bg-muted/50 rounded-lg">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-medium">Current Environment: {dbEnvironment.environment}</p>
+                    <p className="text-sm text-muted-foreground">{dbEnvironment.message}</p>
+                  </div>
+                  <Badge variant={dbEnvironment.isUsingCustomDB ? "secondary" : "default"}>
+                    {dbEnvironment.isUsingCustomDB ? "Custom DB" : "Default"}
+                  </Badge>
                 </div>
-                <Badge variant={dbEnvironment.isUsingCustomDB ? "secondary" : "default"}>
-                  {dbEnvironment.isUsingCustomDB ? "Custom DB" : "Default"}
-                </Badge>
+              </div>
+            )}
+            
+            <div className="flex items-center gap-4">
+              <div className="flex-1">
+                <label className="text-sm font-medium">Target Database:</label>
+                <Select value={selectedDbEnv} onValueChange={handleDbEnvChange}>
+                  <SelectTrigger className="mt-1">
+                    <SelectValue placeholder="Select database environment" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="default">Default (Production)</SelectItem>
+                    <SelectItem value="test">Test Database (?db=test)</SelectItem>
+                    <SelectItem value="dev">Development Database (?db=dev)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="text-xs text-muted-foreground mt-6">
+                You can also use URL parameters: ?db=test or ?db=dev
               </div>
             </div>
-          )}
-          
-          <div className="flex items-center gap-4">
-            <div className="flex-1">
-              <label className="text-sm font-medium">Target Database:</label>
-              <Select value={selectedDbEnv} onValueChange={handleDbEnvChange}>
-                <SelectTrigger className="mt-1">
-                  <SelectValue placeholder="Select database environment" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="default">Default (Production)</SelectItem>
-                  <SelectItem value="test">Test Database (?db=test)</SelectItem>
-                  <SelectItem value="dev">Development Database (?db=dev)</SelectItem>
-                </SelectContent>
-              </Select>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Production warning if database environment switching is attempted */}
+      {import.meta.env.PROD && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Server className="h-5 w-5" />
+              Production Database
+            </CardTitle>
+            <CardDescription>
+              In production deployments, the application always uses the production database for security and consistency.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+              <div className="flex items-center gap-2 text-blue-800 dark:text-blue-200">
+                <ShieldCheck className="h-4 w-4" />
+                <p className="font-medium">Production Mode Active</p>
+              </div>
+              <p className="text-sm text-blue-700 dark:text-blue-300 mt-1">
+                Database environment switching is disabled in production builds for security. All operations use the production database.
+              </p>
             </div>
-            <div className="text-xs text-muted-foreground mt-6">
-              You can also use URL parameters: ?db=test or ?db=dev
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid gap-6 md:grid-cols-2">
         {/* Selective Reset Tool */}
