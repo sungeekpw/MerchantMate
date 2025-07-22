@@ -130,6 +130,12 @@ export default function TestingDashboard() {
       });
 
       const eventSource = eventSourceRef.current;
+      
+      // Add connection status logging
+      eventSource.onopen = () => {
+        console.log('EventSource connection opened');
+        setTestOutput(prev => [...prev, '🔗 Connected to test runner']);
+      };
 
       eventSource.addEventListener('start', (event) => {
         const data = JSON.parse(event.data);
@@ -138,12 +144,33 @@ export default function TestingDashboard() {
 
       eventSource.addEventListener('output', (event) => {
         const data = JSON.parse(event.data);
-        setTestOutput(prev => [...prev, data.output]);
+        const output = data.output;
+        
+        // Format output with appropriate icons for test results
+        let formattedOutput = output;
+        if (output.includes('✓') || output.includes('PASS')) {
+          formattedOutput = output.replace(/✓/g, '✅').replace(/PASS/g, '✅ PASS');
+        } else if (output.includes('✕') || output.includes('FAIL')) {
+          formattedOutput = output.replace(/✕/g, '❌').replace(/FAIL/g, '❌ FAIL');
+        }
+        
+        setTestOutput(prev => [...prev, formattedOutput]);
       });
 
       eventSource.addEventListener('error', (event) => {
         const data = JSON.parse((event as any).data);
-        setTestOutput(prev => [...prev, `❌ ${data.output}`]);
+        const output = data.output;
+        
+        // Only show red X for actual errors, not for passed tests
+        if (output.includes('✓') || output.includes('PASS')) {
+          const formattedOutput = output.replace(/✓/g, '✅').replace(/PASS/g, '✅ PASS');
+          setTestOutput(prev => [...prev, formattedOutput]);
+        } else if (output.includes('✕') || output.includes('FAIL')) {
+          const formattedOutput = output.replace(/✕/g, '❌').replace(/FAIL/g, '❌ FAIL');
+          setTestOutput(prev => [...prev, formattedOutput]);
+        } else {
+          setTestOutput(prev => [...prev, output]);
+        }
       });
 
       eventSource.addEventListener('complete', (event) => {
@@ -158,6 +185,8 @@ export default function TestingDashboard() {
         // Add to results history
         setResultsHistory(prev => [data, ...prev.slice(0, 9)]); // Keep last 10 results
         
+        // Clean up reference and close connection
+        eventSourceRef.current = null;
         eventSource.close();
         
         // Update last run status in output
@@ -181,9 +210,14 @@ export default function TestingDashboard() {
 
       eventSource.onerror = (error) => {
         console.error('EventSource error:', error);
-        setIsRunning(false);
-        eventSource.close();
-        setTestOutput(prev => [...prev, '❌ Connection to test runner lost - please try again']);
+        console.log('EventSource readyState:', eventSource.readyState);
+        
+        // Only show error if connection is actually broken
+        if (eventSource.readyState === EventSource.CLOSED) {
+          setIsRunning(false);
+          setLastRunStatus('failed');
+          setTestOutput(prev => [...prev, '❌ Connection to test runner lost - please try again']);
+        }
       };
 
       // No additional request needed - SSE connection handles test execution
@@ -191,6 +225,7 @@ export default function TestingDashboard() {
     } catch (error) {
       console.error('Error running tests:', error);
       setIsRunning(false);
+      setLastRunStatus('failed');
       setTestOutput(prev => [...prev, `❌ Failed to start tests: ${error}`]);
     }
   };
@@ -202,6 +237,7 @@ export default function TestingDashboard() {
       eventSourceRef.current = null;
     }
     setIsRunning(false);
+    setLastRunStatus('idle');
     setTestOutput(prev => [...prev, '⏹️ Tests stopped by user']);
   };
 
