@@ -62,6 +62,11 @@ export default function TestingUtilities() {
     }
     window.history.replaceState({}, '', url.toString());
     
+    // Dispatch custom event to notify header about database environment change
+    window.dispatchEvent(new CustomEvent('dbEnvironmentChanged', { 
+      detail: { environment: newEnv } 
+    }));
+    
     // Refetch environment status
     refetchDbEnvironment();
   };

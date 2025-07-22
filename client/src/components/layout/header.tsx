@@ -18,7 +18,7 @@ export function Header({ title, onSearch }: HeaderProps) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   
-  // Watch for URL changes and update db parameter
+  // Watch for URL changes and database environment changes
   useEffect(() => {
     const updateDbParam = () => {
       const urlParams = new URLSearchParams(window.location.search);
@@ -30,13 +30,26 @@ export function Header({ title, onSearch }: HeaderProps) {
       }
     };
     
-    // Check URL parameters every second (in case URL was updated without navigation)
-    const intervalId = setInterval(updateDbParam, 1000);
+    // Listen for custom database environment change events
+    const handleDbEnvChange = (event: CustomEvent) => {
+      const newEnv = event.detail.environment;
+      const dbParam = newEnv === 'default' ? null : newEnv;
+      setCurrentDbParam(dbParam);
+      // Invalidate the database environment query to force refetch
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/db-environment'] });
+    };
     
     // Initial check
     updateDbParam();
     
+    // Listen for custom events from Testing Utilities
+    window.addEventListener('dbEnvironmentChanged', handleDbEnvChange as EventListener);
+    
+    // Check URL parameters periodically as backup
+    const intervalId = setInterval(updateDbParam, 2000);
+    
     return () => {
+      window.removeEventListener('dbEnvironmentChanged', handleDbEnvChange as EventListener);
       clearInterval(intervalId);
     };
   }, [currentDbParam, queryClient]);
