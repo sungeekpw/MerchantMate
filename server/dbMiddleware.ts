@@ -1,10 +1,10 @@
 import { Request, Response, NextFunction } from 'express';
-import { getDynamicDB, extractDbEnv } from './db';
+import { getDynamicDatabase, extractDbEnv } from './db';
 
 // Extend the Request interface to include database environment info
 export interface RequestWithDB extends Request {
   dbEnv?: string;
-  dynamicDB?: ReturnType<typeof getDynamicDB>;
+  dynamicDB?: ReturnType<typeof getDynamicDatabase>;
 }
 
 /**
@@ -16,7 +16,7 @@ export const dbEnvironmentMiddleware = (req: RequestWithDB, res: Response, next:
   
   if (dbEnv) {
     req.dbEnv = dbEnv;
-    req.dynamicDB = getDynamicDB(dbEnv);
+    req.dynamicDB = getDynamicDatabase(dbEnv);
     
     // Add database environment info to response headers for debugging
     res.setHeader('X-Database-Environment', dbEnv);
@@ -24,7 +24,7 @@ export const dbEnvironmentMiddleware = (req: RequestWithDB, res: Response, next:
     console.log(`Request using database environment: ${dbEnv}`);
   } else {
     // Use default database
-    req.dynamicDB = getDynamicDB();
+    req.dynamicDB = getDynamicDatabase();
   }
   
   next();
