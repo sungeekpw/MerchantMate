@@ -61,6 +61,16 @@ export function getDynamicDatabase(environment: string = 'production') {
 
 // Extract database environment from request
 export function extractDbEnv(req: any): string | null {
+  // Force production database for deployed applications
+  const host = req.get ? req.get('host') : req.headers?.host;
+  const isProductionDomain = host?.includes('.replit.app') || 
+                            host?.includes('charrg.com') ||
+                            process.env.NODE_ENV === 'production';
+  
+  if (isProductionDomain) {
+    return 'production';
+  }
+  
   // In production, always use production database - ignore all environment switching
   if (process.env.NODE_ENV === 'production') {
     return null; // null = production database
