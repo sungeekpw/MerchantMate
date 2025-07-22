@@ -4152,6 +4152,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Apply API authentication middleware to all /api/v1 routes
   app.use('/api/v1', logApiRequest, authenticateApiKey);
 
+  // Import and mount testing routes
+  const testingRoutes = await import('./routes/testing');
+  app.use('/api/testing', testingRoutes.default);
+
   // Public merchants API
   app.get('/api/v1/merchants', requireApiPermission('merchants:read'), async (req: any, res) => {
     try {
