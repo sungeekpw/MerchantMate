@@ -3,139 +3,94 @@ import { drizzle } from 'drizzle-orm/neon-serverless';
 import ws from "ws";
 import * as schema from "@shared/schema";
 
-// Configure Neon with WebSocket constructor for serverless environments
 neonConfig.webSocketConstructor = ws;
 
-// Disable pipelining and fetch connection for better stability
-neonConfig.pipelineConnect = false;
-neonConfig.fetchConnectionCache = true;
+// Environment-based database URL selection
+function getDatabaseUrl(environment?: string): string {
+  switch (environment) {
+    case 'test':
+      return process.env.TEST_DATABASE_URL || process.env.DATABASE_URL!;
+    case 'development':
+      return process.env.DEV_DATABASE_URL || process.env.DATABASE_URL!;
+    case 'production':
+    default:
+      return process.env.DATABASE_URL!;
+  }
+}
 
-// Determine which database URL to use based on environment or URL parameter
-const getDatabaseUrl = (dbEnv?: string) => {
-  // URL parameter takes precedence
-  if (dbEnv === 'test') {
-    return process.env.TEST_DATABASE_URL || process.env.DATABASE_URL;
-  }
-  if (dbEnv === 'dev' || dbEnv === 'development') {
-    return process.env.DEV_DATABASE_URL || process.env.DATABASE_URL;
-  }
-  if (dbEnv === 'prod' || dbEnv === 'production') {
-    return process.env.DATABASE_URL;
-  }
-  
-  // Fallback to NODE_ENV environment variable
-  if (process.env.NODE_ENV === 'test') {
-    return process.env.TEST_DATABASE_URL || process.env.DATABASE_URL;
-  }
-  if (process.env.NODE_ENV === 'development') {
-    return process.env.DEV_DATABASE_URL || process.env.DATABASE_URL;
-  }
-  return process.env.DATABASE_URL; // Production
-};
+// Get database URL based on environment
+const environment = process.env.NODE_ENV || 'development';
+const databaseUrl = getDatabaseUrl(environment);
 
-// Default database connection
-const defaultDatabaseUrl = getDatabaseUrl();
-
-if (!defaultDatabaseUrl) {
+if (!databaseUrl) {
   throw new Error(
-    "DATABASE_URL must be set. Did you forget to provision a database?",
+    `DATABASE_URL must be set for environment: ${environment}. ` +
+    `Available environments: production (DATABASE_URL), development (DEV_DATABASE_URL), test (TEST_DATABASE_URL)`
   );
 }
 
-console.log(`Default database for ${process.env.NODE_ENV || 'production'} environment`);
+console.log(`${environment.charAt(0).toUpperCase() + environment.slice(1)} database for ${environment} environment`);
 
-// Create default pool with minimal settings for maximum stability
 export const pool = new Pool({ 
-  connectionString: defaultDatabaseUrl,
-  max: 1, // Minimal pool size to avoid connection issues
-  idleTimeoutMillis: 60000, // 1 minute
-  connectionTimeoutMillis: 5000, // 5 seconds (reduced)
-  maxUses: 1000, // Limit connection reuse
-  allowExitOnIdle: true // Allow exit when idle
+  connectionString: databaseUrl,
+  max: 20,
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 10000,
 });
 
 export const db = drizzle({ client: pool, schema });
 
-// Dynamic database connection based on URL parameter
+// Environment switching for testing utilities
 const connectionPools = new Map<string, Pool>();
 
-export const getDynamicDB = (dbEnv?: string) => {
-  if (!dbEnv) return db; // Return default connection
-  
-  // Check if we already have a connection pool for this environment
-  if (connectionPools.has(dbEnv)) {
-    return drizzle({ client: connectionPools.get(dbEnv)!, schema });
+export function getDynamicDatabase(environment: string = 'production') {
+  if (!connectionPools.has(environment)) {
+    const url = getDatabaseUrl(environment);
+    const dynamicPool = new Pool({
+      connectionString: url,
+      max: 5,
+      idleTimeoutMillis: 30000,
+      connectionTimeoutMillis: 10000,
+    });
+    connectionPools.set(environment, dynamicPool);
   }
   
-  // Create new connection pool for this environment
-  const envDatabaseUrl = getDatabaseUrl(dbEnv);
-  if (!envDatabaseUrl) {
-    console.warn(`No database URL found for environment: ${dbEnv}, using default`);
-    return db;
-  }
-  
-  const envPool = new Pool({
-    connectionString: envDatabaseUrl,
-    max: 1, // Minimal pool size
-    idleTimeoutMillis: 60000,
-    connectionTimeoutMillis: 5000,
-    maxUses: 1000,
-    allowExitOnIdle: true
-  });
-  
-  connectionPools.set(dbEnv, envPool);
-  console.log(`Created new connection pool for environment: ${dbEnv}`);
-  
-  return drizzle({ client: envPool, schema });
-};
+  const dynamicPool = connectionPools.get(environment)!;
+  return drizzle({ client: dynamicPool, schema });
+}
 
-// Middleware to extract database environment from URL
-export const extractDbEnv = (req: any) => {
-  // Check query parameter: ?db=test
+// Extract database environment from request
+export function extractDbEnv(req: any): string | null {
+  // Check URL query parameter
   if (req.query?.db) {
     return req.query.db;
   }
   
-  // Check custom header: X-Database-Env
+  // Check custom header
   if (req.headers['x-database-env']) {
     return req.headers['x-database-env'];
   }
   
-  // Check subdomain: test.yourapp.com
+  // Check subdomain
   const host = req.headers.host || '';
-  const subdomain = host.split('.')[0];
-  if (['test', 'dev', 'staging'].includes(subdomain)) {
-    return subdomain;
+  if (host.startsWith('test.')) {
+    return 'test';
+  }
+  if (host.startsWith('dev.')) {
+    return 'development';
   }
   
   return null;
-};
+}
 
-// Enhanced graceful shutdown handling with timeout
-const gracefulShutdown = async (signal: string) => {
-  console.log(`Received ${signal}, shutting down gracefully...`);
-  try {
-    await Promise.race([
-      pool.end(),
-      new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 3000))
-    ]);
-    console.log('Database pool closed successfully');
-  } catch (error) {
-    console.log('Force closing database pool');
-  }
-  process.exit(0);
-};
+// Cleanup function for graceful shutdown
+export function closeAllConnections() {
+  pool.end().catch(console.error);
+  connectionPools.forEach((pool) => {
+    pool.end().catch(console.error);
+  });
+  connectionPools.clear();
+}
 
-process.on('SIGINT', () => gracefulShutdown('SIGINT'));
-process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
-
-// Handle uncaught exceptions to prevent hanging connections
-process.on('uncaughtException', async (error) => {
-  console.error('Uncaught exception:', error);
-  await gracefulShutdown('UNCAUGHT_EXCEPTION');
-});
-
-process.on('unhandledRejection', async (reason) => {
-  console.error('Unhandled rejection:', reason);
-  await gracefulShutdown('UNHANDLED_REJECTION');
-});
+process.on('SIGTERM', closeAllConnections);
+process.on('SIGINT', closeAllConnections);
