@@ -271,7 +271,11 @@ export default function TestingUtilities() {
                 <label className="text-sm font-medium">Target Database:</label>
                 <Select value={selectedDbEnv} onValueChange={handleDbEnvChange}>
                   <SelectTrigger className="mt-1">
-                    <SelectValue placeholder="Select database environment" />
+                    <SelectValue>
+                      {selectedDbEnv === 'default' && 'Default (Production)'}
+                      {selectedDbEnv === 'test' && 'Test Database (?db=test)'}
+                      {selectedDbEnv === 'dev' && 'Development Database (?db=dev)'}
+                    </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="default">Default (Production)</SelectItem>
