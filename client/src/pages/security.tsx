@@ -102,6 +102,8 @@ export default function Security() {
       if (!response.ok) throw new Error("Failed to fetch login attempts");
       return response.json();
     },
+    staleTime: 0,
+    gcTime: 0,
   });
 
   const { data: metrics, isLoading: metricsLoading } = useQuery<SecurityMetrics>({
@@ -113,6 +115,8 @@ export default function Security() {
       if (!response.ok) throw new Error("Failed to fetch security metrics");
       return response.json();
     },
+    staleTime: 0,
+    gcTime: 0,
   });
 
   // Enhanced audit logs query with search functionality
@@ -132,6 +136,8 @@ export default function Security() {
       if (!response.ok) throw new Error("Failed to fetch audit logs");
       return response.json();
     },
+    staleTime: 0,
+    gcTime: 0,
   });
 
   // Security events query
@@ -144,6 +150,8 @@ export default function Security() {
       if (!response.ok) throw new Error("Failed to fetch security events");
       return response.json();
     },
+    staleTime: 0,
+    gcTime: 0,
   });
 
   // Enhanced metrics for audit dashboard
@@ -156,6 +164,8 @@ export default function Security() {
       if (!response.ok) throw new Error("Failed to fetch audit metrics");
       return response.json();
     },
+    staleTime: 0,
+    gcTime: 0,
   });
 
   const formatDateTime = (dateString: string) => {
