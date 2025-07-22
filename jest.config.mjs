@@ -25,7 +25,7 @@ export default {
     '!client/src/main.tsx',
     '!client/src/vite-env.d.ts'
   ],
-  coverageReporters: ['text', 'lcov', 'html'],
+  coverageReporters: ['text', 'lcov', 'html', 'json-summary'],
   coverageDirectory: 'coverage',
   transform: {
     '^.+\\.(ts|tsx)$': ['ts-jest', {

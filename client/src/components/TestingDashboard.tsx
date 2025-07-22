@@ -617,13 +617,7 @@ export default function TestingDashboard() {
         {/* Coverage Tab */}
         <TabsContent value="coverage" className="space-y-4">
           <Card>
-            <CardHeader>
-              <CardTitle>Code Coverage Report</CardTitle>
-              <CardDescription>
-                Test coverage metrics and analysis
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
+            <CardContent className="pt-6">
               {coverage?.total ? (
                 <div className="space-y-6">
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

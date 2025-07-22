@@ -158,9 +158,23 @@ router.get('/coverage-summary', requireRole(['super_admin']), async (req, res) =
     const coverageFile = 'coverage/coverage-summary.json';
     try {
       const coverage = await fs.readFile(coverageFile, 'utf-8');
-      res.json(JSON.parse(coverage));
+      const coverageData = JSON.parse(coverage);
+      
+      // Log for debugging
+      console.log('Coverage data loaded successfully:', Object.keys(coverageData));
+      res.json(coverageData);
     } catch (error) {
-      res.json({ message: 'No coverage data available. Run tests with --coverage flag first.' });
+      console.log('Coverage file not found, trying to find alternative coverage files...');
+      
+      // Try to find any coverage files
+      try {
+        const { readdir } = require('fs/promises');
+        const files = await readdir('coverage');
+        console.log('Available coverage files:', files);
+        res.json({ message: 'No coverage-summary.json found. Available files: ' + files.join(', ') });
+      } catch (dirError) {
+        res.json({ message: 'No coverage data available. Run tests with --coverage flag first.' });
+      }
     }
   } catch (error) {
     console.error('Error reading coverage:', error);
