@@ -169,13 +169,16 @@ Before any deployment, ensure:
 See `TESTING.md` and `TESTING_CHECKLIST.md` for comprehensive testing guidelines and deployment checklist.
 
 ## Changelog
-- January 22, 2025. Successfully implemented database-aware authentication with intuitive UI selection dropdown
+- January 22, 2025. Successfully implemented complete database-aware authentication system with session persistence
   - Added database selection dropdown to login form appearing only in non-production environments
   - Users can select between "Development Database" and "Test Database" with helpful descriptions
   - Production database option removed from dropdown - automatically used when on production URLs
   - Enhanced login form with database icon, smart environment detection, and clean UX
   - Login form defaults to development database for faster developer workflow
-  - Complete database isolation maintained: users authenticate only to selected environment
+  - **Complete session persistence implemented**: Database environment stored in session and used for all subsequent requests
+  - **Fixed authentication middleware**: isAuthenticated now looks up users in session-stored database environment
+  - **Session-aware database middleware**: All API endpoints use session database preference automatically
+  - **UI synchronization**: Testing Utilities dropdown automatically reflects current session database environment
   - Production environments show clean login form without database selection for security
   - Fixed authentication system to use database environment parameters during login (?db=dev, ?db=test)
   - Added loginWithDB method to AuthService that searches only the specified database environment
@@ -183,7 +186,8 @@ See `TESTING.md` and `TESTING_CHECKLIST.md` for comprehensive testing guidelines
   - Enhanced requireAuth middleware to support database-aware user validation
   - Verified complete database isolation: users created in dev/test databases can only login to their respective environments
   - Cross-database isolation confirmed: dev users cannot login to test database and vice versa
-  - Database-aware authentication provides intuitive UI while maintaining complete security isolation
+  - **Session flow working**: Login selection → Session storage → All requests use selected database → UI reflects reality
+  - Database-aware authentication provides intuitive UI while maintaining complete security isolation with full session persistence
 - January 22, 2025. Successfully implemented database environment indicator system with comprehensive deployment scripts
   - Added dynamic database environment badge to application header showing current database in use
   - Implemented colored indicators: blue "DEV DB" for development, orange "TEST DB" for test, hidden in production
