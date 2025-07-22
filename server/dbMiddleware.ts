@@ -39,10 +39,10 @@ export const dbEnvironmentMiddleware = (req: RequestWithDB, res: Response, next:
     
     console.log(`Request using database environment: ${dbEnv}`);
   } else {
-    // Use default database (production for real deployments)
+    // Always default to production database to show seeded data
     req.dbEnv = 'production';
     req.dynamicDB = getDynamicDatabase('production');
-    res.setHeader('X-Database-Environment', 'production-default');
+    res.setHeader('X-Database-Environment', 'production');
   }
   
   next();
