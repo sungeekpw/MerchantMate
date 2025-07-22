@@ -2739,9 +2739,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Comprehensive Audit Logs API - SOC2 Compliance
-  app.get("/api/security/audit-logs", isAuthenticated, requireRole(["admin", "super_admin"]), adminDbMiddleware, async (req: RequestWithDB, res) => {
+  app.get("/api/security/audit-logs", isAuthenticated, requireRole(["admin", "super_admin"]), async (req, res) => {
     try {
-      const db = getRequestDB(req);
+      const { db } = await import("./db");
       const { auditLogs } = await import("@shared/schema");
       const { desc, and, like, eq, gte, lte, sql } = await import("drizzle-orm");
       
@@ -2798,9 +2798,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Security Events API
-  app.get("/api/security/events", isAuthenticated, requireRole(["admin", "super_admin"]), adminDbMiddleware, async (req: RequestWithDB, res) => {
+  app.get("/api/security/events", isAuthenticated, requireRole(["admin", "super_admin"]), async (req, res) => {
     try {
-      const db = getRequestDB(req);
+      const { db } = await import("./db");
       const { securityEvents } = await import("@shared/schema");
       const { desc } = await import("drizzle-orm");
       
@@ -2817,9 +2817,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Audit Metrics API
-  app.get("/api/security/audit-metrics", isAuthenticated, requireRole(["admin", "super_admin"]), adminDbMiddleware, async (req: RequestWithDB, res) => {
+  app.get("/api/security/audit-metrics", isAuthenticated, requireRole(["admin", "super_admin"]), async (req, res) => {
     try {
-      const db = getRequestDB(req);
+      const { db } = await import("./db");
       const { auditLogs, securityEvents } = await import("@shared/schema");
       const { count, gte, eq, and } = await import("drizzle-orm");
       
