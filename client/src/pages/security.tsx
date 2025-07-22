@@ -238,12 +238,9 @@ export default function Security() {
   };
 
   return (
-    <div className="space-y-6">
-      <Header title="Security & Compliance" />
-      
-      <div className="p-6 space-y-6">
-        {/* Enhanced Security Metrics with Audit Overview */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
+    <div className="p-6 space-y-6">
+      {/* Enhanced Security Metrics with Audit Overview */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Total Audit Logs</CardTitle>
@@ -320,10 +317,10 @@ export default function Security() {
               </p>
             </CardContent>
           </Card>
-        </div>
+      </div>
 
-        {/* Enhanced Tabbed Interface */}
-        <Tabs defaultValue="audit-logs" className="space-y-4">
+      {/* Enhanced Tabbed Interface */}
+      <Tabs defaultValue="audit-logs" className="space-y-4">
           <TabsList>
             <TabsTrigger value="audit-logs">Audit Logs</TabsTrigger>
             <TabsTrigger value="security-events">Security Events</TabsTrigger>
@@ -743,8 +740,7 @@ export default function Security() {
               </Card>
             </div>
           </TabsContent>
-        </Tabs>
-      </div>
+      </Tabs>
     </div>
   );
 }
