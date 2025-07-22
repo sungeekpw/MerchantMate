@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Search, Plus, Settings, Trash2, RotateCcw, Users } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -33,9 +33,18 @@ export default function UsersPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const { data: users = [], isLoading } = useQuery({
+  const { data: users = [], isLoading, refetch } = useQuery({
     queryKey: ["/api/users"],
+    staleTime: 0, // Always fetch fresh data
+    gcTime: 0, // Don't cache data (updated property name)
+    refetchOnMount: true,
+    refetchOnWindowFocus: true,
   });
+
+  // Debug logging
+  console.log("Users data:", users);
+  console.log("Users length:", users?.length);
+  console.log("Is loading:", isLoading);
 
   const resetPasswordMutation = useMutation({
     mutationFn: (userId: string) =>
@@ -133,6 +142,9 @@ export default function UsersPage() {
             Manage all user accounts including agents, merchants, and administrators
           </p>
         </div>
+        <Button onClick={() => refetch()} disabled={isLoading}>
+          {isLoading ? "Refreshing..." : "Refresh Data"}
+        </Button>
       </div>
 
       {/* Stats Cards */}
