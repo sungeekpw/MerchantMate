@@ -117,7 +117,85 @@ export class AuthService {
     }
   }
 
-  // Register new user
+  // Register new user with dynamic database support
+  async registerWithDB(userData: RegisterUser, req: Request, db: any): Promise<{ success: boolean; message: string; user?: User }> {
+    try {
+      // Import schema and drizzle functions
+      const schema = await import('@shared/schema');
+      const { eq, or } = await import('drizzle-orm');
+      
+      // Check if user already exists in the specific database
+      const existingUsers = await db
+        .select()
+        .from(schema.users)
+        .where(
+          or(
+            eq(schema.users.username, userData.username),
+            eq(schema.users.email, userData.email)
+          )
+        );
+      
+      if (existingUsers.length > 0) {
+        const existingUser = existingUsers[0];
+        return {
+          success: false,
+          message: existingUser.email === userData.email ? "Email already registered" : "Username already taken"
+        };
+      }
+
+      // Hash password
+      const passwordHash = await this.hashPassword(userData.password);
+      
+      // Generate verification token
+      const emailVerificationToken = this.generateToken();
+
+      // Create user in the specific database
+      const newUser = {
+        id: uuidv4(),
+        username: userData.username,
+        email: userData.email,
+        passwordHash,
+        firstName: userData.firstName,
+        lastName: userData.lastName,
+        role: userData.role || "merchant",
+        emailVerificationToken,
+        emailVerified: false,
+        status: 'active' as const,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      const [user] = await db.insert(schema.users).values(newUser).returning();
+
+      // Send verification email
+      await this.sendEmail(
+        user.email,
+        "Verify Your CoreCRM Account",
+        `
+        <h2>Welcome to CoreCRM!</h2>
+        <p>Please verify your email address by clicking the link below:</p>
+        <a href="${process.env.APP_URL || "http://localhost:5000"}/api/auth/verify-email?token=${emailVerificationToken}">
+          Verify Email Address
+        </a>
+        <p>This link will expire in 24 hours.</p>
+        `
+      );
+
+      return {
+        success: true,
+        message: "Registration successful. Please check your email to verify your account.",
+        user
+      };
+    } catch (error) {
+      console.error("Registration error:", error);
+      return {
+        success: false,
+        message: "Registration failed. Please try again."
+      };
+    }
+  }
+
+  // Register new user (legacy method using storage)
   async register(userData: RegisterUser, req: Request): Promise<{ success: boolean; message: string; user?: User }> {
     try {
       // Check if user already exists

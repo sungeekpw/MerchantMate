@@ -8,6 +8,7 @@ import {
   passwordResetSchema,
   twoFactorVerifySchema 
 } from "@shared/schema";
+import { dbEnvironmentMiddleware, getRequestDB, type RequestWithDB } from "./dbMiddleware";
 
 declare module "express-session" {
   interface SessionData {
@@ -33,13 +34,15 @@ export function setupAuthRoutes(app: Express) {
     next();
   };
 
-  // User registration
-  app.post('/api/auth/register', async (req, res) => {
+  // User registration with database environment support
+  app.post('/api/auth/register', dbEnvironmentMiddleware, async (req: RequestWithDB, res) => {
     try {
       console.log("Registration request body:", req.body);
       const validatedData = registerUserSchema.parse(req.body);
       console.log("Validated data:", validatedData);
-      const result = await authService.register(validatedData, req);
+      // Use dynamic database for registration
+      const dynamicDB = getRequestDB(req);
+      const result = await authService.registerWithDB(validatedData, req, dynamicDB);
       
       if (result.success) {
         res.status(201).json(result);
