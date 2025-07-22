@@ -1,5 +1,5 @@
 TN:
-SF:src/components/ui/aspect-ratio.tsx
+SF:client/src/components/ui/aspect-ratio.tsx
 FNF:0
 FNH:0
 DA:3,0
@@ -9,7 +9,7 @@ BRF:0
 BRH:0
 end_of_record
 TN:
-SF:src/components/ui/collapsible.tsx
+SF:client/src/components/ui/collapsible.tsx
 FNF:0
 FNH:0
 DA:4,0
@@ -21,7 +21,7 @@ BRF:0
 BRH:0
 end_of_record
 TN:
-SF:src/components/widgets/widget-types.ts
+SF:client/src/components/widgets/widget-types.ts
 FNF:0
 FNH:0
 DA:29,0
@@ -31,7 +31,7 @@ BRF:0
 BRH:0
 end_of_record
 TN:
-SF:src/hooks/use-mobile.tsx
+SF:client/src/hooks/use-mobile.tsx
 FN:5,useIsMobile
 FN:8,(anonymous_1)
 FN:10,(anonymous_2)
@@ -58,7 +58,7 @@ BRF:0
 BRH:0
 end_of_record
 TN:
-SF:src/hooks/use-toast.ts
+SF:client/src/hooks/use-toast.ts
 FN:27,genId
 FN:58,(anonymous_2)
 FN:63,(anonymous_3)
@@ -175,7 +175,7 @@ BRF:20
 BRH:0
 end_of_record
 TN:
-SF:src/hooks/useAuth.ts
+SF:client/src/hooks/useAuth.ts
 FN:5,useAuth
 FN:17,(anonymous_8)
 FN:17,(anonymous_9)
@@ -205,7 +205,7 @@ BRF:2
 BRH:0
 end_of_record
 TN:
-SF:src/lib/api.ts
+SF:client/src/lib/api.ts
 FN:6,(anonymous_7)
 FN:6,(anonymous_8)
 FN:12,(anonymous_9)
@@ -355,7 +355,7 @@ BRF:12
 BRH:0
 end_of_record
 TN:
-SF:src/lib/auth-helper.ts
+SF:client/src/lib/auth-helper.ts
 FN:2,checkAuthStatus
 FNF:1
 FNH:0
@@ -371,7 +371,7 @@ BRF:0
 BRH:0
 end_of_record
 TN:
-SF:src/lib/authUtils.ts
+SF:client/src/lib/authUtils.ts
 FN:1,isUnauthorizedError
 FN:5,hasRole
 FN:9,canAccessMerchants
@@ -412,7 +412,7 @@ BRF:2
 BRH:0
 end_of_record
 TN:
-SF:src/lib/queryClient.ts
+SF:client/src/lib/queryClient.ts
 FN:3,throwIfResNotOk
 FN:10,apiRequest
 FN:30,(anonymous_11)
@@ -457,7 +457,7 @@ BRF:12
 BRH:0
 end_of_record
 TN:
-SF:src/lib/rbac.ts
+SF:client/src/lib/rbac.ts
 FN:131,hasPermission
 FN:140,hasAnyPermission
 FN:141,(anonymous_2)
@@ -554,7 +554,7 @@ BRF:22
 BRH:0
 end_of_record
 TN:
-SF:src/lib/timezone.ts
+SF:client/src/lib/timezone.ts
 FN:6,getUserTimezone
 FN:18,formatDateInUserTimezone
 FN:38,getTimezoneAbbreviation
@@ -621,7 +621,7 @@ BRF:23
 BRH:0
 end_of_record
 TN:
-SF:src/lib/utils.ts
+SF:client/src/lib/utils.ts
 FN:4,cn
 FNF:1
 FNH:1
@@ -636,7 +636,7 @@ BRF:0
 BRH:0
 end_of_record
 TN:
-SF:../server/apiAuth.ts
+SF:server/apiAuth.ts
 FN:18,(anonymous_7)
 FN:22,(anonymous_8)
 FN:123,(anonymous_9)
@@ -780,7 +780,7 @@ BRF:43
 BRH:0
 end_of_record
 TN:
-SF:../server/auditService.ts
+SF:server/auditService.ts
 FN:20,(anonymous_7)
 FN:26,(anonymous_8)
 FN:89,(anonymous_10)
@@ -1131,7 +1131,7 @@ BRF:228
 BRH:0
 end_of_record
 TN:
-SF:../server/auth.ts
+SF:server/auth.ts
 FN:30,(anonymous_7)
 FN:35,(anonymous_9)
 FN:40,(anonymous_11)
@@ -1379,7 +1379,7 @@ BRF:83
 BRH:0
 end_of_record
 TN:
-SF:../server/authRoutes.ts
+SF:server/authRoutes.ts
 FN:19,setupAuthRoutes
 FN:21,(anonymous_8)
 FN:21,(anonymous_9)
@@ -1596,7 +1596,7 @@ BRF:44
 BRH:0
 end_of_record
 TN:
-SF:../server/db.ts
+SF:server/db.ts
 FN:14,(anonymous_7)
 FN:62,(anonymous_8)
 FN:93,(anonymous_9)
@@ -1735,7 +1735,7 @@ BRF:44
 BRH:0
 end_of_record
 TN:
-SF:../server/dbMiddleware.ts
+SF:server/dbMiddleware.ts
 FN:13,(anonymous_0)
 FN:36,(anonymous_1)
 FN:43,(anonymous_2)
@@ -1777,7 +1777,7 @@ BRF:10
 BRH:0
 end_of_record
 TN:
-SF:../server/emailService.ts
+SF:server/emailService.ts
 FN:43,(anonymous_7)
 FN:48,(anonymous_8)
 FN:151,(anonymous_10)
@@ -1852,7 +1852,7 @@ BRF:22
 BRH:0
 end_of_record
 TN:
-SF:../server/index.ts
+SF:server/index.ts
 FN:9,(anonymous_7)
 FN:15,(anonymous_8)
 FN:20,(anonymous_9)
@@ -1922,7 +1922,7 @@ BRF:13
 BRH:0
 end_of_record
 TN:
-SF:../server/regenerateWellsFargo.ts
+SF:server/regenerateWellsFargo.ts
 FN:4,regenerateFormFields
 FN:9,(anonymous_9)
 FNF:2
@@ -1954,7 +1954,7 @@ BRF:6
 BRH:0
 end_of_record
 TN:
-SF:../server/wellsFargoMPA.ts
+SF:server/wellsFargoMPA.ts
 FN:25,getWellsFargoMPAForm
 FNF:1
 FNH:0
@@ -1966,7 +1966,7 @@ BRF:0
 BRH:0
 end_of_record
 TN:
-SF:../server/routes/testing.ts
+SF:server/routes/testing.ts
 FN:10,(anonymous_7)
 FN:10,(anonymous_8)
 FN:26,(anonymous_9)
@@ -2170,7 +2170,7 @@ BRF:85
 BRH:0
 end_of_record
 TN:
-SF:../shared/schema.ts
+SF:shared/schema.ts
 FN:20,(anonymous_0)
 FN:33,(anonymous_1)
 FN:67,(anonymous_2)
