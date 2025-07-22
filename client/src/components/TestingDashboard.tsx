@@ -628,32 +628,56 @@ export default function TestingDashboard() {
                 <div className="space-y-6">
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     <div className="text-center p-4 border rounded">
-                      <div className="text-2xl font-bold">{coverage.total.lines.pct.toFixed(1)}%</div>
+                      <div className={`text-2xl font-bold ${coverage.total.lines.pct >= 80 ? 'text-green-600' : coverage.total.lines.pct >= 60 ? 'text-yellow-600' : 'text-red-600'}`}>
+                        {coverage.total.lines.pct.toFixed(1)}%
+                      </div>
                       <div className="text-sm text-muted-foreground">Lines</div>
                       <div className="text-xs text-muted-foreground mt-1">
                         {coverage.total.lines.covered}/{coverage.total.lines.total}
                       </div>
+                      <Progress 
+                        value={coverage.total.lines.pct} 
+                        className="w-full mt-2" 
+                      />
                     </div>
                     <div className="text-center p-4 border rounded">
-                      <div className="text-2xl font-bold">{coverage.total.statements.pct.toFixed(1)}%</div>
+                      <div className={`text-2xl font-bold ${coverage.total.statements.pct >= 80 ? 'text-green-600' : coverage.total.statements.pct >= 60 ? 'text-yellow-600' : 'text-red-600'}`}>
+                        {coverage.total.statements.pct.toFixed(1)}%
+                      </div>
                       <div className="text-sm text-muted-foreground">Statements</div>
                       <div className="text-xs text-muted-foreground mt-1">
                         {coverage.total.statements.covered}/{coverage.total.statements.total}
                       </div>
+                      <Progress 
+                        value={coverage.total.statements.pct} 
+                        className="w-full mt-2" 
+                      />
                     </div>
                     <div className="text-center p-4 border rounded">
-                      <div className="text-2xl font-bold">{coverage.total.functions.pct.toFixed(1)}%</div>
+                      <div className={`text-2xl font-bold ${coverage.total.functions.pct >= 80 ? 'text-green-600' : coverage.total.functions.pct >= 60 ? 'text-yellow-600' : 'text-red-600'}`}>
+                        {coverage.total.functions.pct.toFixed(1)}%
+                      </div>
                       <div className="text-sm text-muted-foreground">Functions</div>
                       <div className="text-xs text-muted-foreground mt-1">
                         {coverage.total.functions.covered}/{coverage.total.functions.total}
                       </div>
+                      <Progress 
+                        value={coverage.total.functions.pct} 
+                        className="w-full mt-2" 
+                      />
                     </div>
                     <div className="text-center p-4 border rounded">
-                      <div className="text-2xl font-bold">{coverage.total.branches.pct.toFixed(1)}%</div>
+                      <div className={`text-2xl font-bold ${coverage.total.branches.pct >= 80 ? 'text-green-600' : coverage.total.branches.pct >= 60 ? 'text-yellow-600' : 'text-red-600'}`}>
+                        {coverage.total.branches.pct.toFixed(1)}%
+                      </div>
                       <div className="text-sm text-muted-foreground">Branches</div>
                       <div className="text-xs text-muted-foreground mt-1">
                         {coverage.total.branches.covered}/{coverage.total.branches.total}
                       </div>
+                      <Progress 
+                        value={coverage.total.branches.pct} 
+                        className="w-full mt-2" 
+                      />
                     </div>
                   </div>
 
@@ -662,17 +686,45 @@ export default function TestingDashboard() {
                     <div className="space-y-2">
                       {Object.entries(coverage)
                         .filter(([key]) => key !== 'total')
-                        .map(([filePath, fileCoverage]) => (
-                          <div key={filePath} className="flex items-center justify-between p-2 border rounded">
-                            <div className="text-sm font-mono">{filePath}</div>
-                            <div className="flex items-center gap-4 text-sm">
-                              <span>L: {fileCoverage.lines.pct.toFixed(1)}%</span>
-                              <span>S: {fileCoverage.statements.pct.toFixed(1)}%</span>
-                              <span>F: {fileCoverage.functions.pct.toFixed(1)}%</span>
-                              <span>B: {fileCoverage.branches.pct.toFixed(1)}%</span>
+                        .map(([filePath, fileCoverage]) => {
+                          const avgCoverage = (fileCoverage.lines.pct + fileCoverage.statements.pct + fileCoverage.functions.pct + fileCoverage.branches.pct) / 4;
+                          return (
+                            <div key={filePath} className="p-3 border rounded-lg space-y-2">
+                              <div className="flex items-center justify-between">
+                                <div className="text-sm font-mono truncate flex-1 mr-4">{filePath.replace(/^.*\//, '')}</div>
+                                <div className={`text-sm font-medium ${avgCoverage >= 80 ? 'text-green-600' : avgCoverage >= 60 ? 'text-yellow-600' : 'text-red-600'}`}>
+                                  {avgCoverage.toFixed(1)}% avg
+                                </div>
+                              </div>
+                              <div className="grid grid-cols-4 gap-2 text-xs">
+                                <div className="text-center">
+                                  <div className={`font-medium ${fileCoverage.lines.pct >= 80 ? 'text-green-600' : fileCoverage.lines.pct >= 60 ? 'text-yellow-600' : 'text-red-600'}`}>
+                                    {fileCoverage.lines.pct.toFixed(1)}%
+                                  </div>
+                                  <div className="text-muted-foreground">Lines</div>
+                                </div>
+                                <div className="text-center">
+                                  <div className={`font-medium ${fileCoverage.statements.pct >= 80 ? 'text-green-600' : fileCoverage.statements.pct >= 60 ? 'text-yellow-600' : 'text-red-600'}`}>
+                                    {fileCoverage.statements.pct.toFixed(1)}%
+                                  </div>
+                                  <div className="text-muted-foreground">Statements</div>
+                                </div>
+                                <div className="text-center">
+                                  <div className={`font-medium ${fileCoverage.functions.pct >= 80 ? 'text-green-600' : fileCoverage.functions.pct >= 60 ? 'text-yellow-600' : 'text-red-600'}`}>
+                                    {fileCoverage.functions.pct.toFixed(1)}%
+                                  </div>
+                                  <div className="text-muted-foreground">Functions</div>
+                                </div>
+                                <div className="text-center">
+                                  <div className={`font-medium ${fileCoverage.branches.pct >= 80 ? 'text-green-600' : fileCoverage.branches.pct >= 60 ? 'text-yellow-600' : 'text-red-600'}`}>
+                                    {fileCoverage.branches.pct.toFixed(1)}%
+                                  </div>
+                                  <div className="text-muted-foreground">Branches</div>
+                                </div>
+                              </div>
                             </div>
-                          </div>
-                        ))}
+                          );
+                        })}
                     </div>
                   </div>
                 </div>
