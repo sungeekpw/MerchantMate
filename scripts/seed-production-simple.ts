@@ -117,12 +117,66 @@ async function seedProduction() {
         is_active = EXCLUDED.is_active
     `);
 
+    // 9. Create audit logs and security data
+    console.log('🔍 Creating audit logs and security data...');
+    
+    // Create sample audit logs
+    const auditActions = ['user.login', 'user.logout', 'merchant.create', 'transaction.process', 'data.access', 'security.alert'];
+    const auditResources = ['users', 'merchants', 'transactions', 'campaigns', 'agents', 'security'];
+    for (let i = 0; i < 25; i++) {
+      const action = auditActions[Math.floor(Math.random() * auditActions.length)];
+      const resource = auditResources[Math.floor(Math.random() * auditResources.length)];
+      await pool.query(`
+        INSERT INTO audit_logs (action, resource, resource_id, user_id, ip_address, user_agent, risk_level, old_values, new_values, created_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW())
+        ON CONFLICT DO NOTHING
+      `, [
+        action,
+        resource,
+        `${resource}-${i}`,
+        'admin-prod-001',
+        '127.0.0.1',
+        'Core CRM Admin Interface',
+        i % 10 === 0 ? 'high' : 'low',
+        JSON.stringify({ old_value: `Previous ${action}` }),
+        JSON.stringify({ new_value: `Updated ${action}`, timestamp: new Date().toISOString() })
+      ]);
+    }
+
+    // Create sample security events
+    await pool.query(`
+      INSERT INTO security_events (event_type, severity, detection_method, investigation_notes, affected_users, created_at)
+      VALUES 
+        ('failed_login', 'medium', 'automated_detection', 'Multiple failed login attempts detected from IP 192.168.1.100', '["admin-prod-001"]', NOW()),
+        ('suspicious_activity', 'high', 'behavioral_analysis', 'Unusual access pattern detected from Bot/1.0 user agent', '["admin-prod-001"]', NOW()),
+        ('password_change', 'low', 'user_action', 'User password changed successfully via Chrome browser', '["admin-prod-001"]', NOW())
+      ON CONFLICT DO NOTHING
+    `);
+
+    // Create sample login attempts
+    for (let i = 0; i < 15; i++) {
+      await pool.query(`
+        INSERT INTO login_attempts (username, email, ip_address, user_agent, success, failure_reason, created_at)
+        VALUES ($1, $2, $3, $4, $5, $6, NOW() - INTERVAL '${i} hours')
+        ON CONFLICT DO NOTHING
+      `, [
+        'admin',
+        'admin@corecrm.com',
+        `192.168.1.${100 + i}`,
+        'Core CRM Interface',
+        i % 4 !== 0, // true for success, false for failed
+        i % 4 === 0 ? 'invalid_password' : null
+      ]);
+    }
+
     // Check data counts
     const userCount = await pool.query('SELECT COUNT(*) as count FROM users');
     const merchantCount = await pool.query('SELECT COUNT(*) as count FROM merchants');
     const agentCount = await pool.query('SELECT COUNT(*) as count FROM agents');
     const transactionCount = await pool.query('SELECT COUNT(*) as count FROM transactions');
     const campaignCount = await pool.query('SELECT COUNT(*) as count FROM campaigns');
+    const auditCount = await pool.query('SELECT COUNT(*) as count FROM audit_logs');
+    const securityCount = await pool.query('SELECT COUNT(*) as count FROM security_events');
 
     console.log('\n✅ Production Database Seeded Successfully!');
     console.log('📊 Data Summary:');
@@ -131,6 +185,8 @@ async function seedProduction() {
     console.log(`   • Agents: ${agentCount.rows[0].count}`);
     console.log(`   • Transactions: ${transactionCount.rows[0].count}`);
     console.log(`   • Campaigns: ${campaignCount.rows[0].count}`);
+    console.log(`   • Audit Logs: ${auditCount.rows[0].count}`);
+    console.log(`   • Security Events: ${securityCount.rows[0].count}`);
     
     console.log('\n🔑 Admin Credentials:');
     console.log('   Username: admin | Password: admin123');
