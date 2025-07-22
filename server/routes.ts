@@ -1614,6 +1614,64 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
   });
 
+  // Database connection diagnostics (Super Admin only)
+  app.get("/api/admin/db-diagnostics", requireRole(['super_admin']), adminDbMiddleware, async (req: RequestWithDB, res) => {
+    try {
+      const dbEnv = req.dbEnv || 'production';
+      
+      // Import getDatabaseUrl function from db.ts
+      const getDatabaseUrl = (environment?: string): string => {
+        switch (environment) {
+          case 'test':
+            return process.env.TEST_DATABASE_URL || process.env.DATABASE_URL!;
+          case 'development':
+          case 'dev':
+            return process.env.DEV_DATABASE_URL || process.env.DATABASE_URL!;
+          case 'production':
+          default:
+            return process.env.DATABASE_URL!;
+        }
+      };
+      
+      // Mask database URLs for security
+      const maskUrl = (url: string): string => {
+        if (!url) return 'NOT_SET';
+        const urlParts = url.split('@');
+        if (urlParts.length < 2) return url.substring(0, 20) + '...';
+        const hostPart = urlParts[1];
+        return `postgresql://***:***@${hostPart}`;
+      };
+      
+      // Test actual database connections by counting users
+      const dynamicDB = getRequestDB(req);
+      const users = await dynamicDB.select().from((await import('@shared/schema')).users);
+      
+      res.json({
+        success: true,
+        environment: dbEnv,
+        requestedEnv: req.query.db || 'default',
+        databaseUrls: {
+          production: maskUrl(process.env.DATABASE_URL || ''),
+          test: maskUrl(process.env.TEST_DATABASE_URL || ''),
+          development: maskUrl(process.env.DEV_DATABASE_URL || '')
+        },
+        currentConnection: {
+          environment: dbEnv,
+          url: maskUrl(getDatabaseUrl(dbEnv)),
+          userCount: users.length,
+          users: users.map((u: any) => ({ id: u.id, username: u.username, email: u.email }))
+        }
+      });
+    } catch (error) {
+      console.error("Error getting database diagnostics:", error);
+      res.status(500).json({ 
+        success: false, 
+        message: "Failed to get database diagnostics", 
+        error: error instanceof Error ? error.message : 'Unknown error' 
+      });
+    }
+  });
+
   // Comprehensive testing data reset utility (Super Admin only)
   app.post("/api/admin/reset-testing-data", requireRole(['super_admin']), adminDbMiddleware, async (req: RequestWithDB, res) => {
     try {
