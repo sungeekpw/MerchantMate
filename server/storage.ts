@@ -1216,6 +1216,65 @@ export class DatabaseStorage implements IStorage {
       merchant: row.merchant || undefined,
     }));
   }
+
+  // Security & Audit Methods
+  async getAllAuditLogs() {
+    return await db.select().from(schema.auditLogs).orderBy(desc(schema.auditLogs.createdAt));
+  }
+
+  async getSecurityEvents() {
+    return await db.select().from(schema.securityEvents).orderBy(desc(schema.securityEvents.createdAt));
+  }
+
+  async getLoginAttempts() {
+    return await db.select().from(schema.loginAttempts).orderBy(desc(schema.loginAttempts.attemptTime));
+  }
+
+  async getAuditStats() {
+    const [totalAudits] = await db.execute(`SELECT COUNT(*) as count FROM audit_logs`);
+    const [highRiskActions] = await db.execute(`SELECT COUNT(*) as count FROM audit_logs WHERE risk_level = 'high'`);
+    const [securityEvents] = await db.execute(`SELECT COUNT(*) as count FROM security_events WHERE severity = 'critical'`);
+    const [successfulLogins] = await db.execute(`SELECT COUNT(*) as count FROM login_attempts WHERE status = 'success'`);
+    const [failedLogins] = await db.execute(`SELECT COUNT(*) as count FROM login_attempts WHERE status = 'failed'`);
+
+    return {
+      totalAuditLogs: totalAudits.rows[0]?.count || 0,
+      highRiskActions: highRiskActions.rows[0]?.count || 0,
+      securityEvents: securityEvents.rows[0]?.count || 0,
+      successfulLogins: successfulLogins.rows[0]?.count || 0,
+      failedLogins: failedLogins.rows[0]?.count || 0
+    };
+  }
+
+  // PDF Forms methods (placeholder for missing functionality)
+  async getAllPdfForms() {
+    // Return empty array for now - this feature may not be implemented yet
+    return [];
+  }
+
+  async getAllEmailTemplates() {
+    return await db.select().from(schema.emailTemplates);
+  }
+
+  async getAllEmailTriggers() {
+    // Return empty array for now - this feature may not be implemented yet
+    return [];
+  }
+
+  async getEmailActivityStats() {
+    // Return empty stats for now - this feature may not be implemented yet
+    return {
+      totalSent: 0,
+      totalDelivered: 0,
+      totalBounced: 0,
+      totalClicked: 0
+    };
+  }
+
+  async getEmailActivity() {
+    // Return empty array for now - this feature may not be implemented yet
+    return [];
+  }
 }
 
 export const storage = new DatabaseStorage();
