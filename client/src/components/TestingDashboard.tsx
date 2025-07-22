@@ -209,15 +209,14 @@ export default function TestingDashboard() {
       });
 
       eventSource.onerror = (error) => {
-        console.error('EventSource error:', error);
-        console.log('EventSource readyState:', eventSource.readyState);
-        
-        // Only show error if connection is actually broken
+        // Only log connection errors when the connection is actually closed or failed
         if (eventSource.readyState === EventSource.CLOSED) {
+          console.error('EventSource connection closed:', error);
           setIsRunning(false);
           setLastRunStatus('failed');
           setTestOutput(prev => [...prev, '❌ Connection to test runner lost - please try again']);
         }
+        // Ignore transient connection errors during normal operation
       };
 
       // No additional request needed - SSE connection handles test execution
