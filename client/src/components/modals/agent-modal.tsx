@@ -66,13 +66,22 @@ export function AgentModal({ isOpen, onClose, agent }: AgentModalProps) {
 
   const createMutation = useMutation({
     mutationFn: (data: InsertAgent) => agentsApi.create(data),
-    onSuccess: () => {
+    onSuccess: (response: any) => {
       queryClient.invalidateQueries({ queryKey: ["/api/agents"] });
       queryClient.invalidateQueries({ queryKey: ["/api/analytics/dashboard"] });
-      toast({
-        title: "Success",
-        description: "Agent created successfully",
-      });
+      
+      // Show user account creation details
+      if (response.user) {
+        toast({
+          title: "Agent and User Account Created",
+          description: `Agent created successfully. Login: ${response.user.username} Password: ${response.user.temporaryPassword}`,
+        });
+      } else {
+        toast({
+          title: "Success",
+          description: "Agent created successfully",
+        });
+      }
       onClose();
     },
     onError: (error: any) => {

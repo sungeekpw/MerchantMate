@@ -4,6 +4,7 @@ import { z } from "zod";
 
 export const merchants = pgTable("merchants", {
   id: serial("id").primaryKey(),
+  userId: varchar("user_id").references(() => users.id, { onDelete: "cascade" }).unique(),
   businessName: text("business_name").notNull(),
   businessType: text("business_type").notNull(),
   email: text("email").notNull().unique(),
@@ -49,6 +50,7 @@ export const addresses = pgTable("addresses", {
 
 export const agents = pgTable("agents", {
   id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }).unique(),
   firstName: text("first_name").notNull(),
   lastName: text("last_name").notNull(),
   email: text("email").notNull().unique(),

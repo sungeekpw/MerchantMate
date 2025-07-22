@@ -2510,16 +2510,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/merchants", requireRole(['admin', 'corporate', 'super_admin']), async (req, res) => {
     try {
-      const result = insertMerchantSchema.safeParse(req.body);
+      // Remove userId from validation since it's auto-generated
+      const { userId, ...merchantData } = req.body;
+      const result = insertMerchantSchema.omit({ userId: true }).safeParse(merchantData);
       if (!result.success) {
         return res.status(400).json({ message: "Invalid merchant data", errors: result.error.errors });
       }
 
-      const merchant = await storage.createMerchant(result.data);
-      res.status(201).json(merchant);
+      // Create merchant with automatic user account creation
+      const { merchant, user, temporaryPassword } = await storage.createMerchantWithUser(result.data);
+      
+      res.status(201).json({
+        merchant,
+        user: {
+          id: user.id,
+          username: user.username,
+          email: user.email,
+          role: user.role,
+          temporaryPassword // Include for admin to share with merchant
+        }
+      });
     } catch (error) {
       console.error("Error creating merchant:", error);
-      res.status(500).json({ message: "Failed to create merchant" });
+      if (error.message?.includes('unique constraint')) {
+        res.status(409).json({ message: "Email address already exists" });
+      } else {
+        res.status(500).json({ message: "Failed to create merchant" });
+      }
     }
   });
 
@@ -2563,16 +2580,139 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/agents", requireRole(['admin', 'corporate', 'super_admin']), async (req, res) => {
     try {
-      const result = insertAgentSchema.safeParse(req.body);
+      // Remove userId from validation since it's auto-generated
+      const { userId, ...agentData } = req.body;
+      const result = insertAgentSchema.omit({ userId: true }).safeParse(agentData);
       if (!result.success) {
         return res.status(400).json({ message: "Invalid agent data", errors: result.error.errors });
       }
 
-      const agent = await storage.createAgent(result.data);
-      res.status(201).json(agent);
+      // Create agent with automatic user account creation
+      const { agent, user, temporaryPassword } = await storage.createAgentWithUser(result.data);
+      
+      res.status(201).json({
+        agent,
+        user: {
+          id: user.id,
+          username: user.username,
+          email: user.email,
+          role: user.role,
+          temporaryPassword // Include for admin to share with agent
+        }
+      });
     } catch (error) {
       console.error("Error creating agent:", error);
-      res.status(500).json({ message: "Failed to create agent" });
+      if (error.message?.includes('unique constraint')) {
+        res.status(409).json({ message: "Email address already exists" });
+      } else {
+        res.status(500).json({ message: "Failed to create agent" });
+      }
+    }
+  });
+
+  // Agent and Merchant User Management
+  app.get("/api/agents/:id/user", requireRole(['admin', 'corporate', 'super_admin']), async (req, res) => {
+    try {
+      const agentId = parseInt(req.params.id);
+      const user = await storage.getAgentUser(agentId);
+      
+      if (!user) {
+        return res.status(404).json({ message: "User not found for this agent" });
+      }
+      
+      // Don't send password hash
+      const { passwordHash, ...safeUser } = user;
+      res.json(safeUser);
+    } catch (error) {
+      console.error("Error fetching agent user:", error);
+      res.status(500).json({ message: "Failed to fetch agent user" });
+    }
+  });
+
+  app.get("/api/merchants/:id/user", requireRole(['admin', 'corporate', 'super_admin']), async (req, res) => {
+    try {
+      const merchantId = parseInt(req.params.id);
+      const user = await storage.getMerchantUser(merchantId);
+      
+      if (!user) {
+        return res.status(404).json({ message: "User not found for this merchant" });
+      }
+      
+      // Don't send password hash
+      const { passwordHash, ...safeUser } = user;
+      res.json(safeUser);
+    } catch (error) {
+      console.error("Error fetching merchant user:", error);
+      res.status(500).json({ message: "Failed to fetch merchant user" });
+    }
+  });
+
+  // Reset password for agent/merchant user accounts
+  app.post("/api/agents/:id/reset-password", requireRole(['admin', 'corporate', 'super_admin']), async (req, res) => {
+    try {
+      const agentId = parseInt(req.params.id);
+      const user = await storage.getAgentUser(agentId);
+      
+      if (!user) {
+        return res.status(404).json({ message: "User not found for this agent" });
+      }
+      
+      // Generate new temporary password
+      const chars = 'ABCDEFGHJKMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
+      let newPassword = '';
+      for (let i = 0; i < 12; i++) {
+        newPassword += chars.charAt(Math.floor(Math.random() * chars.length));
+      }
+      
+      // Hash and update password
+      const bcrypt = await import('bcrypt');
+      const passwordHash = await bcrypt.hash(newPassword, 10);
+      
+      await storage.updateUser(user.id, { passwordHash });
+      
+      res.json({
+        success: true,
+        username: user.username,
+        temporaryPassword: newPassword,
+        message: "Password reset successfully"
+      });
+    } catch (error) {
+      console.error("Error resetting agent password:", error);
+      res.status(500).json({ message: "Failed to reset password" });
+    }
+  });
+
+  app.post("/api/merchants/:id/reset-password", requireRole(['admin', 'corporate', 'super_admin']), async (req, res) => {
+    try {
+      const merchantId = parseInt(req.params.id);
+      const user = await storage.getMerchantUser(merchantId);
+      
+      if (!user) {
+        return res.status(404).json({ message: "User not found for this merchant" });
+      }
+      
+      // Generate new temporary password
+      const chars = 'ABCDEFGHJKMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
+      let newPassword = '';
+      for (let i = 0; i < 12; i++) {
+        newPassword += chars.charAt(Math.floor(Math.random() * chars.length));
+      }
+      
+      // Hash and update password
+      const bcrypt = await import('bcrypt');
+      const passwordHash = await bcrypt.hash(newPassword, 10);
+      
+      await storage.updateUser(user.id, { passwordHash });
+      
+      res.json({
+        success: true,
+        username: user.username,
+        temporaryPassword: newPassword,
+        message: "Password reset successfully"
+      });
+    } catch (error) {
+      console.error("Error resetting merchant password:", error);
+      res.status(500).json({ message: "Failed to reset password" });
     }
   });
 

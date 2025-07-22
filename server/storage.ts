@@ -8,18 +8,22 @@ export interface IStorage {
   getMerchantByEmail(email: string): Promise<Merchant | undefined>;
   getAllMerchants(): Promise<MerchantWithAgent[]>;
   createMerchant(merchant: InsertMerchant): Promise<Merchant>;
+  createMerchantWithUser(merchantData: Omit<InsertMerchant, 'userId'>): Promise<{ merchant: Merchant; user: User; temporaryPassword: string }>;
   updateMerchant(id: number, merchant: Partial<InsertMerchant>): Promise<Merchant | undefined>;
   deleteMerchant(id: number): Promise<boolean>;
   searchMerchants(query: string): Promise<MerchantWithAgent[]>;
+  getMerchantUser(merchantId: number): Promise<User | undefined>;
 
   // Agent operations
   getAgent(id: number): Promise<Agent | undefined>;
   getAgentByEmail(email: string): Promise<Agent | undefined>;
   getAllAgents(): Promise<Agent[]>;
   createAgent(agent: InsertAgent): Promise<Agent>;
+  createAgentWithUser(agentData: Omit<InsertAgent, 'userId'>): Promise<{ agent: Agent; user: User; temporaryPassword: string }>;
   updateAgent(id: number, agent: Partial<InsertAgent>): Promise<Agent | undefined>;
   deleteAgent(id: number): Promise<boolean>;
   searchAgents(query: string): Promise<Agent[]>;
+  getAgentUser(agentId: number): Promise<User | undefined>;
 
   // Merchant Prospect operations
   getMerchantProspect(id: number): Promise<MerchantProspect | undefined>;
@@ -1405,6 +1409,129 @@ export class DatabaseStorage implements IStorage {
   async deleteMerchantProspect(id: number) {
     const deleted = await db.delete(merchantProspects).where(eq(merchantProspects.id, id));
     return (deleted.rowCount || 0) > 0;
+  }
+  // Helper methods for user account creation
+  private async generateUsername(firstName: string, lastName: string, email: string): Promise<string> {
+    // Try email prefix first
+    const emailPrefix = email.split('@')[0];
+    let candidateUsername = emailPrefix;
+    
+    // Check if email prefix is available
+    const existingByEmail = await this.getUserByUsername(candidateUsername);
+    if (!existingByEmail) {
+      return candidateUsername;
+    }
+    
+    // Try first.last format
+    candidateUsername = `${firstName.toLowerCase()}.${lastName.toLowerCase()}`;
+    const existingByName = await this.getUserByUsername(candidateUsername);
+    if (!existingByName) {
+      return candidateUsername;
+    }
+    
+    // Add numbers until we find an available username
+    let counter = 1;
+    while (true) {
+      const numberedUsername = `${candidateUsername}${counter}`;
+      const existing = await this.getUserByUsername(numberedUsername);
+      if (!existing) {
+        return numberedUsername;
+      }
+      counter++;
+    }
+  }
+
+  private async generateTemporaryPassword(): Promise<string> {
+    // Generate a secure temporary password
+    const chars = 'ABCDEFGHJKMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
+    let password = '';
+    for (let i = 0; i < 12; i++) {
+      password += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return password;
+  }
+
+  async createAgentWithUser(agentData: Omit<InsertAgent, 'userId'>): Promise<{ agent: Agent; user: User; temporaryPassword: string }> {
+    // Generate username and temporary password
+    const username = await this.generateUsername(agentData.firstName, agentData.lastName, agentData.email);
+    const temporaryPassword = await this.generateTemporaryPassword();
+    
+    // Hash the temporary password
+    const bcrypt = await import('bcrypt');
+    const passwordHash = await bcrypt.hash(temporaryPassword, 10);
+    
+    // Create user account first
+    const userData = {
+      id: crypto.randomUUID(),
+      email: agentData.email,
+      username,
+      passwordHash,
+      firstName: agentData.firstName,
+      lastName: agentData.lastName,
+      role: 'agent' as const,
+      status: 'active' as const,
+      emailVerified: true, // Auto-verify for system-created accounts
+    };
+    
+    const user = await this.createUser(userData);
+    
+    // Create agent linked to user
+    const agent = await this.createAgent({
+      ...agentData,
+      userId: user.id
+    });
+    
+    return { agent, user, temporaryPassword };
+  }
+
+  async createMerchantWithUser(merchantData: Omit<InsertMerchant, 'userId'>): Promise<{ merchant: Merchant; user: User; temporaryPassword: string }> {
+    // Extract contact person name from business name or use a default
+    const firstName = 'Merchant';
+    const lastName = 'User';
+    
+    // Generate username and temporary password
+    const username = await this.generateUsername(firstName, lastName, merchantData.email);
+    const temporaryPassword = await this.generateTemporaryPassword();
+    
+    // Hash the temporary password
+    const bcrypt = await import('bcrypt');
+    const passwordHash = await bcrypt.hash(temporaryPassword, 10);
+    
+    // Create user account first
+    const userData = {
+      id: crypto.randomUUID(),
+      email: merchantData.email,
+      username,
+      passwordHash,
+      firstName,
+      lastName,
+      role: 'merchant' as const,
+      status: 'active' as const,
+      emailVerified: true, // Auto-verify for system-created accounts
+    };
+    
+    const user = await this.createUser(userData);
+    
+    // Create merchant linked to user
+    const merchant = await this.createMerchant({
+      ...merchantData,
+      userId: user.id
+    });
+    
+    return { merchant, user, temporaryPassword };
+  }
+
+  // Methods to get user info for agents and merchants
+  async getAgentUser(agentId: number): Promise<User | undefined> {
+    const agent = await this.getAgent(agentId);
+    if (!agent?.userId) return undefined;
+    return this.getUser(agent.userId);
+  }
+
+  async getMerchantUser(merchantId: number): Promise<User | undefined> {
+    const merchant = await this.getMerchant(merchantId);
+    if (!merchant?.userId) return undefined;
+    return this.getUser(merchant.userId);
   }
 }
 
