@@ -159,10 +159,10 @@ export const isAuthenticated: RequestHandler = async (req, res, next) => {
     console.log('DevAuth - Session ID:', req.sessionID);
     let userId = (req.session as any)?.userId;
     
-    // Development fallback: auto-authenticate as agent user if no session
+    // Development fallback: auto-authenticate as super admin user if no session
     if (!userId) {
       console.log('DevAuth - No userId in session, using dev auth fallback');
-      userId = 'user_agent_1'; // Default agent user for development
+      userId = 'admin-prod-001'; // Default super admin user for development
       (req.session as any).userId = userId;
       (req.session as any).sessionId = uuidv4();
     }
@@ -170,7 +170,9 @@ export const isAuthenticated: RequestHandler = async (req, res, next) => {
     console.log('DevAuth - UserId from session:', userId);
     
     try {
+      console.log('DevAuth - Looking up user with ID:', userId);
       const dbUser = await storage.getUser(userId);
+      console.log('DevAuth - Found user:', dbUser ? `${dbUser.username} (${dbUser.role})` : 'NULL');
       if (!dbUser) {
         return res.status(401).json({ message: "User not found" });
       }
