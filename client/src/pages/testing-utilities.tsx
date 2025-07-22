@@ -53,6 +53,13 @@ export default function TestingUtilities() {
   const handleDbEnvChange = (newEnv: string) => {
     setSelectedDbEnv(newEnv);
     
+    // Store database environment selection in localStorage
+    if (newEnv !== 'default') {
+      localStorage.setItem('selectedDbEnvironment', newEnv);
+    } else {
+      localStorage.removeItem('selectedDbEnvironment');
+    }
+    
     // Update URL to reflect database environment
     const url = new URL(window.location.href);
     if (newEnv !== 'default') {
@@ -71,12 +78,20 @@ export default function TestingUtilities() {
     refetchDbEnvironment();
   };
 
-  // Initialize selected environment from URL parameter
+  // Initialize selected environment from URL parameter or localStorage
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const dbParam = urlParams.get('db');
+    const storedEnv = localStorage.getItem('selectedDbEnvironment');
+    
     if (dbParam && ['test', 'dev'].includes(dbParam)) {
       setSelectedDbEnv(dbParam);
+    } else if (storedEnv && ['test', 'dev'].includes(storedEnv)) {
+      setSelectedDbEnv(storedEnv);
+      // Update URL to match stored preference
+      const url = new URL(window.location.href);
+      url.searchParams.set('db', storedEnv);
+      window.history.replaceState({}, '', url.toString());
     }
   }, []);
 
