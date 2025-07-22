@@ -160,9 +160,53 @@ export class AuditService {
    */
   auditMiddleware() {
     return async (req: Request & { user?: any }, res: Response, next: Function) => {
-      // Temporarily disable audit middleware due to database connection timeouts
-      // This prevents the audit logging from blocking request processing
-      next();
+      const startTime = Date.now();
+      
+      try {
+        // Continue processing the request
+        next();
+        
+        // Log the action after response (non-blocking)
+        res.on('finish', async () => {
+          try {
+            const responseTime = Date.now() - startTime;
+            const userId = (req.session as any)?.userId || null;
+            const sessionId = req.sessionID || null;
+            
+            // Only log API endpoints to reduce noise
+            if (req.path.startsWith('/api/')) {
+              await this.logAction(
+                req.method.toLowerCase(),
+                req.path,
+                {
+                  userId,
+                  sessionId,
+                  ipAddress: req.ip || req.connection.remoteAddress || 'unknown',
+                  userAgent: req.get('User-Agent') || null,
+                  method: req.method,
+                  endpoint: req.path,
+                  requestParams: req.query,
+                  statusCode: res.statusCode,
+                  responseTime,
+                  environment: process.env.NODE_ENV || 'development'
+                },
+                {
+                  riskLevel: this.assessRiskLevel(req, res),
+                  dataClassification: this.classifyData(req.path),
+                  notes: `${req.method} ${req.path} - ${res.statusCode}`
+                }
+              );
+            }
+          } catch (error) {
+            // Silent error - don't block the response
+            console.log('Audit logging error:', error.message);
+          }
+        });
+      } catch (error) {
+        // Don't block the request if audit logging fails
+        console.log('Audit middleware error:', error.message);
+        next();
+      }
     };
   }
 

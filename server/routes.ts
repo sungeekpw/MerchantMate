@@ -4283,6 +4283,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Public endpoint for email templates (development bypass)
+  app.get("/api/email-templates", async (req, res) => {
+    try {
+      const templates = await storage.getAllEmailTemplates();
+      res.json(templates);
+    } catch (error) {
+      console.error("Error fetching email templates:", error);
+      res.status(500).json({ message: "Failed to fetch email templates" });
+    }
+  });
+
   // Get single email template
   app.get("/api/admin/email-templates/:id", requireRole(['admin', 'super_admin']), async (req, res) => {
     try {
@@ -4462,6 +4473,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Public endpoint for email activity (development bypass)
+  app.get("/api/email-activity", async (req, res) => {
+    try {
+      const limit = req.query.limit ? parseInt(req.query.limit as string) : 100;
+      const filters: any = {};
+      
+      if (req.query.status) filters.status = req.query.status as string;
+      if (req.query.templateId) filters.templateId = parseInt(req.query.templateId as string);
+      if (req.query.recipientEmail) filters.recipientEmail = req.query.recipientEmail as string;
+      
+      const activity = await storage.getEmailActivity(limit, filters);
+      res.json(activity);
+    } catch (error) {
+      console.error("Error fetching email activity:", error);
+      res.status(500).json({ message: "Failed to fetch email activity" });
+    }
+  });
+
   // Get email activity statistics
   app.get("/api/admin/email-stats", requireRole(['admin', 'super_admin']), async (req, res) => {
     try {
@@ -4470,6 +4499,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching email statistics:", error);
       res.status(500).json({ message: "Failed to fetch email statistics" });
+    }
+  });
+
+  // ============================================================================
+  // SECURITY & COMPLIANCE API ENDPOINTS 
+  // ============================================================================
+
+  // Get audit logs
+  app.get("/api/audit-logs", async (req, res) => {
+    try {
+      const limit = req.query.limit ? parseInt(req.query.limit as string) : 100;
+      const auditLogs = await storage.getAuditLogs(limit);
+      res.json(auditLogs);
+    } catch (error) {
+      console.error("Error fetching audit logs:", error);
+      res.status(500).json({ message: "Failed to fetch audit logs" });
+    }
+  });
+
+  // Get security events
+  app.get("/api/security/events", async (req, res) => {
+    try {
+      const limit = req.query.limit ? parseInt(req.query.limit as string) : 100;
+      const events = await storage.getSecurityEvents(limit);
+      res.json(events);
+    } catch (error) {
+      console.error("Error fetching security events:", error);
+      res.status(500).json({ message: "Failed to fetch security events" });
+    }
+  });
+
+  // Get security metrics
+  app.get("/api/security/metrics", async (req, res) => {
+    try {
+      const metrics = await storage.getSecurityMetrics();
+      res.json(metrics);
+    } catch (error) {
+      console.error("Error fetching security metrics:", error);
+      res.status(500).json({ message: "Failed to fetch security metrics" });
     }
   });
 
