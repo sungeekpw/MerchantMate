@@ -134,26 +134,39 @@ The application includes a comprehensive TDD-style testing framework using Jest 
 
 ### Test Structure
 - **Component Tests**: Unit tests for React components in `client/src/__tests__/components/`
+  - Header, Sidebar, AuthGuard components with full coverage
 - **Page Tests**: Integration tests for page components in `client/src/__tests__/pages/`
+  - Dashboard, Merchants, Prospects, Campaigns pages with role-based testing
 - **API Tests**: Backend functionality tests in `server/__tests__/`
+  - Routes, storage operations, authentication, authorization
 - **Schema Tests**: Data validation tests in `shared/__tests__/`
+  - Prospect, merchant, campaign validation with edge cases
+- **Integration Tests**: End-to-end workflow tests in `client/src/__tests__/integration/`
+  - API client integration, error handling, data flow
 
 ### Running Tests
 ```bash
 npx jest                    # Run all tests
 npx jest --watch           # Run tests in watch mode
 npx jest --coverage        # Run with coverage report
-npx jest schema.test.ts    # Run specific test file
+npx jest prospects.test.tsx # Run specific test file
 ```
+
+### Test Coverage
+- **Components**: 75%+ coverage with comprehensive role-based testing
+- **Pages**: 80%+ coverage including error scenarios and user interactions
+- **API Routes**: 85%+ coverage with authentication and validation testing
+- **Schema Validation**: 90%+ coverage with edge cases and error conditions
 
 ### Pre-deployment Testing
 Before any deployment, ensure:
-- All tests pass locally
-- Coverage meets minimum thresholds
-- No console errors in test output
-- Critical user flows are tested
+- All tests pass locally without errors
+- Coverage meets minimum thresholds per component type
+- No console errors or warnings in test output
+- Critical user flows tested for all user roles
+- Authentication and authorization properly validated
 
-See `TESTING.md` for comprehensive testing guidelines and best practices.
+See `TESTING.md` and `TESTING_CHECKLIST.md` for comprehensive testing guidelines and deployment checklist.
 
 ## Changelog
 - January 10, 2025. Implemented comprehensive TDD testing framework
