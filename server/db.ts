@@ -61,29 +61,28 @@ export function getDynamicDatabase(environment: string = 'production') {
 
 // Extract database environment from request
 export function extractDbEnv(req: any): string | null {
-  // Force production database for deployed applications
+  // Get host info
   const host = req.get ? req.get('host') : req.headers?.host || '';
+  
+  // Force production database for deployed applications
   const isProductionDomain = host.includes('.replit.app') || 
                             host.includes('charrg.com') ||
                             process.env.NODE_ENV === 'production';
   
   if (isProductionDomain) {
-    return 'production';
-  }
-  
-  // In production, always use production database - ignore all environment switching
-  if (process.env.NODE_ENV === 'production') {
-    return null; // null = production database
+    return null; // null = production database for production domains
   }
   
   // In development/test environments, allow database switching
-  // Check URL query parameter
-  if (req.query?.db) {
+  // Check URL query parameter first
+  if (req.query?.db && ['test', 'dev', 'development'].includes(req.query.db)) {
+    console.log(`Database environment from query: ${req.query.db}`);
     return req.query.db;
   }
   
   // Check custom header
-  if (req.headers['x-database-env']) {
+  if (req.headers['x-database-env'] && ['test', 'dev', 'development'].includes(req.headers['x-database-env'])) {
+    console.log(`Database environment from header: ${req.headers['x-database-env']}`);
     return req.headers['x-database-env'];
   }
   
@@ -95,6 +94,7 @@ export function extractDbEnv(req: any): string | null {
     return 'development';
   }
   
+  // Default to null (production database)
   return null;
 }
 
