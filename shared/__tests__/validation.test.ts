@@ -1,7 +1,7 @@
 import { describe, it, expect } from '@jest/globals';
 import { z } from 'zod';
 import { 
-  insertProspectSchema, 
+  insertMerchantProspectSchema, 
   insertMerchantSchema, 
   insertCampaignSchema 
 } from '../schema';
@@ -13,13 +13,10 @@ describe('Schema Validation', () => {
         firstName: 'John',
         lastName: 'Doe',
         email: 'john.doe@example.com',
-        phoneNumber: '555-123-4567',
-        businessName: 'Test Business LLC',
-        status: 'pending' as const,
-        validationToken: 'test-token-123'
+        agentId: 1
       };
 
-      const result = insertProspectSchema.safeParse(validProspect);
+      const result = insertMerchantProspectSchema.safeParse(validProspect);
       expect(result.success).toBe(true);
     });
 
@@ -31,11 +28,11 @@ describe('Schema Validation', () => {
         status: 'pending' as const
       };
 
-      const result = insertProspectSchema.safeParse(invalidProspect);
+      const result = insertMerchantProspectSchema.safeParse(invalidProspect);
       expect(result.success).toBe(false);
       
       if (!result.success) {
-        const emailError = result.error.issues.find(issue => 
+        const emailError = result.error.issues.find((issue: any) => 
           issue.path.includes('email')
         );
         expect(emailError).toBeDefined();
@@ -48,11 +45,11 @@ describe('Schema Validation', () => {
         status: 'pending' as const
       };
 
-      const result = insertProspectSchema.safeParse(incompleteProspect);
+      const result = insertMerchantProspectSchema.safeParse(incompleteProspect);
       expect(result.success).toBe(false);
       
       if (!result.success) {
-        const issues = result.error.issues.map(issue => issue.path[0]);
+        const issues = result.error.issues.map((issue: any) => issue.path[0]);
         expect(issues).toContain('firstName');
         expect(issues).toContain('lastName');
       }
@@ -66,7 +63,7 @@ describe('Schema Validation', () => {
         status: 'invalid_status'
       };
 
-      const result = insertProspectSchema.safeParse(invalidStatus);
+      const result = insertMerchantProspectSchema.safeParse(invalidStatus);
       expect(result.success).toBe(false);
     });
   });
@@ -75,17 +72,9 @@ describe('Schema Validation', () => {
     it('validates valid merchant data', () => {
       const validMerchant = {
         businessName: 'Test Restaurant LLC',
-        contactEmail: 'contact@testrestaurant.com',
-        contactPhone: '555-123-4567',
-        businessAddress: '123 Main St',
-        businessCity: 'Test City',
-        businessState: 'CA',
-        businessZip: '12345',
-        federalTaxId: '12-3456789',
         businessType: 'Restaurant',
-        status: 'active' as const,
-        processingFee: 2.9,
-        monthlyVolume: 50000.00
+        email: 'contact@testrestaurant.com',
+        phone: '555-123-4567'
       };
 
       const result = insertMerchantSchema.safeParse(validMerchant);
@@ -95,9 +84,10 @@ describe('Schema Validation', () => {
     it('validates processing fee range', () => {
       const invalidFee = {
         businessName: 'Test Business',
-        contactEmail: 'test@example.com',
-        processingFee: -1.0, // Negative fee should be invalid
-        status: 'active' as const
+        businessType: 'Restaurant',
+        email: 'test@example.com',
+        phone: '555-123-4567',
+        processingFee: -1.0 // Negative fee should be invalid
       };
 
       const result = insertMerchantSchema.safeParse(invalidFee);
@@ -107,9 +97,10 @@ describe('Schema Validation', () => {
     it('validates monthly volume as positive number', () => {
       const invalidVolume = {
         businessName: 'Test Business',
-        contactEmail: 'test@example.com',
-        monthlyVolume: -1000, // Negative volume should be invalid
-        status: 'active' as const
+        businessType: 'Restaurant', 
+        email: 'test@example.com',
+        phone: '555-123-4567',
+        monthlyVolume: -1000 // Negative volume should be invalid
       };
 
       const result = insertMerchantSchema.safeParse(invalidVolume);
@@ -133,8 +124,7 @@ describe('Schema Validation', () => {
     it('validates acquirer enum values', () => {
       const invalidAcquirer = {
         name: 'Test Campaign',
-        acquirer: 'Invalid Bank',
-        status: 'active' as const
+        acquirer: 'Invalid Bank'
       };
 
       const result = insertCampaignSchema.safeParse(invalidAcquirer);
@@ -151,7 +141,7 @@ describe('Schema Validation', () => {
       expect(result.success).toBe(false);
       
       if (!result.success) {
-        const nameError = result.error.issues.find(issue => 
+        const nameError = result.error.issues.find((issue: any) => 
           issue.path.includes('name')
         );
         expect(nameError).toBeDefined();
