@@ -197,13 +197,6 @@ export default function TestingUtilities() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">Testing Utilities</h1>
-        <p className="text-muted-foreground mt-2">
-          Development tools for resetting test data, test execution dashboard, and database management.
-        </p>
-      </div>
-
       {/* Main Tabs for Testing Features */}
       <Tabs defaultValue="dashboard" className="space-y-4">
         <TabsList className="grid w-full grid-cols-2">
