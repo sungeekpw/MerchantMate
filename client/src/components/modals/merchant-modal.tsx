@@ -77,13 +77,22 @@ export function MerchantModal({ isOpen, onClose, merchant }: MerchantModalProps)
 
   const createMutation = useMutation({
     mutationFn: (data: InsertMerchant) => merchantsApi.create(data),
-    onSuccess: () => {
+    onSuccess: (response: any) => {
       queryClient.invalidateQueries({ queryKey: ["/api/merchants"] });
       queryClient.invalidateQueries({ queryKey: ["/api/analytics/dashboard"] });
-      toast({
-        title: "Success",
-        description: "Merchant created successfully",
-      });
+      
+      // Show user account creation details
+      if (response.user) {
+        toast({
+          title: "Merchant and User Account Created",
+          description: `Merchant created successfully. Login: ${response.user.username} Password: ${response.user.temporaryPassword}`,
+        });
+      } else {
+        toast({
+          title: "Success",
+          description: "Merchant created successfully",
+        });
+      }
       onClose();
     },
     onError: (error: any) => {

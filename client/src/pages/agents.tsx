@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Search, Edit, Trash2, ChevronDown, ChevronRight, Building2, Mail, Phone, MapPin } from "lucide-react";
+import { Plus, Search, Edit, Trash2, ChevronDown, ChevronRight, Building2, Mail, Phone, MapPin, Key, User } from "lucide-react";
 import { agentsApi } from "@/lib/api";
 import { AgentModal } from "@/components/modals/agent-modal";
 import type { Agent, Merchant } from "@shared/schema";
@@ -73,6 +73,37 @@ export default function Agents() {
   const handleDelete = (agent: Agent) => {
     if (window.confirm(`Are you sure you want to delete ${agent.firstName} ${agent.lastName}?`)) {
       deleteMutation.mutate(agent.id);
+    }
+  };
+
+  // User account management mutations
+  const resetPasswordMutation = useMutation({
+    mutationFn: async (agentId: number) => {
+      const response = await fetch(`/api/agents/${agentId}/reset-password`, {
+        method: 'POST',
+        credentials: 'include',
+      });
+      if (!response.ok) throw new Error('Failed to reset password');
+      return response.json();
+    },
+    onSuccess: (data) => {
+      toast({
+        title: "Password Reset Successfully",
+        description: `New password for ${data.username}: ${data.temporaryPassword}`,
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to reset password",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleResetPassword = (agent: Agent) => {
+    if (window.confirm(`Reset password for ${agent.firstName} ${agent.lastName}?`)) {
+      resetPasswordMutation.mutate(agent.id);
     }
   };
 
@@ -205,9 +236,11 @@ export default function Agents() {
                       onToggleExpand={() => toggleRowExpansion(agent.id)}
                       onEdit={() => handleEdit(agent)}
                       onDelete={() => handleDelete(agent)}
+                      onResetPassword={() => handleResetPassword(agent)}
                       getStatusBadge={getStatusBadge}
                       useAgentMerchants={useAgentMerchants}
                       isDeleting={deleteMutation.isPending}
+                      isResettingPassword={resetPasswordMutation.isPending}
                     />
                   ))
                 )}
@@ -242,9 +275,11 @@ interface AgentRowWithMerchantsProps {
   onToggleExpand: () => void;
   onEdit: () => void;
   onDelete: () => void;
+  onResetPassword: () => void;
   getStatusBadge: (status: string) => string;
   useAgentMerchants: (agentId: number, enabled: boolean) => any;
   isDeleting: boolean;
+  isResettingPassword: boolean;
 }
 
 function AgentRowWithMerchants({
@@ -253,9 +288,11 @@ function AgentRowWithMerchants({
   onToggleExpand,
   onEdit,
   onDelete,
+  onResetPassword,
   getStatusBadge,
   useAgentMerchants,
-  isDeleting
+  isDeleting,
+  isResettingPassword
 }: AgentRowWithMerchantsProps) {
   const { data: merchants = [], isLoading: merchantsLoading } = useAgentMerchants(agent.id, isExpanded);
 
@@ -303,14 +340,25 @@ function AgentRowWithMerchants({
               variant="ghost"
               size="sm"
               onClick={onEdit}
+              title="Edit agent"
             >
               <Edit className="w-4 h-4" />
             </Button>
             <Button
               variant="ghost"
               size="sm"
+              onClick={onResetPassword}
+              disabled={isResettingPassword}
+              title="Reset user account password"
+            >
+              <Key className="w-4 h-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={onDelete}
               disabled={isDeleting}
+              title="Delete agent"
             >
               <Trash2 className="w-4 h-4" />
             </Button>
