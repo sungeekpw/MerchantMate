@@ -148,7 +148,25 @@ export default function Users() {
   // Register mutation
   const registerMutation = useMutation({
     mutationFn: async (data: RegisterForm) => {
-      const response = await apiRequest("POST", "/api/auth/register", data);
+      // Include database environment in the URL if not default
+      const url = currentDbEnv !== 'default' 
+        ? `/api/auth/register?db=${currentDbEnv}`
+        : "/api/auth/register";
+        
+      const response = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+        body: JSON.stringify(data),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ message: response.statusText }));
+        throw new Error(errorData.message || "Registration failed");
+      }
+      
       return response.json();
     },
     onSuccess: (data) => {
@@ -159,7 +177,7 @@ export default function Users() {
         });
         setIsRegisterOpen(false);
         registerForm.reset();
-        queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+        queryClient.invalidateQueries({ queryKey: ["/api/users", currentDbEnv] });
       } else {
         toast({
           title: "Registration Failed",
@@ -186,7 +204,7 @@ export default function Users() {
       await apiRequest("PATCH", `/api/users/${userId}/role`, { role });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/users", currentDbEnv] });
       toast({
         title: "Role Updated",
         description: "User role has been updated successfully.",
@@ -206,7 +224,7 @@ export default function Users() {
       await apiRequest("PATCH", `/api/users/${userId}/status`, { status });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/users", currentDbEnv] });
       toast({
         title: "Status Updated",
         description: "User status has been updated successfully.",
