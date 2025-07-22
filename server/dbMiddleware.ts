@@ -26,11 +26,21 @@ export const dbEnvironmentMiddleware = (req: RequestWithDB, res: Response, next:
     return;
   }
   
-  // Force production database for all requests to show seeded data
-  req.dbEnv = 'production';
-  req.dynamicDB = getDynamicDatabase('production');
-  res.setHeader('X-Database-Environment', 'production');
-  console.log('Forcing production database for all requests');
+  // Extract database environment from URL parameters, headers, or subdomain
+  const dbEnv = extractDbEnv(req);
+  
+  if (dbEnv && ['test', 'development', 'dev'].includes(dbEnv)) {
+    req.dbEnv = dbEnv;
+    req.dynamicDB = getDynamicDatabase(dbEnv);
+    res.setHeader('X-Database-Environment', dbEnv);
+    console.log(`Database switching: using ${dbEnv} database`);
+  } else {
+    // Use default production database
+    req.dbEnv = 'production';
+    req.dynamicDB = getDynamicDatabase('production');
+    res.setHeader('X-Database-Environment', 'production');
+    console.log('Using default production database');
+  }
   
   next();
 };
@@ -43,13 +53,36 @@ export const getRequestDB = (req: RequestWithDB) => {
 };
 
 /**
- * Middleware specifically for admin routes that allows database switching
+ * Middleware specifically for admin routes that allows database switching for super_admin users
  */
 export const adminDbMiddleware = (req: RequestWithDB, res: Response, next: NextFunction) => {
-  // Force production database for all admin routes
-  req.dbEnv = 'production';
-  req.dynamicDB = getDynamicDatabase('production');
-  res.setHeader('X-Database-Environment', 'production');
-  console.log('Admin middleware: forcing production database');
-  next();
+  // Check if we're in a production deployment environment
+  const isProductionDomain = req.get('host')?.includes('.replit.app') || 
+                            req.get('host')?.includes('charrg.com') ||
+                            process.env.NODE_ENV === 'production';
+  
+  if (isProductionDomain) {
+    // Force production database for production deployments
+    req.dbEnv = 'production';
+    req.dynamicDB = getDynamicDatabase('production');
+    res.setHeader('X-Database-Environment', 'production');
+    console.log('Admin middleware: production deployment - forcing production database');
+    next();
+    return;
+  }
+  
+  // In development, allow database switching for super_admin users
+  const currentUser = (req as any).currentUser;
+  
+  if (currentUser?.role === 'super_admin') {
+    // Allow database switching for super_admin users
+    dbEnvironmentMiddleware(req, res, next);
+  } else {
+    // Regular users always use production database
+    req.dbEnv = 'production';
+    req.dynamicDB = getDynamicDatabase('production');
+    res.setHeader('X-Database-Environment', 'production');
+    console.log('Admin middleware: non-super_admin user - using production database');
+    next();
+  }
 };
