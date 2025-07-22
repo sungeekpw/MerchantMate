@@ -112,6 +112,9 @@ export function Header({ title, onSearch }: HeaderProps) {
   );
 
   const getDatabaseBadge = () => {
+    // Never show database environment indicator in production builds
+    if (import.meta.env.PROD) return null;
+    
     if (!dbEnvironment || dbEnvironment.environment === 'production') return null;
     
     const isDevEnvironment = dbEnvironment.environment === 'development' || dbEnvironment.environment === 'dev';

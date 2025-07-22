@@ -61,6 +61,12 @@ export function getDynamicDatabase(environment: string = 'production') {
 
 // Extract database environment from request
 export function extractDbEnv(req: any): string | null {
+  // In production, always use production database - ignore all environment switching
+  if (process.env.NODE_ENV === 'production') {
+    return null; // null = production database
+  }
+  
+  // In development/test environments, allow database switching
   // Check URL query parameter
   if (req.query?.db) {
     return req.query.db;

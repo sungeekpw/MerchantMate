@@ -89,16 +89,18 @@ drizzle-kit studio
 
 ### Environment-Specific Database Access
 
-The application supports multiple database environments through URL parameters:
+The application supports multiple database environments for development and testing:
 
-- **Production**: Default (no parameters)
-- **Test**: Add `?db=test` to any URL
-- **Development**: Add `?db=dev` to any URL
+- **Production**: Always uses production database (DATABASE_URL) - environment switching disabled
+- **Development**: Supports switching via `?db=test` or `?db=dev` URL parameters
+- **Test**: Available in development builds only
+
+**Security Feature**: In production deployments (`NODE_ENV=production`), database environment switching is completely disabled for security. All requests use the production database regardless of URL parameters.
 
 The database environment indicator in the header shows which database is currently active:
-- 🔵 DEV DB (Development)
-- 🟠 TEST DB (Test)  
-- Hidden in Production
+- 🔵 DEV DB (Development builds only)
+- 🟠 TEST DB (Development builds only)  
+- Hidden in Production (for security)
 
 ### Troubleshooting
 
@@ -130,10 +132,12 @@ The database environment indicator in the header shows which database is current
 
 ### Security Considerations
 
+- **Database Security**: Production deployments always use production database - environment switching disabled
 - Database URLs should include SSL configuration for production
 - Session secrets should be at least 32 characters long
 - Email service credentials should be properly configured
 - Environment variables should never be committed to version control
+- **Testing Features**: Database environment switching and testing utilities are hidden in production builds
 
 ### Replit Deployment
 

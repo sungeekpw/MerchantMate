@@ -11,6 +11,14 @@ export interface RequestWithDB extends Request {
  * Middleware to extract database environment from URL and attach dynamic database connection
  */
 export const dbEnvironmentMiddleware = (req: RequestWithDB, res: Response, next: NextFunction) => {
+  // In production, always use production database - no environment switching allowed
+  if (process.env.NODE_ENV === 'production') {
+    req.dynamicDB = getDynamicDatabase(); // Default to production
+    next();
+    return;
+  }
+  
+  // In development/test environments, allow database switching
   // Extract database environment from URL parameters, headers, or subdomain
   const dbEnv = extractDbEnv(req);
   
