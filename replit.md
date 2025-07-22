@@ -169,6 +169,14 @@ Before any deployment, ensure:
 See `TESTING.md` and `TESTING_CHECKLIST.md` for comprehensive testing guidelines and deployment checklist.
 
 ## Changelog
+- January 22, 2025. Completed database environment indicator system with instant event-based updates
+  - Added dynamic database environment badge to application header showing current database in use
+  - Implemented colored indicators: blue "DEV DB" for development, orange "TEST DB" for test, hidden in production
+  - Added "Non-Production" warning with alert icon for development and test environments
+  - Created instant event-based communication between Testing Utilities and header component
+  - Fixed timing issues with custom events for immediate database environment switching feedback
+  - Database environment indicator now updates instantly when changing environments via Testing Utilities dropdown
+  - Enhanced security awareness by clearly showing which database environment is active at all times
 - January 11, 2025. Completed comprehensive Visual Testing Dashboard with enhanced user experience and clean output
   - Enhanced Testing Dashboard with proper green checkmarks (✅) for passed tests and red X (❌) only for actual failures
   - Fixed EventSource connection handling with improved error recovery and status monitoring
