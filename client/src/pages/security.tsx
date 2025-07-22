@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Shield, AlertTriangle, Clock, MapPin, Monitor, User, Search, Filter, Download, Eye, AlertCircle, Activity } from "lucide-react";
+import { Shield, AlertTriangle, Clock, MapPin, Monitor, User, Search, Filter, Download, Eye, AlertCircle, Activity, RefreshCw } from "lucide-react";
 import { formatDistanceToNow, format } from "date-fns";
 import { formatDateInUserTimezone } from "@/lib/timezone";
 import { useAuth } from "@/hooks/useAuth";
@@ -95,22 +95,24 @@ export default function Security() {
   const [refreshKey, setRefreshKey] = useState(Date.now());
 
   const { data: loginAttempts = [], isLoading: attemptsLoading } = useQuery<LoginAttempt[]>({
-    queryKey: ["/api/security/login-attempts", Date.now()],
+    queryKey: ["/api/security/login-attempts", refreshKey],
     queryFn: async () => {
-      const response = await fetch(`/api/security/login-attempts?t=${Date.now()}`, {
+      const response = await fetch(`/api/security/login-attempts`, {
         credentials: "include",
       });
       if (!response.ok) throw new Error("Failed to fetch login attempts");
       return response.json();
     },
-    staleTime: 0,
-    gcTime: 0,
+    staleTime: 30000,
+    gcTime: 300000,
+    refetchInterval: false,
+    refetchOnWindowFocus: false,
   });
 
   const { data: metrics, isLoading: metricsLoading } = useQuery<SecurityMetrics>({
     queryKey: ["/api/security/metrics", refreshKey],
     queryFn: async () => {
-      const response = await fetch(`/api/security/metrics?t=${Date.now()}`, {
+      const response = await fetch(`/api/security/metrics`, {
         credentials: "include",
       });
       if (!response.ok) throw new Error("Failed to fetch security metrics");
@@ -118,8 +120,10 @@ export default function Security() {
       console.log('Security metrics loaded:', data);
       return data;
     },
-    staleTime: 0,
-    gcTime: 0,
+    staleTime: 30000,
+    gcTime: 300000,
+    refetchInterval: false,
+    refetchOnWindowFocus: false,
   });
 
   // Enhanced audit logs query with search functionality
@@ -139,13 +143,15 @@ export default function Security() {
       if (!response.ok) throw new Error("Failed to fetch audit logs");
       return response.json();
     },
-    staleTime: 0,
-    gcTime: 0,
+    staleTime: 30000,
+    gcTime: 300000,
+    refetchInterval: false,
+    refetchOnWindowFocus: false,
   });
 
   // Security events query
   const { data: securityEvents = [], isLoading: eventsLoading } = useQuery<SecurityEvent[]>({
-    queryKey: ["/api/security/events"],
+    queryKey: ["/api/security/events", refreshKey],
     queryFn: async () => {
       const response = await fetch("/api/security/events", {
         credentials: "include",
@@ -153,13 +159,15 @@ export default function Security() {
       if (!response.ok) throw new Error("Failed to fetch security events");
       return response.json();
     },
-    staleTime: 0,
-    gcTime: 0,
+    staleTime: 30000,
+    gcTime: 300000,
+    refetchInterval: false,
+    refetchOnWindowFocus: false,
   });
 
   // Enhanced metrics for audit dashboard
   const { data: auditMetrics, isLoading: auditMetricsLoading } = useQuery({
-    queryKey: ["/api/security/audit-metrics"],
+    queryKey: ["/api/security/audit-metrics", refreshKey],
     queryFn: async () => {
       const response = await fetch("/api/security/audit-metrics", {
         credentials: "include",
@@ -167,8 +175,10 @@ export default function Security() {
       if (!response.ok) throw new Error("Failed to fetch audit metrics");
       return response.json();
     },
-    staleTime: 0,
-    gcTime: 0,
+    staleTime: 30000,
+    gcTime: 300000,
+    refetchInterval: false,
+    refetchOnWindowFocus: false,
   });
 
   const formatDateTime = (dateString: string) => {
@@ -250,8 +260,20 @@ export default function Security() {
     return <Badge className={variants[severity] || variants.info}>{severity.toUpperCase()}</Badge>;
   };
 
+  const handleRefresh = () => {
+    setRefreshKey(Date.now());
+  };
+
   return (
     <div className="p-6 space-y-6">
+      {/* Refresh Button */}
+      <div className="flex justify-end">
+        <Button onClick={handleRefresh} variant="outline">
+          <RefreshCw className="h-4 w-4 mr-2" />
+          Refresh Data
+        </Button>
+      </div>
+
       {/* Enhanced Security Metrics with Audit Overview */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
           <Card>

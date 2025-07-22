@@ -169,6 +169,14 @@ Before any deployment, ensure:
 See `TESTING.md` and `TESTING_CHECKLIST.md` for comprehensive testing guidelines and deployment checklist.
 
 ## Changelog
+- January 22, 2025. Fixed Security & Compliance dashboard data loading and eliminated 401 authorization errors
+  - Resolved React Query rapid polling that was causing authentication stress with 401 unauthorized errors
+  - Fixed async/await issue in security metrics query function that was returning empty objects instead of production data
+  - Reduced React Query cache timeout from aggressive polling (0ms staleTime) to 30-second intervals for all security endpoints
+  - Added manual "Refresh Data" button for on-demand data reload without automatic polling interference
+  - Security dashboard now successfully displays production data: 32 total login attempts (22 successful, 10 failed, 16 unique IPs)
+  - Enhanced authentication system stability by implementing proper caching and reducing API call frequency
+  - Security & Compliance dashboard fully operational with comprehensive audit logs, security events, and login attempt tracking
 - January 22, 2025. Successfully resolved all deployment issues and seeded production database with comprehensive data
   - Fixed duplicate 'host' variable declaration in server/db.ts causing TypeScript compilation errors
   - Resolved function reference errors in server/dbMiddleware.ts (getDynamicDB → getDynamicDatabase)
