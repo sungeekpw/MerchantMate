@@ -71,7 +71,9 @@ export default function Users() {
 
     // Listen for database environment changes from Testing Utilities
     const handleDbEnvChange = (event: CustomEvent) => {
+      console.log('👂 Users page received dbEnvironmentChanged event:', event.detail);
       setCurrentDbEnv(event.detail.environment || 'default');
+      console.log('🔄 Users page updated currentDbEnv to:', event.detail.environment || 'default');
     };
 
     window.addEventListener('dbEnvironmentChanged', handleDbEnvChange as EventListener);
