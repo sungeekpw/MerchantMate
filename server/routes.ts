@@ -1592,8 +1592,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Database environment status (Super Admin only)
   app.get("/api/admin/db-environment", requireRole(['super_admin']), adminDbMiddleware, (req: RequestWithDB, res) => {
-    const dbEnv = req.dbEnv || 'default';
+    const dbEnv = req.dbEnv || 'production';
     const isUsingCustomDB = !!req.dbEnv;
+    
+    console.log('DB Environment API - req.dbEnv:', req.dbEnv, 'query:', req.query);
     
     res.json({
       success: true,
