@@ -2,9 +2,9 @@ import { Search, Bell, Clock, MapPin, Database, AlertTriangle } from "lucide-rea
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { formatDateInUserTimezone, getTimezoneAbbreviation } from "@/lib/timezone";
 
 interface HeaderProps {
@@ -14,13 +14,57 @@ interface HeaderProps {
 
 export function Header({ title, onSearch }: HeaderProps) {
   const [searchQuery, setSearchQuery] = useState("");
+  const [currentDbParam, setCurrentDbParam] = useState<string | null>(null);
   const { user } = useAuth();
+  const queryClient = useQueryClient();
+  
+  // Watch for URL changes and update db parameter
+  useEffect(() => {
+    const updateDbParam = () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const dbParam = urlParams.get('db');
+      setCurrentDbParam(dbParam);
+      
+      // Invalidate the database environment query to force refetch
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/db-environment'] });
+    };
+    
+    // Initial check
+    updateDbParam();
+    
+    // Listen for URL changes
+    window.addEventListener('popstate', updateDbParam);
+    
+    // Listen for pushState/replaceState changes
+    const originalPushState = history.pushState;
+    const originalReplaceState = history.replaceState;
+    
+    history.pushState = function(...args) {
+      originalPushState.apply(history, args);
+      setTimeout(updateDbParam, 0);
+    };
+    
+    history.replaceState = function(...args) {
+      originalReplaceState.apply(history, args);
+      setTimeout(updateDbParam, 0);
+    };
+    
+    return () => {
+      window.removeEventListener('popstate', updateDbParam);
+      history.pushState = originalPushState;
+      history.replaceState = originalReplaceState;
+    };
+  }, [queryClient]);
   
   // Fetch current database environment
   const { data: dbEnvironment } = useQuery({
     queryKey: ['/api/admin/db-environment'],
     queryFn: async () => {
-      const response = await fetch('/api/admin/db-environment', {
+      const url = currentDbParam 
+        ? `/api/admin/db-environment?db=${currentDbParam}`
+        : '/api/admin/db-environment';
+        
+      const response = await fetch(url, {
         credentials: 'include'
       });
       if (!response.ok) return { environment: 'production', version: '1.0' };
