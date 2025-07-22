@@ -128,7 +128,42 @@ The application is configured for deployment on Replit with:
 - `SENDGRID_FROM_EMAIL`: Default sender email
 - `SESSION_SECRET`: Session encryption key (optional, has fallback)
 
+## Testing Framework
+
+The application includes a comprehensive TDD-style testing framework using Jest and React Testing Library:
+
+### Test Structure
+- **Component Tests**: Unit tests for React components in `client/src/__tests__/components/`
+- **Page Tests**: Integration tests for page components in `client/src/__tests__/pages/`
+- **API Tests**: Backend functionality tests in `server/__tests__/`
+- **Schema Tests**: Data validation tests in `shared/__tests__/`
+
+### Running Tests
+```bash
+npx jest                    # Run all tests
+npx jest --watch           # Run tests in watch mode
+npx jest --coverage        # Run with coverage report
+npx jest schema.test.ts    # Run specific test file
+```
+
+### Pre-deployment Testing
+Before any deployment, ensure:
+- All tests pass locally
+- Coverage meets minimum thresholds
+- No console errors in test output
+- Critical user flows are tested
+
+See `TESTING.md` for comprehensive testing guidelines and best practices.
+
 ## Changelog
+- January 10, 2025. Implemented comprehensive TDD testing framework
+  - Added Jest and React Testing Library with proper configuration for ES modules
+  - Created comprehensive test structure covering components, pages, API, and schema validation
+  - Built custom test utilities with mock data and authentication context
+  - Added example tests for critical components including hierarchical prospects view
+  - Created detailed testing documentation and workflow guidelines
+  - Set up pre-deployment testing checklist and coverage requirements
+  - Testing framework ready for TDD development with proper mocking and test isolation
 - January 10, 2025. Implemented hierarchical agent-based prospect view for admin users
   - Completely redesigned Merchant Prospects page with expandable agent sections showing prospect summaries
   - Added agent cards displaying total prospect counts and status breakdowns with colored badges
