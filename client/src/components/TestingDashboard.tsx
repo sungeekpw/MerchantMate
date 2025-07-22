@@ -373,7 +373,7 @@ export default function TestingDashboard() {
           <CardContent>
             <div className="text-2xl font-bold">
               {testResults?.results ? (
-                <span className={testResults.success ? 'text-green-600' : 'text-red-600'}>
+                <span className={testResults.results.numFailedTests === 0 ? 'text-green-600' : 'text-red-600'}>
                   {testResults.results.numPassedTests}/{testResults.results.numTotalTests}
                 </span>
               ) : '0/0'}
