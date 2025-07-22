@@ -24,6 +24,7 @@ export interface IStorage {
   deleteAgent(id: number): Promise<boolean>;
   searchAgents(query: string): Promise<Agent[]>;
   getAgentUser(agentId: number): Promise<User | undefined>;
+  getAgentMerchants(agentId: number): Promise<MerchantWithAgent[]>;
 
   // Merchant Prospect operations
   getMerchantProspect(id: number): Promise<MerchantProspect | undefined>;
@@ -1591,36 +1592,16 @@ export class DatabaseStorage implements IStorage {
     return this.getUser(agent.userId);
   }
 
-  async createAgentWithUser(agentData: Omit<InsertAgent, 'userId'>): Promise<{ agent: Agent; user: User; temporaryPassword: string }> {
-    const bcrypt = require('bcrypt');
-    
-    // Generate temporary password and username
-    const temporaryPassword = Math.random().toString(36).slice(-12);
-    const username = agentData.email.split('@')[0] + '_agent';
-    
-    // Create user account
-    const passwordHash = await bcrypt.hash(temporaryPassword, 10);
-    const user = await this.createUser({
-      username,
-      email: agentData.email,
-      passwordHash,
-      role: 'agent',
-      status: 'active'
-    });
 
-    // Create agent with userId reference
-    const agent = await this.createAgent({
-      ...agentData,
-      userId: user.id
-    });
-
-    return { agent, user, temporaryPassword };
-  }
 
   async getMerchantUser(merchantId: number): Promise<User | undefined> {
     const merchant = await this.getMerchant(merchantId);
     if (!merchant?.userId) return undefined;
     return this.getUser(merchant.userId);
+  }
+
+  async getAgentMerchants(agentId: number): Promise<MerchantWithAgent[]> {
+    return this.getMerchantsByAgent(agentId);
   }
 }
 
