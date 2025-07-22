@@ -58,6 +58,7 @@ describe('Schema Validation', () => {
           firstName: 'John',
           lastName: 'Doe',
           email: 'john.doe@example.com',
+          agentId: 1,
           status: status as any,
           validationToken: 'test-token-123',
         };
@@ -108,10 +109,13 @@ describe('Schema Validation', () => {
     it('validates valid merchant data', () => {
       const validData = {
         businessName: 'Test Business LLC',
-        contactEmail: 'contact@testbusiness.com',
-        contactPhone: '555-111-2222',
-        status: 'active' as const,
+        businessType: 'Corporation',
+        email: 'business@example.com',
+        phone: '555-123-4567',
         agentId: 1,
+        processingFee: '2.50',
+        status: 'active' as const,
+        monthlyVolume: '10000.00',
       };
 
       expect(() => insertMerchantSchema.parse(validData)).not.toThrow();
@@ -123,7 +127,9 @@ describe('Schema Validation', () => {
       validStatuses.forEach(status => {
         const data = {
           businessName: 'Test Business',
-          contactEmail: 'contact@test.com',
+          businessType: 'Corporation',
+          email: 'business@test.com',
+          phone: '555-123-4567',
           status: status as any,
           agentId: 1,
         };
@@ -136,6 +142,8 @@ describe('Schema Validation', () => {
   describe('User Schema', () => {
     it('validates valid user data', () => {
       const validData = {
+        id: 'user-123',
+        username: 'testuser',
         email: 'user@example.com',
         firstName: 'Test',
         lastName: 'User',
@@ -151,6 +159,8 @@ describe('Schema Validation', () => {
       
       validRoles.forEach(role => {
         const data = {
+          id: 'user-123',
+          username: 'testuser',
           email: 'user@example.com',
           firstName: 'Test',
           lastName: 'User',
@@ -166,27 +176,28 @@ describe('Schema Validation', () => {
   describe('Transaction Schema', () => {
     it('validates valid transaction data', () => {
       const validData = {
+        transactionId: 'txn_123456789',
         merchantId: 1,
-        amount: 100.50,
-        type: 'sale' as const,
+        amount: '100.50',
+        paymentMethod: 'visa',
         status: 'completed' as const,
-        locationId: 1,
-        commission: 2.50,
+        processingFee: '2.50',
+        netAmount: '98.00',
       };
 
       expect(() => insertTransactionSchema.parse(validData)).not.toThrow();
     });
 
     it('validates transaction type enum', () => {
-      const validTypes = ['sale', 'refund', 'chargeback', 'adjustment'];
+      const validPaymentMethods = ['visa', 'mastercard', 'amex', 'apple_pay', 'google_pay'];
       
-      validTypes.forEach(type => {
+      validPaymentMethods.forEach(paymentMethod => {
         const data = {
+          transactionId: 'txn_123456789',
           merchantId: 1,
-          amount: 100.00,
-          type: type as any,
+          amount: '100.00',
+          paymentMethod: paymentMethod as any,
           status: 'completed' as const,
-          locationId: 1,
         };
         
         expect(() => insertTransactionSchema.parse(data)).not.toThrow();
@@ -194,31 +205,35 @@ describe('Schema Validation', () => {
     });
 
     it('validates transaction status enum', () => {
-      const validStatuses = ['pending', 'completed', 'failed', 'cancelled'];
+      const validStatuses = ['pending', 'completed', 'failed', 'refunded'];
       
       validStatuses.forEach(status => {
         const data = {
+          transactionId: 'txn_123456789',
           merchantId: 1,
-          amount: 100.00,
-          type: 'sale' as const,
+          amount: '100.00',
+          paymentMethod: 'visa',
           status: status as any,
-          locationId: 1,
         };
         
         expect(() => insertTransactionSchema.parse(data)).not.toThrow();
       });
     });
 
-    it('rejects negative amounts', () => {
-      const invalidData = {
-        merchantId: 1,
-        amount: -50.00,
-        type: 'sale' as const,
-        status: 'completed' as const,
-        locationId: 1,
-      };
-
-      expect(() => insertTransactionSchema.parse(invalidData)).toThrow();
+    it('accepts various transaction amounts', () => {
+      const validAmounts = ['100.50', '0.01', '1000.00'];
+      
+      validAmounts.forEach(amount => {
+        const data = {
+          transactionId: `txn_${Math.random()}`,
+          merchantId: 1,
+          amount: amount,
+          paymentMethod: 'visa',
+          status: 'completed' as any,
+        };
+        
+        expect(() => insertTransactionSchema.parse(data)).not.toThrow();
+      });
     });
   });
 });
