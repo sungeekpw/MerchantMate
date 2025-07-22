@@ -22,7 +22,16 @@ export function Header({ title, onSearch }: HeaderProps) {
   useEffect(() => {
     const updateDbParam = () => {
       const urlParams = new URLSearchParams(window.location.search);
-      const dbParam = urlParams.get('db');
+      let dbParam = urlParams.get('db');
+      
+      // If no URL parameter, check localStorage for persistent environment
+      if (!dbParam) {
+        const storedEnv = localStorage.getItem('selectedDbEnvironment');
+        if (storedEnv && ['test', 'dev'].includes(storedEnv)) {
+          dbParam = storedEnv;
+        }
+      }
+      
       if (dbParam !== currentDbParam) {
         setCurrentDbParam(dbParam);
         // Invalidate the database environment query to force refetch
