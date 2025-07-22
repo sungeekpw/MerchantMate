@@ -18,13 +18,28 @@ declare module "express-session" {
 }
 
 export function setupAuthRoutes(app: Express) {
-  // Authentication middleware
-  const requireAuth = async (req: any, res: any, next: any) => {
+  // Authentication middleware with database environment support
+  const requireAuth = async (req: RequestWithDB, res: any, next: any) => {
     if (!req.session?.userId) {
       return res.status(401).json({ message: "Authentication required" });
     }
     
-    const user = await storage.getUser(req.session.userId);
+    // Use dynamic database if available, otherwise fallback to default storage
+    let user;
+    if (req.dynamicDB) {
+      const schema = await import('@shared/schema');
+      const { eq } = await import('drizzle-orm');
+      
+      const users = await req.dynamicDB
+        .select()
+        .from(schema.users)
+        .where(eq(schema.users.id, req.session.userId));
+      
+      user = users[0];
+    } else {
+      user = await storage.getUser(req.session.userId);
+    }
+    
     if (!user || user.status !== 'active') {
       req.session.destroy(() => {});
       return res.status(401).json({ message: "Account not found or inactive" });
@@ -66,11 +81,13 @@ export function setupAuthRoutes(app: Express) {
     }
   });
 
-  // User login
-  app.post('/api/auth/login', async (req: any, res) => {
+  // User login with database environment support
+  app.post('/api/auth/login', dbEnvironmentMiddleware, async (req: RequestWithDB, res) => {
     try {
       const validatedData = loginUserSchema.parse(req.body);
-      const result = await authService.login(validatedData, req);
+      // Use dynamic database for login authentication
+      const dynamicDB = getRequestDB(req);
+      const result = await authService.loginWithDB(validatedData, req, dynamicDB);
       
       if (result.success && result.user) {
         // Store user session data

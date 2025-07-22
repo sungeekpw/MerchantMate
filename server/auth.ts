@@ -386,6 +386,100 @@ export class AuthService {
     }
   }
 
+  // Login with dynamic database support
+  async loginWithDB(loginData: LoginUser, req: Request, db: any): Promise<{ 
+    success: boolean; 
+    message: string; 
+    user?: User; 
+    requires2FA?: boolean;
+    sessionId?: string;
+  }> {
+    const ip = this.getClientIP(req);
+    const userAgent = req.headers["user-agent"] || "";
+
+    try {
+      // Import schema and drizzle functions
+      const schema = await import('@shared/schema');
+      const { eq, or } = await import('drizzle-orm');
+
+      // Check login attempts (still use storage for cross-database tracking)
+      if (!(await this.checkLoginAttempts(loginData.usernameOrEmail, ip))) {
+        await this.logLoginAttempt(loginData.usernameOrEmail, ip, userAgent, false, "too_many_attempts");
+        return {
+          success: false,
+          message: "Too many failed login attempts. Please try again in 15 minutes."
+        };
+      }
+
+      // Get user from the specific database
+      const users = await db
+        .select()
+        .from(schema.users)
+        .where(
+          or(
+            eq(schema.users.username, loginData.usernameOrEmail),
+            eq(schema.users.email, loginData.usernameOrEmail)
+          )
+        );
+
+      const user = users[0];
+      if (!user) {
+        await this.logLoginAttempt(loginData.usernameOrEmail, ip, userAgent, false, "user_not_found");
+        return {
+          success: false,
+          message: "Invalid username/email or password"
+        };
+      }
+
+      // Check if account is active
+      if (user.status !== "active") {
+        await this.logLoginAttempt(loginData.usernameOrEmail, ip, userAgent, false, "account_inactive");
+        return {
+          success: false,
+          message: "Account is suspended. Please contact support."
+        };
+      }
+
+      // Verify password
+      if (!(await this.verifyPassword(loginData.password, user.passwordHash))) {
+        await this.logLoginAttempt(loginData.usernameOrEmail, ip, userAgent, false, "invalid_password");
+        return {
+          success: false,
+          message: "Invalid username/email or password"
+        };
+      }
+
+      // Update user login info in the specific database
+      const updateData = {
+        lastLoginAt: new Date(),
+        lastLoginIp: ip,
+        ...(loginData.timezone && { timezone: loginData.timezone }),
+      };
+      
+      await db
+        .update(schema.users)
+        .set(updateData)
+        .where(eq(schema.users.id, user.id));
+
+      // Log successful login
+      await this.logLoginAttempt(loginData.usernameOrEmail, ip, userAgent, true);
+
+      return {
+        success: true,
+        message: "Login successful",
+        user,
+        sessionId: uuidv4()
+      };
+    } catch (error) {
+      console.error("Login error:", error);
+      await this.logLoginAttempt(loginData.usernameOrEmail, ip, userAgent, false, "system_error");
+      return {
+        success: false,
+        message: "Login failed. Please try again."
+      };
+    }
+  }
+
   // Request password reset
   async requestPasswordReset(data: PasswordResetRequest): Promise<{ success: boolean; message: string }> {
     try {
