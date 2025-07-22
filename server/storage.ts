@@ -60,6 +60,10 @@ export interface IStorage {
   updateUserRole(id: string, role: string): Promise<User | undefined>;
   updateUserStatus(id: string, status: string): Promise<User | undefined>;
   updateUserPermissions(id: string, permissions: Record<string, boolean>): Promise<User | undefined>;
+  deleteUser(id: string): Promise<boolean>;
+  
+  // Role-based data access
+  getMerchantsForUser(userId: string): Promise<MerchantWithAgent[]>;
 
   // Authentication operations
   createLoginAttempt(attempt: {
@@ -833,6 +837,11 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteMerchant(id: number): Promise<boolean> {
+    // Get the merchant to find the associated user ID
+    const merchant = await this.getMerchant(id);
+    if (!merchant) return false;
+
+    // Delete the merchant record (this will also delete the associated user due to cascade)
     const result = await db.delete(merchants).where(eq(merchants.id, id));
     return (result.rowCount || 0) > 0;
   }
@@ -891,6 +900,11 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteAgent(id: number): Promise<boolean> {
+    // Get the agent to find the associated user ID
+    const agent = await this.getAgent(id);
+    if (!agent) return false;
+
+    // Delete the agent record (this will also delete the associated user due to cascade)
     const result = await db.delete(agents).where(eq(agents.id, id));
     return (result.rowCount || 0) > 0;
   }
@@ -1098,6 +1112,55 @@ export class DatabaseStorage implements IStorage {
       .where(eq(users.id, id))
       .returning();
     return user || undefined;
+  }
+
+  async deleteUser(id: string): Promise<boolean> {
+    const result = await db.delete(users).where(eq(users.id, id));
+    return (result.rowCount || 0) > 0;
+  }
+
+  async getMerchantsForUser(userId: string): Promise<MerchantWithAgent[]> {
+    const user = await this.getUser(userId);
+    if (!user) return [];
+
+    // Super admin and admin can see all merchants
+    if (['super_admin', 'admin'].includes(user.role)) {
+      return this.getAllMerchants();
+    }
+
+    // Agent can see their assigned merchants
+    if (user.role === 'agent') {
+      const agent = await db.select().from(agents).where(eq(agents.userId, userId)).limit(1);
+      if (agent[0]) {
+        return this.getMerchantsByAgent(agent[0].id);
+      }
+    }
+
+    // Merchant can see only their own data
+    if (user.role === 'merchant') {
+      const merchant = await db.select().from(merchants).where(eq(merchants.userId, userId)).limit(1);
+      if (merchant[0]) {
+        return [{ ...merchant[0] }];
+      }
+    }
+
+    return [];
+  }
+
+  async getMerchantsByAgent(agentId: number): Promise<MerchantWithAgent[]> {
+    const result = await db
+      .select({
+        merchant: merchants,
+        agent: agents,
+      })
+      .from(merchants)
+      .leftJoin(agents, eq(merchants.agentId, agents.id))
+      .where(eq(merchants.agentId, agentId));
+
+    return result.map(row => ({
+      ...row.merchant,
+      agent: row.agent || undefined,
+    }));
   }
 
   // Authentication operations
@@ -1526,6 +1589,32 @@ export class DatabaseStorage implements IStorage {
     const agent = await this.getAgent(agentId);
     if (!agent?.userId) return undefined;
     return this.getUser(agent.userId);
+  }
+
+  async createAgentWithUser(agentData: Omit<InsertAgent, 'userId'>): Promise<{ agent: Agent; user: User; temporaryPassword: string }> {
+    const bcrypt = require('bcrypt');
+    
+    // Generate temporary password and username
+    const temporaryPassword = Math.random().toString(36).slice(-12);
+    const username = agentData.email.split('@')[0] + '_agent';
+    
+    // Create user account
+    const passwordHash = await bcrypt.hash(temporaryPassword, 10);
+    const user = await this.createUser({
+      username,
+      email: agentData.email,
+      passwordHash,
+      role: 'agent',
+      status: 'active'
+    });
+
+    // Create agent with userId reference
+    const agent = await this.createAgent({
+      ...agentData,
+      userId: user.id
+    });
+
+    return { agent, user, temporaryPassword };
   }
 
   async getMerchantUser(merchantId: number): Promise<User | undefined> {

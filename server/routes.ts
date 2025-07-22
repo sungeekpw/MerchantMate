@@ -754,10 +754,97 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Delete user account
+  app.delete("/api/users/:id", requireRole(['super_admin']), async (req, res) => {
+    try {
+      const { id } = req.params;
+      
+      const success = await storage.deleteUser(id);
+      if (!success) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      res.json({ message: "User account deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting user:", error);
+      res.status(500).json({ message: "Failed to delete user account" });
+    }
+  });
+
+  // Agent password reset
+  app.post("/api/agents/:id/reset-password", requireRole(['admin', 'super_admin']), async (req, res) => {
+    try {
+      const { id } = req.params;
+      const agent = await storage.getAgent(parseInt(id));
+      
+      if (!agent) {
+        return res.status(404).json({ message: "Agent not found" });
+      }
+
+      // Get the user account for this agent
+      const user = await storage.getAgentUser(parseInt(id));
+      if (!user) {
+        return res.status(404).json({ message: "User account not found for agent" });
+      }
+
+      // Generate new temporary password
+      const temporaryPassword = Math.random().toString(36).slice(-12);
+      const bcrypt = require('bcrypt');
+      const passwordHash = await bcrypt.hash(temporaryPassword, 10);
+
+      // Update user password
+      await storage.updateUser(user.id, { passwordHash });
+
+      res.json({
+        username: user.username,
+        temporaryPassword,
+        message: "Password reset successfully"
+      });
+    } catch (error) {
+      console.error("Error resetting agent password:", error);
+      res.status(500).json({ message: "Failed to reset password" });
+    }
+  });
+
+  // Merchant password reset
+  app.post("/api/merchants/:id/reset-password", requireRole(['admin', 'super_admin']), async (req, res) => {
+    try {
+      const { id } = req.params;
+      const merchant = await storage.getMerchant(parseInt(id));
+      
+      if (!merchant) {
+        return res.status(404).json({ message: "Merchant not found" });
+      }
+
+      // Get the user account for this merchant
+      const user = await storage.getMerchantUser(parseInt(id));
+      if (!user) {
+        return res.status(404).json({ message: "User account not found for merchant" });
+      }
+
+      // Generate new temporary password
+      const temporaryPassword = Math.random().toString(36).slice(-12);
+      const bcrypt = require('bcrypt');
+      const passwordHash = await bcrypt.hash(temporaryPassword, 10);
+
+      // Update user password
+      await storage.updateUser(user.id, { passwordHash });
+
+      res.json({
+        username: user.username,
+        temporaryPassword,
+        message: "Password reset successfully"
+      });
+    } catch (error) {
+      console.error("Error resetting merchant password:", error);
+      res.status(500).json({ message: "Failed to reset password" });
+    }
+  });
+
   // Merchant routes with role-based access
   app.get("/api/merchants", isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user?.id || req.user?.claims?.sub;
       const { search } = req.query;
 
       // Use role-based filtering from storage layer
