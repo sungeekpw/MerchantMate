@@ -261,14 +261,14 @@ export default function TestingDashboard() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold flex items-center gap-2">
-            <TestTube className="h-6 w-6" />
-            Testing Dashboard
-          </h2>
-          <p className="text-muted-foreground">
-            Real-time test execution, coverage analysis, and quality monitoring
-          </p>
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          {testResults?.results?.numTotalTests && (
+            <>
+              <span className="text-green-600">All tests passed</span>
+              <span>•</span>
+              <span>Last run: {lastRunTime}</span>
+            </>
+          )}
         </div>
         
         <div className="flex items-center gap-4">
