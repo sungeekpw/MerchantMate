@@ -14,6 +14,7 @@ import { pdfFormParser } from "./pdfParser";
 import { emailService } from "./emailService";
 import { v4 as uuidv4 } from "uuid";
 import { dbEnvironmentMiddleware, adminDbMiddleware, getRequestDB, type RequestWithDB } from "./dbMiddleware";
+import { users } from "@shared/schema";
 
 
 // Helper function to get default widgets for a user role
@@ -635,12 +636,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
 
   // User management routes (admin and super admin only) - Development bypass
-  app.get("/api/users", async (req: any, res) => {
+  app.get("/api/users", dbEnvironmentMiddleware, async (req: RequestWithDB, res) => {
     try {
       console.log('Users endpoint - Fetching all users (development mode)...');
-      const users = await storage.getAllUsers();
+      console.log('Users endpoint - Database environment:', req.dbEnv);
+      
+      // Use dynamic database connection if available, otherwise use default storage
+      const dynamicDB = getRequestDB(req);
+      
+      // Get users from the dynamic database
+      const users = await dynamicDB.select().from((await import('@shared/schema')).users);
       console.log('Users endpoint - Found', users.length, 'users');
-      console.log('Users found:', users.map(u => ({ id: u.id, username: u.username, email: u.email, role: u.role })));
+      console.log('Users found:', users.map((u: any) => ({ id: u.id, username: u.username, email: u.email, role: u.role })));
       res.json(users);
     } catch (error) {
       console.error("Error fetching users:", error);
