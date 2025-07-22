@@ -80,6 +80,9 @@ export default function TestingDashboard() {
   const [testOutput, setTestOutput] = useState<string[]>([]);
   const [selectedTestFile, setSelectedTestFile] = useState<string>('');
   const [runWithCoverage, setRunWithCoverage] = useState(false);
+  const [lastRunStatus, setLastRunStatus] = useState<'idle' | 'running' | 'success' | 'failed'>('idle');
+  const [lastRunTime, setLastRunTime] = useState<string>('');
+  const [resultsHistory, setResultsHistory] = useState<TestResult[]>([]);
   const eventSourceRef = useRef<EventSource | null>(null);
 
   // Fetch test files
@@ -112,6 +115,7 @@ export default function TestingDashboard() {
     if (isRunning) return;
 
     setIsRunning(true);
+    setLastRunStatus('running');
     setTestResults(null);
     setTestOutput([]);
 
@@ -146,14 +150,28 @@ export default function TestingDashboard() {
         const data = JSON.parse(event.data);
         setTestResults(data);
         setIsRunning(false);
+        
+        // Update status based on results
+        setLastRunStatus(data.success ? 'success' : 'failed');
+        setLastRunTime(new Date(data.timestamp).toLocaleString());
+        
+        // Add to results history
+        setResultsHistory(prev => [data, ...prev.slice(0, 9)]); // Keep last 10 results
+        
         eventSource.close();
         
-        // Update last run status
-        setTestOutput(prev => [...prev, `✅ Test execution completed at ${data.timestamp}`]);
-        setTestOutput(prev => [...prev, `📊 Result: ${data.success ? 'PASSED' : 'FAILED'} (Exit code: ${data.code})`]);
+        // Update last run status in output
+        const statusIcon = data.success ? '✅' : '❌';
+        const statusText = data.success ? 'PASSED' : 'FAILED';
+        setTestOutput(prev => [...prev, `${statusIcon} Test execution completed at ${data.timestamp}`]);
+        setTestOutput(prev => [...prev, `📊 Result: ${statusText} (Exit code: ${data.code})`]);
         
         if (data.results) {
+          const duration = data.results.endTime && data.results.startTime 
+            ? `${((data.results.endTime - data.results.startTime) / 1000).toFixed(2)}s`
+            : 'N/A';
           setTestOutput(prev => [...prev, `📈 Tests: ${data.results.numPassedTests} passed, ${data.results.numFailedTests} failed, ${data.results.numTotalTests} total`]);
+          setTestOutput(prev => [...prev, `⏱️ Duration: ${duration}`]);
         }
         
         if (runWithCoverage) {
@@ -213,7 +231,28 @@ export default function TestingDashboard() {
           </p>
         </div>
         
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-4">
+          {/* Last Run Status Indicator */}
+          <div className="flex items-center gap-2">
+            {lastRunStatus === 'idle' && <Clock className="h-4 w-4 text-gray-400" />}
+            {lastRunStatus === 'running' && <Activity className="h-4 w-4 text-blue-500 animate-pulse" />}
+            {lastRunStatus === 'success' && <CheckCircle2 className="h-4 w-4 text-green-500" />}
+            {lastRunStatus === 'failed' && <XCircle className="h-4 w-4 text-red-500" />}
+            <div className="text-sm">
+              <div className="font-medium">
+                {lastRunStatus === 'idle' && 'Ready to run'}
+                {lastRunStatus === 'running' && 'Running...'}
+                {lastRunStatus === 'success' && 'All tests passed'}
+                {lastRunStatus === 'failed' && 'Tests failed'}
+              </div>
+              {lastRunTime && (
+                <div className="text-xs text-muted-foreground">
+                  Last run: {lastRunTime}
+                </div>
+              )}
+            </div>
+          </div>
+          
           <Button
             onClick={runWithCoverage ? () => setRunWithCoverage(false) : () => setRunWithCoverage(true)}
             variant={runWithCoverage ? "default" : "outline"}
@@ -268,20 +307,42 @@ export default function TestingDashboard() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Last Run Status</CardTitle>
-            {testResults?.success ? (
-              <CheckCircle2 className="h-4 w-4 text-green-600" />
-            ) : testResults ? (
-              <XCircle className="h-4 w-4 text-red-600" />
-            ) : (
-              <Clock className="h-4 w-4 text-muted-foreground" />
-            )}
+            {lastRunStatus === 'success' && <CheckCircle2 className="h-4 w-4 text-green-600" />}
+            {lastRunStatus === 'failed' && <XCircle className="h-4 w-4 text-red-600" />}
+            {lastRunStatus === 'running' && <Activity className="h-4 w-4 text-blue-600 animate-pulse" />}
+            {lastRunStatus === 'idle' && <Clock className="h-4 w-4 text-muted-foreground" />}
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {testResults ? (testResults.success ? 'PASSED' : 'FAILED') : 'PENDING'}
+              {lastRunStatus === 'success' && 'PASSED'}
+              {lastRunStatus === 'failed' && 'FAILED'}
+              {lastRunStatus === 'running' && 'RUNNING'}
+              {lastRunStatus === 'idle' && 'READY'}
             </div>
             <p className="text-xs text-muted-foreground">
-              {testResults ? new Date(testResults.timestamp).toLocaleTimeString() : 'Not run yet'}
+              {lastRunTime || 'No tests run yet'}
+            </p>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Test Results</CardTitle>
+            <Zap className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {testResults?.results ? (
+                <span className={testResults.success ? 'text-green-600' : 'text-red-600'}>
+                  {testResults.results.numPassedTests}/{testResults.results.numTotalTests}
+                </span>
+              ) : '0/0'}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {testResults?.results ? 
+                `${testResults.results.numPassedTests} passed, ${testResults.results.numFailedTests} failed` : 
+                'Passed/Total tests'
+              }
             </p>
           </CardContent>
         </Card>
@@ -592,15 +653,61 @@ export default function TestingDashboard() {
             <CardHeader>
               <CardTitle>Test Results History</CardTitle>
               <CardDescription>
-                Historical test execution results and trends
+                Recent test run results and performance history
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="text-center py-8 text-muted-foreground">
-                <Clock className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <div>Results history coming soon</div>
-                <div className="text-sm mt-1">Test execution history will be stored and displayed here</div>
-              </div>
+              {resultsHistory.length > 0 ? (
+                <div className="space-y-3">
+                  {resultsHistory.map((result, index) => (
+                    <div key={index} className="border rounded-lg p-4 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          {result.success ? (
+                            <CheckCircle2 className="h-5 w-5 text-green-500" />
+                          ) : (
+                            <XCircle className="h-5 w-5 text-red-500" />
+                          )}
+                          <span className={`font-medium ${result.success ? 'text-green-700' : 'text-red-700'}`}>
+                            {result.success ? 'PASSED' : 'FAILED'}
+                          </span>
+                        </div>
+                        <div className="text-sm text-muted-foreground">
+                          {new Date(result.timestamp).toLocaleString()}
+                        </div>
+                      </div>
+                      
+                      {result.results && (
+                        <div className="flex items-center justify-between text-sm">
+                          <div className="flex gap-4">
+                            <span className="text-green-600">
+                              ✓ {result.results.numPassedTests} passed
+                            </span>
+                            <span className="text-red-600">
+                              ✗ {result.results.numFailedTests} failed
+                            </span>
+                            <span className="text-muted-foreground">
+                              Total: {result.results.numTotalTests}
+                            </span>
+                          </div>
+                          <div className="text-muted-foreground">
+                            {result.results.endTime && result.results.startTime ? 
+                              `${((result.results.endTime - result.results.startTime) / 1000).toFixed(2)}s` : 
+                              'N/A'
+                            }
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Clock className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <p>No test results history available.</p>
+                  <p className="text-sm">Run some tests to start building your results history.</p>
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
