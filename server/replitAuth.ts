@@ -153,31 +153,42 @@ export async function setupAuth(app: Express) {
 }
 
 export const isAuthenticated: RequestHandler = async (req, res, next) => {
-  // Development mode: use session-based auth
-  if (process.env.NODE_ENV === 'development') {
-    console.log('DevAuth - Session:', req.session);
-    console.log('DevAuth - Session ID:', req.sessionID);
-    let userId = (req.session as any)?.userId;
-    
-    // Development fallback: auto-authenticate as super admin user if no session
-    if (!userId) {
-      console.log('DevAuth - No userId in session, using dev auth fallback');
-      userId = 'admin-prod-001'; // Default super admin user for development
-      (req.session as any).userId = userId;
-      (req.session as any).sessionId = uuidv4();
-    }
-    
-    console.log('DevAuth - UserId from session:', userId);
+  // Check for session-based authentication first (works in both dev and production)
+  const sessionUserId = (req.session as any)?.userId;
+  if (sessionUserId) {
+    console.log('Session Auth - UserId from session:', sessionUserId);
     
     try {
-      console.log('DevAuth - Looking up user with ID:', userId);
+      const dbUser = await storage.getUser(sessionUserId);
+      console.log('Session Auth - Found user:', dbUser ? `${dbUser.username} (${dbUser.role})` : 'NULL');
+      if (dbUser && dbUser.status === 'active') {
+        // Set up user object for session-based auth
+        req.user = { 
+          id: sessionUserId,
+          email: dbUser.email,
+          claims: { sub: sessionUserId } 
+        };
+        (req as any).currentUser = dbUser;
+        return next();
+      }
+    } catch (error) {
+      console.error("Error fetching user data from session:", error);
+    }
+  }
+
+  // Development mode: use fallback authentication if no session
+  if (process.env.NODE_ENV === 'development') {
+    console.log('DevAuth - No valid session, using dev auth fallback');
+    const userId = 'admin-prod-001'; // Default super admin user for development
+    (req.session as any).userId = userId;
+    (req.session as any).sessionId = uuidv4();
+    
+    try {
       const dbUser = await storage.getUser(userId);
-      console.log('DevAuth - Found user:', dbUser ? `${dbUser.username} (${dbUser.role})` : 'NULL');
       if (!dbUser) {
         return res.status(401).json({ message: "User not found" });
       }
       
-      // Set up user object similar to production  
       req.user = { 
         id: userId,
         email: dbUser.email,
@@ -191,7 +202,7 @@ export const isAuthenticated: RequestHandler = async (req, res, next) => {
     }
   }
 
-  // Production mode: use Passport authentication
+  // Production mode: fallback to Passport authentication if no session
   if (!req.isAuthenticated()) {
     return res.status(401).json({ message: "Unauthorized" });
   }
@@ -241,19 +252,11 @@ export const isAuthenticated: RequestHandler = async (req, res, next) => {
 // Role-based access control middleware
 export const requireRole = (allowedRoles: string[]): RequestHandler => {
   return async (req, res, next) => {
-    // Development mode: use session-based auth
-    if (process.env.NODE_ENV === 'development') {
-      let userId = (req.session as any)?.userId;
-      
-      // Development fallback: auto-authenticate as admin user if no session
-      if (!userId) {
-        userId = 'admin-demo-123'; // Default admin user for development
-        (req.session as any).userId = userId;
-        (req.session as any).sessionId = uuidv4();
-      }
-      
+    // Check for session-based authentication first (works in both dev and production)
+    const sessionUserId = (req.session as any)?.userId;
+    if (sessionUserId) {
       try {
-        const dbUser = await storage.getUser(userId);
+        const dbUser = await storage.getUser(sessionUserId);
         if (!dbUser) {
           return res.status(401).json({ message: "User not found" });
         }
@@ -269,6 +272,39 @@ export const requireRole = (allowedRoles: string[]): RequestHandler => {
         // Attach user info to request for use in route handlers
         (req as any).currentUser = dbUser;
         req.user = { 
+          id: sessionUserId,
+          email: dbUser.email,
+          claims: { sub: sessionUserId } 
+        };
+        return next();
+      } catch (error) {
+        console.error("Error checking user role:", error);
+        return res.status(500).json({ message: "Internal server error" });
+      }
+    }
+
+    // Development mode: use fallback authentication if no session
+    if (process.env.NODE_ENV === 'development') {
+      const userId = 'admin-prod-001'; // Default admin user for development
+      (req.session as any).userId = userId;
+      (req.session as any).sessionId = uuidv4();
+      
+      try {
+        const dbUser = await storage.getUser(userId);
+        if (!dbUser) {
+          return res.status(401).json({ message: "User not found" });
+        }
+
+        if (dbUser.status !== 'active') {
+          return res.status(403).json({ message: "Account suspended" });
+        }
+
+        if (!allowedRoles.includes(dbUser.role)) {
+          return res.status(403).json({ message: "Insufficient permissions" });
+        }
+
+        (req as any).currentUser = dbUser;
+        req.user = { 
           id: userId,
           email: dbUser.email,
           claims: { sub: userId } 
@@ -280,7 +316,7 @@ export const requireRole = (allowedRoles: string[]): RequestHandler => {
       }
     }
 
-    // Production mode: use Passport authentication
+    // Production mode: fallback to Passport authentication if no session
     if (!req.isAuthenticated()) {
       return res.status(401).json({ message: "Unauthorized" });
     }

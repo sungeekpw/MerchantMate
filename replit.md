@@ -169,6 +169,13 @@ Before any deployment, ensure:
 See `TESTING.md` and `TESTING_CHECKLIST.md` for comprehensive testing guidelines and deployment checklist.
 
 ## Changelog
+- January 22, 2025. Fixed production authentication system to support session-based login for deployed applications
+  - Modified authentication middleware to prioritize session-based authentication in both development and production
+  - Production deployments now support login through /api/auth/login endpoint with username/password
+  - Authentication system works with credentials: admin/admin123 for super_admin access
+  - Resolved 401 errors on deployed version by enabling hybrid authentication (session + Passport fallback)
+  - Security dashboard and all protected endpoints now accessible after session-based login
+  - Complete authentication workflow: deployed app login → session creation → API access → dashboard data display
 - January 22, 2025. Fixed Security & Compliance dashboard data loading and eliminated 401 authorization errors
   - Resolved React Query rapid polling that was causing authentication stress with 401 unauthorized errors
   - Fixed async/await issue in security metrics query function that was returning empty objects instead of production data
