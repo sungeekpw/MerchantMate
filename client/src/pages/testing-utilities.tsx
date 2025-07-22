@@ -51,17 +51,13 @@ export default function TestingUtilities() {
 
   // Function to handle database environment change
   const handleDbEnvChange = (newEnv: string) => {
-    console.log('🔄 Database environment change initiated:', { from: selectedDbEnv, to: newEnv });
-    
     setSelectedDbEnv(newEnv);
     
     // Store database environment selection in localStorage
     if (newEnv !== 'default') {
       localStorage.setItem('selectedDbEnvironment', newEnv);
-      console.log('💾 Stored in localStorage:', newEnv);
     } else {
       localStorage.removeItem('selectedDbEnvironment');
-      console.log('🗑️ Removed from localStorage');
     }
     
     // Update URL to reflect database environment
@@ -72,17 +68,14 @@ export default function TestingUtilities() {
       url.searchParams.delete('db');
     }
     window.history.replaceState({}, '', url.toString());
-    console.log('🌐 URL updated:', url.toString());
     
     // Dispatch custom event to notify header about database environment change
-    console.log('📡 Dispatching dbEnvironmentChanged event with environment:', newEnv);
     window.dispatchEvent(new CustomEvent('dbEnvironmentChanged', { 
       detail: { environment: newEnv } 
     }));
     
     // Refetch environment status
     refetchDbEnvironment();
-    console.log('✅ Database environment change completed');
   };
 
   // Initialize selected environment from URL parameter or localStorage
@@ -278,11 +271,7 @@ export default function TestingUtilities() {
                 <label className="text-sm font-medium">Target Database:</label>
                 <Select value={selectedDbEnv} onValueChange={handleDbEnvChange}>
                   <SelectTrigger className="mt-1">
-                    <SelectValue>
-                      {selectedDbEnv === 'default' && 'Default (Production)'}
-                      {selectedDbEnv === 'test' && 'Test Database (?db=test)'}
-                      {selectedDbEnv === 'dev' && 'Development Database (?db=dev)'}
-                    </SelectValue>
+                    <SelectValue placeholder="Select database environment" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="default">Default (Production)</SelectItem>
@@ -291,20 +280,7 @@ export default function TestingUtilities() {
                   </SelectContent>
                 </Select>
               </div>
-              <Button 
-                variant="outline" 
-                size="sm" 
-                className="mt-6"
-                onClick={() => {
-                  console.log('🔍 Current state debug:');
-                  console.log('- selectedDbEnv:', selectedDbEnv);
-                  console.log('- localStorage:', localStorage.getItem('selectedDbEnvironment'));
-                  console.log('- URL params:', new URLSearchParams(window.location.search).get('db'));
-                  console.log('- dbEnvironment response:', dbEnvironment);
-                }}
-              >
-                Debug State
-              </Button>
+
               <div className="text-xs text-muted-foreground mt-2">
                 You can also use URL parameters: ?db=test or ?db=dev
               </div>

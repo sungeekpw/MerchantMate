@@ -71,9 +71,7 @@ export default function Users() {
 
     // Listen for database environment changes from Testing Utilities
     const handleDbEnvChange = (event: CustomEvent) => {
-      console.log('👂 Users page received dbEnvironmentChanged event:', event.detail);
       setCurrentDbEnv(event.detail.environment || 'default');
-      console.log('🔄 Users page updated currentDbEnv to:', event.detail.environment || 'default');
     };
 
     window.addEventListener('dbEnvironmentChanged', handleDbEnvChange as EventListener);
@@ -108,8 +106,6 @@ export default function Users() {
   const { data: users, isLoading, error } = useQuery<User[]>({
     queryKey: ["/api/users", currentDbEnv],
     queryFn: async () => {
-      console.log('Executing users query for environment:', currentDbEnv);
-      
       const url = currentDbEnv !== 'default' 
         ? `/api/users?db=${currentDbEnv}`
         : '/api/users';
@@ -124,18 +120,12 @@ export default function Users() {
       }
       
       const data = await response.json();
-      console.log('Users query successful, received data:', data);
       return data;
     },
     enabled: authAttempted, // Only run query after auth is attempted
   });
 
-  console.log('Users component state:', { 
-    authAttempted, 
-    isLoading, 
-    usersCount: users?.length, 
-    error: error?.message 
-  });
+
 
   // Handle authentication failure - when query returns null due to 401
   if (users === null) {
