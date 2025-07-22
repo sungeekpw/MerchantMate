@@ -182,7 +182,7 @@ export class AuditService {
                   userId,
                   sessionId,
                   ipAddress: req.ip || req.connection.remoteAddress || 'unknown',
-                  userAgent: req.get('User-Agent') || null,
+                  userAgent: req.get('User-Agent') || undefined,
                   method: req.method,
                   endpoint: req.path,
                   requestParams: req.query,
@@ -191,20 +191,20 @@ export class AuditService {
                   environment: process.env.NODE_ENV || 'development'
                 },
                 {
-                  riskLevel: this.assessRiskLevel(req, res),
-                  dataClassification: this.classifyData(req.path),
+                  riskLevel: 'low',
+                  dataClassification: 'internal',
                   notes: `${req.method} ${req.path} - ${res.statusCode}`
                 }
               );
             }
           } catch (error) {
             // Silent error - don't block the response
-            console.log('Audit logging error:', error.message);
+            console.log('Audit logging error:', error instanceof Error ? error.message : 'Unknown error');
           }
         });
       } catch (error) {
         // Don't block the request if audit logging fails
-        console.log('Audit middleware error:', error.message);
+        console.log('Audit middleware error:', error instanceof Error ? error.message : 'Unknown error');
         next();
       }
     };
