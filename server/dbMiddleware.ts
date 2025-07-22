@@ -26,6 +26,17 @@ export const dbEnvironmentMiddleware = (req: RequestWithDB, res: Response, next:
     return;
   }
   
+  // First check if there's a stored database environment in session
+  const sessionDbEnv = (req.session as any)?.dbEnv;
+  if (sessionDbEnv && ['test', 'development', 'dev', 'production'].includes(sessionDbEnv)) {
+    req.dbEnv = sessionDbEnv;
+    req.dynamicDB = getDynamicDatabase(sessionDbEnv);
+    res.setHeader('X-Database-Environment', sessionDbEnv);
+    console.log(`Session database: using ${sessionDbEnv} database from session`);
+    next();
+    return;
+  }
+  
   // Extract database environment from URL parameters, headers, or subdomain
   const dbEnv = extractDbEnv(req);
   

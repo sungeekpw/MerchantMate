@@ -155,11 +155,31 @@ export async function setupAuth(app: Express) {
 export const isAuthenticated: RequestHandler = async (req, res, next) => {
   // Check for session-based authentication first (works in both dev and production)
   const sessionUserId = (req.session as any)?.userId;
+  const sessionDbEnv = (req.session as any)?.dbEnv;
+  
   if (sessionUserId) {
     console.log('Session Auth - UserId from session:', sessionUserId);
+    console.log('Session Auth - Database environment from session:', sessionDbEnv);
     
     try {
-      const dbUser = await storage.getUser(sessionUserId);
+      let dbUser;
+      
+      // Use session-stored database environment for user lookup
+      if (sessionDbEnv) {
+        const { getDynamicDatabase } = await import('./db');
+        const { users } = await import('@shared/schema');
+        const { eq } = await import('drizzle-orm');
+        
+        const dynamicDB = getDynamicDatabase(sessionDbEnv);
+        const userResults = await dynamicDB.select().from(users).where(eq(users.id, sessionUserId));
+        dbUser = userResults[0] || null;
+        console.log(`Session Auth - Looking in ${sessionDbEnv} database for user:`, sessionUserId);
+      } else {
+        // Fallback to default storage
+        dbUser = await storage.getUser(sessionUserId);
+        console.log('Session Auth - Using default storage for user lookup');
+      }
+      
       console.log('Session Auth - Found user:', dbUser ? `${dbUser.username} (${dbUser.role})` : 'NULL');
       if (dbUser && dbUser.status === 'active') {
         // Set up user object for session-based auth
