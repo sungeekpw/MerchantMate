@@ -112,8 +112,8 @@ const EmailManagement: React.FC = () => {
   const [editingTemplate, setEditingTemplate] = useState<EmailTemplate | null>(null);
   const [isTemplateDialogOpen, setIsTemplateDialogOpen] = useState(false);
   const [activityFilters, setActivityFilters] = useState({
-    status: '',
-    templateId: '',
+    status: 'all',
+    templateId: 'all',
     search: ''
   });
 
@@ -293,6 +293,9 @@ const EmailManagement: React.FC = () => {
 
   const filteredActivity = activity.filter((item: EmailActivity) => {
     if (activityFilters.search && !item.recipientEmail.toLowerCase().includes(activityFilters.search.toLowerCase())) {
+      return false;
+    }
+    if (activityFilters.status && activityFilters.status !== 'all' && item.status !== activityFilters.status) {
       return false;
     }
     if (activityFilters.templateId && activityFilters.templateId !== 'all' && item.templateId.toString() !== activityFilters.templateId) {
@@ -573,7 +576,7 @@ const EmailManagement: React.FC = () => {
                       <SelectValue placeholder="All statuses" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">All statuses</SelectItem>
+                      <SelectItem value="all">All statuses</SelectItem>
                       <SelectItem value="pending">Pending</SelectItem>
                       <SelectItem value="sent">Sent</SelectItem>
                       <SelectItem value="delivered">Delivered</SelectItem>
