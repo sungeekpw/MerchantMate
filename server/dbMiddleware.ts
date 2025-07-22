@@ -26,24 +26,11 @@ export const dbEnvironmentMiddleware = (req: RequestWithDB, res: Response, next:
     return;
   }
   
-  // In development/test environments, allow database switching
-  // Extract database environment from URL parameters, headers, or subdomain
-  const dbEnv = extractDbEnv(req);
-  
-  if (dbEnv) {
-    req.dbEnv = dbEnv;
-    req.dynamicDB = getDynamicDatabase(dbEnv);
-    
-    // Add database environment info to response headers for debugging
-    res.setHeader('X-Database-Environment', dbEnv);
-    
-    console.log(`Request using database environment: ${dbEnv}`);
-  } else {
-    // Always default to production database to show seeded data
-    req.dbEnv = 'production';
-    req.dynamicDB = getDynamicDatabase('production');
-    res.setHeader('X-Database-Environment', 'production');
-  }
+  // Force production database for all requests to show seeded data
+  req.dbEnv = 'production';
+  req.dynamicDB = getDynamicDatabase('production');
+  res.setHeader('X-Database-Environment', 'production');
+  console.log('Forcing production database for all requests');
   
   next();
 };
@@ -59,14 +46,10 @@ export const getRequestDB = (req: RequestWithDB) => {
  * Middleware specifically for admin routes that allows database switching
  */
 export const adminDbMiddleware = (req: RequestWithDB, res: Response, next: NextFunction) => {
-  // Only allow database switching for super_admin users
-  const currentUser = (req as any).currentUser;
-  
-  if (currentUser?.role === 'super_admin') {
-    dbEnvironmentMiddleware(req, res, next);
-  } else {
-    // Regular users always use default database
-    req.dynamicDB = getDynamicDatabase();
-    next();
-  }
+  // Force production database for all admin routes
+  req.dbEnv = 'production';
+  req.dynamicDB = getDynamicDatabase('production');
+  res.setHeader('X-Database-Environment', 'production');
+  console.log('Admin middleware: forcing production database');
+  next();
 };
