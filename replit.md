@@ -169,6 +169,14 @@ Before any deployment, ensure:
 See `TESTING.md` and `TESTING_CHECKLIST.md` for comprehensive testing guidelines and deployment checklist.
 
 ## Changelog
+- January 22, 2025. Successfully fixed database environment switching functionality to enable multi-environment testing
+  - Fixed database middleware to properly extract environment from URL query parameters (?db=test, ?db=dev)
+  - Updated routes to use dynamic database connections instead of default storage methods  
+  - Modified /api/users endpoint to use getRequestDB() for environment-specific database queries
+  - Database switching now functional: test database (1 user), dev database (3 users), production database (3 users)
+  - Environment switching works via URL parameters: ?db=test switches to test database, ?db=dev to development
+  - Super admin users can now switch between production, test, and development databases for isolated testing
+  - Database environment indicator in Testing Utilities correctly shows and switches between environments
 - January 22, 2025. Successfully resolved all production deployment issues and completed Email Management system implementation
   - Fixed production authentication system to support session-based login for deployed applications
   - Resolved email management storage methods that had schema reference errors causing API failures
