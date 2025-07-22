@@ -8,7 +8,8 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Loader2, Eye, EyeOff, Shield, User, Lock } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Loader2, Eye, EyeOff, Shield, User, Lock, Database } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/useAuth";
@@ -21,6 +22,7 @@ const loginSchema = z.object({
   usernameOrEmail: z.string().min(1, "Username or email required"),
   password: z.string().min(1, "Password required"),
   twoFactorCode: z.string().optional(),
+  database: z.string().optional(),
 });
 
 
@@ -51,6 +53,15 @@ export default function Auth() {
   const [, setLocation] = useLocation();
   const { refetch } = useAuth();
 
+  // Check if we're in development environment
+  const isNonProduction = import.meta.env.DEV || 
+    window.location.hostname === 'localhost' ||
+    window.location.hostname.includes('.dev') ||
+    window.location.hostname.includes('test') ||
+    window.location.port !== '';
+
+  const [selectedDatabase, setSelectedDatabase] = useState("production");
+
 
 
   // Login form
@@ -60,6 +71,7 @@ export default function Auth() {
       usernameOrEmail: "",
       password: "",
       twoFactorCode: "",
+      database: "production",
     },
   });
 
@@ -92,7 +104,13 @@ export default function Auth() {
         timezone: getUserTimezone()
       };
       
-      const response = await fetch("/api/auth/login", {
+      // Build URL with database parameter if non-production database selected
+      let url = "/api/auth/login";
+      if (isNonProduction && data.database && data.database !== "production") {
+        url += `?db=${data.database}`;
+      }
+      
+      const response = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(loginData),
@@ -280,6 +298,37 @@ export default function Auth() {
                     </p>
                   )}
                 </div>
+
+                {/* Database Selection - only show in non-production environments */}
+                {isNonProduction && (
+                  <div className="space-y-2">
+                    <Label htmlFor="database">Database Environment</Label>
+                    <div className="relative">
+                      <Database className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                      <Select
+                        value={selectedDatabase}
+                        onValueChange={(value) => {
+                          setSelectedDatabase(value);
+                          loginForm.setValue("database", value);
+                        }}
+                      >
+                        <SelectTrigger className="pl-10">
+                          <SelectValue placeholder="Select database" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="production">Production Database</SelectItem>
+                          <SelectItem value="dev">Development Database</SelectItem>
+                          <SelectItem value="test">Test Database</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <p className="text-xs text-gray-500">
+                      {selectedDatabase === "production" && "Login to production environment"}
+                      {selectedDatabase === "dev" && "Login to isolated development environment"}
+                      {selectedDatabase === "test" && "Login to isolated test environment"}
+                    </p>
+                  </div>
+                )}
 
                 {requires2FA && (
                   <div className="space-y-2">
