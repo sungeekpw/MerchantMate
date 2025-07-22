@@ -1253,27 +1253,109 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getAllEmailTemplates() {
-    return await db.select().from(schema.emailTemplates);
+    return await db.select().from(emailTemplates);
+  }
+
+  async getEmailTemplate(id: number) {
+    const [template] = await db.select().from(emailTemplates).where(eq(emailTemplates.id, id));
+    return template;
+  }
+
+  async getEmailTemplateByName(name: string) {
+    const [template] = await db.select().from(emailTemplates).where(eq(emailTemplates.name, name));
+    return template;
+  }
+
+  async createEmailTemplate(template: InsertEmailTemplate) {
+    const [newTemplate] = await db.insert(emailTemplates).values(template).returning();
+    return newTemplate;
+  }
+
+  async updateEmailTemplate(id: number, updates: Partial<InsertEmailTemplate>) {
+    const [updatedTemplate] = await db.update(emailTemplates)
+      .set(updates)
+      .where(eq(emailTemplates.id, id))
+      .returning();
+    return updatedTemplate;
+  }
+
+  async deleteEmailTemplate(id: number) {
+    const deleted = await db.delete(emailTemplates).where(eq(emailTemplates.id, id));
+    return deleted.rowCount > 0;
   }
 
   async getAllEmailTriggers() {
-    // Return empty array for now - this feature may not be implemented yet
-    return [];
+    return await db.select().from(emailTriggers);
+  }
+
+  async getEmailTrigger(id: number) {
+    const [trigger] = await db.select().from(emailTriggers).where(eq(emailTriggers.id, id));
+    return trigger;
+  }
+
+  async createEmailTrigger(trigger: InsertEmailTrigger) {
+    const [newTrigger] = await db.insert(emailTriggers).values(trigger).returning();
+    return newTrigger;
+  }
+
+  async updateEmailTrigger(id: number, updates: Partial<InsertEmailTrigger>) {
+    const [updatedTrigger] = await db.update(emailTriggers)
+      .set(updates)
+      .where(eq(emailTriggers.id, id))
+      .returning();
+    return updatedTrigger;
+  }
+
+  async deleteEmailTrigger(id: number) {
+    const deleted = await db.delete(emailTriggers).where(eq(emailTriggers.id, id));
+    return deleted.rowCount > 0;
+  }
+
+  async logEmailActivity(activity: InsertEmailActivity) {
+    const [newActivity] = await db.insert(emailActivity).values(activity).returning();
+    return newActivity;
+  }
+
+  async getEmailActivity(limit: number = 100, filters: { status?: string; templateId?: number; recipientEmail?: string } = {}) {
+    let query = db.select().from(emailActivity);
+    
+    const conditions = [];
+    if (filters.status && filters.status !== 'all') {
+      conditions.push(eq(emailActivity.status, filters.status));
+    }
+    if (filters.templateId && filters.templateId !== 0) {
+      conditions.push(eq(emailActivity.templateId, filters.templateId));
+    }
+    if (filters.recipientEmail) {
+      conditions.push(ilike(emailActivity.recipientEmail, `%${filters.recipientEmail}%`));
+    }
+    
+    if (conditions.length > 0) {
+      query = query.where(and(...conditions));
+    }
+    
+    return await query.orderBy(sql`sent_at DESC`).limit(limit);
   }
 
   async getEmailActivityStats() {
-    // Return empty stats for now - this feature may not be implemented yet
+    const totalSentResult = await db.execute(sql`SELECT COUNT(*) as count FROM email_activity WHERE status = 'sent'`);
+    const totalOpenedResult = await db.execute(sql`SELECT COUNT(*) as count FROM email_activity WHERE status = 'opened'`);
+    const totalClickedResult = await db.execute(sql`SELECT COUNT(*) as count FROM email_activity WHERE status = 'clicked'`);
+    const totalFailedResult = await db.execute(sql`SELECT COUNT(*) as count FROM email_activity WHERE status = 'failed'`);
+    
+    const totalSent = Number(totalSentResult.rows[0]?.count || 0);
+    const totalOpened = Number(totalOpenedResult.rows[0]?.count || 0);
+    const totalClicked = Number(totalClickedResult.rows[0]?.count || 0);
+    const totalFailed = Number(totalFailedResult.rows[0]?.count || 0);
+    
     return {
-      totalSent: 0,
-      totalDelivered: 0,
-      totalBounced: 0,
-      totalClicked: 0
+      totalSent,
+      totalOpened,
+      totalClicked,
+      totalFailed,
+      openRate: totalSent > 0 ? Math.round((totalOpened / totalSent) * 100) : 0,
+      clickRate: totalSent > 0 ? Math.round((totalClicked / totalSent) * 100) : 0
     };
-  }
-
-  async getEmailActivity() {
-    // Return empty array for now - this feature may not be implemented yet
-    return [];
   }
 }
 
