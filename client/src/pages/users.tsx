@@ -50,16 +50,44 @@ export default function Users() {
   const [searchQuery, setSearchQuery] = useState("");
   const [isRegisterOpen, setIsRegisterOpen] = useState(false);
   const [authAttempted, setAuthAttempted] = useState(false);
+  const [currentDbEnv, setCurrentDbEnv] = useState<string>('default');
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Load users data on mount
+  // Initialize database environment and listen for changes
+  useEffect(() => {
+    // Get initial database environment from URL or localStorage
+    const urlParams = new URLSearchParams(window.location.search);
+    const dbParam = urlParams.get('db');
+    const storedEnv = localStorage.getItem('selectedDbEnvironment');
+    
+    if (dbParam && ['test', 'dev'].includes(dbParam)) {
+      setCurrentDbEnv(dbParam);
+    } else if (storedEnv && ['test', 'dev'].includes(storedEnv)) {
+      setCurrentDbEnv(storedEnv);
+    } else {
+      setCurrentDbEnv('default');
+    }
+
+    // Listen for database environment changes from Testing Utilities
+    const handleDbEnvChange = (event: CustomEvent) => {
+      setCurrentDbEnv(event.detail.environment || 'default');
+    };
+
+    window.addEventListener('dbEnvironmentChanged', handleDbEnvChange as EventListener);
+    
+    return () => {
+      window.removeEventListener('dbEnvironmentChanged', handleDbEnvChange as EventListener);
+    };
+  }, []);
+
+  // Load users data on mount and when database environment changes
   useEffect(() => {
     if (!authAttempted) {
       setAuthAttempted(true);
-      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
     }
-  }, [authAttempted, queryClient]);
+    queryClient.invalidateQueries({ queryKey: ["/api/users", currentDbEnv] });
+  }, [authAttempted, currentDbEnv, queryClient]);
 
   // Registration form
   const registerForm = useForm<RegisterForm>({
@@ -76,10 +104,15 @@ export default function Users() {
   });
 
   const { data: users, isLoading, error } = useQuery<User[]>({
-    queryKey: ["/api/users"],
+    queryKey: ["/api/users", currentDbEnv],
     queryFn: async () => {
-      console.log('Executing users query...');
-      const response = await fetch('/api/users', {
+      console.log('Executing users query for environment:', currentDbEnv);
+      
+      const url = currentDbEnv !== 'default' 
+        ? `/api/users?db=${currentDbEnv}`
+        : '/api/users';
+      
+      const response = await fetch(url, {
         credentials: 'include',
         mode: 'cors',
       });
