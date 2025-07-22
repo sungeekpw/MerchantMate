@@ -9,7 +9,9 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Trash2, RefreshCw, Database, CheckCircle, X, Server, Shield, TestTube, Settings } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
+import TestingDashboard from "@/components/TestingDashboard";
+import { Trash2, RefreshCw, Database, CheckCircle, X, Server, Shield, TestTube, Settings, Play, Pause, BarChart3, FileText, AlertCircle, Clock } from "lucide-react";
 
 interface ResetResult {
   success: boolean;
@@ -198,9 +200,28 @@ export default function TestingUtilities() {
       <div>
         <h1 className="text-3xl font-bold">Testing Utilities</h1>
         <p className="text-muted-foreground mt-2">
-          Development tools for resetting test data and cleaning up the database.
+          Development tools for resetting test data, test execution dashboard, and database management.
         </p>
       </div>
+
+      {/* Main Tabs for Testing Features */}
+      <Tabs defaultValue="dashboard" className="space-y-4">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="dashboard" className="flex items-center gap-2">
+            <TestTube className="h-4 w-4" />
+            Test Dashboard
+          </TabsTrigger>
+          <TabsTrigger value="utilities" className="flex items-center gap-2">
+            <Database className="h-4 w-4" />
+            Data Utilities
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="dashboard" className="space-y-4">
+          <TestingDashboard />
+        </TabsContent>
+
+        <TabsContent value="utilities" className="space-y-6">
 
       {/* Database Environment Selector */}
       <Card>
@@ -482,11 +503,9 @@ export default function TestingUtilities() {
 
               <div className="flex justify-end">
                 <Button
-                  variant="outline"
                   onClick={() => setShowAuditModal(false)}
-                  className="flex items-center gap-2"
+                  className="w-full"
                 >
-                  <X className="h-4 w-4" />
                   Close
                 </Button>
               </div>
@@ -494,6 +513,82 @@ export default function TestingUtilities() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Audit Modal */}
+      <Dialog open={showAuditModal} onOpenChange={setShowAuditModal}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CheckCircle className="h-5 w-5 text-green-600" />
+              Data Reset Complete
+            </DialogTitle>
+            <DialogDescription>
+              The following data has been successfully removed from the database:
+            </DialogDescription>
+          </DialogHeader>
+          
+          {lastResult && (
+            <div className="space-y-4">
+              {/* Summary */}
+              <div className="bg-muted/50 p-4 rounded-lg">
+                <p className="text-sm font-medium text-center">
+                  {lastResult.message || "Operation completed successfully"}
+                </p>
+              </div>
+
+              {/* Audit Table */}
+              {Object.keys(lastResult.counts).length > 0 && (
+                <div>
+                  <h4 className="font-medium mb-3">Records Removed:</h4>
+                  <div className="border rounded-lg">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Table Name</TableHead>
+                          <TableHead className="text-right">Rows Deleted</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {Object.entries(lastResult.counts).map(([tableName, count]) => (
+                          <TableRow key={tableName}>
+                            <TableCell className="font-medium">{tableName}</TableCell>
+                            <TableCell className="text-right">
+                              <Badge variant="outline">{count}</Badge>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </div>
+              )}
+
+              {/* Categories Cleared */}
+              {lastResult.cleared.length > 0 && (
+                <div>
+                  <h4 className="font-medium mb-2">Data Categories Cleared:</h4>
+                  <div className="flex flex-wrap gap-1">
+                    {lastResult.cleared.map((item) => (
+                      <Badge key={item} variant="secondary">{item}</Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="flex justify-end">
+                <Button
+                  onClick={() => setShowAuditModal(false)}
+                  className="w-full"
+                >
+                  Close
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
