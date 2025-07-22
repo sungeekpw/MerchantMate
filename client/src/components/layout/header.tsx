@@ -23,38 +23,23 @@ export function Header({ title, onSearch }: HeaderProps) {
     const updateDbParam = () => {
       const urlParams = new URLSearchParams(window.location.search);
       const dbParam = urlParams.get('db');
-      setCurrentDbParam(dbParam);
-      
-      // Invalidate the database environment query to force refetch
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/db-environment'] });
+      if (dbParam !== currentDbParam) {
+        setCurrentDbParam(dbParam);
+        // Invalidate the database environment query to force refetch
+        queryClient.invalidateQueries({ queryKey: ['/api/admin/db-environment'] });
+      }
     };
+    
+    // Check URL parameters every second (in case URL was updated without navigation)
+    const intervalId = setInterval(updateDbParam, 1000);
     
     // Initial check
     updateDbParam();
     
-    // Listen for URL changes
-    window.addEventListener('popstate', updateDbParam);
-    
-    // Listen for pushState/replaceState changes
-    const originalPushState = history.pushState;
-    const originalReplaceState = history.replaceState;
-    
-    history.pushState = function(...args) {
-      originalPushState.apply(history, args);
-      setTimeout(updateDbParam, 0);
-    };
-    
-    history.replaceState = function(...args) {
-      originalReplaceState.apply(history, args);
-      setTimeout(updateDbParam, 0);
-    };
-    
     return () => {
-      window.removeEventListener('popstate', updateDbParam);
-      history.pushState = originalPushState;
-      history.replaceState = originalReplaceState;
+      clearInterval(intervalId);
     };
-  }, [queryClient]);
+  }, [currentDbParam, queryClient]);
   
   // Fetch current database environment
   const { data: dbEnvironment } = useQuery({
