@@ -161,7 +161,11 @@ export default function UsersPage() {
           </Button>
           <Button 
             variant="outline" 
-            onClick={() => window.location.reload()} 
+            onClick={async () => {
+              // Clear React Query cache and force fresh data fetch
+              await queryClient.resetQueries();
+              window.location.reload();
+            }} 
             disabled={isLoading}
           >
             Force Refresh
