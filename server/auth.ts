@@ -576,6 +576,60 @@ export class AuthService {
     }
   }
 
+  // Admin password reset - generates temporary password
+  async adminResetPassword(userId: string): Promise<{ success: boolean; message: string; temporaryPassword?: string }> {
+    try {
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return {
+          success: false,
+          message: "User not found"
+        };
+      }
+
+      // Generate temporary password and update user
+      const { user: updatedUser, temporaryPassword } = await storage.resetUserPassword(userId);
+
+      // Send temporary password email
+      await this.sendEmail(
+        updatedUser.email,
+        "CoreCRM Account Password Reset",
+        `
+        <h2>Password Reset - CoreCRM Account</h2>
+        <p>Dear ${updatedUser.firstName || updatedUser.username},</p>
+        <p>Your account password has been reset by an administrator.</p>
+        
+        <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
+          <h3 style="margin-top: 0;">Temporary Login Credentials</h3>
+          <p><strong>Username:</strong> ${updatedUser.username}</p>
+          <p><strong>Temporary Password:</strong> <span style="background-color: #e9ecef; padding: 4px 8px; font-family: monospace; font-size: 14px;">${temporaryPassword}</span></p>
+        </div>
+        
+        <p><strong>Important:</strong> You will be required to change this password immediately upon your next login for security purposes.</p>
+        
+        <p><a href="${process.env.APP_URL || "http://localhost:5000"}/login" style="background-color: #007bff; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; display: inline-block;">Login to Change Password</a></p>
+        
+        <p>If you have any questions, please contact your administrator.</p>
+        
+        <hr style="margin: 30px 0; border: none; border-top: 1px solid #dee2e6;">
+        <p style="font-size: 12px; color: #6c757d;">This is an automated message from CoreCRM. Please do not reply to this email.</p>
+        `
+      );
+
+      return {
+        success: true,
+        message: "Password reset successfully. Temporary password has been emailed to the user.",
+        temporaryPassword
+      };
+    } catch (error) {
+      console.error("Admin password reset error:", error);
+      return {
+        success: false,
+        message: "Password reset failed. Please try again."
+      };
+    }
+  }
+
   // Verify email address
   async verifyEmail(token: string): Promise<{ success: boolean; message: string }> {
     try {

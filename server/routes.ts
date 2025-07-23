@@ -771,6 +771,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Update user account information
+  app.patch("/api/users/:id", requireRole(['admin', 'super_admin']), async (req, res) => {
+    try {
+      const userId = req.params.id;
+      const updates = req.body;
+      
+      // Remove sensitive fields that shouldn't be updated via this endpoint
+      delete updates.passwordHash;
+      delete updates.passwordResetToken;
+      delete updates.passwordResetExpires;
+      delete updates.id;
+      delete updates.createdAt;
+      
+      const updatedUser = await storage.updateUser(userId, updates);
+      
+      if (!updatedUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      // Remove sensitive data from response
+      const { passwordHash, passwordResetToken, passwordResetExpires, twoFactorSecret, ...safeUser } = updatedUser;
+      res.json(safeUser);
+    } catch (error) {
+      console.error("Error updating user:", error);
+      res.status(500).json({ message: "Failed to update user" });
+    }
+  });
+
+  // Reset user password (admin only)
+  app.post("/api/users/:id/reset-password", requireRole(['admin', 'super_admin']), async (req, res) => {
+    try {
+      const userId = req.params.id;
+      const { authService } = await import("./auth");
+      
+      const result = await authService.adminResetPassword(userId);
+      
+      if (!result.success) {
+        return res.status(404).json({ message: result.message });
+      }
+      
+      res.json({
+        message: result.message,
+        temporaryPassword: result.temporaryPassword // Only return this to admin
+      });
+    } catch (error) {
+      console.error("Error resetting user password:", error);
+      res.status(500).json({ message: "Failed to reset password" });
+    }
+  });
+
   // Agent password reset
   app.post("/api/agents/:id/reset-password", requireRole(['admin', 'super_admin']), async (req, res) => {
     try {
