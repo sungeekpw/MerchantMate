@@ -61,10 +61,9 @@ export default function UsersPage() {
 
   const resetPasswordMutation = useMutation({
     mutationFn: (userId: string) =>
-      apiRequest(`/api/users/${userId}/reset-password`, {
-        method: "POST",
-      }),
-    onSuccess: (data) => {
+      apiRequest("POST", `/api/users/${userId}/reset-password`),
+    onSuccess: async (response) => {
+      const data = await response.json();
       toast({
         title: "Password Reset",
         description: `New password: ${data.temporaryPassword}`,
@@ -81,9 +80,7 @@ export default function UsersPage() {
 
   const deleteUserMutation = useMutation({
     mutationFn: (userId: string) =>
-      apiRequest(`/api/users/${userId}`, {
-        method: "DELETE",
-      }),
+      apiRequest("DELETE", `/api/users/${userId}`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/users"] });
       queryClient.invalidateQueries({ queryKey: ["/api/agents"] });
@@ -146,31 +143,23 @@ export default function UsersPage() {
   };
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">User Management</h1>
-          <p className="text-muted-foreground">
-            Manage all user accounts including agents, merchants, and administrators
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <Button onClick={() => refetch()} disabled={isLoading}>
-            {isLoading ? "Refreshing..." : "Refresh Data"}
-          </Button>
-          <Button 
-            variant="outline" 
-            onClick={async () => {
-              // Clear React Query cache and force fresh data fetch
-              await queryClient.resetQueries();
-              window.location.reload();
-            }} 
-            disabled={isLoading}
-          >
-            Force Refresh
-          </Button>
-        </div>
+    <div className="p-6 space-y-6">
+      {/* Action Buttons */}
+      <div className="flex justify-end gap-2">
+        <Button onClick={() => refetch()} disabled={isLoading}>
+          {isLoading ? "Refreshing..." : "Refresh Data"}
+        </Button>
+        <Button 
+          variant="outline" 
+          onClick={async () => {
+            // Clear React Query cache and force fresh data fetch
+            await queryClient.resetQueries();
+            window.location.reload();
+          }} 
+          disabled={isLoading}
+        >
+          Force Refresh
+        </Button>
       </div>
 
       {/* Stats Cards */}
@@ -222,15 +211,17 @@ export default function UsersPage() {
       {/* Search and Actions */}
       <Card>
         <CardHeader>
-          <div className="flex items-center space-x-4">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search users by name, email, username, or role..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search users by name, email, username, or role..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
             </div>
           </div>
         </CardHeader>
@@ -279,7 +270,7 @@ export default function UsersPage() {
                     </TableCell>
                     <TableCell>
                       <div className="text-sm">
-                        {formatLastLogin(user.lastLoginAt)}
+                        {formatLastLogin(user.lastLoginAt?.toString() || null)}
                       </div>
                       {user.emailVerified && (
                         <div className="text-xs text-green-600">Email Verified</div>
