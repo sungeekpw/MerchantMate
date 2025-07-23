@@ -61,6 +61,9 @@ export interface IStorage {
   updateUserRole(id: string, role: string): Promise<User | undefined>;
   updateUserStatus(id: string, status: string): Promise<User | undefined>;
   updateUserPermissions(id: string, permissions: Record<string, boolean>): Promise<User | undefined>;
+  resetUserPassword(id: string): Promise<{ user: User; temporaryPassword: string }>;
+  setPasswordResetToken(id: string, token: string, expiresAt: Date): Promise<User | undefined>;
+  clearPasswordResetToken(id: string): Promise<User | undefined>;
   deleteUser(id: string): Promise<boolean>;
   
   // Role-based data access
@@ -1119,6 +1122,49 @@ export class DatabaseStorage implements IStorage {
   async deleteUser(id: string): Promise<boolean> {
     const result = await db.delete(users).where(eq(users.id, id));
     return (result.rowCount || 0) > 0;
+  }
+
+  async resetUserPassword(id: string): Promise<{ user: User; temporaryPassword: string }> {
+    // Generate a secure temporary password
+    const temporaryPassword = await this.generateTemporaryPassword();
+    
+    // Hash the temporary password
+    const bcrypt = await import('bcrypt');
+    const passwordHash = await bcrypt.hash(temporaryPassword, 10);
+    
+    // Set password reset token for forced password change
+    const resetToken = crypto.randomUUID();
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+    
+    // Update user with new password and reset token
+    const user = await this.updateUser(id, {
+      passwordHash,
+      passwordResetToken: resetToken,
+      passwordResetExpires: expiresAt,
+      updatedAt: new Date()
+    });
+    
+    if (!user) {
+      throw new Error('User not found');
+    }
+    
+    return { user, temporaryPassword };
+  }
+
+  async setPasswordResetToken(id: string, token: string, expiresAt: Date): Promise<User | undefined> {
+    return await this.updateUser(id, {
+      passwordResetToken: token,
+      passwordResetExpires: expiresAt,
+      updatedAt: new Date()
+    });
+  }
+
+  async clearPasswordResetToken(id: string): Promise<User | undefined> {
+    return await this.updateUser(id, {
+      passwordResetToken: null,
+      passwordResetExpires: null,
+      updatedAt: new Date()
+    });
   }
 
   async getMerchantsForUser(userId: string): Promise<MerchantWithAgent[]> {

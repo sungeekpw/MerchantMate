@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Search, Plus, Settings, Trash2, RotateCcw, Users } from "lucide-react";
+import { Search, Plus, Settings, Trash2, RotateCcw, Users, Edit2, Key } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -14,6 +14,15 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -24,14 +33,58 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import type { User } from "@shared/schema";
 
+// User update form schema
+const updateUserSchema = z.object({
+  firstName: z.string().min(1, "First name is required"),
+  lastName: z.string().min(1, "Last name is required"),
+  email: z.string().email("Invalid email address"),
+  username: z.string().min(3, "Username must be at least 3 characters"),
+  role: z.enum(["merchant", "agent", "admin", "corporate", "super_admin"]),
+  status: z.enum(["active", "suspended", "inactive"]),
+});
+
+type UpdateUserFormData = z.infer<typeof updateUserSchema>;
+
 export default function UsersPage() {
   const [searchTerm, setSearchTerm] = useState("");
+  const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  const updateUserForm = useForm<UpdateUserFormData>({
+    resolver: zodResolver(updateUserSchema),
+    defaultValues: {
+      firstName: "",
+      lastName: "",
+      email: "",
+      username: "",
+      role: "merchant",
+      status: "active",
+    },
+  });
 
   const { data: users = [], isLoading, refetch, error } = useQuery({
     queryKey: ["/api/users"],
@@ -65,14 +118,35 @@ export default function UsersPage() {
     onSuccess: async (response) => {
       const data = await response.json();
       toast({
-        title: "Password Reset",
-        description: `New password: ${data.temporaryPassword}`,
+        title: "Password Reset Successful",
+        description: `Temporary password: ${data.temporaryPassword}. An email has been sent to the user.`,
       });
     },
     onError: () => {
       toast({
         title: "Error",
         description: "Failed to reset password",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const updateUserMutation = useMutation({
+    mutationFn: (data: { userId: string; updates: UpdateUserFormData }) =>
+      apiRequest("PATCH", `/api/users/${data.userId}`, data.updates),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+      toast({
+        title: "Success",
+        description: "User updated successfully",
+      });
+      setEditDialogOpen(false);
+      setEditingUser(null);
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to update user",
         variant: "destructive",
       });
     },
@@ -281,10 +355,19 @@ export default function UsersPage() {
                         <Button
                           variant="outline"
                           size="sm"
+                          onClick={() => openEditDialog(user)}
+                          className="bg-blue-50 hover:bg-blue-100 text-blue-700 border-blue-200"
+                        >
+                          <Edit2 className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
                           onClick={() => resetPasswordMutation.mutate(user.id)}
                           disabled={resetPasswordMutation.isPending}
+                          className="bg-orange-50 hover:bg-orange-100 text-orange-700 border-orange-200"
                         >
-                          <RotateCcw className="h-4 w-4" />
+                          <Key className="h-4 w-4" />
                         </Button>
                         
                         {user.role !== "super_admin" && (
@@ -334,6 +417,166 @@ export default function UsersPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Edit User Dialog */}
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit User Account</DialogTitle>
+            <DialogDescription>
+              Update user information. An email will be sent to notify them of any changes.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <Form {...updateUserForm}>
+            <form
+              onSubmit={updateUserForm.handleSubmit((data) => {
+                if (editingUser) {
+                  updateUserMutation.mutate({ userId: editingUser.id, updates: data });
+                }
+              })}
+              className="space-y-4"
+            >
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={updateUserForm.control}
+                  name="firstName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>First Name</FormLabel>
+                      <FormControl>
+                        <Input {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={updateUserForm.control}
+                  name="lastName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Last Name</FormLabel>
+                      <FormControl>
+                        <Input {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <FormField
+                control={updateUserForm.control}
+                name="email"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Email</FormLabel>
+                    <FormControl>
+                      <Input type="email" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={updateUserForm.control}
+                name="username"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Username</FormLabel>
+                    <FormControl>
+                      <Input {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={updateUserForm.control}
+                  name="role"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Role</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="merchant">Merchant</SelectItem>
+                          <SelectItem value="agent">Agent</SelectItem>
+                          <SelectItem value="admin">Admin</SelectItem>
+                          <SelectItem value="corporate">Corporate</SelectItem>
+                          <SelectItem value="super_admin">Super Admin</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={updateUserForm.control}
+                  name="status"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Status</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="active">Active</SelectItem>
+                          <SelectItem value="suspended">Suspended</SelectItem>
+                          <SelectItem value="inactive">Inactive</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <DialogFooter>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setEditDialogOpen(false);
+                    setEditingUser(null);
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={updateUserMutation.isPending}>
+                  {updateUserMutation.isPending ? "Updating..." : "Update User"}
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+
     </div>
   );
+
+  // Helper function to open edit dialog
+  function openEditDialog(user: User) {
+    setEditingUser(user);
+    updateUserForm.reset({
+      firstName: user.firstName || "",
+      lastName: user.lastName || "",
+      email: user.email,
+      username: user.username,
+      role: user.role as any,
+      status: user.status as any,
+    });
+    setEditDialogOpen(true);
+  }
 }
