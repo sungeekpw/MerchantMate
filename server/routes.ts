@@ -772,10 +772,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Update user account information
-  app.patch("/api/users/:id", requireRole(['admin', 'super_admin']), async (req, res) => {
+  app.patch("/api/users/:id", dbEnvironmentMiddleware, requireRole(['admin', 'super_admin']), async (req: RequestWithDB, res) => {
     try {
       const userId = req.params.id;
       const updates = req.body;
+      
+      console.log('Update user endpoint - User ID:', userId);
+      console.log('Update user endpoint - Updates:', updates);
+      console.log('Update user endpoint - Database environment:', req.dbEnv);
       
       // Remove sensitive fields that shouldn't be updated via this endpoint
       delete updates.passwordHash;
@@ -784,11 +788,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
       delete updates.id;
       delete updates.createdAt;
       
-      const updatedUser = await storage.updateUser(userId, updates);
+      // Use dynamic database connection if available, otherwise use default storage
+      const dynamicDB = getRequestDB(req);
+      const schema = await import('@shared/schema');
+      const { eq } = await import('drizzle-orm');
+      
+      // Update user in the specific database environment
+      const [updatedUser] = await dynamicDB
+        .update(schema.users)
+        .set({ ...updates, updatedAt: new Date() })
+        .where(eq(schema.users.id, userId))
+        .returning();
       
       if (!updatedUser) {
+        console.log('Update user endpoint - User not found:', userId);
         return res.status(404).json({ message: "User not found" });
       }
+      
+      console.log('Update user endpoint - Successfully updated user:', updatedUser.id);
       
       // Remove sensitive data from response
       const { passwordHash, passwordResetToken, passwordResetExpires, twoFactorSecret, ...safeUser } = updatedUser;
@@ -800,20 +817,90 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Reset user password (admin only)
-  app.post("/api/users/:id/reset-password", requireRole(['admin', 'super_admin']), async (req, res) => {
+  app.post("/api/users/:id/reset-password", dbEnvironmentMiddleware, requireRole(['admin', 'super_admin']), async (req: RequestWithDB, res) => {
     try {
       const userId = req.params.id;
-      const { authService } = await import("./auth");
       
-      const result = await authService.adminResetPassword(userId);
+      console.log('Reset password endpoint - User ID:', userId);
+      console.log('Reset password endpoint - Database environment:', req.dbEnv);
       
-      if (!result.success) {
-        return res.status(404).json({ message: result.message });
+      // Use dynamic database connection if available
+      const dynamicDB = getRequestDB(req);
+      const schema = await import('@shared/schema');
+      const { eq } = await import('drizzle-orm');
+      
+      // Check if user exists in the specific database environment
+      const users = await dynamicDB
+        .select()
+        .from(schema.users)
+        .where(eq(schema.users.id, userId));
+      
+      const user = users[0];
+      if (!user) {
+        console.log('Reset password endpoint - User not found:', userId);
+        return res.status(404).json({ message: "User not found" });
       }
       
+      // Generate a secure temporary password
+      const temporaryPassword = Math.random().toString(36).slice(-10) + Math.random().toString(36).slice(-10);
+      
+      // Hash the temporary password
+      const bcrypt = await import('bcrypt');
+      const passwordHash = await bcrypt.hash(temporaryPassword, 10);
+      
+      // Set password reset token for forced password change
+      const crypto = await import('crypto');
+      const resetToken = crypto.randomUUID();
+      const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+      
+      // Update user with new password and reset token
+      const [updatedUser] = await dynamicDB
+        .update(schema.users)
+        .set({
+          passwordHash,
+          passwordResetToken: resetToken,
+          passwordResetExpires: expiresAt,
+          updatedAt: new Date()
+        })
+        .where(eq(schema.users.id, userId))
+        .returning();
+      
+      if (!updatedUser) {
+        return res.status(404).json({ message: "Failed to update user password" });
+      }
+      
+      // Send temporary password email
+      const { authService } = await import("./auth");
+      await authService.sendEmail(
+        updatedUser.email,
+        "CoreCRM Account Password Reset",
+        `
+        <h2>Password Reset - CoreCRM Account</h2>
+        <p>Dear ${updatedUser.firstName || updatedUser.username},</p>
+        <p>Your account password has been reset by an administrator.</p>
+        
+        <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
+          <h3 style="margin-top: 0;">Temporary Login Credentials</h3>
+          <p><strong>Username:</strong> ${updatedUser.username}</p>
+          <p><strong>Temporary Password:</strong> <span style="background-color: #e9ecef; padding: 4px 8px; font-family: monospace; font-size: 14px;">${temporaryPassword}</span></p>
+        </div>
+        
+        <p><strong>Important:</strong> You will be required to change this password immediately upon your next login for security purposes.</p>
+        
+        <p><a href="${process.env.APP_URL || "http://localhost:5000"}/login" style="background-color: #007bff; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; display: inline-block;">Login to Change Password</a></p>
+        
+        <p>If you have any questions, please contact your administrator.</p>
+        
+        <hr style="margin: 30px 0; border: none; border-top: 1px solid #dee2e6;">
+        <p style="font-size: 12px; color: #6c757d;">This is an automated message from CoreCRM. Please do not reply to this email.</p>
+        `
+      );
+      
+      console.log('Reset password endpoint - Successfully reset password for user:', updatedUser.id);
+      
       res.json({
-        message: result.message,
-        temporaryPassword: result.temporaryPassword // Only return this to admin
+        message: "Password reset successfully. Temporary password has been emailed to the user.",
+        temporaryPassword // Only return this to admin
       });
     } catch (error) {
       console.error("Error resetting user password:", error);
