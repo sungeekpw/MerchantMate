@@ -33,10 +33,22 @@ export default function UsersPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const { data: users = [], isLoading, refetch } = useQuery({
+  const { data: users = [], isLoading, refetch, error } = useQuery({
     queryKey: ["/api/users"],
-    staleTime: 0, // Always fetch fresh data
-    gcTime: 0, // Don't cache data (updated property name)
+    queryFn: async () => {
+      const response = await fetch('/api/users', {
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      return response.json();
+    },
+    staleTime: 0,
+    gcTime: 0,
     refetchOnMount: true,
     refetchOnWindowFocus: true,
   });
@@ -45,6 +57,7 @@ export default function UsersPage() {
   console.log("Users data:", users);
   console.log("Users length:", users?.length);
   console.log("Is loading:", isLoading);
+  console.log("Error:", error);
 
   const resetPasswordMutation = useMutation({
     mutationFn: (userId: string) =>
@@ -142,9 +155,18 @@ export default function UsersPage() {
             Manage all user accounts including agents, merchants, and administrators
           </p>
         </div>
-        <Button onClick={() => refetch()} disabled={isLoading}>
-          {isLoading ? "Refreshing..." : "Refresh Data"}
-        </Button>
+        <div className="flex gap-2">
+          <Button onClick={() => refetch()} disabled={isLoading}>
+            {isLoading ? "Refreshing..." : "Refresh Data"}
+          </Button>
+          <Button 
+            variant="outline" 
+            onClick={() => window.location.reload()} 
+            disabled={isLoading}
+          >
+            Force Refresh
+          </Button>
+        </div>
       </div>
 
       {/* Stats Cards */}
