@@ -14,7 +14,48 @@ import { pdfFormParser } from "./pdfParser";
 import { emailService } from "./emailService";
 import { v4 as uuidv4 } from "uuid";
 import { dbEnvironmentMiddleware, adminDbMiddleware, getRequestDB, type RequestWithDB } from "./dbMiddleware";
-import { users } from "@shared/schema";
+import { users, agents, merchants, agentMerchants } from "@shared/schema";
+import crypto from "crypto";
+
+// Helper functions for user account creation
+async function generateUsername(firstName: string, lastName: string, email: string, dynamicDB: any): Promise<string> {
+  // Try email-based username first
+  const emailUsername = email.split('@')[0].toLowerCase();
+  const existingUser = await dynamicDB.select().from(users).where(eq(users.username, emailUsername)).limit(1);
+  
+  if (existingUser.length === 0) {
+    return emailUsername;
+  }
+  
+  // Try first initial + last name
+  const firstInitialLastname = `${firstName.charAt(0).toLowerCase()}${lastName.toLowerCase()}`;
+  const existingUser2 = await dynamicDB.select().from(users).where(eq(users.username, firstInitialLastname)).limit(1);
+  
+  if (existingUser2.length === 0) {
+    return firstInitialLastname;
+  }
+  
+  // Add number suffix
+  let counter = 1;
+  let username = `${firstInitialLastname}${counter}`;
+  while (true) {
+    const existing = await dynamicDB.select().from(users).where(eq(users.username, username)).limit(1);
+    if (existing.length === 0) {
+      return username;
+    }
+    counter++;
+    username = `${firstInitialLastname}${counter}`;
+  }
+}
+
+function generateTemporaryPassword(): string {
+  const chars = 'ABCDEFGHJKMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
+  let password = '';
+  for (let i = 0; i < 12; i++) {
+    password += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return password;
+}
 
 // Function to reset testing data using dynamic database connection
 async function resetTestingDataWithDB(db: any, options: Record<string, boolean>) {
@@ -1344,10 +1385,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Agent-merchant assignment routes (admin only)
-  app.post("/api/agents/:agentId/merchants/:merchantId", requireRole(['admin', 'corporate', 'super_admin']), async (req: any, res) => {
+  app.post("/api/agents/:agentId/merchants/:merchantId", dbEnvironmentMiddleware, requireRole(['admin', 'corporate', 'super_admin']), async (req: RequestWithDB, res) => {
     try {
       const { agentId, merchantId } = req.params;
-      const userId = req.user.claims.sub;
+      const userId = (req as any).user.claims.sub;
+      const dynamicDB = getRequestDB(req);
+      console.log(`Agent assignment endpoint - Database environment: ${req.dbEnv}`);
 
       const assignment = await storage.assignAgentToMerchant(
         parseInt(agentId),
@@ -1362,9 +1405,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/agents/:agentId/merchants/:merchantId", requireRole(['admin', 'corporate', 'super_admin']), async (req: any, res) => {
+  app.delete("/api/agents/:agentId/merchants/:merchantId", dbEnvironmentMiddleware, requireRole(['admin', 'corporate', 'super_admin']), async (req: RequestWithDB, res) => {
     try {
       const { agentId, merchantId } = req.params;
+      const dynamicDB = getRequestDB(req);
+      console.log(`Agent unassignment endpoint - Database environment: ${req.dbEnv}`);
 
       const success = await storage.unassignAgentFromMerchant(
         parseInt(agentId),
@@ -1383,11 +1428,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get merchants for a specific agent
-  app.get("/api/agents/:agentId/merchants", requireRole(['admin', 'corporate', 'super_admin']), async (req: any, res) => {
+  app.get("/api/agents/:agentId/merchants", dbEnvironmentMiddleware, requireRole(['admin', 'corporate', 'super_admin']), async (req: RequestWithDB, res) => {
     try {
       const { agentId } = req.params;
-      const merchants = await storage.getAgentMerchants(parseInt(agentId));
-      res.json(merchants);
+      const dynamicDB = getRequestDB(req);
+      console.log(`Agent merchants endpoint - Database environment: ${req.dbEnv}`);
+      
+      // Use dynamic database to get agent merchants
+      const agentMerchantRecords = await dynamicDB.select({
+        merchant: merchants,
+        agent: agents
+      }).from(agentMerchants)
+        .innerJoin(merchants, eq(agentMerchants.merchantId, merchants.id))
+        .innerJoin(agents, eq(agentMerchants.agentId, agents.id))
+        .where(eq(agentMerchants.agentId, parseInt(agentId)));
+
+      const merchantList = agentMerchantRecords.map(record => ({
+        ...record.merchant,
+        agent: record.agent
+      }));
+      
+      console.log(`Found ${merchantList.length} merchants for agent ${agentId} in ${req.dbEnv} database`);
+      res.json(merchantList);
     } catch (error) {
       console.error("Error fetching agent merchants:", error);
       res.status(500).json({ message: "Failed to fetch agent merchants" });
@@ -2785,16 +2847,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Agent routes (admin only)
-  app.get("/api/agents", requireRole(['admin', 'corporate', 'super_admin']), async (req, res) => {
+  app.get("/api/agents", dbEnvironmentMiddleware, requireRole(['admin', 'corporate', 'super_admin']), async (req: RequestWithDB, res) => {
     try {
       const { search } = req.query;
+      const dynamicDB = getRequestDB(req);
       
+      console.log(`Agents endpoint - Database environment: ${req.dbEnv}`);
+      
+      // Use dynamic database connection directly
       if (search) {
-        const agents = await storage.searchAgents(search as string);
-        res.json(agents);
+        const searchResults = await dynamicDB.select().from(agents).where(
+          or(
+            ilike(agents.firstName, `%${search}%`),
+            ilike(agents.lastName, `%${search}%`),
+            ilike(agents.email, `%${search}%`)
+          )
+        );
+        res.json(searchResults);
       } else {
-        const agents = await storage.getAllAgents();
-        res.json(agents);
+        const allAgents = await dynamicDB.select().from(agents);
+        console.log(`Found ${allAgents.length} agents in ${req.dbEnv} database`);
+        res.json(allAgents);
       }
     } catch (error) {
       console.error("Error fetching agents:", error);
@@ -2802,8 +2875,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/agents", requireRole(['admin', 'corporate', 'super_admin']), async (req, res) => {
+  app.post("/api/agents", dbEnvironmentMiddleware, requireRole(['admin', 'corporate', 'super_admin']), async (req: RequestWithDB, res) => {
     try {
+      const dynamicDB = getRequestDB(req);
+      console.log(`Creating agent - Database environment: ${req.dbEnv}`);
+      
       // Remove userId from validation since it's auto-generated
       const { userId, ...agentData } = req.body;
       const result = insertAgentSchema.omit({ userId: true }).safeParse(agentData);
@@ -2811,8 +2887,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Invalid agent data", errors: result.error.errors });
       }
 
-      // Create agent with automatic user account creation
-      const { agent, user, temporaryPassword } = await storage.createAgentWithUser(result.data);
+      // Create user account first using dynamic database
+      const username = await generateUsername(result.data.firstName, result.data.lastName, result.data.email, dynamicDB);
+      const temporaryPassword = generateTemporaryPassword();
+      
+      // Hash the temporary password
+      const bcrypt = await import('bcrypt');
+      const passwordHash = await bcrypt.hash(temporaryPassword, 10);
+      
+      // Create user account
+      const userData = {
+        id: crypto.randomUUID(),
+        email: result.data.email,
+        username,
+        passwordHash,
+        firstName: result.data.firstName,
+        lastName: result.data.lastName,
+        role: 'agent' as const,
+        status: 'active' as const,
+        emailVerified: true,
+      };
+      
+      const [user] = await dynamicDB.insert(users).values(userData).returning();
+      
+      // Create agent linked to user using dynamic database
+      const [agent] = await dynamicDB.insert(agents).values({
+        ...result.data,
+        userId: user.id
+      }).returning();
+      
+      console.log(`Agent created in ${req.dbEnv} database:`, agent.firstName, agent.lastName);
       
       res.status(201).json({
         agent,
@@ -2835,9 +2939,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Agent and Merchant User Management
-  app.get("/api/agents/:id/user", requireRole(['admin', 'corporate', 'super_admin']), async (req, res) => {
+  app.get("/api/agents/:id/user", dbEnvironmentMiddleware, requireRole(['admin', 'corporate', 'super_admin']), async (req: RequestWithDB, res) => {
     try {
       const agentId = parseInt(req.params.id);
+      const dynamicDB = getRequestDB(req);
+      console.log(`Agent user endpoint - Database environment: ${req.dbEnv}`);
+      
       const user = await storage.getAgentUser(agentId);
       
       if (!user) {
