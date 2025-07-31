@@ -363,8 +363,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/dashboard/revenue", async (req: any, res) => {
     try {
-      const timeRange = req.query.timeRange as string || "30d";
-      const revenue = await storage.getDashboardRevenue(timeRange);
+      const revenue = await storage.getDashboardRevenue();
       res.json(revenue);
     } catch (error) {
       console.error("Error fetching dashboard revenue:", error);
