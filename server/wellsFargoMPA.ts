@@ -360,11 +360,20 @@ export function getWellsFargoMPAForm(): EnhancedFormSection[] {
           placeholder: 'Describe the products and/or services your business sells'
         },
         {
+          fieldName: 'mccCode',
+          fieldType: 'mcc-select',
+          fieldLabel: 'Merchant Category Code (MCC)',
+          isRequired: true,
+          position: 33,
+          section: 'Products, Services & Processing',
+          helpText: 'Select the merchant category code that best describes your primary business activity. This code is used for payment processing classification and risk assessment.'
+        },
+        {
           fieldName: 'thirdPartyDataStorage',
           fieldType: 'select',
           fieldLabel: 'Do you use any third party to store, process or transmit cardholder\'s data?',
           isRequired: true,
-          position: 33,
+          position: 34,
           section: 'Products, Services & Processing',
           options: ['No', 'Yes']
         },
@@ -373,7 +382,7 @@ export function getWellsFargoMPAForm(): EnhancedFormSection[] {
           fieldType: 'text',
           fieldLabel: 'Third Party Company Information (if applicable)',
           isRequired: false,
-          position: 34,
+          position: 35,
           section: 'Products, Services & Processing',
           placeholder: 'Company name, address and phone number',
           validation: JSON.stringify({ maxLength: 200 })
@@ -383,7 +392,7 @@ export function getWellsFargoMPAForm(): EnhancedFormSection[] {
           fieldType: 'select',
           fieldLabel: 'Refund Policy for Visa/MasterCard/Amex/Discover Network Sales',
           isRequired: true,
-          position: 35,
+          position: 36,
           section: 'Products, Services & Processing',
           options: [
             'Refund will be granted to a customer as follows',
