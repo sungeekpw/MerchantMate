@@ -16,6 +16,7 @@ import { v4 as uuidv4 } from "uuid";
 import { dbEnvironmentMiddleware, adminDbMiddleware, getRequestDB, type RequestWithDB } from "./dbMiddleware";
 import { users, agents, merchants, agentMerchants } from "@shared/schema";
 import crypto from "crypto";
+import { eq, or, ilike } from "drizzle-orm";
 
 // Helper functions for user account creation
 async function generateUsername(firstName: string, lastName: string, email: string, dynamicDB: any): Promise<string> {
@@ -1434,7 +1435,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const dynamicDB = getRequestDB(req);
       console.log(`Agent merchants endpoint - Database environment: ${req.dbEnv}`);
       
-      // Use dynamic database to get agent merchants
+      // Use dynamic database to get agent merchants  
       const agentMerchantRecords = await dynamicDB.select({
         merchant: merchants,
         agent: agents
@@ -2863,6 +2864,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             ilike(agents.email, `%${search}%`)
           )
         );
+        console.log(`Found ${searchResults.length} agents matching "${search}" in ${req.dbEnv} database`);
         res.json(searchResults);
       } else {
         const allAgents = await dynamicDB.select().from(agents);
