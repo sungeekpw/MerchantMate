@@ -299,10 +299,10 @@ export default function Auth() {
                   )}
                 </div>
 
-                {/* Database Selection - only show in non-production environments */}
+                {/* Environment Selection - only show in non-production environments */}
                 {isNonProduction && (
                   <div className="space-y-2">
-                    <Label htmlFor="database">Database Environment</Label>
+                    <Label htmlFor="database">Environment</Label>
                     <div className="relative">
                       <Database className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                       <Select
@@ -313,17 +313,37 @@ export default function Auth() {
                         }}
                       >
                         <SelectTrigger className="pl-10">
-                          <SelectValue placeholder="Select database" />
+                          <SelectValue placeholder="Select environment" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="dev">Development Database</SelectItem>
-                          <SelectItem value="test">Test Database</SelectItem>
+                          <SelectItem value="dev" className="flex items-center">
+                            <div className="flex items-center space-x-2">
+                              <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                              <span>Development</span>
+                            </div>
+                          </SelectItem>
+                          <SelectItem value="test" className="flex items-center">
+                            <div className="flex items-center space-x-2">
+                              <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
+                              <span>Test</span>
+                            </div>
+                          </SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
                     <p className="text-xs text-gray-500">
-                      {selectedDatabase === "dev" && "Login to isolated development environment"}
-                      {selectedDatabase === "test" && "Login to isolated test environment"}
+                      {selectedDatabase === "dev" && (
+                        <span className="flex items-center space-x-1">
+                          <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                          <span>Login to isolated development environment</span>
+                        </span>
+                      )}
+                      {selectedDatabase === "test" && (
+                        <span className="flex items-center space-x-1">
+                          <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
+                          <span>Login to isolated test environment</span>
+                        </span>
+                      )}
                     </p>
                   </div>
                 )}
