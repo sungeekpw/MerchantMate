@@ -115,6 +115,9 @@ export interface IStorage {
   createPdfFormSubmission(submission: InsertPdfFormSubmission): Promise<PdfFormSubmission>;
   getPdfFormSubmissions(formId: number): Promise<PdfFormSubmission[]>;
   getPdfFormSubmission(id: number): Promise<PdfFormSubmission | undefined>;
+  getPdfFormSubmissionByToken(token: string): Promise<PdfFormSubmission | undefined>;
+  updatePdfFormSubmissionByToken(token: string, updates: Partial<InsertPdfFormSubmission>): Promise<PdfFormSubmission | undefined>;
+  generateSubmissionToken(): string; // Non-async method
 
   // Prospect Owner operations
   createProspectOwner(owner: InsertProspectOwner): Promise<ProspectOwner>;
@@ -183,7 +186,7 @@ export interface IStorage {
   }>;
 
   // Agent-Merchant associations
-  getAgentMerchants(agentId: number): Promise<Merchant[]>;
+  getAgentMerchants(agentId: number): Promise<MerchantWithAgent[]>;
   getMerchantAgents(merchantId: number): Promise<Agent[]>;
   assignAgentToMerchant(agentId: number, merchantId: number, assignedBy: string): Promise<AgentMerchant>;
   unassignAgentFromMerchant(agentId: number, merchantId: number): Promise<boolean>;
@@ -869,6 +872,328 @@ export class DatabaseStorage implements IStorage {
         merchant.email.toLowerCase().includes(query.toLowerCase()) ||
         merchant.businessType.toLowerCase().includes(query.toLowerCase())
       );
+  }
+
+  // Missing methods implementation
+  async getLocationRevenue(locationId: number) {
+    return {
+      totalRevenue: "0.00",
+      last24Hours: "0.00", 
+      monthToDate: "0.00",
+      yearToDate: "0.00"
+    };
+  }
+
+  async getLocationsByMerchant(merchantId: number): Promise<LocationWithAddresses[]> {
+    const result = await db
+      .select({
+        location: locations,
+        address: addresses,
+      })
+      .from(locations)
+      .leftJoin(addresses, eq(locations.id, addresses.locationId))
+      .where(eq(locations.merchantId, merchantId));
+
+    const locationsMap = new Map<number, LocationWithAddresses>();
+    
+    for (const row of result) {
+      if (!locationsMap.has(row.location.id)) {
+        locationsMap.set(row.location.id, {
+          ...row.location,
+          addresses: []
+        });
+      }
+      
+      if (row.address) {
+        locationsMap.get(row.location.id)!.addresses.push(row.address);
+      }
+    }
+    
+    return Array.from(locationsMap.values());
+  }
+
+  async getDashboardRevenue() {
+    return {
+      totalRevenue: "0.00",
+      thisMonth: "0.00",
+      lastMonth: "0.00"
+    };
+  }
+
+  async getTopLocations() {
+    return [];
+  }
+
+  async getRecentActivity() {
+    return [];
+  }
+
+  async getAssignedMerchants(agentId: number) {
+    return await this.getAgentMerchants(agentId);
+  }
+
+  async getSystemOverview() {
+    return {
+      totalMerchants: 0,
+      totalAgents: 0,
+      totalRevenue: "0.00"
+    };
+  }
+
+  async getProspectsByAgent(agentId: number) {
+    return await db.select().from(merchantProspects).where(eq(merchantProspects.agentId, agentId));
+  }
+
+  async getProspectSignaturesByProspect(prospectId: number): Promise<ProspectSignature[]> {
+    return await db.select().from(prospectSignatures).where(eq(prospectSignatures.prospectId, prospectId));
+  }
+
+  async getProspectOwners(prospectId: number): Promise<ProspectOwner[]> {
+    return await db.select().from(prospectOwners).where(eq(prospectOwners.prospectId, prospectId));
+  }
+
+  async getUserWidgetPreferences(userId: string): Promise<UserDashboardPreference[]> {
+    return await db.select().from(userDashboardPreferences).where(eq(userDashboardPreferences.userId, userId));
+  }
+
+  async createWidgetPreference(preference: InsertUserDashboardPreference): Promise<UserDashboardPreference> {
+    const [created] = await db.insert(userDashboardPreferences).values(preference).returning();
+    return created;
+  }
+
+  async updateWidgetPreference(id: number, updates: Partial<InsertUserDashboardPreference>): Promise<UserDashboardPreference | undefined> {
+    const [updated] = await db.update(userDashboardPreferences).set(updates).where(eq(userDashboardPreferences.id, id)).returning();
+    return updated || undefined;
+  }
+
+  async deleteWidgetPreference(id: number): Promise<boolean> {
+    const result = await db.delete(userDashboardPreferences).where(eq(userDashboardPreferences.id, id));
+    return result.rowCount > 0;
+  }
+
+  async createLocation(location: InsertLocation): Promise<Location> {
+    const [created] = await db.insert(locations).values(location).returning();
+    return created;
+  }
+
+  async getLocation(id: number): Promise<Location | undefined> {
+    const [location] = await db.select().from(locations).where(eq(locations.id, id));
+    return location || undefined;
+  }
+
+  async updateLocation(id: number, updates: Partial<InsertLocation>): Promise<Location | undefined> {
+    const [updated] = await db.update(locations).set(updates).where(eq(locations.id, id)).returning();
+    return updated || undefined;
+  }
+
+  async deleteLocation(id: number): Promise<boolean> {
+    const result = await db.delete(locations).where(eq(locations.id, id));
+    return result.rowCount > 0;
+  }
+
+  async getAddressesByLocation(locationId: number): Promise<Address[]> {
+    return await db.select().from(addresses).where(eq(addresses.locationId, locationId));
+  }
+
+  async createAddress(address: InsertAddress): Promise<Address> {
+    const [created] = await db.insert(addresses).values(address).returning();
+    return created;
+  }
+
+  async getAddress(id: number): Promise<Address | undefined> {
+    const [address] = await db.select().from(addresses).where(eq(addresses.id, id));
+    return address || undefined;
+  }
+
+  async updateAddress(id: number, updates: Partial<InsertAddress>): Promise<Address | undefined> {
+    const [updated] = await db.update(addresses).set(updates).where(eq(addresses.id, id)).returning();
+    return updated || undefined;
+  }
+
+  async deleteAddress(id: number): Promise<boolean> {
+    const result = await db.delete(addresses).where(eq(addresses.id, id));
+    return result.rowCount > 0;
+  }
+
+  async getTransactionsForUser(userId: string): Promise<TransactionWithMerchant[]> {
+    const result = await db
+      .select({
+        transaction: transactions,
+        merchant: merchants,
+      })
+      .from(transactions)
+      .leftJoin(merchants, eq(transactions.merchantId, merchants.id))
+      .where(eq(merchants.userId, userId));
+
+    return result.map(row => ({
+      ...row.transaction,
+      merchant: row.merchant || undefined,
+    }));
+  }
+
+  async assignAgentToMerchant(agentId: number, merchantId: number, assignedBy: string): Promise<AgentMerchant> {
+    const [created] = await db.insert(agentMerchants).values({
+      agentId,
+      merchantId,
+      assignedBy,
+    }).returning();
+    return created;
+  }
+
+  async unassignAgentFromMerchant(agentId: number, merchantId: number): Promise<boolean> {
+    const result = await db.delete(agentMerchants)
+      .where(and(
+        eq(agentMerchants.agentId, agentId),
+        eq(agentMerchants.merchantId, merchantId)
+      ));
+    return result.rowCount > 0;
+  }
+
+  async searchMerchantProspectsByAgent(agentId: number, query: string) {
+    const prospects = await db.select().from(merchantProspects).where(eq(merchantProspects.agentId, agentId));
+    return prospects.filter(p => 
+      `${p.firstName} ${p.lastName}`.toLowerCase().includes(query.toLowerCase()) ||
+      p.email.toLowerCase().includes(query.toLowerCase())
+    );
+  }
+
+  async getMerchantProspectsByAgent(agentId: number) {
+    return await db.select().from(merchantProspects).where(eq(merchantProspects.agentId, agentId));
+  }
+
+  async searchMerchantProspects(query: string) {
+    const prospects = await db.select().from(merchantProspects);
+    return prospects.filter(p => 
+      `${p.firstName} ${p.lastName}`.toLowerCase().includes(query.toLowerCase()) ||
+      p.email.toLowerCase().includes(query.toLowerCase())
+    );
+  }
+
+  async clearAllProspectData(): Promise<void> {
+    await db.delete(prospectSignatures);
+    await db.delete(prospectOwners);
+    await db.delete(merchantProspects);
+  }
+
+  async updateProspectOwner(id: number, updates: Partial<ProspectOwner>): Promise<ProspectOwner | undefined> {
+    const [updated] = await db.update(prospectOwners).set(updates).where(eq(prospectOwners.id, id)).returning();
+    return updated || undefined;
+  }
+
+  async createProspectOwner(owner: InsertProspectOwner): Promise<ProspectOwner> {
+    const [created] = await db.insert(prospectOwners).values(owner).returning();
+    return created;
+  }
+
+  async getProspectOwnerBySignatureToken(token: string): Promise<ProspectOwner | undefined> {
+    const [owner] = await db.select().from(prospectOwners).where(eq(prospectOwners.signatureToken, token));
+    return owner || undefined;
+  }
+
+  async createProspectSignature(signature: InsertProspectSignature): Promise<ProspectSignature> {
+    const [created] = await db.insert(prospectSignatures).values(signature).returning();
+    return created;
+  }
+
+  async getProspectOwnerByEmailAndProspectId(email: string, prospectId: number): Promise<ProspectOwner | undefined> {
+    const [owner] = await db.select().from(prospectOwners)
+      .where(and(
+        eq(prospectOwners.email, email),
+        eq(prospectOwners.prospectId, prospectId)
+      ));
+    return owner || undefined;
+  }
+
+  async getProspectSignature(token: string): Promise<ProspectSignature | undefined> {
+    const [signature] = await db.select().from(prospectSignatures).where(eq(prospectSignatures.signatureToken, token));
+    return signature || undefined;
+  }
+
+  async getProspectSignaturesByOwnerEmail(email: string): Promise<ProspectSignature[]> {
+    const result = await db
+      .select({
+        signature: prospectSignatures,
+        owner: prospectOwners,
+      })
+      .from(prospectSignatures)
+      .leftJoin(prospectOwners, eq(prospectSignatures.prospectOwnerId, prospectOwners.id))
+      .where(eq(prospectOwners.email, email));
+
+    return result.map(row => row.signature);
+  }
+
+  async getAgentByUserId(userId: string): Promise<Agent | undefined> {
+    const [agent] = await db.select().from(agents).where(eq(agents.userId, userId));
+    return agent || undefined;
+  }
+
+  async createPdfForm(form: InsertPdfForm): Promise<PdfForm> {
+    const [created] = await db.insert(pdfForms).values(form).returning();
+    return created;
+  }
+
+  async createPdfFormField(field: InsertPdfFormField): Promise<PdfFormField> {
+    const [created] = await db.insert(pdfFormFields).values(field).returning();
+    return created;
+  }
+
+  async getPdfFormWithFields(id: number): Promise<PdfFormWithFields | undefined> {
+    const [form] = await db.select().from(pdfForms).where(eq(pdfForms.id, id));
+    if (!form) return undefined;
+
+    const fields = await db.select().from(pdfFormFields).where(eq(pdfFormFields.formId, id));
+    
+    return {
+      ...form,
+      fields
+    };
+  }
+
+  async updatePdfForm(id: number, updates: Partial<InsertPdfForm>): Promise<PdfForm | undefined> {
+    const [updated] = await db.update(pdfForms).set(updates).where(eq(pdfForms.id, id)).returning();
+    return updated || undefined;
+  }
+
+  generateSubmissionToken(): string {
+    return `sub_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  }
+
+  async createPdfFormSubmission(submission: InsertPdfFormSubmission): Promise<PdfFormSubmission> {
+    const [created] = await db.insert(pdfFormSubmissions).values(submission).returning();
+    return created;
+  }
+
+  async getPdfFormSubmissions(formId: number): Promise<PdfFormSubmission[]> {
+    return await db.select().from(pdfFormSubmissions).where(eq(pdfFormSubmissions.formId, formId));
+  }
+
+  async getPdfFormSubmissionByToken(token: string): Promise<PdfFormSubmission | undefined> {
+    const [submission] = await db.select().from(pdfFormSubmissions).where(eq(pdfFormSubmissions.submissionToken, token));
+    return submission || undefined;
+  }
+
+  async updatePdfFormSubmissionByToken(token: string, updates: Partial<InsertPdfFormSubmission>): Promise<PdfFormSubmission | undefined> {
+    const [updated] = await db.update(pdfFormSubmissions).set(updates).where(eq(pdfFormSubmissions.submissionToken, token)).returning();
+    return updated || undefined;
+  }
+
+  async createCampaign(campaign: InsertCampaign): Promise<Campaign> {
+    const [created] = await db.insert(campaigns).values(campaign).returning();
+    return created;
+  }
+
+  async getPdfForm(id: number): Promise<PdfForm | undefined> {
+    const [form] = await db.select().from(pdfForms).where(eq(pdfForms.id, id));
+    return form || undefined;
+  }
+
+  async updateCampaign(id: number, updates: Partial<InsertCampaign>): Promise<Campaign | undefined> {
+    const [updated] = await db.update(campaigns).set(updates).where(eq(campaigns.id, id)).returning();
+    return updated || undefined;
+  }
+
+  async getPricingTypeFeeItems(pricingTypeId: number) {
+    return await this.getPricingTypeWithFeeItems(pricingTypeId);
   }
 
   // Agent operations
