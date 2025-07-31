@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
 import { Building, FileText, CheckCircle, ArrowLeft, ArrowRight, Users, Upload, Signature, PenTool, Type, RotateCcw, Check, X, AlertTriangle, Monitor } from 'lucide-react';
+import { MCCSelect } from '@/components/ui/mcc-select';
 
 interface FormField {
   id: number;
@@ -1814,6 +1815,27 @@ export default function EnhancedPdfWizard() {
               placeholder={`Enter ${field.fieldLabel.toLowerCase()}`}
               rows={3}
             />
+            {hasError && <p className="text-xs text-red-500">{hasError}</p>}
+          </div>
+        );
+
+      case 'mcc-select':
+        return (
+          <div className="space-y-2">
+            <Label htmlFor={field.fieldName} className="text-sm font-medium text-gray-700">
+              {field.fieldLabel}
+              {field.isRequired && <span className="text-red-500 ml-1">*</span>}
+            </Label>
+            <MCCSelect
+              value={value}
+              onValueChange={(value) => handleFieldChange(field.fieldName, value)}
+              placeholder="Select your business category"
+              required={field.isRequired}
+              className={hasError ? 'border-red-500' : ''}
+            />
+            {field.helpText && (
+              <p className="text-xs text-gray-500">{field.helpText}</p>
+            )}
             {hasError && <p className="text-xs text-red-500">{hasError}</p>}
           </div>
         );
