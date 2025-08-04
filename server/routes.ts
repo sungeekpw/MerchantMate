@@ -14,6 +14,7 @@ import { pdfFormParser } from "./pdfParser";
 import { emailService } from "./emailService";
 import { v4 as uuidv4 } from "uuid";
 import { dbEnvironmentMiddleware, adminDbMiddleware, getRequestDB, type RequestWithDB } from "./dbMiddleware";
+import { getDynamicDatabase } from "./db";
 import { users, agents, merchants, agentMerchants } from "@shared/schema";
 import crypto from "crypto";
 import { eq, or, ilike } from "drizzle-orm";
