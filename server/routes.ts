@@ -2877,61 +2877,68 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   app.post("/api/agents", dbEnvironmentMiddleware, requireRole(['admin', 'corporate', 'super_admin']), async (req: RequestWithDB, res) => {
+    const dynamicDB = getRequestDB(req);
+    console.log(`Creating agent - Database environment: ${req.dbEnv}`);
+    
+    // Use database transaction to ensure ACID compliance
     try {
-      const dynamicDB = getRequestDB(req);
-      console.log(`Creating agent - Database environment: ${req.dbEnv}`);
-      
-      // Remove userId from validation since it's auto-generated
-      const { userId, ...agentData } = req.body;
-      const result = insertAgentSchema.omit({ userId: true }).safeParse(agentData);
-      if (!result.success) {
-        return res.status(400).json({ message: "Invalid agent data", errors: result.error.errors });
-      }
-
-      // Create user account first using dynamic database
-      const username = await generateUsername(result.data.firstName, result.data.lastName, result.data.email, dynamicDB);
-      const temporaryPassword = generateTemporaryPassword();
-      
-      // Hash the temporary password
-      const bcrypt = await import('bcrypt');
-      const passwordHash = await bcrypt.hash(temporaryPassword, 10);
-      
-      // Create user account
-      const userData = {
-        id: crypto.randomUUID(),
-        email: result.data.email,
-        username,
-        passwordHash,
-        firstName: result.data.firstName,
-        lastName: result.data.lastName,
-        role: 'agent' as const,
-        status: 'active' as const,
-        emailVerified: true,
-      };
-      
-      const [user] = await dynamicDB.insert(users).values(userData).returning();
-      
-      // Create agent linked to user using dynamic database
-      const [agent] = await dynamicDB.insert(agents).values({
-        ...result.data,
-        userId: user.id
-      }).returning();
-      
-      console.log(`Agent created in ${req.dbEnv} database:`, agent.firstName, agent.lastName);
-      
-      res.status(201).json({
-        agent,
-        user: {
-          id: user.id,
-          username: user.username,
-          email: user.email,
-          role: user.role,
-          temporaryPassword // Include for admin to share with agent
+      const result = await dynamicDB.transaction(async (tx) => {
+        // Remove userId from validation since it's auto-generated
+        const { userId, ...agentData } = req.body;
+        const validationResult = insertAgentSchema.omit({ userId: true }).safeParse(agentData);
+        if (!validationResult.success) {
+          throw new Error(`Invalid agent data: ${validationResult.error.errors.map(e => e.message).join(', ')}`);
         }
+
+        // Create user account first within transaction
+        const username = await generateUsername(validationResult.data.firstName, validationResult.data.lastName, validationResult.data.email, tx);
+        const temporaryPassword = generateTemporaryPassword();
+        
+        // Hash the temporary password
+        const bcrypt = await import('bcrypt');
+        const passwordHash = await bcrypt.hash(temporaryPassword, 10);
+        
+        // Create user account within transaction
+        const userData = {
+          id: crypto.randomUUID(),
+          email: validationResult.data.email,
+          username,
+          passwordHash,
+          firstName: validationResult.data.firstName,
+          lastName: validationResult.data.lastName,
+          role: 'agent' as const,
+          status: 'active' as const,
+          emailVerified: true,
+        };
+        
+        const [user] = await tx.insert(users).values(userData).returning();
+        
+        // Create agent linked to user within transaction
+        const [agent] = await tx.insert(agents).values({
+          ...validationResult.data,
+          userId: user.id
+        }).returning();
+        
+        return {
+          agent,
+          user: {
+            id: user.id,
+            username: user.username,
+            email: user.email,
+            role: user.role,
+            temporaryPassword // Include for admin to share with agent
+          }
+        };
       });
+      
+      console.log(`Agent created in ${req.dbEnv} database:`, result.agent.firstName, result.agent.lastName);
+      res.status(201).json(result);
+      
     } catch (error) {
       console.error("Error creating agent:", error);
-      if (error.message?.includes('unique constraint')) {
+      if (error.message?.includes('Invalid agent data')) {
+        res.status(400).json({ message: error.message });
+      } else if (error.message?.includes('unique constraint')) {
         res.status(409).json({ message: "Email address already exists" });
       } else {
         res.status(500).json({ message: "Failed to create agent" });
