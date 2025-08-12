@@ -6,6 +6,7 @@ Core CRM is a comprehensive merchant payment processing management system that s
 ## Recent Changes (August 2025)
 - **CRITICAL FIX: Complete Database Environment Isolation**: Resolved critical security vulnerability where fee group creation was bypassing database environment middleware, causing development data to be written to production database. Added dbEnvironmentMiddleware to ALL fee-related endpoints (fee-groups, fee-items, fee-item-groups) ensuring complete database isolation. Fixed duplicate API endpoints and verified proper environment routing with console logging. All fee management operations now correctly respect the login screen environment selector.
 - **Fee Management System Complete**: Implemented complete fee group edit functionality and fee item creation with proper UI dialogs, backend API endpoints, and database integration. Resolved persistent 500 server errors during agent creation. The system maintains strict database environment isolation based on login screen selection, with session-based persistence and ACID compliance across all authenticated routes.
+- **UI Cache Optimization**: Fixed frontend cache issues that prevented real-time display of database updates. Implemented proper cache invalidation with staleTime: 0 and gcTime: 0 for fee-related queries, ensuring UI immediately reflects database changes without manual refresh. Fee item group associations now display correctly in real-time.
 
 ## User Preferences
 Preferred communication style: Simple, everyday language.
