@@ -316,10 +316,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Location revenue metrics endpoint (placed early to avoid auth middleware)
-  app.get("/api/locations/:locationId/revenue", async (req: any, res) => {
+  app.get("/api/locations/:locationId/revenue", dbEnvironmentMiddleware, async (req: RequestWithDB, res) => {
     try {
       const { locationId } = req.params;
       console.log('Revenue endpoint - fetching revenue for location:', locationId);
+      const dynamicDB = getRequestDB(req);
       const revenue = await storage.getLocationRevenue(parseInt(locationId));
       res.json(revenue);
     } catch (error) {
@@ -329,11 +330,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Merchant MTD revenue endpoint (placed early to avoid auth middleware)
-  app.get("/api/merchants/:merchantId/mtd-revenue", async (req: any, res) => {
+  app.get("/api/merchants/:merchantId/mtd-revenue", dbEnvironmentMiddleware, async (req: RequestWithDB, res) => {
     try {
       const { merchantId } = req.params;
       console.log('MTD Revenue endpoint - fetching MTD revenue for merchant:', merchantId);
       
+      const dynamicDB = getRequestDB(req);
       // Get all locations for this merchant
       const locations = await storage.getLocationsByMerchant(parseInt(merchantId));
       
@@ -352,8 +354,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Dashboard API endpoints (placed early to avoid auth middleware for development)
-  app.get("/api/dashboard/metrics", async (req: any, res) => {
+  app.get("/api/dashboard/metrics", dbEnvironmentMiddleware, async (req: RequestWithDB, res) => {
     try {
+      const dynamicDB = getRequestDB(req);
       const metrics = await storage.getDashboardMetrics();
       res.json(metrics);
     } catch (error) {
@@ -362,7 +365,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/dashboard/revenue", async (req: any, res) => {
+  app.get("/api/dashboard/revenue", dbEnvironmentMiddleware, async (req: RequestWithDB, res) => {
     try {
       const revenue = await storage.getDashboardRevenue();
       res.json(revenue);
@@ -372,7 +375,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/dashboard/top-locations", async (req: any, res) => {
+  app.get("/api/dashboard/top-locations", dbEnvironmentMiddleware, async (req: RequestWithDB, res) => {
     try {
       const limit = parseInt(req.query.limit as string) || 5;
       const sortBy = req.query.sortBy as string || "revenue";
@@ -384,7 +387,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/dashboard/recent-activity", async (req: any, res) => {
+  app.get("/api/dashboard/recent-activity", dbEnvironmentMiddleware, async (req: RequestWithDB, res) => {
     try {
       const activities = await storage.getRecentActivity();
       res.json(activities);
@@ -394,7 +397,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/dashboard/assigned-merchants", async (req: any, res) => {
+  app.get("/api/dashboard/assigned-merchants", dbEnvironmentMiddleware, async (req: RequestWithDB, res) => {
     try {
       const limit = parseInt(req.query.limit as string) || 10;
       const merchants = await storage.getAssignedMerchants(limit);
@@ -405,7 +408,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/dashboard/system-overview", async (req: any, res) => {
+  app.get("/api/dashboard/system-overview", dbEnvironmentMiddleware, async (req: RequestWithDB, res) => {
     try {
       const systemData = await storage.getSystemOverview();
       res.json(systemData);
@@ -416,7 +419,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Agent dashboard endpoints
-  app.get("/api/agent/dashboard/stats", async (req: any, res) => {
+  app.get("/api/agent/dashboard/stats", dbEnvironmentMiddleware, async (req: RequestWithDB, res) => {
     try {
       console.log('Agent Dashboard Stats - Session ID:', req.sessionID);
       console.log('Agent Dashboard Stats - Session data:', req.session);
@@ -482,7 +485,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/agent/applications", async (req: any, res) => {
+  app.get("/api/agent/applications", dbEnvironmentMiddleware, async (req: RequestWithDB, res) => {
     try {
       console.log('Agent Applications - Session ID:', req.sessionID);
       console.log('Agent Applications - Session data:', req.session);
@@ -654,7 +657,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
 
   // Widget preference endpoints (before auth middleware for development)
-  app.get("/api/user/:userId/widgets", async (req: any, res) => {
+  app.get("/api/user/:userId/widgets", dbEnvironmentMiddleware, async (req: RequestWithDB, res) => {
     try {
       const { userId } = req.params;
       const widgets = await storage.getUserWidgetPreferences(userId);
@@ -665,7 +668,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/user/:userId/widgets", async (req: any, res) => {
+  app.post("/api/user/:userId/widgets", dbEnvironmentMiddleware, async (req: RequestWithDB, res) => {
     try {
       const { userId } = req.params;
       const widgetData = {
@@ -680,7 +683,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/widgets/:widgetId", async (req: any, res) => {
+  app.put("/api/widgets/:widgetId", dbEnvironmentMiddleware, async (req: RequestWithDB, res) => {
     try {
       const { widgetId } = req.params;
       const widget = await storage.updateWidgetPreference(parseInt(widgetId), req.body);
@@ -694,7 +697,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/widgets/:widgetId", async (req: any, res) => {
+  app.delete("/api/widgets/:widgetId", dbEnvironmentMiddleware, async (req: RequestWithDB, res) => {
     try {
       const { widgetId } = req.params;
       const success = await storage.deleteWidgetPreference(parseInt(widgetId));
@@ -718,7 +721,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Use production auth setup for all environments
   await setupAuth(app);
 
-  app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
+  app.get('/api/auth/user', isAuthenticated, dbEnvironmentMiddleware, async (req: RequestWithDB, res) => {
     try {
       const userId = req.user.claims.sub;
       const user = await storage.getUser(userId);
@@ -756,7 +759,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/users/:id/role", requireRole(['super_admin']), async (req, res) => {
+  app.patch("/api/users/:id/role", dbEnvironmentMiddleware, requireRole(['super_admin']), async (req: RequestWithDB, res) => {
     try {
       const { id } = req.params;
       const { role } = req.body;
@@ -776,7 +779,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/users/:id/status", requireRole(['admin', 'corporate', 'super_admin']), async (req, res) => {
+  app.patch("/api/users/:id/status", dbEnvironmentMiddleware, requireRole(['admin', 'corporate', 'super_admin']), async (req: RequestWithDB, res) => {
     try {
       const { id } = req.params;
       const { status } = req.body;
@@ -951,7 +954,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Agent password reset
-  app.post("/api/agents/:id/reset-password", requireRole(['admin', 'super_admin']), async (req, res) => {
+  app.post("/api/agents/:id/reset-password", dbEnvironmentMiddleware, requireRole(['admin', 'super_admin']), async (req: RequestWithDB, res) => {
     try {
       const { id } = req.params;
       const agent = await storage.getAgent(parseInt(id));
@@ -986,7 +989,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Merchant password reset
-  app.post("/api/merchants/:id/reset-password", requireRole(['admin', 'super_admin']), async (req, res) => {
+  app.post("/api/merchants/:id/reset-password", dbEnvironmentMiddleware, requireRole(['admin', 'super_admin']), async (req: RequestWithDB, res) => {
     try {
       const { id } = req.params;
       const merchant = await storage.getMerchant(parseInt(id));
@@ -1021,7 +1024,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Merchant routes with role-based access
-  app.get("/api/merchants", isAuthenticated, async (req: any, res) => {
+  app.get("/api/merchants", isAuthenticated, dbEnvironmentMiddleware, async (req: RequestWithDB, res) => {
     try {
       const userId = req.user?.id || req.user?.claims?.sub;
       const { search } = req.query;
@@ -1045,7 +1048,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Location routes with role-based access
-  app.get("/api/merchants/:merchantId/locations", isAuthenticated, async (req: any, res) => {
+  app.get("/api/merchants/:merchantId/locations", isAuthenticated, dbEnvironmentMiddleware, async (req: RequestWithDB, res) => {
     try {
       const { merchantId } = req.params;
       const userId = req.user.claims.sub;
@@ -1068,7 +1071,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/merchants/:merchantId/locations", isAuthenticated, async (req: any, res) => {
+  app.post("/api/merchants/:merchantId/locations", isAuthenticated, dbEnvironmentMiddleware, async (req: RequestWithDB, res) => {
     try {
       const { merchantId } = req.params;
       const userId = req.user.claims.sub;
@@ -1096,7 +1099,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
 
 
-  app.put("/api/locations/:locationId", isAuthenticated, async (req: any, res) => {
+  app.put("/api/locations/:locationId", isAuthenticated, dbEnvironmentMiddleware, async (req: RequestWithDB, res) => {
     try {
       const { locationId } = req.params;
       const userId = req.user.claims.sub;
@@ -1127,7 +1130,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/locations/:locationId", isAuthenticated, async (req: any, res) => {
+  app.delete("/api/locations/:locationId", isAuthenticated, dbEnvironmentMiddleware, async (req: RequestWithDB, res) => {
     try {
       const { locationId } = req.params;
       const userId = req.user.claims.sub;
