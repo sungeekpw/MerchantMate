@@ -4411,6 +4411,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.put('/api/fee-items/:id', dbEnvironmentMiddleware, requireRole(['admin', 'super_admin']), async (req: RequestWithDB, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      console.log(`Updating fee item ${id} - Database environment: ${req.dbEnv}`);
+      
+      // Use the dynamic database connection
+      const dbToUse = req.dynamicDB;
+      if (!dbToUse) {
+        return res.status(500).json({ error: "Database connection not available" });
+      }
+      
+      const { feeItems } = await import("@shared/schema");
+      const { eq } = await import("drizzle-orm");
+      
+      const updateData = {
+        ...req.body,
+        updatedAt: new Date(),
+      };
+      
+      const [updatedFeeItem] = await dbToUse
+        .update(feeItems)
+        .set(updateData)
+        .where(eq(feeItems.id, id))
+        .returning();
+      
+      if (!updatedFeeItem) {
+        return res.status(404).json({ error: "Fee item not found" });
+      }
+      
+      res.json(updatedFeeItem);
+    } catch (error: any) {
+      console.error("Error updating fee item:", error);
+      
+      // Handle foreign key constraint violation
+      if (error.code === '23503' && error.constraint === 'fee_items_fee_group_id_fkey') {
+        return res.status(400).json({ 
+          error: "Fee group not found. Please select a valid fee group." 
+        });
+      }
+      
+      res.status(500).json({ error: "Failed to update fee item" });
+    }
+  });
+
   // Enhanced Pricing Types with fee item relationships
   app.get('/api/pricing-types-detailed', isAuthenticated, async (req: any, res) => {
     try {
