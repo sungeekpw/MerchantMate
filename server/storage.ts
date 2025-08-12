@@ -457,8 +457,18 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Fee Items implementation
-  async getAllFeeItems(): Promise<FeeItem[]> {
-    return await db.select().from(feeItems).orderBy(feeItems.displayOrder);
+  async getAllFeeItems(): Promise<(FeeItem & { feeGroup: FeeGroup })[]> {
+    const result = await db.select({
+      feeItem: feeItems,
+      feeGroup: feeGroups
+    }).from(feeItems)
+    .leftJoin(feeGroups, eq(feeItems.feeGroupId, feeGroups.id))
+    .orderBy(feeItems.displayOrder);
+
+    return result.map(row => ({
+      ...row.feeItem,
+      feeGroup: row.feeGroup!
+    }));
   }
 
   async getFeeItem(id: number): Promise<FeeItem | undefined> {
