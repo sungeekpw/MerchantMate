@@ -167,6 +167,8 @@ export default function CampaignsPage() {
   const [selectedAcquirer, setSelectedAcquirer] = useState<string>('all');
   const [showAddCampaign, setShowAddCampaign] = useState(false);
   const [showAddFeeGroup, setShowAddFeeGroup] = useState(false);
+  const [showEditFeeGroup, setShowEditFeeGroup] = useState(false);
+  const [editFeeGroupId, setEditFeeGroupId] = useState<number | null>(null);
   const [showAddFeeItem, setShowAddFeeItem] = useState(false);
   const [showAddPricingType, setShowAddPricingType] = useState(false);
   const [selectedFeeGroup, setSelectedFeeGroup] = useState<number | null>(null);
@@ -290,6 +292,7 @@ export default function CampaignsPage() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(feeGroupData),
+        credentials: 'include',
       });
       if (!response.ok) {
         const errorData = await response.json();
@@ -308,6 +311,46 @@ export default function CampaignsPage() {
     },
     onError: (error: any) => {
       let errorMessage = "Failed to create fee group.";
+      if (error.message.includes('duplicate key') || error.message.includes('already exists')) {
+        errorMessage = "A fee group with this name already exists. Please choose a different name.";
+      }
+      toast({
+        title: "Error",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Update Fee Group mutation
+  const updateFeeGroupMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: number; data: CreateFeeGroupData }) => {
+      const response = await fetch(`/api/fee-groups/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+        credentials: 'include',
+      });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to update fee group');
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/fee-groups'] });
+      setShowEditFeeGroup(false);
+      setEditFeeGroupId(null);
+      setFeeGroupForm({ name: '', description: '', displayOrder: 1 });
+      toast({
+        title: "Fee Group Updated",
+        description: "The fee group has been successfully updated.",
+      });
+    },
+    onError: (error: any) => {
+      let errorMessage = "Failed to update fee group.";
       if (error.message.includes('duplicate key') || error.message.includes('already exists')) {
         errorMessage = "A fee group with this name already exists. Please choose a different name.";
       }
@@ -360,6 +403,40 @@ export default function CampaignsPage() {
       description: feeGroupForm.description.trim() || undefined,
       displayOrder: feeGroupForm.displayOrder || 1,
     });
+  };
+
+  // Handle fee group edit
+  const handleEditFeeGroup = (feeGroup: FeeGroup) => {
+    setEditFeeGroupId(feeGroup.id);
+    setFeeGroupForm({
+      name: feeGroup.name,
+      description: feeGroup.description || '',
+      displayOrder: feeGroup.displayOrder,
+    });
+    setShowEditFeeGroup(true);
+  };
+
+  // Handle fee group update submission
+  const handleUpdateFeeGroup = () => {
+    if (!feeGroupForm.name.trim()) {
+      toast({
+        title: "Validation Error",
+        description: "Fee group name is required.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (editFeeGroupId) {
+      updateFeeGroupMutation.mutate({
+        id: editFeeGroupId,
+        data: {
+          name: feeGroupForm.name.trim(),
+          description: feeGroupForm.description.trim() || undefined,
+          displayOrder: feeGroupForm.displayOrder || 1,
+        },
+      });
+    }
   };
 
   // If we're in view mode, show individual campaign details
@@ -775,7 +852,7 @@ export default function CampaignsPage() {
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                              <DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleEditFeeGroup(group)}>
                                 <Edit className="mr-2 h-4 w-4" />
                                 Edit Group
                               </DropdownMenuItem>
@@ -1096,6 +1173,61 @@ export default function CampaignsPage() {
               disabled={createFeeGroupMutation.isPending}
             >
               {createFeeGroupMutation.isPending ? 'Creating...' : 'Create Fee Group'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Fee Group Dialog */}
+      <Dialog open={showEditFeeGroup} onOpenChange={setShowEditFeeGroup}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit Fee Group</DialogTitle>
+            <DialogDescription>
+              Update fee group information
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Group Name *</Label>
+              <Input 
+                placeholder="Enter fee group name" 
+                value={feeGroupForm.name}
+                onChange={(e) => setFeeGroupForm(prev => ({ ...prev, name: e.target.value }))}
+              />
+            </div>
+            <div>
+              <Label>Description</Label>
+              <Textarea 
+                placeholder="Enter description (optional)" 
+                value={feeGroupForm.description}
+                onChange={(e) => setFeeGroupForm(prev => ({ ...prev, description: e.target.value }))}
+              />
+            </div>
+            <div>
+              <Label>Display Order</Label>
+              <Input 
+                type="number" 
+                placeholder="1" 
+                min="1" 
+                value={feeGroupForm.displayOrder}
+                onChange={(e) => setFeeGroupForm(prev => ({ ...prev, displayOrder: parseInt(e.target.value) || 1 }))}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => {
+              setShowEditFeeGroup(false);
+              setEditFeeGroupId(null);
+              setFeeGroupForm({ name: '', description: '', displayOrder: 1 });
+            }}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleUpdateFeeGroup}
+              disabled={updateFeeGroupMutation.isPending}
+            >
+              {updateFeeGroupMutation.isPending ? 'Updating...' : 'Update Fee Group'}
             </Button>
           </DialogFooter>
         </DialogContent>

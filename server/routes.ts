@@ -4019,6 +4019,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Update fee group
+  app.put('/api/fee-groups/:id', dbEnvironmentMiddleware, requireRole(['admin', 'super_admin']), async (req: RequestWithDB, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { name, description, displayOrder } = req.body;
+      console.log(`Updating fee group ${id} - Database environment: ${req.dbEnv}`);
+      
+      if (!name) {
+        return res.status(400).json({ message: "Fee group name is required" });
+      }
+
+      const updateData = {
+        name,
+        description: description || null,
+        displayOrder: displayOrder || 0,
+        author: req.user?.email || 'System'
+      };
+
+      const updatedFeeGroup = await storage.updateFeeGroup(id, updateData);
+      
+      if (!updatedFeeGroup) {
+        return res.status(404).json({ message: "Fee group not found" });
+      }
+      
+      res.json(updatedFeeGroup);
+    } catch (error: any) {
+      console.error("Error updating fee group:", error);
+      
+      // Handle duplicate name constraint violation
+      if (error.code === '23505' && error.constraint === 'fee_groups_name_key') {
+        return res.status(400).json({ 
+          message: "A fee group with this name already exists. Please choose a different name." 
+        });
+      }
+      
+      res.status(500).json({ message: "Failed to update fee group" });
+    }
+  });
+
   // Fee Item Groups endpoints
   app.get('/api/fee-item-groups', requireRole(['admin', 'super_admin']), async (req: any, res) => {
     try {
