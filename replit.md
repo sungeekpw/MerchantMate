@@ -40,7 +40,7 @@ Preferred communication style: Simple, everyday language.
 - **Campaign Management**: Full CRUD for campaigns, pricing types, fee groups, and equipment associations.
 - **SOC2 Compliance Features**: Comprehensive audit trail system with logging, security events, and login attempt tracking.
 - **Testing Framework**: TDD-style with Jest and React Testing Library for component, page, API, and schema tests, including a visual testing dashboard.
-- **Multi-Environment Support**: URL-driven database environment switching for isolated testing and development, restricted to super_admin in non-production.
+- **Multi-Environment Support**: Session-based database environment switching with `POST /api/database-environment` endpoint, ensuring proper ACID compliance and environment isolation across all authenticated routes.
 
 ## External Dependencies
 - **@neondatabase/serverless**: Serverless PostgreSQL connector.

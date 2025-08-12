@@ -718,6 +718,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
 
 
+  // Database environment switching endpoint (before auth middleware)
+  app.post("/api/database-environment", async (req: any, res) => {
+    try {
+      const { environment } = req.body;
+      
+      if (!environment || !['test', 'development', 'dev', 'production'].includes(environment)) {
+        return res.status(400).json({ 
+          message: "Invalid environment. Must be one of: test, development, dev, production" 
+        });
+      }
+      
+      // Store the database environment preference in session
+      req.session.dbEnv = environment;
+      
+      console.log(`Database environment set to: ${environment} for session ${req.sessionID}`);
+      
+      res.json({ 
+        message: `Database environment set to ${environment}`,
+        environment: environment
+      });
+    } catch (error) {
+      console.error("Error setting database environment:", error);
+      res.status(500).json({ message: "Failed to set database environment" });
+    }
+  });
+
+  // Get current database environment
+  app.get("/api/database-environment", async (req: any, res) => {
+    try {
+      const currentEnv = req.session?.dbEnv || 'production';
+      res.json({ 
+        environment: currentEnv,
+        availableEnvironments: ['test', 'development', 'dev', 'production']
+      });
+    } catch (error) {
+      console.error("Error getting database environment:", error);
+      res.status(500).json({ message: "Failed to get database environment" });
+    }
+  });
+
   // Use production auth setup for all environments
   await setupAuth(app);
 
