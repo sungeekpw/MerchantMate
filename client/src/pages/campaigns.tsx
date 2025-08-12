@@ -15,7 +15,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Plus, Search, Settings, DollarSign, MoreHorizontal, Eye, Edit, Trash2, ExternalLink, Users, TrendingUp, FileText, AlertCircle, CheckCircle2, Link, Copy, Layers } from 'lucide-react';
+import { Plus, Search, Settings, DollarSign, MoreHorizontal, Eye, Edit, Trash2, ExternalLink, Users, TrendingUp, FileText, AlertCircle, CheckCircle2, Link, Copy, Layers, ChevronUp, ChevronDown } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { queryClient } from '@/lib/queryClient';
 import { EnhancedCampaignDialog } from '@/components/campaigns/enhanced-campaign-dialog';
@@ -181,6 +181,12 @@ export default function CampaignsPage() {
   const [editCampaignId, setEditCampaignId] = useState<number | null>(null);
   const [editCampaignData, setEditCampaignData] = useState<Campaign | null>(null);
 
+  // Sorting state for all tables
+  const [campaignSort, setCampaignSort] = useState<{field: string, direction: 'asc' | 'desc'}>({field: 'name', direction: 'asc'});
+  const [feeGroupSort, setFeeGroupSort] = useState<{field: string, direction: 'asc' | 'desc'}>({field: 'name', direction: 'asc'});
+  const [feeItemSort, setFeeItemSort] = useState<{field: string, direction: 'asc' | 'desc'}>({field: 'name', direction: 'asc'});
+  const [pricingTypeSort, setPricingTypeSort] = useState<{field: string, direction: 'asc' | 'desc'}>({field: 'name', direction: 'asc'});
+
   // Check if we're in edit mode or view mode
   const isEditMode = location.includes('/edit');
   const isViewMode = location.match(/^\/campaigns\/\d+$/) && !isEditMode; // /campaigns/9 but not /campaigns/9/edit
@@ -211,6 +217,52 @@ export default function CampaignsPage() {
       setFeeItemForm(prev => ({ ...prev, feeGroupId: selectedFeeGroup }));
     }
   }, [selectedFeeGroup]);
+
+  // Sorting helper functions
+  const handleSort = (
+    field: string, 
+    currentSort: {field: string, direction: 'asc' | 'desc'}, 
+    setSortFunc: (sort: {field: string, direction: 'asc' | 'desc'}) => void
+  ) => {
+    const direction = currentSort.field === field && currentSort.direction === 'asc' ? 'desc' : 'asc';
+    setSortFunc({field, direction});
+  };
+
+  const sortData = <T extends Record<string, any>>(data: T[], sortConfig: {field: string, direction: 'asc' | 'desc'}): T[] => {
+    return [...data].sort((a, b) => {
+      let aVal = a[sortConfig.field];
+      let bVal = b[sortConfig.field];
+      
+      // Handle nested objects (e.g., pricingType.name)
+      if (sortConfig.field.includes('.')) {
+        const keys = sortConfig.field.split('.');
+        aVal = keys.reduce((obj, key) => obj?.[key], a);
+        bVal = keys.reduce((obj, key) => obj?.[key], b);
+      }
+      
+      // Handle null/undefined values
+      if (aVal == null && bVal == null) return 0;
+      if (aVal == null) return 1;
+      if (bVal == null) return -1;
+      
+      // Convert to string for comparison if needed
+      if (typeof aVal === 'string' && typeof bVal === 'string') {
+        aVal = aVal.toLowerCase();
+        bVal = bVal.toLowerCase();
+      }
+      
+      if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
+      if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
+      return 0;
+    });
+  };
+
+  const getSortIcon = (field: string, currentSort: {field: string, direction: 'asc' | 'desc'}) => {
+    if (currentSort.field !== field) return <ChevronUp className="h-4 w-4 opacity-0" />;
+    return currentSort.direction === 'asc' ? 
+      <ChevronUp className="h-4 w-4" /> : 
+      <ChevronDown className="h-4 w-4" />;
+  };
 
   // Fetch campaigns
   const { data: campaigns = [], isLoading: campaignsLoading, refetch: refetchCampaigns } = useQuery<Campaign[]>({
@@ -913,18 +965,72 @@ export default function CampaignsPage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Campaign ID</TableHead>
-                      <TableHead>Name</TableHead>
+                      <TableHead>
+                        <Button 
+                          variant="ghost" 
+                          className="h-auto p-0 font-medium flex items-center gap-1"
+                          onClick={() => handleSort('id', campaignSort, setCampaignSort)}
+                        >
+                          Campaign ID
+                          {getSortIcon('id', campaignSort)}
+                        </Button>
+                      </TableHead>
+                      <TableHead>
+                        <Button 
+                          variant="ghost" 
+                          className="h-auto p-0 font-medium flex items-center gap-1"
+                          onClick={() => handleSort('name', campaignSort, setCampaignSort)}
+                        >
+                          Name
+                          {getSortIcon('name', campaignSort)}
+                        </Button>
+                      </TableHead>
                       <TableHead>Description</TableHead>
-                      <TableHead>Pricing Type</TableHead>
-                      <TableHead>Acquirer</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Created</TableHead>
+                      <TableHead>
+                        <Button 
+                          variant="ghost" 
+                          className="h-auto p-0 font-medium flex items-center gap-1"
+                          onClick={() => handleSort('pricingType.name', campaignSort, setCampaignSort)}
+                        >
+                          Pricing Type
+                          {getSortIcon('pricingType.name', campaignSort)}
+                        </Button>
+                      </TableHead>
+                      <TableHead>
+                        <Button 
+                          variant="ghost" 
+                          className="h-auto p-0 font-medium flex items-center gap-1"
+                          onClick={() => handleSort('acquirer', campaignSort, setCampaignSort)}
+                        >
+                          Acquirer
+                          {getSortIcon('acquirer', campaignSort)}
+                        </Button>
+                      </TableHead>
+                      <TableHead>
+                        <Button 
+                          variant="ghost" 
+                          className="h-auto p-0 font-medium flex items-center gap-1"
+                          onClick={() => handleSort('isActive', campaignSort, setCampaignSort)}
+                        >
+                          Status
+                          {getSortIcon('isActive', campaignSort)}
+                        </Button>
+                      </TableHead>
+                      <TableHead>
+                        <Button 
+                          variant="ghost" 
+                          className="h-auto p-0 font-medium flex items-center gap-1"
+                          onClick={() => handleSort('createdAt', campaignSort, setCampaignSort)}
+                        >
+                          Created
+                          {getSortIcon('createdAt', campaignSort)}
+                        </Button>
+                      </TableHead>
                       <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredCampaigns.map((campaign) => (
+                    {sortData(filteredCampaigns, campaignSort).map((campaign) => (
                       <TableRow key={campaign.id}>
                         <TableCell>
                           <button 
@@ -1026,16 +1132,43 @@ export default function CampaignsPage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Name</TableHead>
+                      <TableHead>
+                        <Button 
+                          variant="ghost" 
+                          className="h-auto p-0 font-medium flex items-center gap-1"
+                          onClick={() => handleSort('name', feeGroupSort, setFeeGroupSort)}
+                        >
+                          Name
+                          {getSortIcon('name', feeGroupSort)}
+                        </Button>
+                      </TableHead>
                       <TableHead>Description</TableHead>
-                      <TableHead>Display Order</TableHead>
-                      <TableHead>Status</TableHead>
+                      <TableHead>
+                        <Button 
+                          variant="ghost" 
+                          className="h-auto p-0 font-medium flex items-center gap-1"
+                          onClick={() => handleSort('displayOrder', feeGroupSort, setFeeGroupSort)}
+                        >
+                          Display Order
+                          {getSortIcon('displayOrder', feeGroupSort)}
+                        </Button>
+                      </TableHead>
+                      <TableHead>
+                        <Button 
+                          variant="ghost" 
+                          className="h-auto p-0 font-medium flex items-center gap-1"
+                          onClick={() => handleSort('isActive', feeGroupSort, setFeeGroupSort)}
+                        >
+                          Status
+                          {getSortIcon('isActive', feeGroupSort)}
+                        </Button>
+                      </TableHead>
                       <TableHead>Fee Items</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {feeGroups.map((group) => (
+                    {sortData(feeGroups, feeGroupSort).map((group) => (
                       <TableRow key={group.id}>
                         <TableCell className="font-medium">{group.name}</TableCell>
                         <TableCell>{group.description || '—'}</TableCell>
@@ -1180,17 +1313,62 @@ export default function CampaignsPage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Fee Group</TableHead>
+                      <TableHead>
+                        <Button 
+                          variant="ghost" 
+                          className="h-auto p-0 font-medium flex items-center gap-1"
+                          onClick={() => handleSort('name', feeItemSort, setFeeItemSort)}
+                        >
+                          Name
+                          {getSortIcon('name', feeItemSort)}
+                        </Button>
+                      </TableHead>
+                      <TableHead>
+                        <Button 
+                          variant="ghost" 
+                          className="h-auto p-0 font-medium flex items-center gap-1"
+                          onClick={() => handleSort('feeGroup.name', feeItemSort, setFeeItemSort)}
+                        >
+                          Fee Group
+                          {getSortIcon('feeGroup.name', feeItemSort)}
+                        </Button>
+                      </TableHead>
                       <TableHead>Default Value</TableHead>
-                      <TableHead>Value Type</TableHead>
-                      <TableHead>Required</TableHead>
-                      <TableHead>Status</TableHead>
+                      <TableHead>
+                        <Button 
+                          variant="ghost" 
+                          className="h-auto p-0 font-medium flex items-center gap-1"
+                          onClick={() => handleSort('valueType', feeItemSort, setFeeItemSort)}
+                        >
+                          Value Type
+                          {getSortIcon('valueType', feeItemSort)}
+                        </Button>
+                      </TableHead>
+                      <TableHead>
+                        <Button 
+                          variant="ghost" 
+                          className="h-auto p-0 font-medium flex items-center gap-1"
+                          onClick={() => handleSort('isRequired', feeItemSort, setFeeItemSort)}
+                        >
+                          Required
+                          {getSortIcon('isRequired', feeItemSort)}
+                        </Button>
+                      </TableHead>
+                      <TableHead>
+                        <Button 
+                          variant="ghost" 
+                          className="h-auto p-0 font-medium flex items-center gap-1"
+                          onClick={() => handleSort('isActive', feeItemSort, setFeeItemSort)}
+                        >
+                          Status
+                          {getSortIcon('isActive', feeItemSort)}
+                        </Button>
+                      </TableHead>
                       <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {feeItems.map((item) => (
+                    {sortData(feeItems, feeItemSort).map((item) => (
                       <TableRow key={item.id}>
                         <TableCell className="font-medium">{item.name}</TableCell>
                         <TableCell>{item.feeGroup?.name || '—'}</TableCell>
@@ -1279,15 +1457,33 @@ export default function CampaignsPage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Name</TableHead>
+                      <TableHead>
+                        <Button 
+                          variant="ghost" 
+                          className="h-auto p-0 font-medium flex items-center gap-1"
+                          onClick={() => handleSort('name', pricingTypeSort, setPricingTypeSort)}
+                        >
+                          Name
+                          {getSortIcon('name', pricingTypeSort)}
+                        </Button>
+                      </TableHead>
                       <TableHead>Description</TableHead>
-                      <TableHead>Status</TableHead>
+                      <TableHead>
+                        <Button 
+                          variant="ghost" 
+                          className="h-auto p-0 font-medium flex items-center gap-1"
+                          onClick={() => handleSort('isActive', pricingTypeSort, setPricingTypeSort)}
+                        >
+                          Status
+                          {getSortIcon('isActive', pricingTypeSort)}
+                        </Button>
+                      </TableHead>
                       <TableHead>Associated Fee Items</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {pricingTypes.map((type) => (
+                    {sortData(pricingTypes, pricingTypeSort).map((type) => (
                       <TableRow key={type.id}>
                         <TableCell className="font-medium">{type.name}</TableCell>
                         <TableCell>{type.description || '—'}</TableCell>
