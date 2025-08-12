@@ -234,7 +234,9 @@ export default function CampaignsPage() {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
       return response.json();
-    }
+    },
+    staleTime: 0, // Always refetch
+    gcTime: 0 // Don't cache
   });
 
 
@@ -264,7 +266,9 @@ export default function CampaignsPage() {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
       return response.json();
-    }
+    },
+    staleTime: 0, // Always refetch
+    gcTime: 0 // Don't cache
   });
 
   // Fetch individual campaign for editing
