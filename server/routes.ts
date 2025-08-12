@@ -4342,32 +4342,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Fee Groups API endpoints
-  app.get('/api/fee-groups', requireRole(['admin', 'super_admin']), async (req: Request, res: Response) => {
-    try {
-      const feeGroups = await storage.getAllFeeGroups();
-      res.json(feeGroups);
-    } catch (error) {
-      console.error("Error fetching fee groups:", error);
-      res.status(500).json({ error: "Failed to fetch fee groups" });
-    }
-  });
-
-  app.post('/api/fee-groups', requireRole(['admin', 'super_admin']), async (req: Request, res: Response) => {
-    try {
-      const feeGroup = await storage.createFeeGroup(req.body);
-      res.status(201).json(feeGroup);
-    } catch (error) {
-      console.error("Error creating fee group:", error);
-      
-      // Check for duplicate name constraint
-      if (error && typeof error === 'object' && 'code' in error && error.code === '23505') {
-        return res.status(400).json({ error: "A fee group with this name already exists" });
-      }
-      
-      res.status(500).json({ error: "Failed to create fee group" });
-    }
-  });
+  // Duplicate fee groups endpoints removed - using the correct ones with dbEnvironmentMiddleware
 
   // Fee Items API endpoints
   app.get('/api/fee-items', dbEnvironmentMiddleware, requireRole(['admin', 'super_admin']), async (req: RequestWithDB, res: Response) => {
@@ -4500,160 +4475,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // CAMPAIGN MANAGEMENT API ENDPOINTS
   // ===================
 
-  // Fee Groups endpoints
-  app.get("/api/fee-groups", isAuthenticated, async (req, res) => {
-    try {
-      // Return sample fee groups for development
-      const feeGroups = [
-        {
-          id: 1,
-          name: "Processing Fees",
-          description: "Credit card processing and transaction fees",
-          displayOrder: 1,
-          isActive: true,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          feeItems: []
-        },
-        {
-          id: 2,
-          name: "Monthly Fees",
-          description: "Recurring monthly charges and subscriptions",
-          displayOrder: 2,
-          isActive: true,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          feeItems: []
-        },
-        {
-          id: 3,
-          name: "Setup & Equipment",
-          description: "One-time setup and equipment fees",
-          displayOrder: 3,
-          isActive: true,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          feeItems: []
-        }
-      ];
-      res.json(feeGroups);
-    } catch (error) {
-      console.error("Error fetching fee groups:", error);
-      res.status(500).json({ message: "Failed to fetch fee groups" });
-    }
-  });
+  // Duplicate fee groups endpoints removed - using the correct ones with database isolation
 
-  app.post("/api/fee-groups", requireRole(['admin', 'super_admin']), async (req, res) => {
-    try {
-      const { name, description, displayOrder } = req.body;
-      const newFeeGroup = {
-        id: Date.now(),
-        name,
-        description,
-        displayOrder: displayOrder || 1,
-        isActive: true,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        feeItems: []
-      };
-      res.status(201).json(newFeeGroup);
-    } catch (error) {
-      console.error("Error creating fee group:", error);
-      res.status(500).json({ message: "Failed to create fee group" });
-    }
-  });
+  // Duplicate fee items GET endpoint removed - using the correct one with database isolation
 
-  // Fee Items endpoints
-  app.get("/api/fee-items", isAuthenticated, async (req, res) => {
-    try {
-      // Return sample fee items for development
-      const feeItems = [
-        {
-          id: 1,
-          name: "Credit Card Processing",
-          description: "Standard credit card transaction processing fee",
-          feeGroupId: 1,
-          defaultValue: "2.9",
-          valueType: "percentage",
-          isRequired: true,
-          displayOrder: 1,
-          isActive: true,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          feeGroup: { id: 1, name: "Processing Fees" }
-        },
-        {
-          id: 2,
-          name: "Debit Card Processing",
-          description: "Debit card transaction processing fee",
-          feeGroupId: 1,
-          defaultValue: "1.9",
-          valueType: "percentage",
-          isRequired: false,
-          displayOrder: 2,
-          isActive: true,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          feeGroup: { id: 1, name: "Processing Fees" }
-        },
-        {
-          id: 3,
-          name: "Monthly Gateway Fee",
-          description: "Monthly payment gateway subscription",
-          feeGroupId: 2,
-          defaultValue: "25.00",
-          valueType: "fixed",
-          isRequired: true,
-          displayOrder: 1,
-          isActive: true,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          feeGroup: { id: 2, name: "Monthly Fees" }
-        },
-        {
-          id: 4,
-          name: "Setup Fee",
-          description: "One-time account setup fee",
-          feeGroupId: 3,
-          defaultValue: "199.00",
-          valueType: "fixed",
-          isRequired: false,
-          displayOrder: 1,
-          isActive: true,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          feeGroup: { id: 3, name: "Setup & Equipment" }
-        }
-      ];
-      res.json(feeItems);
-    } catch (error) {
-      console.error("Error fetching fee items:", error);
-      res.status(500).json({ message: "Failed to fetch fee items" });
-    }
-  });
-
-  app.post("/api/fee-items", requireRole(['admin', 'super_admin']), async (req, res) => {
-    try {
-      const { name, description, feeGroupId, defaultValue, valueType, isRequired, displayOrder } = req.body;
-      const newFeeItem = {
-        id: Date.now(),
-        name,
-        description,
-        feeGroupId,
-        defaultValue,
-        valueType,
-        isRequired: isRequired || false,
-        displayOrder: displayOrder || 1,
-        isActive: true,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      };
-      res.status(201).json(newFeeItem);
-    } catch (error) {
-      console.error("Error creating fee item:", error);
-      res.status(500).json({ message: "Failed to create fee item" });
-    }
-  });
+  // Duplicate fee item POST endpoint removed - using the correct one with database isolation
 
   // Campaigns endpoints
   app.get("/api/campaigns", requireRole(['admin', 'super_admin']), async (req: Request, res: Response) => {
