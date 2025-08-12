@@ -4355,9 +4355,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(500).json({ error: "Database connection not available" });
       }
       
-      const { feeItems } = await import("@shared/schema");
-      const result = await dbToUse.select().from(feeItems);
-      res.json(result);
+      const { feeItems, feeGroups } = await import("@shared/schema");
+      const { eq } = await import("drizzle-orm");
+      
+      // Join fee items with fee groups to include group information
+      const result = await dbToUse.select({
+        feeItem: feeItems,
+        feeGroup: feeGroups
+      }).from(feeItems)
+      .leftJoin(feeGroups, eq(feeItems.feeGroupId, feeGroups.id))
+      .orderBy(feeItems.displayOrder);
+
+      // Transform the result to include feeGroup in the fee item object
+      const feeItemsWithGroups = result.map(row => ({
+        ...row.feeItem,
+        feeGroup: row.feeGroup
+      }));
+
+      res.json(feeItemsWithGroups);
     } catch (error) {
       console.error("Error fetching fee items:", error);
       res.status(500).json({ error: "Failed to fetch fee items" });
