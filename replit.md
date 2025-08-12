@@ -3,6 +3,9 @@
 ## Overview
 Core CRM is a comprehensive merchant payment processing management system that streamlines merchant onboarding, transaction management, location tracking, form processing, and analytics. It's designed with role-based access for various user types, including merchants, agents, administrators, and corporate users, aiming to provide a robust, scalable, and secure platform for payment processing businesses. The business vision is to empower businesses with efficient, transparent, and secure payment management, offering a competitive edge in the market.
 
+## Recent Changes (August 2025)
+- **Fixed Database Environment Integration**: Resolved persistent 500 server errors during agent creation by ensuring complete integration between login screen environment selector and database middleware. The system now properly routes all operations to the selected database (development vs production) based on login screen selection, with session-based persistence and ACID compliance across all authenticated routes.
+
 ## User Preferences
 Preferred communication style: Simple, everyday language.
 
@@ -40,7 +43,7 @@ Preferred communication style: Simple, everyday language.
 - **Campaign Management**: Full CRUD for campaigns, pricing types, fee groups, and equipment associations.
 - **SOC2 Compliance Features**: Comprehensive audit trail system with logging, security events, and login attempt tracking.
 - **Testing Framework**: TDD-style with Jest and React Testing Library for component, page, API, and schema tests, including a visual testing dashboard.
-- **Multi-Environment Support**: Session-based database environment switching with `POST /api/database-environment` endpoint, ensuring proper ACID compliance and environment isolation across all authenticated routes.
+- **Multi-Environment Support**: Complete session-based database environment switching with login screen environment selector integration, ensuring proper ACID compliance and environment isolation across all authenticated routes. Database environment is selected during login via `?db=development` parameter and persisted throughout the entire session.
 
 ## External Dependencies
 - **@neondatabase/serverless**: Serverless PostgreSQL connector.
