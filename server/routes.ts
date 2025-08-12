@@ -3964,8 +3964,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Fee Groups endpoints
   app.get('/api/fee-groups', dbEnvironmentMiddleware, requireRole(['admin', 'super_admin']), async (req: RequestWithDB, res) => {
     try {
-      const feeGroups = await storage.getAllFeeGroups();
-      res.json(feeGroups);
+      console.log(`Fetching fee groups - Database environment: ${req.dbEnv}`);
+      // Use the dynamic database connection instead of the default storage
+      const dbToUse = req.dynamicDB;
+      if (!dbToUse) {
+        return res.status(500).json({ message: "Database connection not available" });
+      }
+      
+      // Import the schema table
+      const { feeGroups } = await import("@shared/schema");
+      const result = await dbToUse.select().from(feeGroups).orderBy(feeGroups.displayOrder);
+      res.json(result);
     } catch (error) {
       console.error("Error fetching fee groups:", error);
       res.status(500).json({ message: "Failed to fetch fee groups" });
@@ -3974,14 +3983,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get('/api/fee-groups/:id', dbEnvironmentMiddleware, requireRole(['admin', 'super_admin']), async (req: RequestWithDB, res) => {
     try {
+      console.log(`Fetching fee group ${req.params.id} - Database environment: ${req.dbEnv}`);
       const id = parseInt(req.params.id);
-      const feeGroup = await storage.getFeeGroupWithItemGroups(id);
+      
+      // Use the dynamic database connection
+      const dbToUse = req.dynamicDB;
+      if (!dbToUse) {
+        return res.status(500).json({ message: "Database connection not available" });
+      }
+      
+      const { feeGroups, feeItems } = await import("@shared/schema");
+      const [feeGroup] = await dbToUse.select().from(feeGroups).where(eq(feeGroups.id, id));
       
       if (!feeGroup) {
         return res.status(404).json({ message: "Fee group not found" });
       }
       
-      res.json(feeGroup);
+      // Get associated fee items
+      const items = await dbToUse.select().from(feeItems).where(eq(feeItems.feeGroupId, id));
+      const result = { ...feeGroup, feeItems: items };
+      
+      res.json(result);
     } catch (error) {
       console.error("Error fetching fee group:", error);
       res.status(500).json({ message: "Failed to fetch fee group" });
@@ -4004,7 +4026,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       };
 
       console.log(`Creating fee group - Database environment: ${req.dbEnv}`);
-      const feeGroup = await storage.createFeeGroup(feeGroupData);
+      
+      // Use the dynamic database connection
+      const dbToUse = req.dynamicDB;
+      if (!dbToUse) {
+        return res.status(500).json({ message: "Database connection not available" });
+      }
+      
+      const { feeGroups } = await import("@shared/schema");
+      const [feeGroup] = await dbToUse.insert(feeGroups).values(feeGroupData).returning();
       res.status(201).json(feeGroup);
     } catch (error: any) {
       console.error("Error creating fee group:", error);
