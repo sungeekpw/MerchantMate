@@ -4373,8 +4373,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/fee-items', dbEnvironmentMiddleware, requireRole(['admin', 'super_admin']), async (req: RequestWithDB, res: Response) => {
     try {
       console.log(`Fetching fee items - Database environment: ${req.dbEnv}`);
-      const feeItems = await storage.getAllFeeItems();
-      res.json(feeItems);
+      
+      // Use the dynamic database connection
+      const dbToUse = req.dynamicDB;
+      if (!dbToUse) {
+        return res.status(500).json({ error: "Database connection not available" });
+      }
+      
+      const { feeItems } = await import("@shared/schema");
+      const result = await dbToUse.select().from(feeItems);
+      res.json(result);
     } catch (error) {
       console.error("Error fetching fee items:", error);
       res.status(500).json({ error: "Failed to fetch fee items" });
@@ -4384,10 +4392,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/fee-items', dbEnvironmentMiddleware, requireRole(['admin', 'super_admin']), async (req: RequestWithDB, res: Response) => {
     try {
       console.log(`Creating fee item - Database environment: ${req.dbEnv}`);
-      const feeItem = await storage.createFeeItem(req.body);
+      
+      // Use the dynamic database connection
+      const dbToUse = req.dynamicDB;
+      if (!dbToUse) {
+        return res.status(500).json({ error: "Database connection not available" });
+      }
+      
+      const { feeItems } = await import("@shared/schema");
+      const feeItemData = {
+        ...req.body,
+        author: req.user?.email || 'System'
+      };
+      
+      const [feeItem] = await dbToUse.insert(feeItems).values(feeItemData).returning();
       res.status(201).json(feeItem);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error creating fee item:", error);
+      
+      // Handle foreign key constraint violation
+      if (error.code === '23503' && error.constraint === 'fee_items_fee_group_id_fkey') {
+        return res.status(400).json({ 
+          error: "Fee group not found. Please select a valid fee group." 
+        });
+      }
+      
       res.status(500).json({ error: "Failed to create fee item" });
     }
   });
