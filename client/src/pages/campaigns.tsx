@@ -103,6 +103,10 @@ interface FeeItem {
   feeGroup?: FeeGroup;
 }
 
+interface FeeItemWithGroup extends FeeItem {
+  feeGroup: FeeGroup;
+}
+
 interface PricingTypeFeeItem {
   id: number;
   pricingTypeId: number;
@@ -256,7 +260,7 @@ export default function CampaignsPage() {
   });
 
   // Fetch fee items
-  const { data: feeItems = [], isLoading: feeItemsLoading } = useQuery<FeeItem[]>({
+  const { data: feeItems = [], isLoading: feeItemsLoading } = useQuery<FeeItemWithGroup[]>({
     queryKey: ['/api/fee-items'],
     queryFn: async () => {
       const response = await fetch('/api/fee-items', {
