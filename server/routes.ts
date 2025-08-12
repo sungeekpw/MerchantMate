@@ -3962,7 +3962,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Campaign Management API endpoints
 
   // Fee Groups endpoints
-  app.get('/api/fee-groups', requireRole(['admin', 'super_admin']), async (req: any, res) => {
+  app.get('/api/fee-groups', dbEnvironmentMiddleware, requireRole(['admin', 'super_admin']), async (req: RequestWithDB, res) => {
     try {
       const feeGroups = await storage.getAllFeeGroups();
       res.json(feeGroups);
@@ -3972,7 +3972,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/fee-groups/:id', requireRole(['admin', 'super_admin']), async (req: any, res) => {
+  app.get('/api/fee-groups/:id', dbEnvironmentMiddleware, requireRole(['admin', 'super_admin']), async (req: RequestWithDB, res) => {
     try {
       const id = parseInt(req.params.id);
       const feeGroup = await storage.getFeeGroupWithItemGroups(id);
@@ -3988,7 +3988,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/fee-groups', requireRole(['admin', 'super_admin']), async (req: any, res) => {
+  app.post('/api/fee-groups', dbEnvironmentMiddleware, requireRole(['admin', 'super_admin']), async (req: RequestWithDB, res) => {
     try {
       const { name, description, displayOrder } = req.body;
       
@@ -4003,6 +4003,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         author: req.user?.email || 'System'
       };
 
+      console.log(`Creating fee group - Database environment: ${req.dbEnv}`);
       const feeGroup = await storage.createFeeGroup(feeGroupData);
       res.status(201).json(feeGroup);
     } catch (error: any) {
@@ -4059,7 +4060,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Fee Item Groups endpoints
-  app.get('/api/fee-item-groups', requireRole(['admin', 'super_admin']), async (req: any, res) => {
+  app.get('/api/fee-item-groups', dbEnvironmentMiddleware, requireRole(['admin', 'super_admin']), async (req: RequestWithDB, res) => {
     try {
       const feeGroupId = req.query.feeGroupId;
       
@@ -4076,7 +4077,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/fee-item-groups/:id', requireRole(['admin', 'super_admin']), async (req: any, res) => {
+  app.get('/api/fee-item-groups/:id', dbEnvironmentMiddleware, requireRole(['admin', 'super_admin']), async (req: RequestWithDB, res) => {
     try {
       const id = parseInt(req.params.id);
       const feeItemGroup = await storage.getFeeItemGroupWithItems(id);
@@ -4092,7 +4093,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/fee-item-groups', requireRole(['admin', 'super_admin']), async (req: any, res) => {
+  app.post('/api/fee-item-groups', dbEnvironmentMiddleware, requireRole(['admin', 'super_admin']), async (req: RequestWithDB, res) => {
     try {
       const { feeGroupId, name, description, displayOrder } = req.body;
       
@@ -4116,7 +4117,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put('/api/fee-item-groups/:id', requireRole(['admin', 'super_admin']), async (req: any, res) => {
+  app.put('/api/fee-item-groups/:id', dbEnvironmentMiddleware, requireRole(['admin', 'super_admin']), async (req: RequestWithDB, res) => {
     try {
       const id = parseInt(req.params.id);
       const { name, description, displayOrder } = req.body;
@@ -4139,7 +4140,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete('/api/fee-item-groups/:id', requireRole(['admin', 'super_admin']), async (req: any, res) => {
+  app.delete('/api/fee-item-groups/:id', dbEnvironmentMiddleware, requireRole(['admin', 'super_admin']), async (req: RequestWithDB, res) => {
     try {
       const id = parseInt(req.params.id);
       const success = await storage.deleteFeeItemGroup(id);
@@ -4328,8 +4329,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Fee Items API endpoints
-  app.get('/api/fee-items', requireRole(['admin', 'super_admin']), async (req: Request, res: Response) => {
+  app.get('/api/fee-items', dbEnvironmentMiddleware, requireRole(['admin', 'super_admin']), async (req: RequestWithDB, res: Response) => {
     try {
+      console.log(`Fetching fee items - Database environment: ${req.dbEnv}`);
       const feeItems = await storage.getAllFeeItems();
       res.json(feeItems);
     } catch (error) {
@@ -4338,8 +4340,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/fee-items', requireRole(['admin', 'super_admin']), async (req: Request, res: Response) => {
+  app.post('/api/fee-items', dbEnvironmentMiddleware, requireRole(['admin', 'super_admin']), async (req: RequestWithDB, res: Response) => {
     try {
+      console.log(`Creating fee item - Database environment: ${req.dbEnv}`);
       const feeItem = await storage.createFeeItem(req.body);
       res.status(201).json(feeItem);
     } catch (error) {
