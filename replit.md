@@ -4,7 +4,7 @@
 Core CRM is a comprehensive merchant payment processing management system that streamlines merchant onboarding, transaction management, location tracking, form processing, and analytics. It's designed with role-based access for various user types, including merchants, agents, administrators, and corporate users, aiming to provide a robust, scalable, and secure platform for payment processing businesses. The business vision is to empower businesses with efficient, transparent, and secure payment management, offering a competitive edge in the market.
 
 ## Recent Changes (August 2025)
-- **Fixed Database Environment Integration**: Resolved persistent 500 server errors during agent creation by ensuring complete integration between login screen environment selector and database middleware. The system now properly routes all operations to the selected database (development vs production) based on login screen selection, with session-based persistence and ACID compliance across all authenticated routes.
+- **Fixed Database Environment Integration**: Resolved persistent 500 server errors during agent creation by ensuring complete integration between login screen environment selector and database middleware. Removed problematic production database fallback logic that was causing environment switching violations. The system now maintains strict database environment isolation based on login screen selection, with session-based persistence and ACID compliance across all authenticated routes. All operations (agent creation, fee groups, merchants) consistently use the selected environment without fallbacks.
 
 ## User Preferences
 Preferred communication style: Simple, everyday language.

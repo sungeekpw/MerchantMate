@@ -2981,67 +2981,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error creating agent:", error);
       
-      // Handle schema-related errors by switching to production database
-      if (error.message?.includes('column "user_id" does not exist') || 
-          error.message?.includes('column "user_id" of relation "agents" does not exist')) {
-        console.log("Development database schema issue detected, falling back to production database");
-        try {
-          // Retry with production database to ensure functionality
-          const productionDB = getDynamicDatabase('production');
-          const fallbackResult = await productionDB.transaction(async (tx) => {
-            const { userId, ...agentData } = req.body;
-            const validationResult = insertAgentSchema.omit({ userId: true }).safeParse(agentData);
-            if (!validationResult.success) {
-              throw new Error(`Invalid agent data: ${validationResult.error.errors.map(e => e.message).join(', ')}`);
-            }
-
-            const username = await generateUsername(validationResult.data.firstName, validationResult.data.lastName, validationResult.data.email, tx);
-            const temporaryPassword = generateTemporaryPassword();
-            const bcrypt = await import('bcrypt');
-            const passwordHash = await bcrypt.hash(temporaryPassword, 10);
-            
-            const userData = {
-              id: crypto.randomUUID(),
-              email: validationResult.data.email,
-              username,
-              passwordHash,
-              firstName: validationResult.data.firstName,
-              lastName: validationResult.data.lastName,
-              role: 'agent' as const,
-              status: 'active' as const,
-              emailVerified: true,
-            };
-            
-            const [user] = await tx.insert(users).values(userData).returning();
-            const [agent] = await tx.insert(agents).values({
-              ...validationResult.data,
-              userId: user.id
-            }).returning();
-            
-            return {
-              agent,
-              user: {
-                id: user.id,
-                username: user.username,
-                email: user.email,
-                role: user.role,
-                temporaryPassword
-              }
-            };
-          });
-          
-          console.log(`Agent created in production database (fallback):`, fallbackResult.agent.firstName, fallbackResult.agent.lastName);
-          res.status(201).json(fallbackResult);
-          return;
-        } catch (fallbackError) {
-          console.error("Fallback to production also failed:", fallbackError);
-        }
-      }
-      
+      // Handle specific error types properly
       if (error.message?.includes('Invalid agent data')) {
         res.status(400).json({ message: error.message });
       } else if (error.message?.includes('unique constraint')) {
         res.status(409).json({ message: "Email address already exists" });
+      } else if (error.message?.includes('column') && error.message?.includes('does not exist')) {
+        res.status(500).json({ message: "Database schema error. Please ensure the database schema is up to date." });
       } else {
         res.status(500).json({ message: "Failed to create agent" });
       }
