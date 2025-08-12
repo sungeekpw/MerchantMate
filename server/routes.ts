@@ -4061,14 +4061,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Fee group name is required" });
       }
 
+      // Use the dynamic database connection
+      const dbToUse = req.dynamicDB;
+      if (!dbToUse) {
+        return res.status(500).json({ message: "Database connection not available" });
+      }
+
       const updateData = {
         name,
         description: description || null,
         displayOrder: displayOrder || 0,
-        author: req.user?.email || 'System'
+        author: req.user?.email || 'System',
+        updatedAt: new Date()
       };
 
-      const updatedFeeGroup = await storage.updateFeeGroup(id, updateData);
+      const { feeGroups } = await import("@shared/schema");
+      const [updatedFeeGroup] = await dbToUse.update(feeGroups)
+        .set(updateData)
+        .where(eq(feeGroups.id, id))
+        .returning();
       
       if (!updatedFeeGroup) {
         return res.status(404).json({ message: "Fee group not found" });
