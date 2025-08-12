@@ -174,6 +174,8 @@ export default function CampaignsPage() {
   const [showEditFeeGroup, setShowEditFeeGroup] = useState(false);
   const [editFeeGroupId, setEditFeeGroupId] = useState<number | null>(null);
   const [showAddFeeItem, setShowAddFeeItem] = useState(false);
+  const [showEditFeeItem, setShowEditFeeItem] = useState(false);
+  const [editFeeItemId, setEditFeeItemId] = useState<number | null>(null);
   const [showAddPricingType, setShowAddPricingType] = useState(false);
   const [selectedFeeGroup, setSelectedFeeGroup] = useState<number | null>(null);
   const [editCampaignId, setEditCampaignId] = useState<number | null>(null);
@@ -392,6 +394,51 @@ export default function CampaignsPage() {
     },
   });
 
+  // Update Fee Item mutation
+  const updateFeeItemMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: number; data: CreateFeeItemData }) => {
+      const response = await fetch(`/api/fee-items/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+        credentials: 'include',
+      });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to update fee item');
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/fee-items'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/fee-groups'] });
+      setShowEditFeeItem(false);
+      setEditFeeItemId(null);
+      setFeeItemForm({
+        name: '',
+        description: '',
+        feeGroupId: 0,
+        defaultValue: '',
+        valueType: 'percentage',
+        isRequired: false,
+        displayOrder: 1
+      });
+      toast({
+        title: "Fee Item Updated",
+        description: "The fee item has been successfully updated.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update fee item.",
+        variant: "destructive",
+      });
+    },
+  });
+
   // Update Fee Group mutation
   const updateFeeGroupMutation = useMutation({
     mutationFn: async ({ id, data }: { id: number; data: CreateFeeGroupData }) => {
@@ -547,6 +594,51 @@ export default function CampaignsPage() {
       isRequired: feeItemForm.isRequired,
       displayOrder: feeItemForm.displayOrder || 1,
     });
+  };
+
+  // Handle fee item update submission
+  const handleUpdateFeeItem = () => {
+    if (!feeItemForm.name.trim()) {
+      toast({
+        title: "Validation Error",
+        description: "Fee item name is required.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!feeItemForm.feeGroupId) {
+      toast({
+        title: "Validation Error",
+        description: "Please select a fee group.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!feeItemForm.valueType) {
+      toast({
+        title: "Validation Error",
+        description: "Please select a value type.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (editFeeItemId) {
+      updateFeeItemMutation.mutate({
+        id: editFeeItemId,
+        data: {
+          name: feeItemForm.name.trim(),
+          description: feeItemForm.description.trim() || undefined,
+          feeGroupId: feeItemForm.feeGroupId,
+          defaultValue: feeItemForm.defaultValue.trim() || undefined,
+          valueType: feeItemForm.valueType,
+          isRequired: feeItemForm.isRequired,
+          displayOrder: feeItemForm.displayOrder || 1,
+        }
+      });
+    }
   };
 
   // If we're in view mode, show individual campaign details
@@ -1129,7 +1221,19 @@ export default function CampaignsPage() {
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                              <DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => {
+                                setEditFeeItemId(item.id);
+                                setFeeItemForm({
+                                  name: item.name,
+                                  description: item.description || '',
+                                  feeGroupId: item.feeGroupId,
+                                  defaultValue: item.defaultValue || '',
+                                  valueType: item.valueType,
+                                  isRequired: item.isRequired,
+                                  displayOrder: item.displayOrder
+                                });
+                                setShowEditFeeItem(true);
+                              }}>
                                 <Edit className="mr-2 h-4 w-4" />
                                 Edit Item
                               </DropdownMenuItem>
@@ -1442,6 +1546,111 @@ export default function CampaignsPage() {
               disabled={createFeeItemMutation.isPending}
             >
               {createFeeItemMutation.isPending ? 'Creating...' : 'Create Fee Item'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Fee Item Dialog */}
+      <Dialog open={showEditFeeItem} onOpenChange={setShowEditFeeItem}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit Fee Item</DialogTitle>
+            <DialogDescription>
+              Update the fee item details
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Fee Item Name *</Label>
+              <Input 
+                placeholder="Enter fee item name" 
+                value={feeItemForm.name}
+                onChange={(e) => setFeeItemForm(prev => ({ ...prev, name: e.target.value }))}
+              />
+            </div>
+            <div>
+              <Label>Description</Label>
+              <Textarea 
+                placeholder="Enter description (optional)" 
+                value={feeItemForm.description}
+                onChange={(e) => setFeeItemForm(prev => ({ ...prev, description: e.target.value }))}
+              />
+            </div>
+            <div>
+              <Label>Fee Group *</Label>
+              <Select 
+                value={feeItemForm.feeGroupId?.toString() || ''} 
+                onValueChange={(value) => setFeeItemForm(prev => ({ ...prev, feeGroupId: parseInt(value) }))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select fee group" />
+                </SelectTrigger>
+                <SelectContent>
+                  {feeGroups.map((group) => (
+                    <SelectItem key={group.id} value={group.id.toString()}>
+                      {group.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Default Value</Label>
+              <Input 
+                placeholder="Enter default value (optional)" 
+                value={feeItemForm.defaultValue}
+                onChange={(e) => setFeeItemForm(prev => ({ ...prev, defaultValue: e.target.value }))}
+              />
+            </div>
+            <div>
+              <Label>Value Type *</Label>
+              <Select 
+                value={feeItemForm.valueType} 
+                onValueChange={(value: 'percentage' | 'fixed' | 'basis_points') => 
+                  setFeeItemForm(prev => ({ ...prev, valueType: value }))
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select value type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="percentage">Percentage (%)</SelectItem>
+                  <SelectItem value="fixed">Fixed Amount ($)</SelectItem>
+                  <SelectItem value="basis_points">Basis Points (bps)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-center space-x-2">
+              <Switch 
+                id="required-edit" 
+                checked={feeItemForm.isRequired}
+                onCheckedChange={(checked) => setFeeItemForm(prev => ({ ...prev, isRequired: checked }))}
+              />
+              <Label htmlFor="required-edit">Required for campaigns</Label>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => {
+              setShowEditFeeItem(false);
+              setEditFeeItemId(null);
+              setFeeItemForm({
+                name: '',
+                description: '',
+                feeGroupId: 0,
+                defaultValue: '',
+                valueType: 'percentage',
+                isRequired: false,
+                displayOrder: 1
+              });
+            }}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleUpdateFeeItem}
+              disabled={updateFeeItemMutation.isPending}
+            >
+              {updateFeeItemMutation.isPending ? 'Updating...' : 'Update Fee Item'}
             </Button>
           </DialogFooter>
         </DialogContent>
