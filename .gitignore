@@ -4,3 +4,31 @@ dist
 server/public
 vite.config.ts.*
 *.tar.gz
+
+# Environment files (contain secrets)
+.env.local
+.env.production
+.env.development
+.env
+
+# Secret and sensitive files
+*secret*
+*key*
+*token*
+*cookie*
+*.txt
+*.log
+*.json
+!package.json
+!package-lock.json
+!tsconfig.json
+!components.json
+!jest.config.mjs
+
+# Coverage and test outputs
+coverage/
+test_results.json
+test_output.log
+
+# PDF files (may contain sensitive data)
+*.pdf
