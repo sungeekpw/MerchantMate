@@ -272,62 +272,139 @@ export default function TestingUtilities() {
               </div>
             )}
             
-            <div className="flex items-center gap-4">
-              <div className="flex-1">
-                <label className="text-sm font-medium">Target Database:</label>
-                <Select value={selectedDbEnv} onValueChange={handleDbEnvChange}>
-                  <SelectTrigger className="mt-1">
-                    <SelectValue placeholder="Select database environment" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="default">Default (Production)</SelectItem>
-                    <SelectItem value="test">Test Database (?db=test)</SelectItem>
-                    <SelectItem value="dev">Development Database (?db=dev)</SelectItem>
-                  </SelectContent>
-                </Select>
+            <div className="space-y-4">
+              <div className="flex items-center gap-4">
+                <div className="flex-1">
+                  <label className="text-sm font-medium">Target Database:</label>
+                  <Select value={selectedDbEnv} onValueChange={handleDbEnvChange}>
+                    <SelectTrigger className="mt-1">
+                      <SelectValue placeholder="Select database environment" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="default">Default (Production)</SelectItem>
+                      <SelectItem value="test">Test Database (?db=test)</SelectItem>
+                      <SelectItem value="dev">Development Database (?db=dev)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
 
-              <Button 
-                variant="outline" 
-                size="sm" 
-                className="mt-4"
-                onClick={async () => {
-                  try {
-                    const url = selectedDbEnv !== 'default' 
-                      ? `/api/admin/db-diagnostics?db=${selectedDbEnv}`
-                      : '/api/admin/db-diagnostics';
-                    
-                    const response = await fetch(url, {
-                      credentials: 'include',
-                      mode: 'cors',
-                    });
-                    
-                    if (response.ok) {
-                      const diagnostics = await response.json();
-                      console.log('🔍 Database Connection Diagnostics:');
-                      console.log('Environment:', diagnostics.environment);
-                      console.log('Requested:', diagnostics.requestedEnv);
-                      console.log('URLs:', diagnostics.databaseUrls);
-                      console.log('Current Connection:', diagnostics.currentConnection);
+              <div className="flex gap-3">
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="flex-1"
+                  onClick={async () => {
+                    try {
+                      const url = selectedDbEnv !== 'default' 
+                        ? `/api/admin/db-diagnostics?db=${selectedDbEnv}`
+                        : '/api/admin/db-diagnostics';
                       
-                      alert(`Database Diagnostics:
+                      const response = await fetch(url, {
+                        credentials: 'include',
+                        mode: 'cors',
+                      });
+                      
+                      if (response.ok) {
+                        const diagnostics = await response.json();
+                        console.log('🔍 Database Connection Diagnostics:');
+                        console.log('Environment:', diagnostics.environment);
+                        console.log('Requested:', diagnostics.requestedEnv);
+                        console.log('URLs:', diagnostics.databaseUrls);
+                        console.log('Current Connection:', diagnostics.currentConnection);
+                        
+                        alert(`Database Diagnostics:
 Environment: ${diagnostics.environment}
 User Count: ${diagnostics.currentConnection.userCount}
 URL: ${diagnostics.currentConnection.url}
 
 Check console for full details.`);
-                    } else {
-                      console.error('Failed to fetch diagnostics:', response.status);
+                      } else {
+                        console.error('Failed to fetch diagnostics:', response.status);
+                      }
+                    } catch (error) {
+                      console.error('Error fetching diagnostics:', error);
                     }
-                  } catch (error) {
-                    console.error('Error fetching diagnostics:', error);
-                  }
-                }}
-              >
-                Database Diagnostics
-              </Button>
+                  }}
+                >
+                  <Database className="mr-2 h-4 w-4" />
+                  Database Diagnostics
+                </Button>
+                
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="flex-1"
+                  onClick={async () => {
+                    try {
+                      const response = await fetch('/api/admin/schema-compare', {
+                        credentials: 'include',
+                        mode: 'cors',
+                      });
+                      
+                      if (response.ok) {
+                        const schemaComparison = await response.json();
+                        console.log('📊 Schema Comparison Results:');
+                        console.log('Available Environments:', schemaComparison.summary.availableEnvironments);
+                        console.log('Unavailable Environments:', schemaComparison.summary.unavailableEnvironments);
+                        console.log('Full Comparison:', schemaComparison);
+                        
+                        // Create a detailed report
+                        let report = `Schema Comparison Report\n`;
+                        report += `========================\n\n`;
+                        report += `Available Environments: ${schemaComparison.summary.availableEnvironments.join(', ')}\n`;
+                        
+                        if (schemaComparison.summary.unavailableEnvironments.length > 0) {
+                          report += `Unavailable Environments: ${schemaComparison.summary.unavailableEnvironments.join(', ')}\n`;
+                        }
+                        
+                        // Check for differences
+                        let hasDifferences = false;
+                        
+                        for (const [comparison, differences] of Object.entries(schemaComparison.comparisons)) {
+                          if (differences) {
+                            const diff = differences as any;
+                            const totalDiffs = diff.missingTables.length + diff.extraTables.length + diff.columnDifferences.length;
+                            
+                            if (totalDiffs > 0) {
+                              hasDifferences = true;
+                              report += `\n${comparison.toUpperCase()}:\n`;
+                              if (diff.missingTables.length > 0) {
+                                report += `  Missing Tables: ${diff.missingTables.join(', ')}\n`;
+                              }
+                              if (diff.extraTables.length > 0) {
+                                report += `  Extra Tables: ${diff.extraTables.join(', ')}\n`;
+                              }
+                              if (diff.columnDifferences.length > 0) {
+                                report += `  Column Differences: ${diff.columnDifferences.length} found\n`;
+                              }
+                            }
+                          }
+                        }
+                        
+                        if (!hasDifferences) {
+                          report += `\n✅ All schemas are synchronized!`;
+                        } else {
+                          report += `\n⚠️ Schema differences detected. Check console for full details.`;
+                        }
+                        
+                        alert(report);
+                      } else {
+                        console.error('Failed to fetch schema comparison:', response.status);
+                        alert('Failed to fetch schema comparison. Check console for details.');
+                      }
+                    } catch (error) {
+                      console.error('Error fetching schema comparison:', error);
+                      alert('Error fetching schema comparison. Check console for details.');
+                    }
+                  }}
+                >
+                  <BarChart3 className="mr-2 h-4 w-4" />
+                  Compare Schemas
+                </Button>
+              </div>
               
-              <div className="text-xs text-muted-foreground mt-2">
+              <div className="text-xs text-muted-foreground">
                 You can also use URL parameters: ?db=test or ?db=dev
               </div>
             </div>
