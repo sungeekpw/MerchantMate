@@ -391,7 +391,7 @@ export class DatabaseStorage implements IStorage {
     }
 
     const directItems = await db.select().from(feeItems)
-      .where(and(eq(feeItems.feeGroupId, id), eq(feeItems.feeItemGroupId, null)))
+      .where(and(eq(feeItems.feeGroupId, id), feeItems.feeItemGroupId === null))
       .orderBy(feeItems.displayOrder);
 
     return {
@@ -603,6 +603,7 @@ export class DatabaseStorage implements IStorage {
     return {
       ...row.campaign,
       pricingType: row.pricingType || undefined,
+      feeValues: [],
       createdByUser: undefined,
     };
   }
@@ -1808,16 +1809,7 @@ export class DatabaseStorage implements IStorage {
     };
   }
 
-  // Campaign operations - placeholder methods to prevent 500 errors
-  async getAllCampaigns() {
-    // Return empty array for now - campaigns table may need proper schema
-    return [];
-  }
-
-  async getCampaign(id: number) {
-    // Return null for now - campaigns table may need proper schema
-    return null;
-  }
+  // Campaign operations - placeholder methods removed (using real implementations above)
 
   // Prospect operations 
   async getAllMerchantProspects() {
