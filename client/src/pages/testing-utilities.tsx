@@ -11,7 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Progress } from "@/components/ui/progress";
 import TestingDashboard from "@/components/TestingDashboard";
-import { Trash2, RefreshCw, Database, CheckCircle, X, Server, Shield, ShieldCheck, TestTube, Settings, Play, Pause, BarChart3, FileText, AlertCircle, Clock } from "lucide-react";
+import { Trash2, RefreshCw, Database, CheckCircle, X, Server, Shield, ShieldCheck, TestTube, Settings, Play, Pause, BarChart3, FileText, AlertCircle, Clock, ArrowRight } from "lucide-react";
 
 interface ResetResult {
   success: boolean;
@@ -31,6 +31,13 @@ export default function TestingUtilities() {
   const [lastResult, setLastResult] = useState<ResetResult | null>(null);
   const [showAuditModal, setShowAuditModal] = useState(false);
   const [selectedDbEnv, setSelectedDbEnv] = useState<string>('default');
+  const [showSyncModal, setShowSyncModal] = useState(false);
+  const [schemaData, setSchemaData] = useState<any>(null);
+  const [syncConfig, setSyncConfig] = useState({
+    fromEnvironment: 'production',
+    toEnvironment: 'development',
+    syncType: 'drizzle-push'
+  });
   const queryClient = useQueryClient();
 
   // Query to get current database environment
@@ -163,6 +170,60 @@ export default function TestingUtilities() {
       queryClient.invalidateQueries({ queryKey: ["/api/prospects"] });
       queryClient.invalidateQueries({ queryKey: ["/api/agent"] });
     },
+  });
+
+  // Schema sync mutation
+  const schemaSyncMutation = useMutation({
+    mutationFn: async (config: any) => {
+      const response = await fetch('/api/admin/schema-sync', {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+        body: JSON.stringify(config),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ message: response.statusText }));
+        throw new Error(errorData.message || "Failed to sync schemas");
+      }
+      
+      return response.json();
+    },
+    onSuccess: (data) => {
+      console.log('🔄 Schema Sync Results:', data);
+      
+      let message = `Schema Sync Complete!\n\n`;
+      message += `From: ${data.fromEnvironment} → To: ${data.toEnvironment}\n`;
+      message += `Sync Type: ${data.syncType}\n\n`;
+      
+      if (data.operations.length > 0) {
+        message += `Successful Operations:\n`;
+        data.operations.forEach((op: any) => {
+          if (op.type === 'drizzle-push') {
+            message += `✅ Drizzle push to ${op.target}\n`;
+          } else if (op.type === 'table-sync') {
+            message += `✅ Table ${op.table} ${op.operation}\n`;
+          }
+        });
+      }
+      
+      if (data.errors.length > 0) {
+        message += `\nErrors:\n`;
+        data.errors.forEach((err: any) => {
+          message += `❌ ${err.operation}: ${err.error}\n`;
+        });
+      }
+      
+      message += `\nCheck console for detailed logs.`;
+      alert(message);
+      setShowSyncModal(false);
+    },
+    onError: (error) => {
+      console.error('Schema sync failed:', error);
+      alert(`Schema sync failed: ${error.message}`);
+    }
   });
 
   const handleOptionChange = (option: string, checked: boolean) => {
@@ -349,46 +410,9 @@ Check console for full details.`);
                         console.log('Unavailable Environments:', schemaComparison.summary.unavailableEnvironments);
                         console.log('Full Comparison:', schemaComparison);
                         
-                        // Create a detailed report
-                        let report = `Schema Comparison Report\n`;
-                        report += `========================\n\n`;
-                        report += `Available Environments: ${schemaComparison.summary.availableEnvironments.join(', ')}\n`;
+                        setSchemaData(schemaComparison);
+                        setShowSyncModal(true);
                         
-                        if (schemaComparison.summary.unavailableEnvironments.length > 0) {
-                          report += `Unavailable Environments: ${schemaComparison.summary.unavailableEnvironments.join(', ')}\n`;
-                        }
-                        
-                        // Check for differences
-                        let hasDifferences = false;
-                        
-                        for (const [comparison, differences] of Object.entries(schemaComparison.comparisons)) {
-                          if (differences) {
-                            const diff = differences as any;
-                            const totalDiffs = diff.missingTables.length + diff.extraTables.length + diff.columnDifferences.length;
-                            
-                            if (totalDiffs > 0) {
-                              hasDifferences = true;
-                              report += `\n${comparison.toUpperCase()}:\n`;
-                              if (diff.missingTables.length > 0) {
-                                report += `  Missing Tables: ${diff.missingTables.join(', ')}\n`;
-                              }
-                              if (diff.extraTables.length > 0) {
-                                report += `  Extra Tables: ${diff.extraTables.join(', ')}\n`;
-                              }
-                              if (diff.columnDifferences.length > 0) {
-                                report += `  Column Differences: ${diff.columnDifferences.length} found\n`;
-                              }
-                            }
-                          }
-                        }
-                        
-                        if (!hasDifferences) {
-                          report += `\n✅ All schemas are synchronized!`;
-                        } else {
-                          report += `\n⚠️ Schema differences detected. Check console for full details.`;
-                        }
-                        
-                        alert(report);
                       } else {
                         console.error('Failed to fetch schema comparison:', response.status);
                         alert('Failed to fetch schema comparison. Check console for details.');
@@ -400,7 +424,7 @@ Check console for full details.`);
                   }}
                 >
                   <BarChart3 className="mr-2 h-4 w-4" />
-                  Compare Schemas
+                  Compare & Sync Schemas
                 </Button>
               </div>
               
@@ -675,6 +699,192 @@ Check console for full details.`);
                   className="w-full"
                 >
                   Close
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Schema Sync Modal */}
+      <Dialog open={showSyncModal} onOpenChange={setShowSyncModal}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Database className="h-5 w-5" />
+              Schema Comparison & Synchronization
+            </DialogTitle>
+            <DialogDescription>
+              Compare database schemas across environments and sync differences
+            </DialogDescription>
+          </DialogHeader>
+          
+          {schemaData && (
+            <div className="space-y-6">
+              {/* Environment Status */}
+              <div className="grid grid-cols-3 gap-4">
+                {['production', 'development', 'test'].map((env) => {
+                  const schema = schemaData.schemas[env];
+                  const tableCount = schema?.available ? 
+                    [...new Set(schema.tables.map((t: any) => t.table_name))].length : 0;
+                  
+                  return (
+                    <div key={env} className="p-4 border rounded-lg">
+                      <div className="flex items-center gap-2 mb-2">
+                        <div className={`w-3 h-3 rounded-full ${schema?.available ? 'bg-green-500' : 'bg-red-500'}`} />
+                        <h3 className="font-medium capitalize">{env}</h3>
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        {schema?.available ? `${tableCount} tables` : 'Unavailable'}
+                      </p>
+                      {schema?.error && (
+                        <p className="text-xs text-red-600 mt-1">{schema.error}</p>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Sync Configuration */}
+              <div className="space-y-4 p-4 bg-muted/50 rounded-lg">
+                <h3 className="font-medium">Synchronization Settings</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-sm font-medium">From Environment:</label>
+                    <Select 
+                      value={syncConfig.fromEnvironment} 
+                      onValueChange={(value) => setSyncConfig(prev => ({...prev, fromEnvironment: value}))}
+                    >
+                      <SelectTrigger className="mt-1">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="production">Production</SelectItem>
+                        <SelectItem value="development">Development</SelectItem>
+                        <SelectItem value="test">Test</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium">To Environment:</label>
+                    <Select 
+                      value={syncConfig.toEnvironment} 
+                      onValueChange={(value) => setSyncConfig(prev => ({...prev, toEnvironment: value}))}
+                    >
+                      <SelectTrigger className="mt-1">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="production">Production</SelectItem>
+                        <SelectItem value="development">Development</SelectItem>
+                        <SelectItem value="test">Test</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                
+                <div>
+                  <label className="text-sm font-medium">Sync Method:</label>
+                  <Select 
+                    value={syncConfig.syncType} 
+                    onValueChange={(value) => setSyncConfig(prev => ({...prev, syncType: value}))}
+                  >
+                    <SelectTrigger className="mt-1">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="drizzle-push">Drizzle Push (Recommended)</SelectItem>
+                      <SelectItem value="selective">Selective Table Sync</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Drizzle Push applies the current schema definition to the target environment
+                  </p>
+                </div>
+              </div>
+
+              {/* Schema Differences */}
+              <div className="space-y-4">
+                <h3 className="font-medium">Schema Differences</h3>
+                {Object.entries(schemaData.comparisons).map(([comparison, differences]) => {
+                  if (!differences) return null;
+                  
+                  const diff = differences as any;
+                  const totalDiffs = diff.missingTables.length + diff.extraTables.length + diff.columnDifferences.length;
+                  
+                  if (totalDiffs === 0) return null;
+                  
+                  return (
+                    <div key={comparison} className="border rounded-lg p-4">
+                      <h4 className="font-medium mb-2 capitalize">
+                        {comparison.replace('-vs-', ' vs ').replace('-', ' ')}
+                      </h4>
+                      
+                      {diff.missingTables.length > 0 && (
+                        <div className="mb-2">
+                          <p className="text-sm font-medium text-orange-600">Missing Tables:</p>
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {diff.missingTables.map((table: string) => (
+                              <Badge key={table} variant="destructive">{table}</Badge>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      
+                      {diff.extraTables.length > 0 && (
+                        <div className="mb-2">
+                          <p className="text-sm font-medium text-blue-600">Extra Tables:</p>
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {diff.extraTables.map((table: string) => (
+                              <Badge key={table} variant="secondary">{table}</Badge>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      
+                      {diff.columnDifferences.length > 0 && (
+                        <div>
+                          <p className="text-sm font-medium text-yellow-600">
+                            Column Differences: {diff.columnDifferences.length}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex gap-3 pt-4 border-t">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowSyncModal(false)}
+                  className="flex-1"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={() => {
+                    if (syncConfig.fromEnvironment === syncConfig.toEnvironment) {
+                      alert('Source and target environments cannot be the same');
+                      return;
+                    }
+                    schemaSyncMutation.mutate(syncConfig);
+                  }}
+                  disabled={schemaSyncMutation.isPending}
+                  className="flex-1"
+                >
+                  {schemaSyncMutation.isPending ? (
+                    <>
+                      <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                      Syncing...
+                    </>
+                  ) : (
+                    <>
+                      <ArrowRight className="mr-2 h-4 w-4" />
+                      Sync Schema
+                    </>
+                  )}
                 </Button>
               </div>
             </div>

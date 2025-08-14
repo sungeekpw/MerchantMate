@@ -2227,6 +2227,158 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Schema synchronization endpoint
+  app.post("/api/admin/schema-sync", requireRole(['super_admin']), async (req, res) => {
+    try {
+      const { fromEnvironment, toEnvironment, syncType, tables } = req.body;
+      
+      // Validate environments
+      const validEnvironments = ['production', 'development', 'test'];
+      if (!validEnvironments.includes(fromEnvironment) || !validEnvironments.includes(toEnvironment)) {
+        return res.status(400).json({ 
+          success: false, 
+          message: "Invalid environment specified" 
+        });
+      }
+      
+      if (fromEnvironment === toEnvironment) {
+        return res.status(400).json({ 
+          success: false, 
+          message: "Source and target environments cannot be the same" 
+        });
+      }
+      
+      const { getDynamicDatabase } = await import("./db");
+      const sourceDB = getDynamicDatabase(fromEnvironment);
+      const targetDB = getDynamicDatabase(toEnvironment);
+      
+      const results = {
+        success: true,
+        fromEnvironment,
+        toEnvironment,
+        syncType,
+        operations: [],
+        errors: []
+      };
+      
+      if (syncType === 'drizzle-push') {
+        // Use Drizzle push to sync schema
+        try {
+          const { exec } = await import('child_process');
+          const { promisify } = await import('util');
+          const execAsync = promisify(exec);
+          
+          // Get the appropriate database URL for target environment
+          const getDatabaseUrl = (environment: string): string => {
+            switch (environment) {
+              case 'test':
+                return process.env.TEST_DATABASE_URL || process.env.DATABASE_URL!;
+              case 'development':
+                return process.env.DEV_DATABASE_URL || process.env.DATABASE_URL!;
+              case 'production':
+              default:
+                return process.env.DATABASE_URL!;
+            }
+          };
+          
+          const targetDbUrl = getDatabaseUrl(toEnvironment);
+          
+          console.log(`🔄 Syncing schema to ${toEnvironment} using Drizzle push...`);
+          
+          const command = `DATABASE_URL="${targetDbUrl}" npx drizzle-kit push --force`;
+          
+          const { stdout, stderr } = await execAsync(command, {
+            cwd: process.cwd(),
+            env: {
+              ...process.env,
+              DATABASE_URL: targetDbUrl
+            },
+            timeout: 30000 // 30 second timeout
+          });
+          
+          results.operations.push({
+            type: 'drizzle-push',
+            target: toEnvironment,
+            stdout: stdout,
+            stderr: stderr,
+            success: true
+          });
+          
+          console.log(`✅ Schema synchronized to ${toEnvironment}`);
+          
+        } catch (error) {
+          console.error(`❌ Failed to sync to ${toEnvironment}:`, error);
+          results.errors.push({
+            environment: toEnvironment,
+            error: error instanceof Error ? error.message : 'Unknown error',
+            operation: 'drizzle-push'
+          });
+        }
+        
+      } else if (syncType === 'selective' && tables && Array.isArray(tables)) {
+        // Selective table sync (copy structure only, not data)
+        for (const tableName of tables) {
+          try {
+            // Get the CREATE TABLE statement from source
+            const createTableResult = await sourceDB.execute(`
+              SELECT 
+                'CREATE TABLE ' || quote_ident(table_name) || ' (' ||
+                array_to_string(
+                  array_agg(
+                    quote_ident(column_name) || ' ' || 
+                    data_type ||
+                    CASE 
+                      WHEN character_maximum_length IS NOT NULL 
+                      THEN '(' || character_maximum_length || ')'
+                      ELSE ''
+                    END ||
+                    CASE WHEN is_nullable = 'NO' THEN ' NOT NULL' ELSE '' END ||
+                    CASE WHEN column_default IS NOT NULL THEN ' DEFAULT ' || column_default ELSE '' END
+                    ORDER BY ordinal_position
+                  ), ', '
+                ) || ');' as create_statement
+              FROM information_schema.columns 
+              WHERE table_schema = 'public' AND table_name = $1
+              GROUP BY table_name
+            `, [tableName]);
+            
+            if (createTableResult.rows && createTableResult.rows.length > 0) {
+              const createStatement = createTableResult.rows[0].create_statement;
+              
+              // Drop table if exists and recreate
+              await targetDB.execute(`DROP TABLE IF EXISTS ${tableName} CASCADE`);
+              await targetDB.execute(createStatement);
+              
+              results.operations.push({
+                type: 'table-sync',
+                table: tableName,
+                operation: 'created',
+                success: true
+              });
+            }
+            
+          } catch (error) {
+            results.errors.push({
+              table: tableName,
+              error: error instanceof Error ? error.message : 'Unknown error',
+              operation: 'table-sync'
+            });
+          }
+        }
+      }
+      
+      res.json(results);
+      
+    } catch (error) {
+      console.error("Error syncing schemas:", error);
+      res.status(500).json({ 
+        success: false, 
+        message: "Failed to sync database schemas", 
+        error: error instanceof Error ? error.message : 'Unknown error' 
+      });
+    }
+  });
+
   // Comprehensive testing data reset utility (Super Admin only)
   app.post("/api/admin/reset-testing-data", requireRole(['super_admin']), dbEnvironmentMiddleware, async (req: RequestWithDB, res) => {
     try {
