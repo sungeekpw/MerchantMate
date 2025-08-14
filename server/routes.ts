@@ -4200,7 +4200,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Campaign Management API endpoints
   
   // Campaigns
-  app.get('/api/campaigns', requireRole(['admin', 'super_admin']), async (req: Request, res: Response) => {
+  app.get('/api/campaigns', requireRole(['admin', 'super_admin']), async (req: ExpressRequest, res: Response) => {
     try {
       const campaigns = await storage.getAllCampaigns();
       res.json(campaigns);
@@ -4210,7 +4210,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/campaigns', requireRole(['admin', 'super_admin']), async (req: Request, res: Response) => {
+  app.post('/api/campaigns', requireRole(['admin', 'super_admin']), async (req: ExpressRequest, res: Response) => {
     try {
       const { feeValues, equipmentIds, ...campaignData } = req.body;
       
@@ -4231,7 +4231,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/campaigns/:id', requireRole(['admin', 'super_admin']), async (req: Request, res: Response) => {
+  app.get('/api/campaigns/:id', requireRole(['admin', 'super_admin']), async (req: ExpressRequest, res: Response) => {
     try {
       const id = parseInt(req.params.id);
       const campaign = await storage.getCampaignWithDetails(id);

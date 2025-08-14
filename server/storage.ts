@@ -162,8 +162,23 @@ export interface IStorage {
   // Admin operations
   clearAllProspectData(): Promise<void>;
   
+  // Campaign operations
+  getAllCampaigns(): Promise<Campaign[]>;
+  createCampaign(campaign: InsertCampaign, feeValues: any[], equipmentIds: number[]): Promise<Campaign>;
+  getCampaignFeeValues(campaignId: number): Promise<any[]>;
+  getCampaignEquipment(campaignId: number): Promise<any[]>;
+  
+  // API Key operations
+  getAllApiKeys(): Promise<ApiKey[]>;
+  createApiKey(apiKey: InsertApiKey): Promise<ApiKey>;
+  updateApiKey(id: number, updates: Partial<InsertApiKey>): Promise<ApiKey | undefined>;
+  deleteApiKey(id: number): Promise<boolean>;
+  getApiUsageStats(): Promise<any>;
+  getApiRequestLogs(): Promise<ApiRequestLog[]>;
+  
   // Security & Audit operations
   getAuditLogs(limit?: number): Promise<any[]>;
+  getAllAuditLogs(): Promise<any[]>;
   getSecurityEvents(limit?: number): Promise<any[]>;
   getSecurityMetrics(): Promise<{
     totalLoginAttempts: number;
@@ -391,7 +406,7 @@ export class DatabaseStorage implements IStorage {
     }
 
     const directItems = await db.select().from(feeItems)
-      .where(and(eq(feeItems.feeGroupId, id), feeItems.feeItemGroupId === null))
+      .where(and(eq(feeItems.feeGroupId, id), sql`${feeItems.feeItemGroupId} IS NULL`))
       .orderBy(feeItems.displayOrder);
 
     return {
@@ -923,7 +938,7 @@ export class DatabaseStorage implements IStorage {
     return Array.from(locationsMap.values());
   }
 
-  async getDashboardRevenue() {
+  async getDashboardRevenue(timeRange: string = 'monthly') {
     return {
       totalRevenue: "0.00",
       thisMonth: "0.00",
@@ -1812,6 +1827,54 @@ export class DatabaseStorage implements IStorage {
   // Campaign operations - placeholder methods removed (using real implementations above)
 
   // Prospect operations 
+  async getAllCampaigns(): Promise<Campaign[]> {
+    return await db.select().from(campaigns).orderBy(campaigns.createdAt);
+  }
+
+  async createCampaign(campaign: InsertCampaign, feeValues: any[], equipmentIds: number[]): Promise<Campaign> {
+    const [created] = await db.insert(campaigns).values(campaign).returning();
+    return created;
+  }
+
+  async getCampaignFeeValues(campaignId: number): Promise<any[]> {
+    return [];
+  }
+
+  async getCampaignEquipment(campaignId: number): Promise<any[]> {
+    return [];
+  }
+
+  async getAllApiKeys(): Promise<ApiKey[]> {
+    return await db.select().from(apiKeys).orderBy(apiKeys.createdAt);
+  }
+
+  async createApiKey(apiKey: InsertApiKey): Promise<ApiKey> {
+    const [created] = await db.insert(apiKeys).values(apiKey).returning();
+    return created;
+  }
+
+  async updateApiKey(id: number, updates: Partial<InsertApiKey>): Promise<ApiKey | undefined> {
+    const [updated] = await db.update(apiKeys).set(updates).where(eq(apiKeys.id, id)).returning();
+    return updated || undefined;
+  }
+
+  async deleteApiKey(id: number): Promise<boolean> {
+    const result = await db.delete(apiKeys).where(eq(apiKeys.id, id));
+    return (result.rowCount ?? 0) > 0;
+  }
+
+  async getApiUsageStats(): Promise<any> {
+    return { totalRequests: 0, successfulRequests: 0, failedRequests: 0 };
+  }
+
+  async getApiRequestLogs(): Promise<ApiRequestLog[]> {
+    return await db.select().from(apiRequestLogs).orderBy(desc(apiRequestLogs.createdAt)).limit(100);
+  }
+
+  async getAllAuditLogs(): Promise<any[]> {
+    return [];
+  }
+
   async getAllMerchantProspects() {
     return await db.select().from(merchantProspects);
   }
