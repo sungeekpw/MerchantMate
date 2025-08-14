@@ -726,7 +726,7 @@ Check console for full details.`);
                 {['production', 'development', 'test'].map((env) => {
                   const schema = schemaData.schemas[env];
                   const tableCount = schema?.available ? 
-                    [...new Set(schema.tables.map((t: any) => t.table_name))].length : 0;
+                    Array.from(new Set(schema.tables.map((t: any) => t.table_name))).length : 0;
                   
                   return (
                     <div key={env} className="p-4 border rounded-lg">
