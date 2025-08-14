@@ -2061,6 +2061,172 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Schema comparison between environments
+  app.get("/api/admin/schema-compare", requireRole(['super_admin']), async (req, res) => {
+    try {
+      const { getDynamicDatabase } = await import("./db");
+      
+      // Get schema information from each environment
+      const getSchemaInfo = async (environment: string) => {
+        try {
+          const db = getDynamicDatabase(environment);
+          
+          // Query to get table and column information
+          const tablesResult = await db.execute(`
+            SELECT 
+              table_name,
+              column_name,
+              data_type,
+              is_nullable,
+              column_default,
+              ordinal_position
+            FROM information_schema.columns 
+            WHERE table_schema = 'public' 
+            ORDER BY table_name, ordinal_position
+          `);
+          
+          // Query to get indexes
+          const indexesResult = await db.execute(`
+            SELECT 
+              t.relname as table_name,
+              i.relname as index_name,
+              array_agg(a.attname ORDER BY c.ordinality) as columns,
+              ix.indisunique as is_unique,
+              ix.indisprimary as is_primary
+            FROM pg_class t
+            JOIN pg_index ix ON t.oid = ix.indrelid
+            JOIN pg_class i ON i.oid = ix.indexrelid
+            JOIN unnest(ix.indkey) WITH ORDINALITY AS c(colnum, ordinality) ON true
+            JOIN pg_attribute a ON t.oid = a.attrelid AND a.attnum = c.colnum
+            WHERE t.relkind = 'r' 
+              AND t.relnamespace = (SELECT oid FROM pg_namespace WHERE nspname = 'public')
+            GROUP BY t.relname, i.relname, ix.indisunique, ix.indisprimary
+            ORDER BY t.relname, i.relname
+          `);
+          
+          return {
+            environment,
+            tables: tablesResult.rows || [],
+            indexes: indexesResult.rows || [],
+            available: true,
+            error: null
+          };
+        } catch (error) {
+          return {
+            environment,
+            tables: [],
+            indexes: [],
+            available: false,
+            error: error instanceof Error ? error.message : 'Connection failed'
+          };
+        }
+      };
+      
+      // Get schema info from all environments
+      const [prodSchema, devSchema, testSchema] = await Promise.all([
+        getSchemaInfo('production'),
+        getSchemaInfo('development'), 
+        getSchemaInfo('test')
+      ]);
+      
+      // Compare schemas and find differences
+      const findSchemaDifferences = (schema1: any, schema2: any) => {
+        const differences = {
+          missingTables: [],
+          extraTables: [],
+          columnDifferences: [],
+          indexDifferences: []
+        };
+        
+        // Get unique table names from both schemas
+        const schema1Tables = new Set(schema1.tables.map((t: any) => t.table_name));
+        const schema2Tables = new Set(schema2.tables.map((t: any) => t.table_name));
+        
+        // Find missing and extra tables
+        for (const table of schema1Tables) {
+          if (!schema2Tables.has(table)) {
+            differences.missingTables.push(table);
+          }
+        }
+        
+        for (const table of schema2Tables) {
+          if (!schema1Tables.has(table)) {
+            differences.extraTables.push(table);
+          }
+        }
+        
+        // Find column differences for common tables
+        for (const table of schema1Tables) {
+          if (schema2Tables.has(table)) {
+            const schema1Cols = schema1.tables.filter((t: any) => t.table_name === table);
+            const schema2Cols = schema2.tables.filter((t: any) => t.table_name === table);
+            
+            const schema1ColNames = new Set(schema1Cols.map((c: any) => c.column_name));
+            const schema2ColNames = new Set(schema2Cols.map((c: any) => c.column_name));
+            
+            for (const col of schema1ColNames) {
+              if (!schema2ColNames.has(col)) {
+                differences.columnDifferences.push({
+                  table: table,
+                  column: col,
+                  type: 'missing_in_target',
+                  details: schema1Cols.find((c: any) => c.column_name === col)
+                });
+              }
+            }
+            
+            for (const col of schema2ColNames) {
+              if (!schema1ColNames.has(col)) {
+                differences.columnDifferences.push({
+                  table: table,
+                  column: col,
+                  type: 'extra_in_target',
+                  details: schema2Cols.find((c: any) => c.column_name === col)
+                });
+              }
+            }
+          }
+        }
+        
+        return differences;
+      };
+      
+      // Generate comparison reports
+      const comparisons = {
+        'prod-vs-dev': devSchema.available ? findSchemaDifferences(prodSchema, devSchema) : null,
+        'prod-vs-test': testSchema.available ? findSchemaDifferences(prodSchema, testSchema) : null,
+        'dev-vs-test': (devSchema.available && testSchema.available) ? findSchemaDifferences(devSchema, testSchema) : null
+      };
+      
+      res.json({
+        success: true,
+        schemas: {
+          production: prodSchema,
+          development: devSchema,
+          test: testSchema
+        },
+        comparisons,
+        summary: {
+          totalEnvironments: [prodSchema, devSchema, testSchema].filter(s => s.available).length,
+          availableEnvironments: [prodSchema, devSchema, testSchema]
+            .filter(s => s.available)
+            .map(s => s.environment),
+          unavailableEnvironments: [prodSchema, devSchema, testSchema]
+            .filter(s => !s.available)
+            .map(s => s.environment)
+        }
+      });
+      
+    } catch (error) {
+      console.error("Error comparing schemas:", error);
+      res.status(500).json({ 
+        success: false, 
+        message: "Failed to compare database schemas", 
+        error: error instanceof Error ? error.message : 'Unknown error' 
+      });
+    }
+  });
+
   // Comprehensive testing data reset utility (Super Admin only)
   app.post("/api/admin/reset-testing-data", requireRole(['super_admin']), dbEnvironmentMiddleware, async (req: RequestWithDB, res) => {
     try {
