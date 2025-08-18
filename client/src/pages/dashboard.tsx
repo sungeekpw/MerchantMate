@@ -28,9 +28,11 @@ export default function DashboardPage() {
   const [currentTab, setCurrentTab] = useState("dashboard");
 
   // Fetch user's dashboard widgets
-  const { data: widgets = [], isLoading } = useQuery<UserDashboardPreference[]>({
+  const { data: widgets = [], isLoading, refetch } = useQuery<UserDashboardPreference[]>({
     queryKey: ["/api/dashboard/widgets"],
     enabled: !!user,
+    staleTime: 0, // Always fetch fresh data
+    cacheTime: 0, // Don't cache the data
   });
 
   // Add new widget mutation
@@ -88,7 +90,7 @@ export default function DashboardPage() {
   const handleWidgetVisibilityChange = (widgetId: number, visible: boolean) => {
     updateWidget.mutate({
       id: widgetId,
-      updates: { isVisible: visible }
+      updates: { is_visible: visible }
     });
   };
 
@@ -130,6 +132,14 @@ export default function DashboardPage() {
           <p className="text-gray-600">Welcome back, {user.firstName || user.username}</p>
         </div>
         <div className="flex items-center space-x-2">
+          <Button
+            variant="outline"
+            onClick={() => refetch()}
+            size="sm"
+          >
+            <Layout className="h-4 w-4 mr-2" />
+            Refresh
+          </Button>
           <Button
             variant="outline"
             onClick={() => setShowCustomize(true)}
@@ -187,14 +197,14 @@ export default function DashboardPage() {
           ) : (
             <div className="grid gap-6 auto-rows-min" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))' }}>
               {widgets
-                .filter(widget => widget.isVisible)
+                .filter(widget => widget.is_visible)
                 .sort((a, b) => a.position - b.position)
                 .map((widget) => {
-                  const definition = WIDGET_DEFINITIONS[widget.widgetId as WidgetType];
-                  const WidgetComponent = WIDGET_REGISTRY[widget.widgetId as WidgetType];
+                  const definition = WIDGET_DEFINITIONS[widget.widget_id as WidgetType];
+                  const WidgetComponent = WIDGET_REGISTRY[widget.widget_id as WidgetType];
                   
                   if (!definition || !WidgetComponent) {
-                    console.warn(`Widget not found: ${widget.widgetId}`);
+                    console.warn(`Widget not found: ${widget.widget_id}`);
                     return null;
                   }
 
