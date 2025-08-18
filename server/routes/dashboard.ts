@@ -129,6 +129,7 @@ router.post("/widgets", async (req: RequestWithDB, res) => {
       configuration: validatedData.configuration,
     };
     
+    console.log(`Dashboard API - Inserting widget data:`, widgetData);
     const [newWidget] = await req.db.insert(userDashboardPreferences)
       .values(widgetData)
       .returning();
