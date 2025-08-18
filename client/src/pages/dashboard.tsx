@@ -2,16 +2,16 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, Settings, Layout } from "lucide-react";
-import { DashboardWidget } from "@/components/dashboard/DashboardWidget";
+import { Plus, Settings, Layout, Palette, Grid } from "lucide-react";
+import { BaseWidget } from "@/components/widgets/BaseWidget";
+import { WidgetCatalog } from "@/components/widgets/WidgetCatalog";
+import { WIDGET_REGISTRY, WIDGET_DEFINITIONS } from "@/components/widgets/WidgetRegistry";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { 
-  WIDGET_TYPES, 
-  WIDGET_SIZES, 
   getAvailableWidgets, 
   getDefaultLayout,
   type WidgetType, 
@@ -24,26 +24,13 @@ export default function DashboardPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   
-  const [showAddWidget, setShowAddWidget] = useState(false);
-  const [selectedWidget, setSelectedWidget] = useState<WidgetType | "">("");
-  const [selectedSize, setSelectedSize] = useState<WidgetSize>("medium");
+  const [showCustomize, setShowCustomize] = useState(false);
+  const [currentTab, setCurrentTab] = useState("dashboard");
 
   // Fetch user's dashboard widgets
   const { data: widgets = [], isLoading } = useQuery<UserDashboardPreference[]>({
     queryKey: ["/api/dashboard/widgets"],
     enabled: !!user,
-  });
-
-  // Initialize default dashboard for new users
-  const initializeDashboard = useMutation({
-    mutationFn: () => apiRequest("POST", "/api/dashboard/initialize", {}),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/dashboard/widgets"] });
-      toast({
-        title: "Dashboard initialized",
-        description: "Default widgets have been added to your dashboard.",
-      });
-    },
   });
 
   // Add new widget mutation
@@ -52,9 +39,6 @@ export default function DashboardPage() {
       apiRequest("POST", "/api/dashboard/widgets", data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/dashboard/widgets"] });
-      setShowAddWidget(false);
-      setSelectedWidget("");
-      setSelectedSize("medium");
       toast({
         title: "Widget added",
         description: "New widget has been added to your dashboard.",
@@ -87,33 +71,43 @@ export default function DashboardPage() {
     },
   });
 
-  const handleAddWidget = () => {
-    if (!selectedWidget || !user) return;
-
-    const maxPosition = widgets.length > 0 ? Math.max(...widgets.map(w => w.position)) : -1;
-    
-    addWidget.mutate({
-      userId: user.id,
-      widgetId: selectedWidget,
-      position: maxPosition + 1,
-      size: selectedSize,
-      isVisible: true,
-      configuration: {},
+  const handleWidgetConfigChange = (widgetId: number, config: Record<string, any>) => {
+    updateWidget.mutate({
+      id: widgetId,
+      updates: { configuration: config }
     });
   };
 
-  const handleConfigureWidget = (widgetId: string) => {
-    // This would open a configuration dialog for the specific widget
-    toast({
-      title: "Widget Configuration",
-      description: "Widget configuration panel would open here.",
+  const handleWidgetSizeChange = (widgetId: number, size: WidgetSize) => {
+    updateWidget.mutate({
+      id: widgetId,
+      updates: { size }
     });
   };
 
-  const handleRemoveWidget = (widgetId: string) => {
-    const widget = widgets.find(w => w.widgetId === widgetId);
-    if (widget) {
-      removeWidget.mutate(widget.id);
+  const handleWidgetVisibilityChange = (widgetId: number, visible: boolean) => {
+    updateWidget.mutate({
+      id: widgetId,
+      updates: { isVisible: visible }
+    });
+  };
+
+  const handleWidgetAdd = (widgetType: WidgetType) => {
+    // Widget catalog will handle the addition
+    setCurrentTab("dashboard");
+  };
+
+  const handleRemoveWidget = (widgetId: number) => {
+    removeWidget.mutate(widgetId);
+  };
+
+  // Get widget size class for CSS Grid
+  const getWidgetSizeClass = (size: WidgetSize) => {
+    switch (size) {
+      case 'small': return 'col-span-1 row-span-1';
+      case 'medium': return 'col-span-2 row-span-1'; 
+      case 'large': return 'col-span-3 row-span-2';
+      default: return 'col-span-2 row-span-1';
     }
   };
 
@@ -127,153 +121,124 @@ export default function DashboardPage() {
     );
   }
 
-  if (isLoading) {
-    return (
-      <div className="container mx-auto p-6">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold mb-4">Loading dashboard...</h1>
-        </div>
-      </div>
-    );
-  }
-
-  // Show initialization option for users with no widgets
-  if (widgets.length === 0) {
-    return (
-      <div className="container mx-auto p-6">
-        <div className="text-center space-y-6">
-          <div>
-            <h1 className="text-3xl font-bold mb-2">Welcome to your Dashboard</h1>
-            <p className="text-muted-foreground">
-              Get started by adding widgets to customize your experience
-            </p>
-          </div>
-          
-          <Card className="max-w-md mx-auto">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Layout className="h-5 w-5" />
-                Quick Setup
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <p className="text-sm text-muted-foreground">
-                We can set up a default dashboard with widgets relevant to your role as a {user.role}.
-              </p>
-              <div className="flex gap-2">
-                <Button 
-                  onClick={() => initializeDashboard.mutate()}
-                  disabled={initializeDashboard.isPending}
-                  className="flex-1"
-                >
-                  {initializeDashboard.isPending ? "Setting up..." : "Initialize Dashboard"}
-                </Button>
-                <Button 
-                  variant="outline" 
-                  onClick={() => setShowAddWidget(true)}
-                >
-                  <Plus className="h-4 w-4" />
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-    );
-  }
-
-  const availableWidgets = getAvailableWidgets(user.role);
-  const usedWidgets = widgets.map(w => w.widgetId);
-  const availableToAdd = availableWidgets.filter(w => !usedWidgets.includes(w));
-
   return (
     <div className="container mx-auto p-6 space-y-6">
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">Dashboard</h1>
-          <p className="text-muted-foreground">
-            Welcome back, {user.firstName || user.username}
-          </p>
+          <p className="text-gray-600">Welcome back, {user.firstName || user.username}</p>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm">
+        <div className="flex items-center space-x-2">
+          <Button
+            variant="outline"
+            onClick={() => setShowCustomize(true)}
+          >
             <Settings className="h-4 w-4 mr-2" />
             Customize
           </Button>
-          {availableToAdd.length > 0 && (
-            <Button size="sm" onClick={() => setShowAddWidget(true)}>
-              <Plus className="h-4 w-4 mr-2" />
-              Add Widget
-            </Button>
-          )}
         </div>
       </div>
 
-      {/* Dashboard Grid */}
-      <div className="grid grid-cols-4 gap-4 auto-rows-min">
-        {widgets
-          .sort((a, b) => a.position - b.position)
-          .map((widget) => (
-            <DashboardWidget
-              key={widget.id}
-              widget={widget}
-              onConfigure={handleConfigureWidget}
-              onRemove={handleRemoveWidget}
-            />
-          ))}
-      </div>
+      <Tabs value={currentTab} onValueChange={setCurrentTab} className="w-full">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="dashboard" className="flex items-center space-x-2">
+            <Grid className="h-4 w-4" />
+            <span>My Dashboard</span>
+          </TabsTrigger>
+          <TabsTrigger value="catalog" className="flex items-center space-x-2">
+            <Palette className="h-4 w-4" />
+            <span>Widget Catalog</span>
+          </TabsTrigger>
+        </TabsList>
 
-      {/* Add Widget Dialog */}
-      <Dialog open={showAddWidget} onOpenChange={setShowAddWidget}>
-        <DialogContent>
+        <TabsContent value="dashboard" className="mt-6">
+          {isLoading ? (
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <Card key={i} className="animate-pulse">
+                  <CardHeader className="space-y-0 pb-3">
+                    <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-2">
+                      <div className="h-8 bg-gray-200 rounded w-1/2"></div>
+                      <div className="h-4 bg-gray-200 rounded w-full"></div>
+                      <div className="h-4 bg-gray-200 rounded w-2/3"></div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          ) : widgets.length === 0 ? (
+            <div className="text-center py-12">
+              <div className="w-16 h-16 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
+                <Layout className="h-8 w-8 text-gray-400" />
+              </div>
+              <h3 className="text-lg font-medium mb-2">No widgets yet</h3>
+              <p className="text-gray-600 mb-4">
+                Add widgets from the catalog to customize your dashboard
+              </p>
+              <Button onClick={() => setCurrentTab("catalog")}>
+                <Plus className="h-4 w-4 mr-2" />
+                Browse Widgets
+              </Button>
+            </div>
+          ) : (
+            <div className="grid gap-6 auto-rows-min" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))' }}>
+              {widgets
+                .filter(widget => widget.isVisible)
+                .sort((a, b) => a.position - b.position)
+                .map((widget) => {
+                  const definition = WIDGET_DEFINITIONS[widget.widgetId as WidgetType];
+                  const WidgetComponent = WIDGET_REGISTRY[widget.widgetId as WidgetType];
+                  
+                  if (!definition || !WidgetComponent) {
+                    console.warn(`Widget not found: ${widget.widgetId}`);
+                    return null;
+                  }
+
+                  return (
+                    <div key={widget.id} className={getWidgetSizeClass(widget.size)}>
+                      <BaseWidget
+                        definition={definition}
+                        preference={widget}
+                        onConfigChange={(config) => handleWidgetConfigChange(widget.id, config)}
+                        onSizeChange={(size) => handleWidgetSizeChange(widget.id, size)}
+                        onVisibilityChange={(visible) => handleWidgetVisibilityChange(widget.id, visible)}
+                        onRemove={() => handleRemoveWidget(widget.id)}
+                      >
+                        <WidgetComponent
+                          definition={definition}
+                          preference={widget}
+                          onConfigChange={(config) => handleWidgetConfigChange(widget.id, config)}
+                          onSizeChange={(size) => handleWidgetSizeChange(widget.id, size)}
+                          onVisibilityChange={(visible) => handleWidgetVisibilityChange(widget.id, visible)}
+                        />
+                      </BaseWidget>
+                    </div>
+                  );
+                })}
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="catalog" className="mt-6">
+          <WidgetCatalog onWidgetAdd={handleWidgetAdd} />
+        </TabsContent>
+      </Tabs>
+
+      {/* Customize Dialog */}
+      <Dialog open={showCustomize} onOpenChange={setShowCustomize}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Add Widget</DialogTitle>
+            <DialogTitle>Customize Dashboard</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <label className="text-sm font-medium">Widget Type</label>
-              <Select value={selectedWidget} onValueChange={(value) => setSelectedWidget(value as WidgetType)}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select a widget type" />
-                </SelectTrigger>
-                <SelectContent>
-                  {availableToAdd.map((widgetType) => (
-                    <SelectItem key={widgetType} value={widgetType}>
-                      {widgetType.replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase())}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div>
-              <label className="text-sm font-medium">Size</label>
-              <Select value={selectedSize} onValueChange={(value) => setSelectedSize(value as WidgetSize)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {Object.values(WIDGET_SIZES).map((size) => (
-                    <SelectItem key={size} value={size}>
-                      {size.charAt(0).toUpperCase() + size.slice(1)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="flex gap-2 pt-4">
-              <Button 
-                onClick={handleAddWidget} 
-                disabled={!selectedWidget || addWidget.isPending}
-                className="flex-1"
-              >
-                {addWidget.isPending ? "Adding..." : "Add Widget"}
-              </Button>
-              <Button variant="outline" onClick={() => setShowAddWidget(false)}>
-                Cancel
-              </Button>
-            </div>
+          <div className="space-y-6">
+            <WidgetCatalog onWidgetAdd={(widgetType) => {
+              handleWidgetAdd(widgetType);
+              setShowCustomize(false);
+            }} />
           </div>
         </DialogContent>
       </Dialog>
