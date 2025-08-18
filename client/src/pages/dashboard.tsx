@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -28,12 +28,38 @@ export default function DashboardPage() {
   const [currentTab, setCurrentTab] = useState("dashboard");
 
   // Fetch user's dashboard widgets
-  const { data: widgets = [], isLoading, refetch } = useQuery<UserDashboardPreference[]>({
+  const { data: widgets = [], isLoading, refetch, error } = useQuery<UserDashboardPreference[]>({
     queryKey: ["/api/dashboard/widgets"],
+    queryFn: async () => {
+      const response = await fetch("/api/dashboard/widgets", {
+        credentials: "include",
+        headers: {
+          "Accept": "application/json",
+        },
+      });
+      if (!response.ok) {
+        throw new Error(`Failed to fetch widgets: ${response.status}`);
+      }
+      return response.json();
+    },
     enabled: !!user,
     staleTime: 0, // Always fetch fresh data
     cacheTime: 0, // Don't cache the data
   });
+
+  console.log("Dashboard Query State:", { 
+    user: user?.id, 
+    widgets, 
+    isLoading, 
+    error: error?.message 
+  });
+
+  // For debugging - temporarily log the response
+  useEffect(() => {
+    if (user && !isLoading) {
+      console.log("Fetching widgets for authenticated user:", user.id);
+    }
+  }, [user, isLoading]);
 
   // Add new widget mutation
   const addWidget = useMutation({
@@ -180,7 +206,9 @@ export default function DashboardPage() {
                 </Card>
               ))}
             </div>
-          ) : widgets.length === 0 ? (
+          ) : (
+            widgets.length === 0
+          ) ? (
             <div className="text-center py-12">
               <div className="w-16 h-16 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
                 <Layout className="h-8 w-8 text-gray-400" />
