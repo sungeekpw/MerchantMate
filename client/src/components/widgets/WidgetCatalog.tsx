@@ -37,6 +37,18 @@ export function WidgetCatalog({ onWidgetAdd }: WidgetCatalogProps) {
   // Get user's current widgets to show which are already added
   const { data: userWidgets = [] } = useQuery({
     queryKey: ["/api/dashboard/widgets"],
+    queryFn: async () => {
+      const response = await fetch("/api/dashboard/widgets", {
+        credentials: "include",
+        headers: {
+          "Accept": "application/json",
+        },
+      });
+      if (!response.ok) {
+        throw new Error(`Failed to fetch widgets: ${response.status}`);
+      }
+      return response.json();
+    },
     enabled: !!user,
     staleTime: 0, // Always fetch fresh data
     cacheTime: 0, // Don't cache the data
@@ -98,7 +110,6 @@ export function WidgetCatalog({ onWidgetAdd }: WidgetCatalogProps) {
     const maxPosition = userWidgets.length > 0 ? Math.max(...userWidgets.map(w => w.position)) : -1;
     
     addWidget.mutate({
-      userId: user.id,
       widgetId: selectedWidget,
       position: maxPosition + 1,
       size: selectedSize,
@@ -108,7 +119,7 @@ export function WidgetCatalog({ onWidgetAdd }: WidgetCatalogProps) {
   };
 
   const isWidgetAdded = (widgetId: string) => {
-    return userWidgets.some(widget => widget.widgetId === widgetId);
+    return userWidgets.some(widget => widget.widget_id === widgetId);
   };
 
   const getCategoryColor = (category: string) => {
