@@ -6,7 +6,7 @@ import { DollarSign, Building2, CreditCard, Users } from "lucide-react";
 export function QuickStatsWidget(props: WidgetProps) {
   const { data: metrics, isLoading } = useQuery({
     queryKey: ['/api/analytics/dashboard-metrics'],
-    enabled: props.preference.isVisible
+    enabled: props.preference.is_visible
   });
 
   const stats = [
