@@ -2308,9 +2308,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
         } catch (error) {
           console.error(`❌ Failed to sync to ${toEnvironment}:`, error);
+          
+          let errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          
+          // Check for interactive prompts that need user input
+          if (errorMessage.includes('Is') && errorMessage.includes('column') && errorMessage.includes('created or renamed')) {
+            errorMessage = 'Interactive prompt detected: Drizzle requires manual confirmation for column changes. This typically happens when:\n' +
+              '• A column appears to be renamed\n' +
+              '• Schema changes might cause data loss\n' +
+              '• Manual intervention is needed to preserve data\n\n' +
+              'To resolve: Run "npm run db:push" manually in the terminal to handle the interactive prompt.';
+          }
+          
           results.errors.push({
             environment: toEnvironment,
-            error: error instanceof Error ? error.message : 'Unknown error',
+            error: errorMessage,
             operation: 'drizzle-push'
           });
         }

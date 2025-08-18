@@ -212,7 +212,12 @@ export default function TestingUtilities() {
       if (data.errors.length > 0) {
         message += `\nErrors:\n`;
         data.errors.forEach((err: any) => {
-          message += `❌ ${err.operation}: ${err.error}\n`;
+          if (err.error.includes('Interactive prompt detected')) {
+            message += `⚠️ ${err.operation}: Manual intervention required\n`;
+            message += `${err.error}\n`;
+          } else {
+            message += `❌ ${err.operation}: ${err.error}\n`;
+          }
         });
       }
       
@@ -798,7 +803,8 @@ Check console for full details.`);
                     </SelectContent>
                   </Select>
                   <p className="text-xs text-muted-foreground mt-1">
-                    Drizzle Push applies the current schema definition to the target environment
+                    Drizzle Push applies the current schema definition to the target environment.
+                    May require manual intervention for column renames or potential data loss scenarios.
                   </p>
                 </div>
               </div>
@@ -852,6 +858,17 @@ Check console for full details.`);
                     </div>
                   );
                 })}
+              </div>
+
+              {/* Important Notes */}
+              <div className="bg-blue-50 dark:bg-blue-950/30 p-4 rounded-lg border border-blue-200 dark:border-blue-800">
+                <h4 className="font-medium text-blue-900 dark:text-blue-100 mb-2">Important Notes:</h4>
+                <ul className="text-sm text-blue-800 dark:text-blue-200 space-y-1">
+                  <li>• <strong>Production Sync:</strong> Use extreme caution when syncing to production</li>
+                  <li>• <strong>Interactive Prompts:</strong> Column renames may require manual confirmation via terminal</li>
+                  <li>• <strong>Data Safety:</strong> Always backup critical data before major schema changes</li>
+                  <li>• <strong>Rollback:</strong> Consider creating a database checkpoint before syncing</li>
+                </ul>
               </div>
 
               {/* Action Buttons */}
