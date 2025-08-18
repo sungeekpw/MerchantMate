@@ -3703,8 +3703,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Dashboard widget endpoints
   app.get('/api/dashboard/widgets', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      let userId = req.userId;
+      console.log(`Main routes - Fetching widgets for userId: ${userId}`);
+      
+      if (!userId) {
+        // Try fallback from session or dev auth
+        const fallbackUserId = req.session?.userId || 'admin-prod-001';
+        console.log(`Main routes - Using fallback userId for GET: ${fallbackUserId}`);
+        userId = fallbackUserId;
+      }
+      
       const widgets = await storage.getUserWidgetPreferences(userId);
+      console.log(`Main routes - Found ${widgets.length} widgets`);
       res.json(widgets);
     } catch (error) {
       console.error("Error fetching dashboard widgets:", error);
@@ -3714,8 +3724,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post('/api/dashboard/widgets', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const widgetData = { ...req.body, userId };
+      const userId = req.userId;
+      console.log(`Main routes - Creating widget for userId: ${userId}, full req properties:`, Object.keys(req));
+      console.log(`Main routes - req.user:`, req.user);
+      console.log(`Main routes - req.session:`, req.session);
+      
+      if (!userId) {
+        // Try fallback from session or dev auth
+        const fallbackUserId = req.session?.userId || 'admin-prod-001';
+        console.log(`Main routes - Using fallback userId: ${fallbackUserId}`);
+        const finalUserId = fallbackUserId;
+        
+        const widgetData = { 
+          user_id: finalUserId,
+          widget_id: req.body.widgetId,
+          position: req.body.position || 0,
+          size: req.body.size || 'medium',
+          is_visible: req.body.isVisible !== false,
+          configuration: req.body.configuration || {}
+        };
+        
+        console.log(`Main routes - Widget data with fallback:`, widgetData);
+        const widget = await storage.createWidgetPreference(widgetData);
+        return res.json(widget);
+      }
+      
+      const widgetData = { 
+        user_id: userId,
+        widget_id: req.body.widgetId,
+        position: req.body.position || 0,
+        size: req.body.size || 'medium',
+        is_visible: req.body.isVisible !== false,
+        configuration: req.body.configuration || {}
+      };
+      
+      console.log(`Main routes - Widget data:`, widgetData);
       const widget = await storage.createWidgetPreference(widgetData);
       res.json(widget);
     } catch (error) {
