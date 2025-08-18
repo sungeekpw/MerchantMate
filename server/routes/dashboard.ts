@@ -223,11 +223,21 @@ router.patch("/widgets/:id", async (req: RequestWithDB, res) => {
       }
     }
     
+    // Map frontend property names to database column names
+    const updateData: any = {
+      updated_at: new Date(),
+    };
+    
+    if (validatedData.position !== undefined) updateData.position = validatedData.position;
+    if (validatedData.size !== undefined) updateData.size = validatedData.size;
+    if (validatedData.isVisible !== undefined) updateData.is_visible = validatedData.isVisible;
+    if (validatedData.configuration !== undefined) updateData.configuration = validatedData.configuration;
+    
+    console.log(`Dashboard API - Update data being sent to database:`, updateData);
+    console.log(`Dashboard API - Original validated data:`, validatedData);
+    
     const [updatedWidget] = await database.update(userDashboardPreferences)
-      .set({
-        ...validatedData,
-        updated_at: new Date(),
-      })
+      .set(updateData)
       .where(eq(userDashboardPreferences.id, widgetId))
       .returning();
     
