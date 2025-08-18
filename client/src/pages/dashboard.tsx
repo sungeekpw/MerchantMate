@@ -51,6 +51,7 @@ export default function DashboardPage() {
   console.log("Dashboard Query State:", { 
     user: user?.id, 
     widgets, 
+    widgetsLength: widgets?.length,
     isLoading, 
     error: error?.message 
   });
@@ -59,8 +60,13 @@ export default function DashboardPage() {
   useEffect(() => {
     if (user && !isLoading) {
       console.log("Fetching widgets for authenticated user:", user.id);
+      console.log("Widget filtering debug:", {
+        totalWidgets: widgets?.length || 0,
+        visibleWidgets: widgets?.filter(w => w.is_visible)?.length || 0,
+        widgetIds: widgets?.map(w => w.widget_id) || []
+      });
     }
-  }, [user, isLoading]);
+  }, [user, isLoading, widgets]);
 
   // Add new widget mutation
   const addWidget = useMutation({
@@ -207,9 +213,7 @@ export default function DashboardPage() {
                 </Card>
               ))}
             </div>
-          ) : (
-            widgets.length === 0
-          ) ? (
+          ) : widgets.length === 0 ? (
             <div className="text-center py-12">
               <div className="w-16 h-16 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
                 <Layout className="h-8 w-8 text-gray-400" />

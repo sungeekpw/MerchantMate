@@ -39,7 +39,7 @@ export function BaseWidget({
     onSizeChange(nextSize);
   };
 
-  if (!preference.isVisible) {
+  if (!preference.is_visible) {
     return null;
   }
 
