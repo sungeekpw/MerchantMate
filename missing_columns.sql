@@ -1,0 +1,10 @@
+ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS resource_type text;
+ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS details jsonb;
+ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS timestamp timestamp without time zone NOT NULL DEFAULT now();
+ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS severity text DEFAULT 'info'::text;
+ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS category text;
+ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS outcome text;
+ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS error_message text;
+ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS request_id character varying;
+ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS correlation_id character varying;
+ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS metadata jsonb;
