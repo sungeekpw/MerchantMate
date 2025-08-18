@@ -338,6 +338,63 @@ class MigrationManager {
       console.log('\n✅ Production and test environments are synchronized');
     }
   }
+
+  async bootstrapExistingEnvironments(): Promise<void> {
+    console.log('🚀 Bootstrapping existing environments with initial migration\n');
+    
+    const migrationFiles = fs.readdirSync(this.migrationsDir)
+      .filter(file => file.endsWith('.sql') && !file.includes('backup'))
+      .sort();
+
+    if (migrationFiles.length === 0) {
+      console.log('❌ No migration files found to bootstrap with');
+      return;
+    }
+
+    const initialMigration = migrationFiles[0]; // Use first migration as baseline
+    const migrationId = path.basename(initialMigration, '.sql');
+    const migrationPath = path.join(this.migrationsDir, initialMigration);
+    const sql = fs.readFileSync(migrationPath, 'utf8');
+    
+    // Calculate checksum
+    const crypto = await import('crypto');
+    const checksum = crypto.createHash('sha256').update(sql).digest('hex');
+
+    for (const env of environments) {
+      try {
+        console.log(`📋 Bootstrapping ${env.description}...`);
+        
+        const pool = await this.createDatabaseConnection(env.name);
+        await this.ensureMigrationsTable(pool);
+        
+        // Check if already bootstrapped
+        const existingResult = await pool.query(
+          'SELECT migration_id FROM schema_migrations WHERE environment = $1 AND migration_id = $2',
+          [env.name, migrationId]
+        );
+        
+        if (existingResult.rows.length > 0) {
+          console.log(`⏭️ ${env.description} already bootstrapped with ${migrationId}`);
+        } else {
+          // Mark migration as applied without running it (since tables already exist)
+          await pool.query(
+            `INSERT INTO schema_migrations (migration_id, name, checksum, environment) 
+             VALUES ($1, $2, $3, $4)`,
+            [migrationId, initialMigration, checksum, env.name]
+          );
+          console.log(`✅ Marked ${migrationId} as applied in ${env.description}`);
+        }
+        
+        await pool.end();
+        
+      } catch (error: any) {
+        console.error(`❌ Failed to bootstrap ${env.description}: ${error.message}`);
+      }
+    }
+    
+    console.log('\n🎉 Bootstrap complete! All environments now track the initial migration.');
+    console.log('💡 Future schema changes will use the proper migration workflow.');
+  }
 }
 
 async function main(): Promise<void> {
@@ -369,6 +426,10 @@ async function main(): Promise<void> {
         await manager.validateConsistency();
         break;
         
+      case 'bootstrap':
+        await manager.bootstrapExistingEnvironments();
+        break;
+        
       default:
         console.log(`
 🔧 Migration Manager - Bulletproof Schema Management
@@ -378,6 +439,7 @@ Usage:
   tsx scripts/migration-manager.ts apply <env>       Apply migrations (dev/test/prod)
   tsx scripts/migration-manager.ts status           Show migration status
   tsx scripts/migration-manager.ts validate         Validate consistency
+  tsx scripts/migration-manager.ts bootstrap        Bootstrap existing databases
 
 Proper Workflow:
   1. Make schema changes in shared/schema.ts
@@ -385,6 +447,11 @@ Proper Workflow:
   3. Apply to development: apply dev
   4. Test changes, then apply to test: apply test
   5. After validation, apply to production: apply prod
+
+Bootstrap Command:
+  Use 'bootstrap' to mark existing databases as having the initial migration
+  applied without actually running the migration (for databases that already
+  have the tables). This brings existing environments into the migration workflow.
         `);
         break;
     }
