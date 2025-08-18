@@ -742,9 +742,42 @@ Check console for full details.`);
                       
                       {diff.columnDifferences.length > 0 && (
                         <div>
-                          <p className="text-sm font-medium text-yellow-600">
-                            Column Differences: {diff.columnDifferences.length}
+                          <p className="text-sm font-medium text-yellow-600 mb-3">
+                            Column Differences ({diff.columnDifferences.length}):
                           </p>
+                          <div className="space-y-2 bg-gray-50 dark:bg-gray-800 p-3 rounded-lg">
+                            {diff.columnDifferences.map((colDiff: any, index: number) => (
+                              <div key={index} className="flex items-center justify-between p-2 bg-white dark:bg-gray-700 rounded border">
+                                <div className="flex-1">
+                                  <div className="font-mono text-sm">
+                                    <span className="font-medium">{colDiff.table}</span>
+                                    <span className="text-gray-500">.</span>
+                                    <span className="text-blue-600 dark:text-blue-400">{colDiff.column}</span>
+                                  </div>
+                                  <div className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                                    {colDiff.details.data_type}
+                                    {colDiff.details.is_nullable === 'NO' && (
+                                      <span className="ml-2 text-red-600">NOT NULL</span>
+                                    )}
+                                    {colDiff.details.column_default && (
+                                      <span className="ml-2 text-green-600">DEFAULT: {colDiff.details.column_default}</span>
+                                    )}
+                                  </div>
+                                </div>
+                                <div className="ml-2">
+                                  {colDiff.type === 'missing_in_target' && (
+                                    <Badge variant="destructive" className="text-xs">Missing in Dev</Badge>
+                                  )}
+                                  {colDiff.type === 'extra_in_target' && (
+                                    <Badge variant="secondary" className="text-xs">Extra in Dev</Badge>
+                                  )}
+                                  {colDiff.type === 'different_in_target' && (
+                                    <Badge variant="outline" className="text-xs">Different</Badge>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
                         </div>
                       )}
                     </div>
