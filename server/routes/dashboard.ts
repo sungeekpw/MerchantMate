@@ -24,7 +24,7 @@ router.get("/widgets", async (req: RequestWithDB, res) => {
     // Get user's current widget preferences
     const widgets = await req.db.select()
       .from(userDashboardPreferences)
-      .where(eq(userDashboardPreferences.userId, userId))
+      .where(eq(userDashboardPreferences.user_id, userId))
       .orderBy(userDashboardPreferences.position);
     
     // If user has no widgets, initialize with default layout for their role
@@ -35,11 +35,11 @@ router.get("/widgets", async (req: RequestWithDB, res) => {
       if (defaultLayout.length > 0) {
         // Insert default widgets
         const defaultWidgets = defaultLayout.map(widget => ({
-          userId,
-          widgetId: widget.widgetId,
+          user_id: userId,
+          widget_id: widget.widgetId,
           position: widget.position,
           size: widget.size,
-          isVisible: true,
+          is_visible: true,
           configuration: widget.configuration || {},
         }));
         
@@ -54,7 +54,7 @@ router.get("/widgets", async (req: RequestWithDB, res) => {
     
     // Filter widgets to only those the user's role can access
     const allowedWidgets = widgets.filter(widget => 
-      canUserAccessWidget(user.role, widget.widgetId as WidgetType)
+      canUserAccessWidget(user.role, widget.widget_id as WidgetType)
     );
     
     console.log(`Dashboard API - Returning ${allowedWidgets.length} widgets`);
@@ -108,8 +108,8 @@ router.post("/widgets", async (req: RequestWithDB, res) => {
     const existingWidget = await req.db.select()
       .from(userDashboardPreferences)
       .where(and(
-        eq(userDashboardPreferences.userId, userId),
-        eq(userDashboardPreferences.widgetId, validatedData.widgetId)
+        eq(userDashboardPreferences.user_id, userId),
+        eq(userDashboardPreferences.widget_id, validatedData.widgetId)
       ))
       .limit(1);
     
@@ -121,11 +121,11 @@ router.post("/widgets", async (req: RequestWithDB, res) => {
     }
     
     const widgetData = {
-      userId,
-      widgetId: validatedData.widgetId,
+      user_id: userId,
+      widget_id: validatedData.widgetId,
       position: validatedData.position,
       size: validatedData.size,
-      isVisible: validatedData.isVisible,
+      is_visible: validatedData.isVisible,
       configuration: validatedData.configuration,
     };
     
@@ -166,7 +166,7 @@ router.patch("/widgets/:id", async (req: RequestWithDB, res) => {
       .from(userDashboardPreferences)
       .where(and(
         eq(userDashboardPreferences.id, widgetId),
-        eq(userDashboardPreferences.userId, userId)
+        eq(userDashboardPreferences.user_id, userId)
       ))
       .limit(1);
     
@@ -179,7 +179,7 @@ router.patch("/widgets/:id", async (req: RequestWithDB, res) => {
     
     // Validate configuration if provided
     if (validatedData.configuration) {
-      const configValidation = validateWidgetConfig(widget[0].widgetId as WidgetType, validatedData.configuration);
+      const configValidation = validateWidgetConfig(widget[0].widget_id as WidgetType, validatedData.configuration);
       if (!configValidation.success) {
         return res.status(400).json({ 
           success: false, 
@@ -192,7 +192,7 @@ router.patch("/widgets/:id", async (req: RequestWithDB, res) => {
     const [updatedWidget] = await req.db.update(userDashboardPreferences)
       .set({
         ...validatedData,
-        updatedAt: new Date(),
+        updated_at: new Date(),
       })
       .where(eq(userDashboardPreferences.id, widgetId))
       .returning();
@@ -221,7 +221,7 @@ router.delete("/widgets/:id", async (req: RequestWithDB, res) => {
     const deletedWidget = await req.db.delete(userDashboardPreferences)
       .where(and(
         eq(userDashboardPreferences.id, widgetId),
-        eq(userDashboardPreferences.userId, userId)
+        eq(userDashboardPreferences.user_id, userId)
       ))
       .returning();
     

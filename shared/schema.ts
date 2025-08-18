@@ -324,14 +324,14 @@ export type TwoFactorCode = typeof twoFactorCodes.$inferSelect;
 // Widget preferences table
 export const userDashboardPreferences = pgTable("user_dashboard_preferences", {
   id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
-  userId: text("user_id").notNull(),
-  widgetId: text("widget_id").notNull(),
+  user_id: text("user_id").notNull(),
+  widget_id: text("widget_id").notNull(),
   position: integer("position").notNull().default(0),
   size: text("size").notNull().default("medium"), // small, medium, large
-  isVisible: boolean("is_visible").notNull().default(true),
+  is_visible: boolean("is_visible").notNull().default(true),
   configuration: jsonb("configuration").default({}),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  created_at: timestamp("created_at").defaultNow().notNull(),
+  updated_at: timestamp("updated_at").defaultNow().notNull(),
 });
 
 export const insertUserDashboardPreferenceSchema = createInsertSchema(userDashboardPreferences);

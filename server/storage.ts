@@ -979,7 +979,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getUserWidgetPreferences(userId: string): Promise<UserDashboardPreference[]> {
-    return await db.select().from(userDashboardPreferences).where(eq(userDashboardPreferences.userId, userId));
+    return await db.select().from(userDashboardPreferences).where(eq(userDashboardPreferences.user_id, userId));
   }
 
   async createWidgetPreference(preference: InsertUserDashboardPreference): Promise<UserDashboardPreference> {
