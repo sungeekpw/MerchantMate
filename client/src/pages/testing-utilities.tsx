@@ -11,7 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Progress } from "@/components/ui/progress";
 import TestingDashboard from "@/components/TestingDashboard";
-import { Trash2, RefreshCw, Database, CheckCircle, X, Server, Shield, ShieldCheck, TestTube, Settings, Play, Pause, BarChart3, FileText, AlertCircle, Clock, ArrowRight } from "lucide-react";
+import { Trash2, RefreshCw, Database, CheckCircle, X, Server, Shield, ShieldCheck, TestTube, Settings, Play, Pause, BarChart3, FileText, AlertCircle, Clock } from "lucide-react";
 
 interface ResetResult {
   success: boolean;
@@ -31,16 +31,9 @@ export default function TestingUtilities() {
   const [lastResult, setLastResult] = useState<ResetResult | null>(null);
   const [showAuditModal, setShowAuditModal] = useState(false);
   const [selectedDbEnv, setSelectedDbEnv] = useState<string>('default');
-  const [showSyncModal, setShowSyncModal] = useState(false);
+  const [showComparisonModal, setShowComparisonModal] = useState(false);
   const [schemaData, setSchemaData] = useState<any>(null);
-  const [syncConfig, setSyncConfig] = useState({
-    fromEnvironment: 'production',
-    toEnvironment: 'development',
-    syncType: 'drizzle-push',
-    createCheckpoint: true
-  });
-  const [showInteractivePrompt, setShowInteractivePrompt] = useState(false);
-  const [interactivePromptData, setInteractivePromptData] = useState<any>(null);
+
   const queryClient = useQueryClient();
 
   // Query to get current database environment
@@ -175,76 +168,7 @@ export default function TestingUtilities() {
     },
   });
 
-  // Schema sync mutation
-  const schemaSyncMutation = useMutation({
-    mutationFn: async (config: any) => {
-      const response = await fetch('/api/admin/schema-sync', {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        credentials: "include",
-        body: JSON.stringify(config),
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ message: response.statusText }));
-        throw new Error(errorData.message || "Failed to sync schemas");
-      }
-      
-      return response.json();
-    },
-    onSuccess: (data) => {
-      console.log('🔄 Schema Sync Results:', data);
-      
-      // Handle interactive prompts
-      if (data.interactivePrompt) {
-        setInteractivePromptData(data.interactivePrompt);
-        setShowInteractivePrompt(true);
-        setShowSyncModal(false);
-        return;
-      }
-      
-      let message = `Schema Sync Complete!\n\n`;
-      message += `From: ${data.fromEnvironment} → To: ${data.toEnvironment}\n`;
-      message += `Sync Type: ${data.syncType}\n\n`;
-      
-      if (data.checkpointCreated) {
-        message += `✅ Checkpoint created before sync\n`;
-      }
-      
-      if (data.operations.length > 0) {
-        message += `Successful Operations:\n`;
-        data.operations.forEach((op: any) => {
-          if (op.type === 'drizzle-push') {
-            message += `✅ Drizzle push to ${op.target}\n`;
-          } else if (op.type === 'table-sync') {
-            message += `✅ Table ${op.table} ${op.operation}\n`;
-          }
-        });
-      }
-      
-      if (data.errors.length > 0) {
-        message += `\nErrors:\n`;
-        data.errors.forEach((err: any) => {
-          if (err.error.includes('Interactive prompt detected')) {
-            message += `⚠️ ${err.operation}: Manual intervention required\n`;
-            message += `${err.error}\n`;
-          } else {
-            message += `❌ ${err.operation}: ${err.error}\n`;
-          }
-        });
-      }
-      
-      message += `\nCheck console for detailed logs.`;
-      alert(message);
-      setShowSyncModal(false);
-    },
-    onError: (error) => {
-      console.error('Schema sync failed:', error);
-      alert(`Schema sync failed: ${error.message}`);
-    }
-  });
+
 
   const handleOptionChange = (option: string, checked: boolean) => {
     setSelectedOptions(prev => ({
@@ -431,7 +355,7 @@ Check console for full details.`);
                         console.log('Full Comparison:', schemaComparison);
                         
                         setSchemaData(schemaComparison);
-                        setShowSyncModal(true);
+                        setShowComparisonModal(true);
                         
                       } else {
                         console.error('Failed to fetch schema comparison:', response.status);
@@ -444,7 +368,7 @@ Check console for full details.`);
                   }}
                 >
                   <BarChart3 className="mr-2 h-4 w-4" />
-                  Compare & Sync Schemas
+                  Compare Schemas
                 </Button>
               </div>
               
@@ -726,16 +650,16 @@ Check console for full details.`);
         </DialogContent>
       </Dialog>
 
-      {/* Schema Sync Modal */}
-      <Dialog open={showSyncModal} onOpenChange={setShowSyncModal}>
+      {/* Schema Comparison Modal */}
+      <Dialog open={showComparisonModal} onOpenChange={setShowComparisonModal}>
         <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Database className="h-5 w-5" />
-              Schema Comparison & Synchronization
+              Schema Comparison
             </DialogTitle>
             <DialogDescription>
-              Compare database schemas across environments and sync differences
+              Compare database schemas across environments to identify differences
             </DialogDescription>
           </DialogHeader>
           
@@ -765,73 +689,15 @@ Check console for full details.`);
                 })}
               </div>
 
-              {/* Sync Configuration */}
-              <div className="space-y-4 p-4 bg-muted/50 rounded-lg">
-                <h3 className="font-medium">Synchronization Settings</h3>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-sm font-medium">From Environment:</label>
-                    <Select 
-                      value={syncConfig.fromEnvironment} 
-                      onValueChange={(value) => setSyncConfig(prev => ({...prev, fromEnvironment: value}))}
-                    >
-                      <SelectTrigger className="mt-1">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="production">Production</SelectItem>
-                        <SelectItem value="development">Development</SelectItem>
-                        <SelectItem value="test">Test</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium">To Environment:</label>
-                    <Select 
-                      value={syncConfig.toEnvironment} 
-                      onValueChange={(value) => setSyncConfig(prev => ({...prev, toEnvironment: value}))}
-                    >
-                      <SelectTrigger className="mt-1">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="production">Production</SelectItem>
-                        <SelectItem value="development">Development</SelectItem>
-                        <SelectItem value="test">Test</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-                
-                <div>
-                  <label className="text-sm font-medium">Sync Method:</label>
-                  <Select 
-                    value={syncConfig.syncType} 
-                    onValueChange={(value) => setSyncConfig(prev => ({...prev, syncType: value}))}
-                  >
-                    <SelectTrigger className="mt-1">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="drizzle-push">Drizzle Push (Recommended)</SelectItem>
-                      <SelectItem value="selective">Selective Table Sync</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Drizzle Push applies the current schema definition to the target environment.
-                    May require manual intervention for column renames or potential data loss scenarios.
-                  </p>
-                </div>
-                
-                <div className="flex items-center space-x-2">
-                  <Checkbox 
-                    id="createCheckpoint"
-                    checked={syncConfig.createCheckpoint}
-                    onCheckedChange={(checked) => setSyncConfig(prev => ({...prev, createCheckpoint: !!checked}))}
-                  />
-                  <label htmlFor="createCheckpoint" className="text-sm font-medium">
-                    Create checkpoint before sync (Recommended)
-                  </label>
+              {/* Migration Workflow Notice */}
+              <div className="space-y-4 p-4 bg-blue-50 dark:bg-blue-950/30 rounded-lg border border-blue-200 dark:border-blue-800">
+                <h3 className="font-medium text-blue-900 dark:text-blue-100">Schema Management</h3>
+                <p className="text-sm text-blue-800 dark:text-blue-200">
+                  Schema synchronization has been replaced with a bulletproof migration workflow. 
+                  Use the migration commands to safely manage schema changes across environments.
+                </p>
+                <div className="bg-gray-900 dark:bg-gray-800 p-3 rounded font-mono text-sm text-green-400 overflow-x-auto">
+                  tsx scripts/migration-manager.ts status
                 </div>
               </div>
 
@@ -886,154 +752,23 @@ Check console for full details.`);
                 })}
               </div>
 
-              {/* Checkpoint & Rollback Section */}
-              <div className="space-y-4 p-4 bg-yellow-50 dark:bg-yellow-950/30 rounded-lg border border-yellow-200 dark:border-yellow-800">
-                <h3 className="font-medium text-yellow-900 dark:text-yellow-100">Checkpoint & Rollback Options</h3>
-                <div className="grid grid-cols-2 gap-4">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      // This will be replaced with the actual suggest_rollback function call
-                      alert('Rollback functionality will be available after implementing the suggest_rollback function integration.');
-                    }}
-                    className="flex items-center gap-2"
-                  >
-                    <RefreshCw className="h-4 w-4" />
-                    View Rollback Options
-                  </Button>
-                  <div className="text-sm text-yellow-800 dark:text-yellow-200">
-                    <p>Checkpoints are automatically created before sync operations when enabled.</p>
-                    <p className="text-xs mt-1">Last 3 checkpoints available for rollback via the button above.</p>
-                  </div>
-                </div>
-              </div>
 
-              {/* Important Notes */}
-              <div className="bg-blue-50 dark:bg-blue-950/30 p-4 rounded-lg border border-blue-200 dark:border-blue-800">
-                <h4 className="font-medium text-blue-900 dark:text-blue-100 mb-2">Important Notes:</h4>
-                <ul className="text-sm text-blue-800 dark:text-blue-200 space-y-1">
-                  <li>• <strong>Production Sync:</strong> Use extreme caution when syncing to production</li>
-                  <li>• <strong>Interactive Prompts:</strong> Column renames may require manual confirmation via terminal</li>
-                  <li>• <strong>Data Safety:</strong> Always backup critical data before major schema changes</li>
-                  <li>• <strong>Automatic Checkpoints:</strong> System creates checkpoints before destructive operations</li>
-                </ul>
-              </div>
 
               {/* Action Buttons */}
               <div className="flex gap-3 pt-4 border-t">
                 <Button
-                  variant="outline"
-                  onClick={() => setShowSyncModal(false)}
-                  className="flex-1"
-                >
-                  Cancel
-                </Button>
-                <Button
-                  onClick={() => {
-                    if (syncConfig.fromEnvironment === syncConfig.toEnvironment) {
-                      alert('Source and target environments cannot be the same');
-                      return;
-                    }
-                    schemaSyncMutation.mutate({
-                      ...syncConfig,
-                      createCheckpoint: syncConfig.createCheckpoint
-                    });
-                  }}
-                  disabled={schemaSyncMutation.isPending}
-                  className="flex-1"
-                >
-                  {schemaSyncMutation.isPending ? (
-                    <>
-                      <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-                      Syncing...
-                    </>
-                  ) : (
-                    <>
-                      <ArrowRight className="mr-2 h-4 w-4" />
-                      Sync Schema
-                    </>
-                  )}
-                </Button>
-              </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
-
-      {/* Interactive Prompt Modal */}
-      <Dialog open={showInteractivePrompt} onOpenChange={setShowInteractivePrompt}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <AlertCircle className="h-5 w-5 text-orange-500" />
-              Manual Intervention Required
-            </DialogTitle>
-            <DialogDescription>
-              Drizzle has detected a potential schema change that requires confirmation to prevent data loss.
-            </DialogDescription>
-          </DialogHeader>
-          
-          {interactivePromptData && (
-            <div className="space-y-4">
-              <div className="bg-orange-50 dark:bg-orange-950/30 p-4 rounded-lg border border-orange-200 dark:border-orange-800">
-                <h4 className="font-medium text-orange-900 dark:text-orange-100 mb-2">Schema Change Question:</h4>
-                <p className="text-sm text-orange-800 dark:text-orange-200">
-                  {interactivePromptData.question}
-                </p>
-              </div>
-
-              <div className="space-y-3">
-                <h4 className="font-medium">Available Options:</h4>
-                {interactivePromptData.options.map((option: any, index: number) => (
-                  <div key={index} className={`p-3 rounded-lg border ${option.recommended ? 'border-green-200 bg-green-50 dark:bg-green-950/30' : 'border-gray-200 bg-gray-50 dark:bg-gray-800'}`}>
-                    <div className="flex items-center gap-2">
-                      <span className={`font-mono text-sm ${option.recommended ? 'text-green-700 dark:text-green-300' : 'text-gray-700 dark:text-gray-300'}`}>
-                        {option.label}
-                      </span>
-                      {option.recommended && (
-                        <Badge variant="secondary" className="text-xs">Recommended</Badge>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              <div className="bg-blue-50 dark:bg-blue-950/30 p-4 rounded-lg border border-blue-200 dark:border-blue-800">
-                <h4 className="font-medium text-blue-900 dark:text-blue-100 mb-2">Manual Resolution Required:</h4>
-                <p className="text-sm text-blue-800 dark:text-blue-200 mb-3">
-                  To resolve this safely, run the following command in your terminal:
-                </p>
-                <div className="bg-gray-900 dark:bg-gray-800 p-3 rounded font-mono text-sm text-green-400 overflow-x-auto">
-                  {interactivePromptData.command}
-                </div>
-                <p className="text-xs text-blue-700 dark:text-blue-300 mt-2">
-                  The command will present the interactive prompt where you can choose the appropriate option based on your schema intentions.
-                </p>
-              </div>
-
-              <div className="flex gap-3 pt-4 border-t">
-                <Button
-                  variant="outline"
-                  onClick={() => setShowInteractivePrompt(false)}
-                  className="flex-1"
+                  onClick={() => setShowComparisonModal(false)}
+                  className="w-full"
                 >
                   Close
                 </Button>
-                <Button
-                  onClick={() => {
-                    navigator.clipboard.writeText(interactivePromptData.command);
-                    alert('Command copied to clipboard!');
-                  }}
-                  className="flex-1"
-                >
-                  Copy Command
-                </Button>
               </div>
             </div>
           )}
         </DialogContent>
       </Dialog>
+
+
 
       {/* Audit Modal */}
       <Dialog open={showAuditModal} onOpenChange={setShowAuditModal}>
