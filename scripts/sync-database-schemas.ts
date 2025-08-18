@@ -1,15 +1,19 @@
 #!/usr/bin/env tsx
 
 /**
- * Database Schema Synchronization Script
+ * Database Schema Synchronization Script [DEPRECATED]
  * 
- * This script ensures all database environments (production, test, development) 
- * have identical schemas by pushing the current schema to all environments.
+ * ⚠️  WARNING: This script is deprecated. Use the new migration workflow instead:
  * 
- * Usage:
- *   npm run db:sync-all     # Sync schema to all environments
- *   npm run db:sync-test    # Sync schema to test environment only
- *   npm run db:sync-dev     # Sync schema to development environment only
+ * New Migration Workflow:
+ *   tsx scripts/migration-manager.ts generate    # Generate migration from dev
+ *   tsx scripts/migration-manager.ts apply dev  # Apply to development
+ *   tsx scripts/migration-manager.ts apply test # Apply to test
+ *   tsx scripts/migration-manager.ts apply prod # Apply to production
+ *   tsx scripts/migration-manager.ts status     # Check status
+ * 
+ * This script is maintained for backward compatibility only.
+ * For bulletproof migrations, use the new workflow defined in MIGRATION_WORKFLOW.md
  */
 
 import { exec } from 'child_process';
@@ -136,8 +140,16 @@ async function main(): Promise<void> {
   const args = process.argv.slice(2);
   const targetEnv = args[0]; // 'all', 'test', 'dev', 'production'
   
-  console.log('🚀 Database Schema Synchronization Tool\n');
+  console.log('⚠️  DEPRECATED: Database Schema Synchronization Tool\n');
   console.log('==========================================\n');
+  console.log('🚨 WARNING: This tool is deprecated and unsafe for production use!\n');
+  console.log('👉 Use the new bulletproof migration workflow instead:');
+  console.log('   tsx scripts/migration-manager.ts generate');
+  console.log('   tsx scripts/migration-manager.ts apply dev');
+  console.log('   tsx scripts/migration-manager.ts apply test');
+  console.log('   tsx scripts/migration-manager.ts apply prod\n');
+  console.log('📖 See MIGRATION_WORKFLOW.md for complete documentation\n');
+  console.log('⏳ Continuing with legacy sync (not recommended)...\n');
   
   // Check environment variables
   const envVarsOk = await checkEnvironmentVariables();

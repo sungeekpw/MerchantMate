@@ -2227,8 +2227,96 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Schema synchronization endpoint
+  // Migration management endpoint (NEW - BULLETPROOF APPROACH)
+  app.post("/api/admin/migration", requireRole(['super_admin']), async (req, res) => {
+    try {
+      const { action, environment } = req.body;
+      
+      console.log(`🔧 Migration action: ${action} ${environment || ''}`);
+      
+      // Import migration manager functionality
+      const { exec } = await import('child_process');
+      const { promisify } = await import('util');
+      const execAsync = promisify(exec);
+      
+      let command = '';
+      let result = {};
+      
+      switch (action) {
+        case 'generate':
+          command = 'tsx scripts/migration-manager.ts generate';
+          break;
+        case 'apply':
+          if (!environment || !['development', 'test', 'production'].includes(environment)) {
+            return res.status(400).json({
+              success: false,
+              message: 'Environment required: development, test, or production'
+            });
+          }
+          const env = environment === 'production' ? 'prod' : environment === 'development' ? 'dev' : 'test';
+          command = `tsx scripts/migration-manager.ts apply ${env}`;
+          break;
+        case 'status':
+          command = 'tsx scripts/migration-manager.ts status';
+          break;
+        case 'validate':
+          command = 'tsx scripts/migration-manager.ts validate';
+          break;
+        default:
+          return res.status(400).json({
+            success: false,
+            message: 'Invalid action. Use: generate, apply, status, or validate'
+          });
+      }
+      
+      const { stdout, stderr } = await execAsync(command, {
+        cwd: process.cwd(),
+        env: process.env
+      });
+      
+      result = {
+        success: true,
+        action,
+        environment,
+        output: stdout,
+        warnings: stderr || null,
+        message: `Migration ${action} completed successfully`
+      };
+      
+      res.json(result);
+      
+    } catch (error: any) {
+      console.error("Migration error:", error);
+      res.status(500).json({
+        success: false,
+        message: `Migration ${req.body.action || 'operation'} failed`,
+        error: error.message,
+        stderr: error.stderr || null
+      });
+    }
+  });
+
+  // Schema synchronization endpoint [DEPRECATED]
   app.post("/api/admin/schema-sync", requireRole(['super_admin']), async (req, res) => {
+    // Add deprecation warning
+    console.warn("🚨 DEPRECATED: /api/admin/schema-sync endpoint used. Recommend migrating to /api/admin/migration");
+    
+    res.json({
+      success: false,
+      deprecated: true,
+      message: "This endpoint is deprecated. Use the new migration workflow instead.",
+      recommendation: {
+        newEndpoint: "/api/admin/migration",
+        workflow: [
+          "POST /api/admin/migration with { action: 'generate' }",
+          "POST /api/admin/migration with { action: 'apply', environment: 'development' }",
+          "POST /api/admin/migration with { action: 'apply', environment: 'test' }",
+          "POST /api/admin/migration with { action: 'apply', environment: 'production' }"
+        ],
+        documentation: "See MIGRATION_WORKFLOW.md for complete guide"
+      }
+    });
+    return;
     try {
       const { fromEnvironment, toEnvironment, syncType, tables, createCheckpoint = true } = req.body;
       
