@@ -8,6 +8,7 @@ import { Plus, Settings, Layout, Palette, Grid } from "lucide-react";
 import { BaseWidget } from "@/components/widgets/BaseWidget";
 import { WidgetCatalog } from "@/components/widgets/WidgetCatalog";
 import { WIDGET_REGISTRY, WIDGET_DEFINITIONS } from "@/components/widgets/WidgetRegistry";
+import { QuickStatsWidget } from "@/components/widgets/QuickStatsWidget";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
@@ -228,8 +229,19 @@ export default function DashboardPage() {
                 .filter(widget => widget.is_visible)
                 .sort((a, b) => a.position - b.position)
                 .map((widget) => {
-                  const definition = WIDGET_DEFINITIONS[widget.widget_id as WidgetType];
-                  const WidgetComponent = WIDGET_REGISTRY[widget.widget_id as WidgetType];
+                  // Fallback mappings for widgets not in registry
+                  const fallbackDefinition = {
+                    id: widget.widget_id,
+                    name: widget.widget_id.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+                    description: `Widget: ${widget.widget_id}`,
+                    category: "business" as const,
+                    allowedRoles: ["admin", "super_admin"],
+                    defaultSize: "medium" as const,
+                    configurable: [],
+                  };
+                  
+                  const definition = WIDGET_DEFINITIONS[widget.widget_id] || fallbackDefinition;
+                  const WidgetComponent = WIDGET_REGISTRY[widget.widget_id] || QuickStatsWidget;
                   
                   if (!definition || !WidgetComponent) {
                     console.warn(`Widget not found: ${widget.widget_id}`);

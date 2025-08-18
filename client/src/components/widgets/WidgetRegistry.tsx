@@ -15,11 +15,15 @@ import { CommissionTrackingWidget } from "./CommissionTrackingWidget";
 import { ProfileSummaryWidget } from "./ProfileSummaryWidget";
 import { RecentActivityWidget } from "./RecentActivityWidget";
 
-// Widget registry mapping widget types to their component implementations
-export const WIDGET_REGISTRY: Record<WidgetType, React.ComponentType<WidgetProps>> = {
+// Widget registry mapping widget types to their component implementations  
+export const WIDGET_REGISTRY: Record<string, React.ComponentType<WidgetProps>> = {
   [WIDGET_TYPES.QUICK_STATS]: QuickStatsWidget,
   [WIDGET_TYPES.RECENT_ACTIVITY]: RecentActivityWidget,
   [WIDGET_TYPES.PROFILE_SUMMARY]: ProfileSummaryWidget,
+  // Add missing widget mappings for database compatibility
+  "transaction_summary": RevenueMetricsWidget, // Using revenue metrics as transaction summary
+  "merchant_analytics": QuickStatsWidget, // Using quick stats for merchant analytics
+  "user_management": SystemOverviewWidget, // Using system overview for user management
   
   // Merchant-specific widgets
   [WIDGET_TYPES.REVENUE_OVERVIEW]: RevenueMetricsWidget,
@@ -62,6 +66,34 @@ export const WIDGET_DEFINITIONS = {
     allowedRoles: ["admin", "corporate", "super_admin", "agent", "merchant"],
     defaultSize: "medium" as const,
     configurable: ["limit", "activityTypes"],
+  },
+  // Add missing widget definitions for database compatibility
+  "transaction_summary": {
+    id: "transaction_summary",
+    name: "Transaction Summary", 
+    description: "Overview of recent transactions",
+    category: "financial" as const,
+    allowedRoles: ["admin", "corporate", "super_admin", "agent", "merchant"],
+    defaultSize: "large" as const,
+    configurable: ["timeframe"],
+  },
+  "merchant_analytics": {
+    id: "merchant_analytics",
+    name: "Merchant Analytics", 
+    description: "Key merchant performance metrics",
+    category: "business" as const,
+    allowedRoles: ["admin", "corporate", "super_admin", "agent"],
+    defaultSize: "medium" as const,
+    configurable: ["showRevenue"],
+  },
+  "user_management": {
+    id: "user_management",
+    name: "User Management", 
+    description: "Manage system users and permissions",
+    category: "system" as const,
+    allowedRoles: ["admin", "super_admin"],
+    defaultSize: "medium" as const,
+    configurable: [],
   },
   [WIDGET_TYPES.PROFILE_SUMMARY]: {
     id: WIDGET_TYPES.PROFILE_SUMMARY,
