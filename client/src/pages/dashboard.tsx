@@ -48,25 +48,8 @@ export default function DashboardPage() {
     cacheTime: 0, // Don't cache the data
   });
 
-  console.log("Dashboard Query State:", { 
-    user: user?.id, 
-    widgets, 
-    widgetsLength: widgets?.length,
-    isLoading, 
-    error: error?.message 
-  });
-
-  // For debugging - temporarily log the response
-  useEffect(() => {
-    if (user && !isLoading) {
-      console.log("Fetching widgets for authenticated user:", user.id);
-      console.log("Widget filtering debug:", {
-        totalWidgets: widgets?.length || 0,
-        visibleWidgets: widgets?.filter(w => w.is_visible)?.length || 0,
-        widgetIds: widgets?.map(w => w.widget_id) || []
-      });
-    }
-  }, [user, isLoading, widgets]);
+  // Remove debug logging since system is now working
+  // console.log("Dashboard Query State:", { user: user?.id, widgets, isLoading });
 
   // Add new widget mutation
   const addWidget = useMutation({
