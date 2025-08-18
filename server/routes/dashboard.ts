@@ -16,8 +16,15 @@ router.use(dbEnvironmentMiddleware);
 // Get user's dashboard widget preferences
 router.get("/widgets", async (req: RequestWithDB, res) => {
   try {
-    const userId = req.userId!;
+    const userId = req.userId || req.user?.id;
     const user = req.user!;
+    
+    if (!userId || !user) {
+      return res.status(401).json({ 
+        success: false, 
+        message: "Authentication required" 
+      });
+    }
     
     console.log(`Dashboard API - Getting widgets for user ${userId} with role ${user.role}`);
     
@@ -72,7 +79,7 @@ router.get("/widgets", async (req: RequestWithDB, res) => {
 // Add a new widget to user's dashboard
 router.post("/widgets", async (req: RequestWithDB, res) => {
   try {
-    const userId = req.userId!;
+    const userId = req.userId || req.user?.id;
     const user = req.user!;
     
     console.log(`Dashboard API - Request details: userId=${userId}, user=${JSON.stringify(user)}`);
@@ -158,8 +165,17 @@ router.post("/widgets", async (req: RequestWithDB, res) => {
 // Update widget preferences (position, size, visibility, configuration)
 router.patch("/widgets/:id", async (req: RequestWithDB, res) => {
   try {
-    const userId = req.userId!;
+    const userId = req.userId || req.user?.id;
     const widgetId = parseInt(req.params.id);
+    
+    console.log(`Dashboard API - Updating widget ${widgetId} for user ${userId}:`, req.body);
+    
+    if (!userId) {
+      return res.status(401).json({ 
+        success: false, 
+        message: "Authentication required - user ID not found" 
+      });
+    }
     
     const updateSchema = z.object({
       position: z.number().optional(),
@@ -169,10 +185,18 @@ router.patch("/widgets/:id", async (req: RequestWithDB, res) => {
     });
     
     const validatedData = updateSchema.parse(req.body);
-    console.log(`Dashboard API - Updating widget ${widgetId} for user ${userId}:`, validatedData);
     
     // Verify widget belongs to user
-    const widget = await req.db.select()
+    const database = req.db || req.dynamicDB;
+    if (!database) {
+      console.error('Dashboard API - No database connection available');
+      return res.status(500).json({ 
+        success: false, 
+        message: "Database connection error" 
+      });
+    }
+    
+    const widget = await database.select()
       .from(userDashboardPreferences)
       .where(and(
         eq(userDashboardPreferences.id, widgetId),
@@ -199,7 +223,7 @@ router.patch("/widgets/:id", async (req: RequestWithDB, res) => {
       }
     }
     
-    const [updatedWidget] = await req.db.update(userDashboardPreferences)
+    const [updatedWidget] = await database.update(userDashboardPreferences)
       .set({
         ...validatedData,
         updated_at: new Date(),

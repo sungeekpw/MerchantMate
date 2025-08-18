@@ -5,12 +5,19 @@ import { getDynamicDatabase, extractDbEnv } from './db';
 export interface RequestWithDB extends Request {
   dbEnv?: string;
   dynamicDB?: ReturnType<typeof getDynamicDatabase>;
+  db?: ReturnType<typeof getDynamicDatabase>;
+  userId?: string;
 }
 
 /**
  * Middleware to extract database environment from URL and attach dynamic database connection
  */
 export const dbEnvironmentMiddleware = (req: RequestWithDB, res: Response, next: NextFunction) => {
+  // Set userId from authentication context if available
+  if (!req.userId && req.user?.id) {
+    req.userId = req.user.id;
+  }
+  
   // Check if we're in a production deployment environment (Replit production domain)
   const isProductionDomain = req.get('host')?.includes('.replit.app') || 
                             req.get('host')?.includes('charrg.com') ||
@@ -20,6 +27,7 @@ export const dbEnvironmentMiddleware = (req: RequestWithDB, res: Response, next:
     // Force production database for production deployments
     req.dbEnv = 'production';
     req.dynamicDB = getDynamicDatabase('production');
+    req.db = req.dynamicDB;
     res.setHeader('X-Database-Environment', 'production');
     console.log('Production deployment: forcing production database');
     next();
@@ -31,6 +39,7 @@ export const dbEnvironmentMiddleware = (req: RequestWithDB, res: Response, next:
   if (sessionDbEnv && ['test', 'development', 'dev', 'production'].includes(sessionDbEnv)) {
     req.dbEnv = sessionDbEnv;
     req.dynamicDB = getDynamicDatabase(sessionDbEnv);
+    req.db = req.dynamicDB;
     res.setHeader('X-Database-Environment', sessionDbEnv);
     console.log(`Session database: using ${sessionDbEnv} database from session`);
     next();
@@ -43,12 +52,14 @@ export const dbEnvironmentMiddleware = (req: RequestWithDB, res: Response, next:
   if (dbEnv && ['test', 'development', 'dev'].includes(dbEnv)) {
     req.dbEnv = dbEnv;
     req.dynamicDB = getDynamicDatabase(dbEnv);
+    req.db = req.dynamicDB;
     res.setHeader('X-Database-Environment', dbEnv);
     console.log(`Database switching: using ${dbEnv} database`);
   } else {
     // Use default production database
     req.dbEnv = 'production';
     req.dynamicDB = getDynamicDatabase('production');
+    req.db = req.dynamicDB;
     res.setHeader('X-Database-Environment', 'production');
     console.log('Using default production database');
   }

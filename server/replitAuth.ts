@@ -189,6 +189,7 @@ export const isAuthenticated: RequestHandler = async (req, res, next) => {
           claims: { sub: sessionUserId } 
         };
         (req as any).currentUser = dbUser;
+        (req as any).userId = sessionUserId;
         return next();
       }
     } catch (error) {
@@ -215,6 +216,7 @@ export const isAuthenticated: RequestHandler = async (req, res, next) => {
         claims: { sub: userId } 
       };
       (req as any).currentUser = dbUser;
+      (req as any).userId = userId;
       return next();
     } catch (error) {
       console.error("Error fetching user data:", error);
