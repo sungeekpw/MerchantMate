@@ -3468,6 +3468,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Delete agent
+  app.delete("/api/agents/:id", dbEnvironmentMiddleware, requireRole(['admin', 'super_admin']), async (req: RequestWithDB, res) => {
+    try {
+      const agentId = parseInt(req.params.id);
+      const dynamicDB = getRequestDB(req);
+      
+      console.log(`Deleting agent ${agentId} - Database environment: ${req.dbEnv}`);
+      
+      // First check if agent exists
+      const [existingAgent] = await dynamicDB.select().from(agents).where(eq(agents.id, agentId));
+      if (!existingAgent) {
+        return res.status(404).json({ message: "Agent not found" });
+      }
+      
+      // Use database transaction to ensure ACID compliance
+      const result = await dynamicDB.transaction(async (tx) => {
+        // Delete agent record first
+        const agentDeleteResult = await tx.delete(agents).where(eq(agents.id, agentId));
+        
+        // Delete associated user account if it exists
+        if (existingAgent.userId) {
+          await tx.delete(users).where(eq(users.id, existingAgent.userId));
+          console.log(`Deleted user account for agent ${agentId}: ${existingAgent.userId}`);
+        }
+        
+        return agentDeleteResult.rowCount || 0;
+      });
+      
+      if (result > 0) {
+        console.log(`Successfully deleted agent ${agentId} in ${req.dbEnv} database`);
+        res.json({ success: true, message: "Agent deleted successfully" });
+      } else {
+        res.status(404).json({ message: "Agent not found" });
+      }
+    } catch (error) {
+      console.error("Error deleting agent:", error);
+      if (error.message?.includes('violates foreign key constraint')) {
+        res.status(409).json({ 
+          message: "Cannot delete agent: agent is still assigned to merchants or has related data" 
+        });
+      } else {
+        res.status(500).json({ message: "Failed to delete agent" });
+      }
+    }
+  });
+
   // Agent and Merchant User Management
   app.get("/api/agents/:id/user", dbEnvironmentMiddleware, requireRole(['admin', 'corporate', 'super_admin']), async (req: RequestWithDB, res) => {
     try {
