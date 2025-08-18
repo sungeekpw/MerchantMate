@@ -5629,6 +5629,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // ============================================================================
+  // DASHBOARD API ENDPOINTS
+  // ============================================================================
+
+  // Import and use dashboard routes
+  const { dashboardRouter } = await import("./routes/dashboard");
+  app.use("/api/dashboard", dashboardRouter);
+
+  // ============================================================================
   // SECURITY & COMPLIANCE API ENDPOINTS 
   // ============================================================================
 
