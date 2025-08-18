@@ -38,6 +38,8 @@ export function WidgetCatalog({ onWidgetAdd }: WidgetCatalogProps) {
   const { data: userWidgets = [] } = useQuery({
     queryKey: ["/api/dashboard/widgets"],
     enabled: !!user,
+    staleTime: 0, // Always fetch fresh data
+    cacheTime: 0, // Don't cache the data
   });
 
   // Add widget mutation
