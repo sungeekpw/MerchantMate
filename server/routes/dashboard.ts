@@ -75,6 +75,15 @@ router.post("/widgets", async (req: RequestWithDB, res) => {
     const userId = req.userId!;
     const user = req.user!;
     
+    console.log(`Dashboard API - Request details: userId=${userId}, user=${JSON.stringify(user)}`);
+    
+    if (!userId || !user) {
+      return res.status(401).json({ 
+        success: false, 
+        message: "Authentication required" 
+      });
+    }
+    
     const addWidgetSchema = z.object({
       widgetId: z.string(),
       position: z.number().default(0),
