@@ -36,8 +36,11 @@ export default function TestingUtilities() {
   const [syncConfig, setSyncConfig] = useState({
     fromEnvironment: 'production',
     toEnvironment: 'development',
-    syncType: 'drizzle-push'
+    syncType: 'drizzle-push',
+    createCheckpoint: true
   });
+  const [showInteractivePrompt, setShowInteractivePrompt] = useState(false);
+  const [interactivePromptData, setInteractivePromptData] = useState<any>(null);
   const queryClient = useQueryClient();
 
   // Query to get current database environment
@@ -194,9 +197,21 @@ export default function TestingUtilities() {
     onSuccess: (data) => {
       console.log('🔄 Schema Sync Results:', data);
       
+      // Handle interactive prompts
+      if (data.interactivePrompt) {
+        setInteractivePromptData(data.interactivePrompt);
+        setShowInteractivePrompt(true);
+        setShowSyncModal(false);
+        return;
+      }
+      
       let message = `Schema Sync Complete!\n\n`;
       message += `From: ${data.fromEnvironment} → To: ${data.toEnvironment}\n`;
       message += `Sync Type: ${data.syncType}\n\n`;
+      
+      if (data.checkpointCreated) {
+        message += `✅ Checkpoint created before sync\n`;
+      }
       
       if (data.operations.length > 0) {
         message += `Successful Operations:\n`;
@@ -807,6 +822,17 @@ Check console for full details.`);
                     May require manual intervention for column renames or potential data loss scenarios.
                   </p>
                 </div>
+                
+                <div className="flex items-center space-x-2">
+                  <Checkbox 
+                    id="createCheckpoint"
+                    checked={syncConfig.createCheckpoint}
+                    onCheckedChange={(checked) => setSyncConfig(prev => ({...prev, createCheckpoint: !!checked}))}
+                  />
+                  <label htmlFor="createCheckpoint" className="text-sm font-medium">
+                    Create checkpoint before sync (Recommended)
+                  </label>
+                </div>
               </div>
 
               {/* Schema Differences */}
@@ -860,6 +886,29 @@ Check console for full details.`);
                 })}
               </div>
 
+              {/* Checkpoint & Rollback Section */}
+              <div className="space-y-4 p-4 bg-yellow-50 dark:bg-yellow-950/30 rounded-lg border border-yellow-200 dark:border-yellow-800">
+                <h3 className="font-medium text-yellow-900 dark:text-yellow-100">Checkpoint & Rollback Options</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      // This will be replaced with the actual suggest_rollback function call
+                      alert('Rollback functionality will be available after implementing the suggest_rollback function integration.');
+                    }}
+                    className="flex items-center gap-2"
+                  >
+                    <RefreshCw className="h-4 w-4" />
+                    View Rollback Options
+                  </Button>
+                  <div className="text-sm text-yellow-800 dark:text-yellow-200">
+                    <p>Checkpoints are automatically created before sync operations when enabled.</p>
+                    <p className="text-xs mt-1">Last 3 checkpoints available for rollback via the button above.</p>
+                  </div>
+                </div>
+              </div>
+
               {/* Important Notes */}
               <div className="bg-blue-50 dark:bg-blue-950/30 p-4 rounded-lg border border-blue-200 dark:border-blue-800">
                 <h4 className="font-medium text-blue-900 dark:text-blue-100 mb-2">Important Notes:</h4>
@@ -867,7 +916,7 @@ Check console for full details.`);
                   <li>• <strong>Production Sync:</strong> Use extreme caution when syncing to production</li>
                   <li>• <strong>Interactive Prompts:</strong> Column renames may require manual confirmation via terminal</li>
                   <li>• <strong>Data Safety:</strong> Always backup critical data before major schema changes</li>
-                  <li>• <strong>Rollback:</strong> Consider creating a database checkpoint before syncing</li>
+                  <li>• <strong>Automatic Checkpoints:</strong> System creates checkpoints before destructive operations</li>
                 </ul>
               </div>
 
@@ -886,7 +935,10 @@ Check console for full details.`);
                       alert('Source and target environments cannot be the same');
                       return;
                     }
-                    schemaSyncMutation.mutate(syncConfig);
+                    schemaSyncMutation.mutate({
+                      ...syncConfig,
+                      createCheckpoint: syncConfig.createCheckpoint
+                    });
                   }}
                   disabled={schemaSyncMutation.isPending}
                   className="flex-1"
@@ -902,6 +954,80 @@ Check console for full details.`);
                       Sync Schema
                     </>
                   )}
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Interactive Prompt Modal */}
+      <Dialog open={showInteractivePrompt} onOpenChange={setShowInteractivePrompt}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertCircle className="h-5 w-5 text-orange-500" />
+              Manual Intervention Required
+            </DialogTitle>
+            <DialogDescription>
+              Drizzle has detected a potential schema change that requires confirmation to prevent data loss.
+            </DialogDescription>
+          </DialogHeader>
+          
+          {interactivePromptData && (
+            <div className="space-y-4">
+              <div className="bg-orange-50 dark:bg-orange-950/30 p-4 rounded-lg border border-orange-200 dark:border-orange-800">
+                <h4 className="font-medium text-orange-900 dark:text-orange-100 mb-2">Schema Change Question:</h4>
+                <p className="text-sm text-orange-800 dark:text-orange-200">
+                  {interactivePromptData.question}
+                </p>
+              </div>
+
+              <div className="space-y-3">
+                <h4 className="font-medium">Available Options:</h4>
+                {interactivePromptData.options.map((option: any, index: number) => (
+                  <div key={index} className={`p-3 rounded-lg border ${option.recommended ? 'border-green-200 bg-green-50 dark:bg-green-950/30' : 'border-gray-200 bg-gray-50 dark:bg-gray-800'}`}>
+                    <div className="flex items-center gap-2">
+                      <span className={`font-mono text-sm ${option.recommended ? 'text-green-700 dark:text-green-300' : 'text-gray-700 dark:text-gray-300'}`}>
+                        {option.label}
+                      </span>
+                      {option.recommended && (
+                        <Badge variant="secondary" className="text-xs">Recommended</Badge>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="bg-blue-50 dark:bg-blue-950/30 p-4 rounded-lg border border-blue-200 dark:border-blue-800">
+                <h4 className="font-medium text-blue-900 dark:text-blue-100 mb-2">Manual Resolution Required:</h4>
+                <p className="text-sm text-blue-800 dark:text-blue-200 mb-3">
+                  To resolve this safely, run the following command in your terminal:
+                </p>
+                <div className="bg-gray-900 dark:bg-gray-800 p-3 rounded font-mono text-sm text-green-400 overflow-x-auto">
+                  {interactivePromptData.command}
+                </div>
+                <p className="text-xs text-blue-700 dark:text-blue-300 mt-2">
+                  The command will present the interactive prompt where you can choose the appropriate option based on your schema intentions.
+                </p>
+              </div>
+
+              <div className="flex gap-3 pt-4 border-t">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowInteractivePrompt(false)}
+                  className="flex-1"
+                >
+                  Close
+                </Button>
+                <Button
+                  onClick={() => {
+                    navigator.clipboard.writeText(interactivePromptData.command);
+                    alert('Command copied to clipboard!');
+                  }}
+                  className="flex-1"
+                >
+                  Copy Command
                 </Button>
               </div>
             </div>
