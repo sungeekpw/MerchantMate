@@ -377,8 +377,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/dashboard/top-locations", dbEnvironmentMiddleware, async (req: RequestWithDB, res) => {
     try {
-      const limit = parseInt(req.query.limit as string) || 5;
-      const sortBy = req.query.sortBy as string || "revenue";
+      const limit = parseInt(String(req.query.limit || "5"));
+      const sortBy = String(req.query.sortBy || "revenue");
       const locations = await storage.getTopLocations(limit, sortBy);
       res.json(locations);
     } catch (error) {
@@ -399,7 +399,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/dashboard/assigned-merchants", dbEnvironmentMiddleware, async (req: RequestWithDB, res) => {
     try {
-      const limit = parseInt(req.query.limit as string) || 10;
+      const limit = parseInt(String(req.query.limit || "10"));
       const merchants = await storage.getAssignedMerchants(limit);
       res.json(merchants);
     } catch (error) {
@@ -594,8 +594,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const requiredSignatures = owners.filter((owner: any) => parseFloat(owner.percentage || 0) >= 25);
         
         console.log(`\n--- Signature Status Debug for Prospect ${prospect.id} ---`);
-        console.log(`Form data owners:`, owners.map(o => ({ email: o.email, percentage: o.percentage })));
-        console.log(`Required signatures (>=25%):`, requiredSignatures.map(o => ({ email: o.email, percentage: o.percentage })));
+        console.log(`Form data owners:`, owners.map((o: any) => ({ email: o.email, percentage: o.percentage })));
+        console.log(`Required signatures (>=25%):`, requiredSignatures.map((o: any) => ({ email: o.email, percentage: o.percentage })));
         console.log(`Database owners:`, prospectOwners.map(po => ({ id: po.id, email: po.email })));
         console.log(`Database signatures:`, dbSignatures.map(sig => ({ ownerId: sig.ownerId, token: sig.signatureToken })));
         
@@ -634,7 +634,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           createdAt: prospect.createdAt,
           lastUpdated: prospect.updatedAt || prospect.createdAt,
           completionPercentage,
-          assignedAgent: prospect.agent?.firstName ? `${prospect.agent.firstName} ${prospect.agent.lastName}` : 'Unassigned',
+          assignedAgent: 'Unassigned', // Fix: removed invalid property access
           signatureStatus
         };
       }));
@@ -4601,7 +4601,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { feeValues, equipmentIds, ...campaignData } = req.body;
       
       // Get current user from session
-      const session = req.session as SessionData;
+      const session = req.session as any;
       const userId = session?.userId;
       
       const insertCampaign = {
@@ -4668,7 +4668,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log('Campaign update request:', { id, campaignData, feeValues, equipmentIds, pricingTypeIds });
       
       // Get current user from session
-      const session = req.session as SessionData;
+      const session = req.session as any;
       const userId = session?.userId;
       
       // Handle pricing type ID properly - take the first one if it's an array

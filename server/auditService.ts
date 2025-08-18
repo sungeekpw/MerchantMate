@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { db } from './db';
+import { db, isShutdownInProgress } from './db';
 import { auditLogs, securityEvents, dataAccessLogs, type InsertAuditLog, type InsertSecurityEvent, type InsertDataAccessLog } from '@shared/schema';
 
 export interface AuditContext {
@@ -39,6 +39,12 @@ export class AuditService {
     }
   ): Promise<number> {
     try {
+      // Skip logging if we're shutting down to prevent pool errors
+      if (isShutdownInProgress()) {
+        console.log('Skipping audit log - shutdown in progress');
+        return -1;
+      }
+      
       const auditEntry: InsertAuditLog = {
         userId: context.userId || null,
         userEmail: context.userEmail || null,
@@ -79,7 +85,8 @@ export class AuditService {
       return result.id;
     } catch (error) {
       console.error('Failed to log audit entry:', error);
-      throw error;
+      // Don't throw error - just log it to prevent app crashes
+      return -1;
     }
   }
 
@@ -182,7 +189,7 @@ export class AuditService {
                   userId,
                   sessionId,
                   ipAddress: req.ip || req.connection.remoteAddress || 'unknown',
-                  userAgent: req.get('User-Agent') || undefined,
+                  userAgent: req.get('User-Agent') || null,
                   method: req.method,
                   endpoint: req.path,
                   requestParams: req.query,

@@ -99,13 +99,25 @@ export function extractDbEnv(req: any): string | null {
   return null;
 }
 
+// Track if we're shutting down to prevent new operations
+let isShuttingDown = false;
+
+export function isShutdownInProgress() {
+  return isShuttingDown;
+}
+
 // Cleanup function for graceful shutdown
 export function closeAllConnections() {
-  pool.end().catch(console.error);
-  connectionPools.forEach((pool) => {
+  isShuttingDown = true;
+  
+  // Give some time for pending operations to complete
+  setTimeout(() => {
     pool.end().catch(console.error);
-  });
-  connectionPools.clear();
+    connectionPools.forEach((pool) => {
+      pool.end().catch(console.error);
+    });
+    connectionPools.clear();
+  }, 1000); // 1 second delay
 }
 
 process.on('SIGTERM', closeAllConnections);
