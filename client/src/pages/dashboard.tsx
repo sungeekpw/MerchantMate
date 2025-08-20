@@ -237,22 +237,14 @@ export default function DashboardPage() {
 
                   return (
                     <div key={widget.id} className={getWidgetSizeClass(widget.size)}>
-                      <BaseWidget
+                      <WidgetComponent
                         definition={definition}
                         preference={widget}
                         onConfigChange={(config) => handleWidgetConfigChange(widget.id, config)}
                         onSizeChange={(size) => handleWidgetSizeChange(widget.id, size)}
                         onVisibilityChange={(visible) => handleWidgetVisibilityChange(widget.id, visible)}
                         onRemove={() => handleRemoveWidget(widget.id)}
-                      >
-                        <WidgetComponent
-                          definition={definition}
-                          preference={widget}
-                          onConfigChange={(config) => handleWidgetConfigChange(widget.id, config)}
-                          onSizeChange={(size) => handleWidgetSizeChange(widget.id, size)}
-                          onVisibilityChange={(visible) => handleWidgetVisibilityChange(widget.id, visible)}
-                        />
-                      </BaseWidget>
+                      />
                     </div>
                   );
                 })}
