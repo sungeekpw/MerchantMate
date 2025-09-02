@@ -1206,10 +1206,11 @@ export default function CampaignsPage() {
                 onClick={() => {
                   const testGroup = feeGroups?.[0];
                   if (testGroup) {
-                    console.log('Testing edit with first group:', testGroup);
+                    console.log('✅ Testing edit with first group:', testGroup);
+                    console.log('✅ Fee groups available:', feeGroups?.map(g => `${g.id}: ${g.name}`));
                     handleEditFeeGroup(testGroup);
                   } else {
-                    console.log('No fee groups available for test');
+                    console.log('❌ No fee groups available for test');
                   }
                 }}
               >
