@@ -176,6 +176,9 @@ export default function CampaignsPage() {
   const [showAddFeeItem, setShowAddFeeItem] = useState(false);
   const [showEditFeeItem, setShowEditFeeItem] = useState(false);
   const [editFeeItemId, setEditFeeItemId] = useState<number | null>(null);
+  const [showAddFeeItemGroup, setShowAddFeeItemGroup] = useState(false);
+  const [showEditFeeItemGroup, setShowEditFeeItemGroup] = useState(false);
+  const [editFeeItemGroupId, setEditFeeItemGroupId] = useState<number | null>(null);
   const [showAddPricingType, setShowAddPricingType] = useState(false);
   const [selectedFeeGroup, setSelectedFeeGroup] = useState<number | null>(null);
   const [editCampaignId, setEditCampaignId] = useState<number | null>(null);
@@ -208,6 +211,14 @@ export default function CampaignsPage() {
     defaultValue: '',
     valueType: 'percentage' as 'percentage' | 'fixed' | 'basis_points',
     isRequired: false,
+    displayOrder: 1
+  });
+
+  // Fee Item Group form state
+  const [feeItemGroupForm, setFeeItemGroupForm] = useState({
+    name: '',
+    description: '',
+    feeGroupId: 0,
     displayOrder: 1
   });
 
@@ -446,6 +457,46 @@ export default function CampaignsPage() {
     },
   });
 
+  // Create Fee Item Group mutation
+  const createFeeItemGroupMutation = useMutation({
+    mutationFn: async (feeItemGroupData: CreateFeeItemGroupData) => {
+      const response = await fetch('/api/fee-item-groups', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(feeItemGroupData),
+        credentials: 'include',
+      });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to create fee item group');
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/fee-item-groups'] });
+      setShowAddFeeItemGroup(false);
+      setFeeItemGroupForm({
+        name: '',
+        description: '',
+        feeGroupId: 0,
+        displayOrder: 1
+      });
+      toast({
+        title: "Fee Item Group Created",
+        description: "The fee item group has been successfully created.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to create fee item group.",
+        variant: "destructive",
+      });
+    },
+  });
+
   // Update Fee Item mutation
   const updateFeeItemMutation = useMutation({
     mutationFn: async ({ id, data }: { id: number; data: CreateFeeItemData }) => {
@@ -645,6 +696,34 @@ export default function CampaignsPage() {
       valueType: feeItemForm.valueType,
       isRequired: feeItemForm.isRequired,
       displayOrder: feeItemForm.displayOrder || 1,
+    });
+  };
+
+  // Handle fee item group form submission
+  const handleCreateFeeItemGroup = () => {
+    if (!feeItemGroupForm.name.trim()) {
+      toast({
+        title: "Validation Error",
+        description: "Fee item group name is required.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!feeItemGroupForm.feeGroupId) {
+      toast({
+        title: "Validation Error",
+        description: "Please select a fee group.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    createFeeItemGroupMutation.mutate({
+      name: feeItemGroupForm.name.trim(),
+      description: feeItemGroupForm.description.trim() || undefined,
+      feeGroupId: feeItemGroupForm.feeGroupId,
+      displayOrder: feeItemGroupForm.displayOrder || 1,
     });
   };
 
@@ -1213,7 +1292,7 @@ export default function CampaignsPage() {
                 className="pl-10"
               />
             </div>
-            <Button>
+            <Button onClick={() => setShowAddFeeItemGroup(true)}>
               <Plus className="h-4 w-4 mr-2" />
               Add Fee Item Group
             </Button>
@@ -1226,7 +1305,7 @@ export default function CampaignsPage() {
               ) : feeItemGroups.length === 0 ? (
                 <div className="text-center py-8">
                   <div className="text-muted-foreground mb-4">No fee item groups found</div>
-                  <Button>
+                  <Button onClick={() => setShowAddFeeItemGroup(true)}>
                     <Plus className="h-4 w-4 mr-2" />
                     Create Your First Fee Item Group
                   </Button>
