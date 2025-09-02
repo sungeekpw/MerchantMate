@@ -627,6 +627,7 @@ export default function CampaignsPage() {
 
   // Handle fee group edit
   const handleEditFeeGroup = (feeGroup: FeeGroup) => {
+    console.log('Edit fee group clicked:', feeGroup);
     setEditFeeGroupId(feeGroup.id);
     setFeeGroupForm({
       name: feeGroup.name,
@@ -634,6 +635,7 @@ export default function CampaignsPage() {
       displayOrder: feeGroup.displayOrder,
     });
     setShowEditFeeGroup(true);
+    console.log('Edit dialog should open, showEditFeeGroup:', true);
   };
 
   // Handle fee group update submission
