@@ -1196,10 +1196,26 @@ export default function CampaignsPage() {
                 className="pl-10"
               />
             </div>
-            <Button onClick={() => setShowAddFeeGroup(true)}>
-              <Plus className="h-4 w-4 mr-2" />
-              Add Fee Group
-            </Button>
+            <div className="flex gap-2">
+              <Button onClick={() => setShowAddFeeGroup(true)}>
+                <Plus className="h-4 w-4 mr-2" />
+                Add Fee Group
+              </Button>
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  const testGroup = feeGroups?.[0];
+                  if (testGroup) {
+                    console.log('Testing edit with first group:', testGroup);
+                    handleEditFeeGroup(testGroup);
+                  } else {
+                    console.log('No fee groups available for test');
+                  }
+                }}
+              >
+                🔧 Test Edit
+              </Button>
+            </div>
           </div>
 
           <Card>
