@@ -636,11 +636,6 @@ export default function CampaignsPage() {
     });
     setShowEditFeeGroup(true);
     console.log('Edit dialog should open, showEditFeeGroup:', true);
-    
-    // Force a manual check to ensure state is updated
-    setTimeout(() => {
-      console.log('Dialog state after timeout:', document.querySelector('[role="dialog"]'));
-    }, 100);
   };
 
   // Handle fee group update submission
@@ -1204,26 +1199,11 @@ export default function CampaignsPage() {
               <Button 
                 variant="outline" 
                 onClick={() => {
-                  console.log('🧪 Test button clicked!');
-                  console.log('🧪 Current state - showEditFeeGroup:', showEditFeeGroup);
-                  console.log('🧪 feeGroups:', feeGroups);
-                  
-                  const testGroup = feeGroups?.[0];
-                  if (testGroup) {
-                    console.log('✅ Testing edit with first group:', testGroup);
-                    console.log('✅ Fee groups available:', feeGroups?.map(g => `${g.id}: ${g.name}`));
-                    handleEditFeeGroup(testGroup);
-                  } else {
-                    console.log('❌ No fee groups available for test');
-                  }
-                  
-                  // Check state after calling handleEditFeeGroup
-                  setTimeout(() => {
-                    console.log('🧪 After timeout - showEditFeeGroup:', showEditFeeGroup);
-                  }, 200);
+                  console.log('Direct dialog test - setting showEditFeeGroup to true');
+                  setShowEditFeeGroup(true);
                 }}
               >
-                🔧 Test Edit
+                🔧 Direct Dialog Test
               </Button>
             </div>
           </div>
