@@ -1199,11 +1199,13 @@ export default function CampaignsPage() {
               <Button 
                 variant="outline" 
                 onClick={() => {
-                  console.log('Direct dialog test - setting showEditFeeGroup to true');
-                  setShowEditFeeGroup(true);
+                  const testGroup = feeGroups?.[0];
+                  if (testGroup) {
+                    handleEditFeeGroup(testGroup);
+                  }
                 }}
               >
-                🔧 Direct Dialog Test
+                🔧 Test Edit First Group
               </Button>
             </div>
           </div>
@@ -1279,12 +1281,12 @@ export default function CampaignsPage() {
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                              <DropdownMenuItem onClick={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                console.log('Dropdown menu item clicked for group:', group.id);
-                                handleEditFeeGroup(group);
-                              }}>
+                              <DropdownMenuItem 
+                                onSelect={(e) => {
+                                  e.preventDefault();
+                                  handleEditFeeGroup(group);
+                                }}
+                              >
                                 <Edit className="mr-2 h-4 w-4" />
                                 Edit Group
                               </DropdownMenuItem>
