@@ -582,6 +582,46 @@ export default function CampaignsPage() {
     },
   });
 
+  // Update fee item group mutation
+  const updateFeeItemGroupMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: number; data: CreateFeeItemGroupData }) => {
+      const response = await fetch(`/api/fee-item-groups/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+        credentials: 'include',
+      });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to update fee item group');
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/fee-item-groups'] });
+      setShowEditFeeItemGroup(false);
+      setEditFeeItemGroupId(null);
+      setFeeItemGroupForm({ name: '', description: '', feeGroupId: 0, displayOrder: 1 });
+      toast({
+        title: "Fee Item Group Updated",
+        description: "The fee item group has been successfully updated.",
+      });
+    },
+    onError: (error: any) => {
+      let errorMessage = "Failed to update fee item group.";
+      if (error.message.includes('duplicate key') || error.message.includes('already exists')) {
+        errorMessage = "A fee item group with this name already exists. Please choose a different name.";
+      }
+      toast({
+        title: "Error",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    },
+  });
+
   // Deactivate campaign mutation
   const deactivateCampaignMutation = useMutation({
     mutationFn: async (campaignId: number) => {
@@ -638,6 +678,19 @@ export default function CampaignsPage() {
     console.log('Edit dialog should open, showEditFeeGroup:', true);
   };
 
+  // Handle fee item group edit
+  const handleEditFeeItemGroup = (feeItemGroup: FeeItemGroup) => {
+    console.log('Edit fee item group clicked:', feeItemGroup);
+    setEditFeeItemGroupId(feeItemGroup.id);
+    setFeeItemGroupForm({
+      name: feeItemGroup.name,
+      description: feeItemGroup.description || '',
+      feeGroupId: feeItemGroup.feeGroupId,
+      displayOrder: feeItemGroup.displayOrder,
+    });
+    setShowEditFeeItemGroup(true);
+  };
+
   // Handle fee group update submission
   const handleUpdateFeeGroup = () => {
     if (!feeGroupForm.name.trim()) {
@@ -656,6 +709,30 @@ export default function CampaignsPage() {
           name: feeGroupForm.name.trim(),
           description: feeGroupForm.description.trim() || undefined,
           displayOrder: feeGroupForm.displayOrder || 1,
+        },
+      });
+    }
+  };
+
+  // Handle fee item group update submission
+  const handleUpdateFeeItemGroup = () => {
+    if (!feeItemGroupForm.name.trim()) {
+      toast({
+        title: "Validation Error",
+        description: "Fee item group name is required.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (editFeeItemGroupId) {
+      updateFeeItemGroupMutation.mutate({
+        id: editFeeItemGroupId,
+        data: {
+          name: feeItemGroupForm.name.trim(),
+          description: feeItemGroupForm.description.trim() || undefined,
+          feeGroupId: feeItemGroupForm.feeGroupId,
+          displayOrder: feeItemGroupForm.displayOrder || 1,
         },
       });
     }
@@ -1196,17 +1273,7 @@ export default function CampaignsPage() {
                 <Plus className="h-4 w-4 mr-2" />
                 Add Fee Group
               </Button>
-              <Button 
-                variant="outline" 
-                onClick={() => {
-                  const testGroup = feeGroups?.[0];
-                  if (testGroup) {
-                    handleEditFeeGroup(testGroup);
-                  }
-                }}
-              >
-                🔧 Test Edit First Group
-              </Button>
+
             </div>
           </div>
 
@@ -1364,7 +1431,10 @@ export default function CampaignsPage() {
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                              <DropdownMenuItem>
+                              <DropdownMenuItem onSelect={(e) => {
+                                e.preventDefault();
+                                handleEditFeeItemGroup(group);
+                              }}>
                                 <Edit className="mr-2 h-4 w-4" />
                                 Edit Group
                               </DropdownMenuItem>
@@ -1498,7 +1568,8 @@ export default function CampaignsPage() {
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                              <DropdownMenuItem onClick={() => {
+                              <DropdownMenuItem onSelect={(e) => {
+                                e.preventDefault();
                                 setEditFeeItemId(item.id);
                                 setFeeItemForm({
                                   name: item.name,
@@ -1949,6 +2020,79 @@ export default function CampaignsPage() {
               disabled={updateFeeItemMutation.isPending}
             >
               {updateFeeItemMutation.isPending ? 'Updating...' : 'Update Fee Item'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Fee Item Group Dialog */}
+      <Dialog open={showEditFeeItemGroup} onOpenChange={setShowEditFeeItemGroup}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit Fee Item Group</DialogTitle>
+            <DialogDescription>
+              Update fee item group information
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Group Name *</Label>
+              <Input 
+                placeholder="Enter fee item group name" 
+                value={feeItemGroupForm.name}
+                onChange={(e) => setFeeItemGroupForm(prev => ({ ...prev, name: e.target.value }))}
+              />
+            </div>
+            <div>
+              <Label>Description</Label>
+              <Textarea 
+                placeholder="Enter description (optional)" 
+                value={feeItemGroupForm.description}
+                onChange={(e) => setFeeItemGroupForm(prev => ({ ...prev, description: e.target.value }))}
+              />
+            </div>
+            <div>
+              <Label>Fee Group *</Label>
+              <Select 
+                value={feeItemGroupForm.feeGroupId ? feeItemGroupForm.feeGroupId.toString() : ""}
+                onValueChange={(value) => setFeeItemGroupForm(prev => ({ ...prev, feeGroupId: parseInt(value) }))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select fee group" />
+                </SelectTrigger>
+                <SelectContent>
+                  {feeGroups.map((group) => (
+                    <SelectItem key={group.id} value={group.id.toString()}>
+                      {group.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Display Order</Label>
+              <Input 
+                type="number" 
+                placeholder="1" 
+                min="1" 
+                value={feeItemGroupForm.displayOrder}
+                onChange={(e) => setFeeItemGroupForm(prev => ({ ...prev, displayOrder: parseInt(e.target.value) || 1 }))}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => {
+              setShowEditFeeItemGroup(false);
+              setEditFeeItemGroupId(null);
+              setFeeItemGroupForm({ name: '', description: '', feeGroupId: 0, displayOrder: 1 });
+            }}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleUpdateFeeItemGroup}
+              disabled={updateFeeItemGroupMutation.isPending}
+            >
+              {updateFeeItemGroupMutation.isPending ? 'Updating...' : 'Update Fee Item Group'}
             </Button>
           </DialogFooter>
         </DialogContent>
