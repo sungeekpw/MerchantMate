@@ -1931,6 +1931,82 @@ export default function CampaignsPage() {
         </DialogContent>
       </Dialog>
 
+      {/* Add Fee Item Group Dialog */}
+      <Dialog open={showAddFeeItemGroup} onOpenChange={setShowAddFeeItemGroup}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Add New Fee Item Group</DialogTitle>
+            <DialogDescription>
+              Create a new fee item group to organize fee items
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Fee Item Group Name *</Label>
+              <Input 
+                placeholder="Enter fee item group name" 
+                value={feeItemGroupForm.name}
+                onChange={(e) => setFeeItemGroupForm(prev => ({ ...prev, name: e.target.value }))}
+              />
+            </div>
+            <div>
+              <Label>Description</Label>
+              <Textarea 
+                placeholder="Enter description (optional)" 
+                value={feeItemGroupForm.description}
+                onChange={(e) => setFeeItemGroupForm(prev => ({ ...prev, description: e.target.value }))}
+              />
+            </div>
+            <div>
+              <Label>Fee Group *</Label>
+              <Select 
+                value={feeItemGroupForm.feeGroupId?.toString() || ''} 
+                onValueChange={(value) => setFeeItemGroupForm(prev => ({ ...prev, feeGroupId: parseInt(value) }))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select fee group" />
+                </SelectTrigger>
+                <SelectContent>
+                  {feeGroups.map((group) => (
+                    <SelectItem key={group.id} value={group.id.toString()}>
+                      {group.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Display Order</Label>
+              <Input 
+                type="number"
+                placeholder="Enter display order" 
+                value={feeItemGroupForm.displayOrder}
+                onChange={(e) => setFeeItemGroupForm(prev => ({ ...prev, displayOrder: parseInt(e.target.value) || 1 }))}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => {
+              setShowAddFeeItemGroup(false);
+              setFeeItemGroupForm({
+                name: '',
+                description: '',
+                feeGroupId: 0,
+                displayOrder: 1
+              });
+            }}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleCreateFeeItemGroup}
+              disabled={createFeeItemGroupMutation.isPending}
+            >
+              {createFeeItemGroupMutation.isPending ? 'Creating...' : 'Create Fee Item Group'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Add Pricing Type Dialog */}
       <Dialog open={showAddPricingType} onOpenChange={setShowAddPricingType}>
         <DialogContent className="max-w-md">
