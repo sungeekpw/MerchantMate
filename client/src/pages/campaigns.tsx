@@ -1204,6 +1204,10 @@ export default function CampaignsPage() {
               <Button 
                 variant="outline" 
                 onClick={() => {
+                  console.log('🧪 Test button clicked!');
+                  console.log('🧪 Current state - showEditFeeGroup:', showEditFeeGroup);
+                  console.log('🧪 feeGroups:', feeGroups);
+                  
                   const testGroup = feeGroups?.[0];
                   if (testGroup) {
                     console.log('✅ Testing edit with first group:', testGroup);
@@ -1212,6 +1216,11 @@ export default function CampaignsPage() {
                   } else {
                     console.log('❌ No fee groups available for test');
                   }
+                  
+                  // Check state after calling handleEditFeeGroup
+                  setTimeout(() => {
+                    console.log('🧪 After timeout - showEditFeeGroup:', showEditFeeGroup);
+                  }, 200);
                 }}
               >
                 🔧 Test Edit
@@ -1697,7 +1706,10 @@ export default function CampaignsPage() {
       </Dialog>
 
       {/* Edit Fee Group Dialog */}
-      <Dialog open={showEditFeeGroup} onOpenChange={setShowEditFeeGroup}>
+      <Dialog open={showEditFeeGroup} onOpenChange={(open) => {
+        console.log('🔄 Dialog onOpenChange called with:', open);
+        setShowEditFeeGroup(open);
+      }}>
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Edit Fee Group</DialogTitle>
