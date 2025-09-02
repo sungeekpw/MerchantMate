@@ -636,6 +636,11 @@ export default function CampaignsPage() {
     });
     setShowEditFeeGroup(true);
     console.log('Edit dialog should open, showEditFeeGroup:', true);
+    
+    // Force a manual check to ensure state is updated
+    setTimeout(() => {
+      console.log('Dialog state after timeout:', document.querySelector('[role="dialog"]'));
+    }, 100);
   };
 
   // Handle fee group update submission
@@ -1268,7 +1273,12 @@ export default function CampaignsPage() {
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                              <DropdownMenuItem onClick={() => handleEditFeeGroup(group)}>
+                              <DropdownMenuItem onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                console.log('Dropdown menu item clicked for group:', group.id);
+                                handleEditFeeGroup(group);
+                              }}>
                                 <Edit className="mr-2 h-4 w-4" />
                                 Edit Group
                               </DropdownMenuItem>
