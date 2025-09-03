@@ -4884,29 +4884,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Pricing Types
-  app.get('/api/pricing-types', requireRole(['admin', 'super_admin']), async (req: Request, res: Response) => {
+  app.get('/api/pricing-types', dbEnvironmentMiddleware, requireRole(['admin', 'super_admin']), async (req: RequestWithDB, res: Response) => {
     try {
-      const pricingTypes = await storage.getAllPricingTypes();
+      console.log(`Fetching pricing types - Database environment: ${req.dbEnv}`);
+      
+      // Use the dynamic database connection
+      const dbToUse = req.dynamicDB;
+      if (!dbToUse) {
+        return res.status(500).json({ error: "Database connection not available" });
+      }
+      
+      const { pricingTypes, pricingTypeFeeItems, feeItems } = await import("@shared/schema");
+      const { eq, sql } = await import("drizzle-orm");
+      
+      // Get all pricing types from the selected database environment
+      const allPricingTypes = await dbToUse.select().from(pricingTypes);
       
       // Add fee items count to each pricing type
       const pricingTypesWithFeeItems = await Promise.all(
-        pricingTypes.map(async (pricingType) => {
+        allPricingTypes.map(async (pricingType) => {
           try {
-            const feeItems = await storage.getPricingTypeFeeItems(pricingType.id);
+            // Count fee items for this pricing type in the current database environment
+            const feeItemsCount = await dbToUse.select({ count: sql`count(*)` })
+              .from(pricingTypeFeeItems)
+              .where(eq(pricingTypeFeeItems.pricingTypeId, pricingType.id));
+            
             return {
               ...pricingType,
-              feeItems: feeItems.feeItems || []
+              feeItems: [],
+              feeItemsCount: Number(feeItemsCount[0]?.count || 0)
             };
           } catch (error) {
-            console.error(`Error fetching fee items for pricing type ${pricingType.id}:`, error);
+            console.error(`Error fetching fee items count for pricing type ${pricingType.id}:`, error);
             return {
               ...pricingType,
-              feeItems: []
+              feeItems: [],
+              feeItemsCount: 0
             };
           }
         })
       );
       
+      console.log(`Found ${allPricingTypes.length} pricing types in ${req.dbEnv} database`);
       res.json(pricingTypesWithFeeItems);
     } catch (error) {
       console.error('Error fetching pricing types:', error);
@@ -5004,6 +5023,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const { pricingTypes, pricingTypeFeeItems, feeItems, feeGroups } = await import("@shared/schema");
       const { eq, inArray } = await import("drizzle-orm");
+      
+      // First check if pricing type exists in this database environment
+      const existingPricingType = await dbToUse.select()
+        .from(pricingTypes)
+        .where(eq(pricingTypes.id, id));
+      
+      console.log('Existing pricing type in database:', existingPricingType);
+      
+      if (existingPricingType.length === 0) {
+        console.log(`Pricing type ${id} not found in ${req.dbEnv} database`);
+        return res.status(404).json({ error: 'Pricing type not found' });
+      }
       
       // Update the pricing type
       const [updatedPricingType] = await dbToUse.update(pricingTypes)
