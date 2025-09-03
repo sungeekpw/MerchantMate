@@ -700,9 +700,29 @@ export class DatabaseStorage implements IStorage {
 
       // Then insert new associations
       if (updates.feeItemIds && updates.feeItemIds.length > 0) {
-        console.log('Inserting new fee item associations:', updates.feeItemIds);
+        console.log('Validating fee item IDs:', updates.feeItemIds);
+        
+        // Validate that all fee item IDs exist
+        const existingFeeItems = await db.select({ id: feeItems.id })
+          .from(feeItems)
+          .where(inArray(feeItems.id, updates.feeItemIds));
+        
+        const existingFeeItemIds = existingFeeItems.map(item => item.id);
+        const invalidFeeItemIds = updates.feeItemIds.filter(id => !existingFeeItemIds.includes(id));
+        
+        console.log('Existing fee item IDs:', existingFeeItemIds);
+        console.log('Invalid fee item IDs:', invalidFeeItemIds);
+        
+        if (invalidFeeItemIds.length > 0) {
+          return {
+            success: false,
+            message: `The following fee items do not exist: ${invalidFeeItemIds.join(', ')}`
+          };
+        }
+        
+        console.log('Inserting new fee item associations:', existingFeeItemIds);
         const insertResult = await db.insert(pricingTypeFeeItems)
-          .values(updates.feeItemIds.map(feeItemId => ({
+          .values(existingFeeItemIds.map(feeItemId => ({
             pricingTypeId: id,
             feeItemId
           })));
