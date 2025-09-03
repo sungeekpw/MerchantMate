@@ -222,6 +222,13 @@ export default function CampaignsPage() {
     displayOrder: 1
   });
 
+  // Pricing Type form state
+  const [pricingTypeForm, setPricingTypeForm] = useState({
+    name: '',
+    description: '',
+    feeItemIds: [] as number[]
+  });
+
   // Update fee item form when selected fee group changes
   useEffect(() => {
     if (selectedFeeGroup) {
@@ -622,6 +629,45 @@ export default function CampaignsPage() {
     },
   });
 
+  // Create Pricing Type mutation
+  const createPricingTypeMutation = useMutation({
+    mutationFn: async (pricingTypeData: CreatePricingTypeData) => {
+      const response = await fetch('/api/pricing-types', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(pricingTypeData),
+        credentials: 'include',
+      });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to create pricing type');
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/pricing-types'] });
+      setShowAddPricingType(false);
+      setPricingTypeForm({ name: '', description: '', feeItemIds: [] });
+      toast({
+        title: "Pricing Type Created",
+        description: "The pricing type has been successfully created.",
+      });
+    },
+    onError: (error: any) => {
+      let errorMessage = "Failed to create pricing type.";
+      if (error.message.includes('duplicate key') || error.message.includes('already exists')) {
+        errorMessage = "A pricing type with this name already exists. Please choose a different name.";
+      }
+      toast({
+        title: "Error",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    },
+  });
+
   // Deactivate campaign mutation
   const deactivateCampaignMutation = useMutation({
     mutationFn: async (campaignId: number) => {
@@ -848,6 +894,39 @@ export default function CampaignsPage() {
           displayOrder: feeItemForm.displayOrder || 1,
         }
       });
+    }
+  };
+
+  // Handle pricing type creation
+  const handleCreatePricingType = () => {
+    if (!pricingTypeForm.name.trim()) {
+      toast({
+        title: "Validation Error",
+        description: "Pricing type name is required.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    createPricingTypeMutation.mutate({
+      name: pricingTypeForm.name.trim(),
+      description: pricingTypeForm.description.trim() || undefined,
+      feeItemIds: pricingTypeForm.feeItemIds,
+    });
+  };
+
+  // Handle fee item selection for pricing type
+  const handleFeeItemSelection = (feeItemId: number, isSelected: boolean) => {
+    if (isSelected) {
+      setPricingTypeForm(prev => ({
+        ...prev,
+        feeItemIds: [...prev.feeItemIds, feeItemId]
+      }));
+    } else {
+      setPricingTypeForm(prev => ({
+        ...prev,
+        feeItemIds: prev.feeItemIds.filter(id => id !== feeItemId)
+      }));
     }
   };
 
@@ -2186,11 +2265,19 @@ export default function CampaignsPage() {
           <div className="space-y-4">
             <div>
               <Label>Pricing Type Name *</Label>
-              <Input placeholder="Enter pricing type name" />
+              <Input 
+                placeholder="Enter pricing type name" 
+                value={pricingTypeForm.name}
+                onChange={(e) => setPricingTypeForm(prev => ({ ...prev, name: e.target.value }))}
+              />
             </div>
             <div>
               <Label>Description</Label>
-              <Textarea placeholder="Enter description (optional)" />
+              <Textarea 
+                placeholder="Enter description (optional)" 
+                value={pricingTypeForm.description}
+                onChange={(e) => setPricingTypeForm(prev => ({ ...prev, description: e.target.value }))}
+              />
             </div>
             <div>
               <Label>Associated Fee Items</Label>
@@ -2200,7 +2287,13 @@ export default function CampaignsPage() {
               <div className="border rounded-md p-3 max-h-40 overflow-y-auto">
                 {feeItems.map((item) => (
                   <div key={item.id} className="flex items-center space-x-2 py-1">
-                    <input type="checkbox" id={`fee-${item.id}`} className="rounded" />
+                    <input 
+                      type="checkbox" 
+                      id={`fee-${item.id}`} 
+                      className="rounded" 
+                      checked={pricingTypeForm.feeItemIds.includes(item.id)}
+                      onChange={(e) => handleFeeItemSelection(item.id, e.target.checked)}
+                    />
                     <Label htmlFor={`fee-${item.id}`} className="text-sm">
                       {item.name} ({item.feeGroup?.name})
                     </Label>
@@ -2213,7 +2306,9 @@ export default function CampaignsPage() {
             <Button variant="outline" onClick={() => setShowAddPricingType(false)}>
               Cancel
             </Button>
-            <Button>Create Pricing Type</Button>
+            <Button onClick={handleCreatePricingType} disabled={createPricingTypeMutation.isPending}>
+              {createPricingTypeMutation.isPending ? 'Creating...' : 'Create Pricing Type'}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
