@@ -2406,7 +2406,7 @@ export default function CampaignsPage() {
                 Select fee items that will be available for this pricing type
               </div>
               <div className="border rounded-md p-3 max-h-40 overflow-y-auto">
-                {feeItems.filter(item => item.feeGroup && item.name).map((item) => (
+                {feeItems.filter(item => item.feeGroup && item.name && item.feeGroup.name && item.id).map((item) => (
                   <div key={item.id} className="flex items-center space-x-2 py-1">
                     <input 
                       type="checkbox" 
@@ -2471,7 +2471,7 @@ export default function CampaignsPage() {
                 Select fee items that will be available for this pricing type
               </div>
               <div className="border rounded-md p-3 max-h-40 overflow-y-auto">
-                {feeItems.filter(item => item.feeGroup && item.name).map((item) => (
+                {feeItems.filter(item => item.feeGroup && item.name && item.feeGroup.name && item.id).map((item) => (
                   <div key={item.id} className="flex items-center space-x-2 py-1">
                     <input 
                       type="checkbox" 
