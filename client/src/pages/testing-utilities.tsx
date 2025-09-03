@@ -30,21 +30,16 @@ export default function TestingUtilities() {
   });
   const [lastResult, setLastResult] = useState<ResetResult | null>(null);
   const [showAuditModal, setShowAuditModal] = useState(false);
-  const [selectedDbEnv, setSelectedDbEnv] = useState<string>('default');
   const [showComparisonModal, setShowComparisonModal] = useState(false);
   const [schemaData, setSchemaData] = useState<any>(null);
 
   const queryClient = useQueryClient();
 
   // Query to get current database environment
-  const { data: dbEnvironment, refetch: refetchDbEnvironment } = useQuery({
-    queryKey: ["/api/admin/db-environment", selectedDbEnv],
+  const { data: dbEnvironment } = useQuery({
+    queryKey: ["/api/admin/db-environment"],
     queryFn: async () => {
-      const url = selectedDbEnv !== 'default' 
-        ? `/api/admin/db-environment?db=${selectedDbEnv}`
-        : "/api/admin/db-environment";
-      
-      const response = await fetch(url, {
+      const response = await fetch("/api/admin/db-environment", {
         credentials: "include",
       });
       if (!response.ok) throw new Error("Failed to fetch database environment");
@@ -52,106 +47,11 @@ export default function TestingUtilities() {
     },
   });
 
-  // Function to handle database environment change
-  const handleDbEnvChange = async (newEnv: string) => {
-    try {
-      setSelectedDbEnv(newEnv);
-      
-      // Map 'default' to 'production' for the API
-      const environmentForAPI = newEnv === 'default' ? 'production' : newEnv;
-      
-      // Make POST request to update session database environment
-      const response = await fetch('/api/admin/db-environment', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify({ environment: environmentForAPI }),
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ message: response.statusText }));
-        throw new Error(errorData.message || 'Failed to switch database environment');
-      }
-      
-      const result = await response.json();
-      
-      // Store database environment selection in localStorage
-      if (newEnv !== 'default') {
-        localStorage.setItem('selectedDbEnvironment', newEnv);
-      } else {
-        localStorage.removeItem('selectedDbEnvironment');
-      }
-      
-      // Update URL to reflect database environment
-      const url = new URL(window.location.href);
-      if (newEnv !== 'default') {
-        url.searchParams.set('db', newEnv);
-      } else {
-        url.searchParams.delete('db');
-      }
-      window.history.replaceState({}, '', url.toString());
-      
-      console.log(`Successfully switched to ${environmentForAPI} database`);
-      
-      // If the API indicates login is required, redirect to login page
-      if (result.requiresLogin) {
-        console.log('Database switch requires re-authentication, redirecting to login...');
-        // Clear any cached user data
-        queryClient.invalidateQueries({ queryKey: ['/api/auth/user'] });
-        // Redirect to login page with the new database environment
-        const loginUrl = newEnv !== 'default' ? `/login?db=${newEnv}` : '/login';
-        window.location.href = loginUrl;
-        return;
-      }
-      
-      // Dispatch custom event to notify header about database environment change
-      window.dispatchEvent(new CustomEvent('dbEnvironmentChanged', { 
-        detail: { environment: newEnv } 
-      }));
-      
-      // Refetch environment status to confirm the change
-      refetchDbEnvironment();
-    } catch (error) {
-      console.error('Error switching database environment:', error);
-      // Revert the UI selection on error
-      refetchDbEnvironment();
-    }
-  };
-
-  // Initialize selected environment from current session database environment
-  useEffect(() => {
-    if (dbEnvironment?.environment) {
-      // Sync dropdown with actual session database environment
-      const currentEnv = dbEnvironment.environment;
-      if (currentEnv === 'dev' || currentEnv === 'test') {
-        setSelectedDbEnv(currentEnv);
-      } else {
-        setSelectedDbEnv('default');
-      }
-    } else {
-      // Fallback to URL parameter or localStorage if no session data yet
-      const urlParams = new URLSearchParams(window.location.search);
-      const dbParam = urlParams.get('db');
-      const storedEnv = localStorage.getItem('selectedDbEnvironment');
-      
-      if (dbParam && ['test', 'dev'].includes(dbParam)) {
-        setSelectedDbEnv(dbParam);
-      } else if (storedEnv && ['test', 'dev'].includes(storedEnv)) {
-        setSelectedDbEnv(storedEnv);
-      } else {
-        setSelectedDbEnv('default');
-      }
-    }
-  }, [dbEnvironment]);
 
   // Reset testing data mutation
   const resetDataMutation = useMutation({
     mutationFn: async (options: Record<string, boolean>) => {
-      const url = selectedDbEnv !== 'default' 
-        ? `/api/admin/reset-testing-data?db=${selectedDbEnv}`
-        : "/api/admin/reset-testing-data";
+      const url = "/api/admin/reset-testing-data";
       
       const response = await fetch(url, {
         method: "POST",
@@ -289,135 +189,111 @@ export default function TestingUtilities() {
 
         <TabsContent value="utilities" className="space-y-6">
 
-      {/* Database Environment Selector - Only show in development builds */}
-      {!import.meta.env.PROD && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Server className="h-5 w-5" />
-              Database Environment
-            </CardTitle>
-            <CardDescription>
-              Select which database environment to operate on. URL-driven switching allows ?db=test parameter.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {dbEnvironment && (
-              <div className="p-4 bg-muted/50 rounded-lg">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-medium">Current Environment: {dbEnvironment.environment}</p>
-                    <p className="text-sm text-muted-foreground">{dbEnvironment.message}</p>
-                  </div>
-                  <Badge variant={dbEnvironment.isUsingCustomDB ? "secondary" : "default"}>
-                    {dbEnvironment.isUsingCustomDB ? "Custom DB" : "Default"}
-                  </Badge>
+      {/* Current Database Environment - Read Only Display */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Server className="h-5 w-5" />
+            Database Environment
+          </CardTitle>
+          <CardDescription>
+            Current database environment for this session. Switch environments at login screen.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {dbEnvironment && (
+            <div className="p-4 bg-muted/50 rounded-lg">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-medium">Current Environment: {dbEnvironment.environment}</p>
+                  <p className="text-sm text-muted-foreground">{dbEnvironment.message}</p>
                 </div>
+                <Badge variant={dbEnvironment.isUsingCustomDB ? "secondary" : "default"}>
+                  {dbEnvironment.isUsingCustomDB ? "Custom DB" : "Default"}
+                </Badge>
               </div>
-            )}
-            
-            <div className="space-y-4">
-              <div className="flex items-center gap-4">
-                <div className="flex-1">
-                  <label className="text-sm font-medium">Target Database:</label>
-                  <Select value={selectedDbEnv} onValueChange={handleDbEnvChange}>
-                    <SelectTrigger className="mt-1">
-                      <SelectValue placeholder="Select database environment" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="default">Default (Production)</SelectItem>
-                      <SelectItem value="test">Test Database (?db=test)</SelectItem>
-                      <SelectItem value="dev">Development Database (?db=dev)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              <div className="flex gap-3">
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  className="flex-1"
-                  onClick={async () => {
-                    try {
-                      const url = selectedDbEnv !== 'default' 
-                        ? `/api/admin/db-diagnostics?db=${selectedDbEnv}`
-                        : '/api/admin/db-diagnostics';
-                      
-                      const response = await fetch(url, {
-                        credentials: 'include',
-                        mode: 'cors',
-                      });
-                      
-                      if (response.ok) {
-                        const diagnostics = await response.json();
-                        console.log('🔍 Database Connection Diagnostics:');
-                        console.log('Environment:', diagnostics.environment);
-                        console.log('Requested:', diagnostics.requestedEnv);
-                        console.log('URLs:', diagnostics.databaseUrls);
-                        console.log('Current Connection:', diagnostics.currentConnection);
-                        
-                        alert(`Database Diagnostics:
+            </div>
+          )}
+          
+          <div className="flex gap-3">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="flex-1"
+              onClick={async () => {
+                try {
+                  const response = await fetch('/api/admin/db-diagnostics', {
+                    credentials: 'include',
+                    mode: 'cors',
+                  });
+                  
+                  if (response.ok) {
+                    const diagnostics = await response.json();
+                    console.log('🔍 Database Connection Diagnostics:');
+                    console.log('Environment:', diagnostics.environment);
+                    console.log('Requested:', diagnostics.requestedEnv);
+                    console.log('URLs:', diagnostics.databaseUrls);
+                    console.log('Current Connection:', diagnostics.currentConnection);
+                    
+                    alert(`Database Diagnostics:
 Environment: ${diagnostics.environment}
 User Count: ${diagnostics.currentConnection.userCount}
 URL: ${diagnostics.currentConnection.url}
 
 Check console for full details.`);
-                      } else {
-                        console.error('Failed to fetch diagnostics:', response.status);
-                      }
-                    } catch (error) {
-                      console.error('Error fetching diagnostics:', error);
-                    }
-                  }}
-                >
-                  <Database className="mr-2 h-4 w-4" />
-                  Database Diagnostics
-                </Button>
-                
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  className="flex-1"
-                  onClick={async () => {
-                    try {
-                      const response = await fetch('/api/admin/schema-compare', {
-                        credentials: 'include',
-                        mode: 'cors',
-                      });
-                      
-                      if (response.ok) {
-                        const schemaComparison = await response.json();
-                        console.log('📊 Schema Comparison Results:');
-                        console.log('Available Environments:', schemaComparison.summary.availableEnvironments);
-                        console.log('Unavailable Environments:', schemaComparison.summary.unavailableEnvironments);
-                        console.log('Full Comparison:', schemaComparison);
-                        
-                        setSchemaData(schemaComparison);
-                        setShowComparisonModal(true);
-                        
-                      } else {
-                        console.error('Failed to fetch schema comparison:', response.status);
-                        alert('Failed to fetch schema comparison. Check console for details.');
-                      }
-                    } catch (error) {
-                      console.error('Error fetching schema comparison:', error);
-                      alert('Error fetching schema comparison. Check console for details.');
-                    }
-                  }}
-                >
-                  <BarChart3 className="mr-2 h-4 w-4" />
-                  Compare Schemas
-                </Button>
-              </div>
-              
-              <div className="text-xs text-muted-foreground">
-                You can also use URL parameters: ?db=test or ?db=dev
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+                  } else {
+                    console.error('Failed to fetch diagnostics:', response.status);
+                  }
+                } catch (error) {
+                  console.error('Error fetching diagnostics:', error);
+                }
+              }}
+            >
+              <Database className="mr-2 h-4 w-4" />
+              Database Diagnostics
+            </Button>
+            
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="flex-1"
+              onClick={async () => {
+                try {
+                  const response = await fetch('/api/admin/schema-compare', {
+                    credentials: 'include',
+                    mode: 'cors',
+                  });
+                  
+                  if (response.ok) {
+                    const schemaComparison = await response.json();
+                    console.log('📊 Schema Comparison Results:');
+                    console.log('Available Environments:', schemaComparison.summary.availableEnvironments);
+                    console.log('Unavailable Environments:', schemaComparison.summary.unavailableEnvironments);
+                    console.log('Full Comparison:', schemaComparison);
+                    
+                    setSchemaData(schemaComparison);
+                    setShowComparisonModal(true);
+                    
+                  } else {
+                    console.error('Failed to fetch schema comparison:', response.status);
+                    alert('Failed to fetch schema comparison. Check console for details.');
+                  }
+                } catch (error) {
+                  console.error('Error fetching schema comparison:', error);
+                  alert('Error fetching schema comparison. Check console for details.');
+                }
+              }}
+            >
+              <BarChart3 className="mr-2 h-4 w-4" />
+              Compare Schemas
+            </Button>
+          </div>
+          
+          <div className="text-xs text-muted-foreground">
+            Environment selection is available at the login screen.
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Production warning if database environment switching is attempted */}
       {import.meta.env.PROD && (
