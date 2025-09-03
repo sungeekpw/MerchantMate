@@ -4974,6 +4974,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.put('/api/pricing-types/:id', requireRole(['admin', 'super_admin']), async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      
+      if (isNaN(id)) {
+        return res.status(400).json({ error: 'Invalid pricing type ID' });
+      }
+      
+      const { name, description, feeItemIds } = req.body;
+      
+      if (!name || !name.trim()) {
+        return res.status(400).json({ error: 'Name is required' });
+      }
+      
+      const result = await storage.updatePricingType(id, {
+        name: name.trim(),
+        description: description?.trim() || null,
+        feeItemIds: feeItemIds || []
+      });
+      
+      if (result.success) {
+        res.json(result.pricingType);
+      } else {
+        res.status(400).json({ error: result.message });
+      }
+    } catch (error) {
+      console.error('Error updating pricing type:', error);
+      res.status(500).json({ error: 'Failed to update pricing type' });
+    }
+  });
+
   // Duplicate fee groups endpoints removed - using the correct ones with dbEnvironmentMiddleware
 
   // Fee Items API endpoints

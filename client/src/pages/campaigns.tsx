@@ -180,6 +180,8 @@ export default function CampaignsPage() {
   const [showEditFeeItemGroup, setShowEditFeeItemGroup] = useState(false);
   const [editFeeItemGroupId, setEditFeeItemGroupId] = useState<number | null>(null);
   const [showAddPricingType, setShowAddPricingType] = useState(false);
+  const [showEditPricingType, setShowEditPricingType] = useState(false);
+  const [editingPricingType, setEditingPricingType] = useState<any>(null);
   const [selectedFeeGroup, setSelectedFeeGroup] = useState<number | null>(null);
   const [editCampaignId, setEditCampaignId] = useState<number | null>(null);
   const [editCampaignData, setEditCampaignData] = useState<Campaign | null>(null);
@@ -697,6 +699,43 @@ export default function CampaignsPage() {
     },
   });
 
+  // Edit pricing type mutation
+  const editPricingTypeMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: number; data: { name: string; description?: string; feeItemIds: number[] } }) => {
+      const response = await fetch(`/api/pricing-types/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(data),
+      });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to update pricing type');
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/pricing-types'] });
+      setShowEditPricingType(false);
+      setEditingPricingType(null);
+      toast({
+        title: "Pricing Type Updated",
+        description: "The pricing type has been successfully updated.",
+      });
+    },
+    onError: (error: any) => {
+      let errorMessage = "Failed to update pricing type.";
+      if (error.message.includes('already exists')) {
+        errorMessage = "A pricing type with this name already exists. Please choose a different name.";
+      }
+      toast({
+        title: "Error",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    },
+  });
+
   // Deactivate campaign mutation
   const deactivateCampaignMutation = useMutation({
     mutationFn: async (campaignId: number) => {
@@ -957,6 +996,40 @@ export default function CampaignsPage() {
         feeItemIds: prev.feeItemIds.filter(id => id !== feeItemId)
       }));
     }
+  };
+
+  // Handle opening edit pricing type dialog
+  const handleEditPricingType = (pricingType: any) => {
+    setEditingPricingType(pricingType);
+    setPricingTypeForm({
+      name: pricingType.name,
+      description: pricingType.description || '',
+      feeItemIds: pricingType.feeItems?.map((item: any) => item.id) || []
+    });
+    setShowEditPricingType(true);
+  };
+
+  // Handle updating pricing type
+  const handleUpdatePricingType = () => {
+    if (!pricingTypeForm.name.trim()) {
+      toast({
+        title: "Validation Error",
+        description: "Pricing type name is required.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!editingPricingType) return;
+
+    editPricingTypeMutation.mutate({
+      id: editingPricingType.id,
+      data: {
+        name: pricingTypeForm.name.trim(),
+        description: pricingTypeForm.description.trim() || undefined,
+        feeItemIds: pricingTypeForm.feeItemIds,
+      }
+    });
   };
 
   // If we're in view mode, show individual campaign details
@@ -1779,7 +1852,7 @@ export default function CampaignsPage() {
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                              <DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleEditPricingType(type)}>
                                 <Edit className="mr-2 h-4 w-4" />
                                 Edit Type
                               </DropdownMenuItem>
@@ -2347,6 +2420,71 @@ export default function CampaignsPage() {
             </Button>
             <Button onClick={handleCreatePricingType} disabled={createPricingTypeMutation.isPending}>
               {createPricingTypeMutation.isPending ? 'Creating...' : 'Create Pricing Type'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Pricing Type Dialog */}
+      <Dialog open={showEditPricingType} onOpenChange={(open) => {
+        setShowEditPricingType(open);
+        if (!open) {
+          setEditingPricingType(null);
+        }
+      }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit Pricing Type</DialogTitle>
+            <DialogDescription>
+              Update the pricing type details and fee item associations
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Pricing Type Name *</Label>
+              <Input 
+                placeholder="Enter pricing type name" 
+                value={pricingTypeForm.name}
+                onChange={(e) => setPricingTypeForm(prev => ({ ...prev, name: e.target.value }))}
+              />
+            </div>
+            <div>
+              <Label>Description</Label>
+              <Textarea 
+                placeholder="Enter description (optional)" 
+                value={pricingTypeForm.description}
+                onChange={(e) => setPricingTypeForm(prev => ({ ...prev, description: e.target.value }))}
+              />
+            </div>
+            <div>
+              <Label>Associated Fee Items</Label>
+              <div className="text-sm text-muted-foreground mb-2">
+                Select fee items that will be available for this pricing type
+              </div>
+              <div className="border rounded-md p-3 max-h-40 overflow-y-auto">
+                {feeItems.map((item) => (
+                  <div key={item.id} className="flex items-center space-x-2 py-1">
+                    <input 
+                      type="checkbox" 
+                      id={`edit-fee-${item.id}`} 
+                      className="rounded" 
+                      checked={pricingTypeForm.feeItemIds.includes(item.id)}
+                      onChange={(e) => handleFeeItemSelection(item.id, e.target.checked)}
+                    />
+                    <Label htmlFor={`edit-fee-${item.id}`} className="text-sm">
+                      {item.name} ({item.feeGroup?.name})
+                    </Label>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowEditPricingType(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleUpdatePricingType} disabled={editPricingTypeMutation.isPending}>
+              {editPricingTypeMutation.isPending ? 'Updating...' : 'Update Pricing Type'}
             </Button>
           </DialogFooter>
         </DialogContent>
