@@ -541,7 +541,7 @@ export class DatabaseStorage implements IStorage {
     if (result.length === 0) return undefined;
 
     const pricingType = result[0].pricingType;
-    const feeItems = result
+    const associatedFeeItems = result
       .filter(row => row.feeItem)
       .map(row => ({
         ...row.pricingTypeFeeItem!,
@@ -553,7 +553,7 @@ export class DatabaseStorage implements IStorage {
 
     return {
       ...pricingType,
-      feeItems,
+      feeItems: associatedFeeItems,
     };
   }
 
