@@ -4887,7 +4887,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/pricing-types', requireRole(['admin', 'super_admin']), async (req: Request, res: Response) => {
     try {
       const pricingTypes = await storage.getAllPricingTypes();
-      res.json(pricingTypes);
+      
+      // Add fee items count to each pricing type
+      const pricingTypesWithFeeItems = await Promise.all(
+        pricingTypes.map(async (pricingType) => {
+          try {
+            const feeItems = await storage.getPricingTypeFeeItems(pricingType.id);
+            return {
+              ...pricingType,
+              feeItems: feeItems.feeItems || []
+            };
+          } catch (error) {
+            console.error(`Error fetching fee items for pricing type ${pricingType.id}:`, error);
+            return {
+              ...pricingType,
+              feeItems: []
+            };
+          }
+        })
+      );
+      
+      res.json(pricingTypesWithFeeItems);
     } catch (error) {
       console.error('Error fetching pricing types:', error);
       res.status(500).json({ error: 'Failed to fetch pricing types' });
