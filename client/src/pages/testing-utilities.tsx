@@ -75,6 +75,8 @@ export default function TestingUtilities() {
         throw new Error(errorData.message || 'Failed to switch database environment');
       }
       
+      const result = await response.json();
+      
       // Store database environment selection in localStorage
       if (newEnv !== 'default') {
         localStorage.setItem('selectedDbEnvironment', newEnv);
@@ -91,6 +93,19 @@ export default function TestingUtilities() {
       }
       window.history.replaceState({}, '', url.toString());
       
+      console.log(`Successfully switched to ${environmentForAPI} database`);
+      
+      // If the API indicates login is required, redirect to login page
+      if (result.requiresLogin) {
+        console.log('Database switch requires re-authentication, redirecting to login...');
+        // Clear any cached user data
+        queryClient.invalidateQueries({ queryKey: ['/api/auth/user'] });
+        // Redirect to login page with the new database environment
+        const loginUrl = newEnv !== 'default' ? `/login?db=${newEnv}` : '/login';
+        window.location.href = loginUrl;
+        return;
+      }
+      
       // Dispatch custom event to notify header about database environment change
       window.dispatchEvent(new CustomEvent('dbEnvironmentChanged', { 
         detail: { environment: newEnv } 
@@ -98,8 +113,6 @@ export default function TestingUtilities() {
       
       // Refetch environment status to confirm the change
       refetchDbEnvironment();
-      
-      console.log(`Successfully switched to ${environmentForAPI} database`);
     } catch (error) {
       console.error('Error switching database environment:', error);
       // Revert the UI selection on error
