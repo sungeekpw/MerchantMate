@@ -4974,7 +4974,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put('/api/pricing-types/:id', requireRole(['admin', 'super_admin']), async (req: Request, res: Response) => {
+  app.put('/api/pricing-types/:id', dbEnvironmentMiddleware, requireRole(['admin', 'super_admin']), async (req: RequestWithDB, res: Response) => {
     try {
       const id = parseInt(req.params.id);
       
@@ -4988,6 +4988,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: 'Name is required' });
       }
       
+      console.log(`Updating pricing type ${id} - Database environment: ${req.dbEnv}`);
       console.log('Updating pricing type with data:', {
         id,
         name: name.trim(),
@@ -4995,19 +4996,75 @@ export async function registerRoutes(app: Express): Promise<Server> {
         feeItemIds: feeItemIds || []
       });
       
-      const result = await storage.updatePricingType(id, {
-        name: name.trim(),
-        description: description?.trim() || null,
-        feeItemIds: feeItemIds || []
-      });
-      
-      console.log('Update result:', result);
-      
-      if (result.success) {
-        res.json(result.pricingType);
-      } else {
-        res.status(400).json({ error: result.message });
+      // Use the dynamic database connection
+      const dbToUse = req.dynamicDB;
+      if (!dbToUse) {
+        return res.status(500).json({ error: "Database connection not available" });
       }
+      
+      const { pricingTypes, pricingTypeFeeItems, feeItems, feeGroups } = await import("@shared/schema");
+      const { eq, inArray } = await import("drizzle-orm");
+      
+      // Update the pricing type
+      const [updatedPricingType] = await dbToUse.update(pricingTypes)
+        .set({
+          name: name.trim(),
+          description: description?.trim() || null,
+          updatedAt: new Date()
+        })
+        .where(eq(pricingTypes.id, id))
+        .returning();
+
+      if (!updatedPricingType) {
+        return res.status(404).json({ error: 'Pricing type not found' });
+      }
+
+      // Update fee item associations
+      console.log('Deleting existing fee item associations...');
+      await dbToUse.delete(pricingTypeFeeItems)
+        .where(eq(pricingTypeFeeItems.pricingTypeId, id));
+
+      // Add new associations if provided
+      if (feeItemIds && feeItemIds.length > 0) {
+        console.log('Validating fee item IDs:', feeItemIds);
+        
+        // Validate that all fee item IDs exist AND have valid fee groups
+        const existingFeeItems = await dbToUse.select({ 
+          id: feeItems.id,
+          feeGroupId: feeItems.feeGroupId,
+          feeGroupName: feeGroups.name
+        })
+          .from(feeItems)
+          .leftJoin(feeGroups, eq(feeItems.feeGroupId, feeGroups.id))
+          .where(inArray(feeItems.id, feeItemIds));
+        
+        console.log('Raw existing fee items from query:', existingFeeItems);
+        
+        // Only include fee items that have valid fee groups
+        const validFeeItems = existingFeeItems.filter(item => item.feeGroupName);
+        const validFeeItemIds = validFeeItems.map(item => item.id);
+        const invalidFeeItemIds = feeItemIds.filter(id => !validFeeItemIds.includes(id));
+        
+        console.log('Valid fee items (with fee groups):', validFeeItems);
+        console.log('Valid fee item IDs:', validFeeItemIds);
+        console.log('Invalid fee item IDs:', invalidFeeItemIds);
+        
+        if (invalidFeeItemIds.length > 0) {
+          return res.status(400).json({ 
+            error: `The following fee items do not exist: ${invalidFeeItemIds.join(', ')}`
+          });
+        }
+        
+        console.log('Inserting new fee item associations:', validFeeItemIds);
+        await dbToUse.insert(pricingTypeFeeItems)
+          .values(validFeeItemIds.map(feeItemId => ({
+            pricingTypeId: id,
+            feeItemId
+          })));
+      }
+      
+      console.log('Pricing type update completed successfully');
+      res.json(updatedPricingType);
     } catch (error) {
       console.error('Error updating pricing type:', error);
       res.status(500).json({ error: 'Failed to update pricing type' });
