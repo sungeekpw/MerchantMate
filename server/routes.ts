@@ -5001,26 +5001,60 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post('/api/pricing-types', dbEnvironmentMiddleware, requireRole(['admin', 'super_admin']), async (req: RequestWithDB, res: Response) => {
     try {
+      console.log(`Creating pricing type - Database environment: ${req.dbEnv}`);
+      
       const { name, description, feeItemIds = [] } = req.body;
       
+      // Use the dynamic database connection
+      const dbToUse = req.dynamicDB;
+      if (!dbToUse) {
+        return res.status(500).json({ error: "Database connection not available" });
+      }
+      
+      const { pricingTypes, pricingTypeFeeItems, feeItems, feeGroups } = await import("@shared/schema");
+      const { eq, inArray } = await import("drizzle-orm");
+      
       // Create the pricing type first
-      const pricingType = await storage.createPricingType({
+      const [pricingType] = await dbToUse.insert(pricingTypes).values({
         name,
         description,
         isActive: true,
         author: 'System'
-      });
+      }).returning();
+      
+      console.log('Created pricing type:', pricingType);
       
       // Add fee items to the pricing type if provided
       if (feeItemIds && Array.isArray(feeItemIds) && feeItemIds.length > 0) {
-        for (const feeItemId of feeItemIds) {
-          await storage.addFeeItemToPricingType(pricingType.id, feeItemId, false);
+        console.log('Adding fee items to pricing type:', feeItemIds);
+        
+        // Validate fee items exist in the current database environment
+        const existingFeeItems = await dbToUse.select({ 
+          id: feeItems.id,
+          feeGroupName: feeGroups.name
+        })
+          .from(feeItems)
+          .leftJoin(feeGroups, eq(feeItems.feeGroupId, feeGroups.id))
+          .where(inArray(feeItems.id, feeItemIds));
+        
+        const validFeeItems = existingFeeItems.filter(item => item.feeGroupName);
+        const validFeeItemIds = validFeeItems.map(item => item.id);
+        
+        if (validFeeItemIds.length > 0) {
+          await dbToUse.insert(pricingTypeFeeItems).values(
+            validFeeItemIds.map(feeItemId => ({
+              pricingTypeId: pricingType.id,
+              feeItemId,
+              isRequired: false,
+              displayOrder: 1
+            }))
+          );
+          console.log(`Added ${validFeeItemIds.length} fee items to pricing type`);
         }
       }
       
-      // Return the created pricing type with fee items
-      const pricingTypeWithFeeItems = await storage.getPricingTypeWithFeeItems(pricingType.id);
-      res.status(201).json(pricingTypeWithFeeItems || pricingType);
+      console.log(`Pricing type created successfully in ${req.dbEnv} database`);
+      res.status(201).json(pricingType);
     } catch (error) {
       console.error('Error creating pricing type:', error);
       res.status(500).json({ error: 'Failed to create pricing type' });
