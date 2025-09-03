@@ -4988,11 +4988,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: 'Name is required' });
       }
       
+      console.log('Updating pricing type with data:', {
+        id,
+        name: name.trim(),
+        description: description?.trim() || null,
+        feeItemIds: feeItemIds || []
+      });
+      
       const result = await storage.updatePricingType(id, {
         name: name.trim(),
         description: description?.trim() || null,
         feeItemIds: feeItemIds || []
       });
+      
+      console.log('Update result:', result);
       
       if (result.success) {
         res.json(result.pricingType);

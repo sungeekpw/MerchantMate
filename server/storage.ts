@@ -639,14 +639,19 @@ export class DatabaseStorage implements IStorage {
 
   async updatePricingType(id: number, updates: { name: string; description?: string | null; feeItemIds: number[] }): Promise<{ success: boolean; message?: string; pricingType?: PricingType }> {
     try {
+      console.log('Storage.updatePricingType called with:', { id, updates });
+      
       // Check if name already exists for another pricing type
       if (updates.name) {
+        console.log('Checking for existing pricing type with name:', updates.name);
         const existingPricingType = await db.select()
           .from(pricingTypes)
           .where(and(
             eq(pricingTypes.name, updates.name),
             not(eq(pricingTypes.id, id))
           ));
+
+        console.log('Found existing pricing types:', existingPricingType);
 
         if (existingPricingType.length > 0) {
           return {
@@ -657,6 +662,7 @@ export class DatabaseStorage implements IStorage {
       }
 
       // Update the pricing type
+      console.log('Updating pricing type in database...');
       const [updatedPricingType] = await db.update(pricingTypes)
         .set({
           name: updates.name,
@@ -666,7 +672,10 @@ export class DatabaseStorage implements IStorage {
         .where(eq(pricingTypes.id, id))
         .returning();
 
+      console.log('Updated pricing type:', updatedPricingType);
+
       if (!updatedPricingType) {
+        console.log('No pricing type was updated - not found');
         return {
           success: false,
           message: 'Pricing type not found.'
@@ -674,19 +683,25 @@ export class DatabaseStorage implements IStorage {
       }
 
       // Update fee item associations
-      // First delete all existing associations
-      await db.delete(pricingTypeFeeItems)
+      console.log('Deleting existing fee item associations...');
+      const deleteResult = await db.delete(pricingTypeFeeItems)
         .where(eq(pricingTypeFeeItems.pricingTypeId, id));
+      console.log('Deleted associations count:', deleteResult.rowCount);
 
       // Then insert new associations
       if (updates.feeItemIds && updates.feeItemIds.length > 0) {
-        await db.insert(pricingTypeFeeItems)
+        console.log('Inserting new fee item associations:', updates.feeItemIds);
+        const insertResult = await db.insert(pricingTypeFeeItems)
           .values(updates.feeItemIds.map(feeItemId => ({
             pricingTypeId: id,
             feeItemId
           })));
+        console.log('Inserted associations count:', insertResult.rowCount);
+      } else {
+        console.log('No fee item associations to insert');
       }
 
+      console.log('Pricing type update completed successfully');
       return {
         success: true,
         pricingType: updatedPricingType
