@@ -1007,10 +1007,16 @@ export default function CampaignsPage() {
   // Handle opening edit pricing type dialog
   const handleEditPricingType = (pricingType: any) => {
     setEditingPricingType(pricingType);
+    
+    // Only include fee items that actually exist and have valid data
+    const validFeeItemIds = pricingType.feeItems
+      ?.filter((item: any) => item.feeItem && item.feeItem.id && item.feeItem.name)
+      .map((item: any) => item.feeItem.id) || [];
+    
     const formData = {
       name: pricingType.name,
       description: pricingType.description || '',
-      feeItemIds: pricingType.feeItems?.map((item: any) => item.id) || []
+      feeItemIds: validFeeItemIds
     };
     setPricingTypeForm(formData);
     setShowEditPricingType(true);
