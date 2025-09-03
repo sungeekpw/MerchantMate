@@ -4927,8 +4927,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post('/api/pricing-types', requireRole(['admin', 'super_admin']), async (req: Request, res: Response) => {
     try {
-      const pricingType = await storage.createPricingType(req.body);
-      res.status(201).json(pricingType);
+      const { name, description, feeItemIds = [] } = req.body;
+      
+      // Create the pricing type first
+      const pricingType = await storage.createPricingType({
+        name,
+        description,
+        isActive: true,
+        author: 'System'
+      });
+      
+      // Add fee items to the pricing type if provided
+      if (feeItemIds && Array.isArray(feeItemIds) && feeItemIds.length > 0) {
+        for (const feeItemId of feeItemIds) {
+          await storage.addFeeItemToPricingType(pricingType.id, feeItemId, false);
+        }
+      }
+      
+      // Return the created pricing type with fee items
+      const pricingTypeWithFeeItems = await storage.getPricingTypeWithFeeItems(pricingType.id);
+      res.status(201).json(pricingTypeWithFeeItems || pricingType);
     } catch (error) {
       console.error('Error creating pricing type:', error);
       res.status(500).json({ error: 'Failed to create pricing type' });
@@ -5093,35 +5111,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/pricing-types', requireRole(['admin', 'super_admin']), async (req: any, res) => {
-    try {
-      const { name, description, feeItemIds } = req.body;
-      
-      if (!name || !feeItemIds || !Array.isArray(feeItemIds)) {
-        return res.status(400).json({ message: "Pricing type name and fee items are required" });
-      }
-
-      const newPricingType = {
-        id: Date.now(), // Simple ID generation for MVP
-        name,
-        description,
-        isActive: true,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        feeItems: feeItemIds.map((feeItemId: number, index: number) => ({
-          id: Date.now() + index,
-          feeItemId,
-          isRequired: true,
-          displayOrder: index + 1
-        }))
-      };
-
-      res.status(201).json(newPricingType);
-    } catch (error) {
-      console.error("Error creating pricing type:", error);
-      res.status(500).json({ message: "Failed to create pricing type" });
-    }
-  });
 
   // ===================
   // CAMPAIGN MANAGEMENT API ENDPOINTS
