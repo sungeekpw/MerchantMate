@@ -5030,12 +5030,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { feeItems, feeGroups } = await import("@shared/schema");
       const { eq } = await import("drizzle-orm");
       
-      // Join fee items with fee groups to include group information
+      // Join fee items with fee groups to include group information (INNER JOIN to only get valid items)
       const result = await dbToUse.select({
         feeItem: feeItems,
         feeGroup: feeGroups
       }).from(feeItems)
-      .leftJoin(feeGroups, eq(feeItems.feeGroupId, feeGroups.id))
+      .innerJoin(feeGroups, eq(feeItems.feeGroupId, feeGroups.id))
       .orderBy(feeItems.displayOrder);
 
       // Transform the result to include feeGroup in the fee item object
