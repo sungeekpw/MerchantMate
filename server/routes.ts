@@ -2003,6 +2003,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
   });
 
+  // Update database environment in session (authenticated users can switch environments)
+  app.post("/api/admin/db-environment", isAuthenticated, async (req: RequestWithDB, res) => {
+    try {
+      const { environment } = req.body;
+      
+      // Validate environment
+      const validEnvironments = ['production', 'development', 'dev', 'test'];
+      if (!environment || !validEnvironments.includes(environment)) {
+        return res.status(400).json({
+          success: false,
+          message: `Invalid environment. Must be one of: ${validEnvironments.join(', ')}`
+        });
+      }
+      
+      // Update session with new database environment
+      (req.session as any).dbEnv = environment;
+      
+      console.log(`DB Environment Switch - User ${req.userId} switching to ${environment} database`);
+      
+      res.json({
+        success: true,
+        environment,
+        message: `Switched to ${environment} database environment`
+      });
+    } catch (error) {
+      console.error('Error switching database environment:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to switch database environment'
+      });
+    }
+  });
+
   // Database connection diagnostics (Super Admin only)
   app.get("/api/admin/db-diagnostics", requireRole(['super_admin']), dbEnvironmentMiddleware, async (req: RequestWithDB, res) => {
     try {
