@@ -702,14 +702,24 @@ export class DatabaseStorage implements IStorage {
       if (updates.feeItemIds && updates.feeItemIds.length > 0) {
         console.log('Validating fee item IDs:', updates.feeItemIds);
         
-        // Validate that all fee item IDs exist
-        const existingFeeItems = await db.select({ id: feeItems.id })
+        // Validate that all fee item IDs exist AND have valid fee groups
+        const existingFeeItems = await db.select({ 
+          id: feeItems.id,
+          feeGroupId: feeItems.feeGroupId,
+          feeGroupName: feeGroups.name
+        })
           .from(feeItems)
+          .leftJoin(feeGroups, eq(feeItems.feeGroupId, feeGroups.id))
           .where(inArray(feeItems.id, updates.feeItemIds));
         
-        const existingFeeItemIds = existingFeeItems.map(item => item.id);
+        console.log('Raw existing fee items from query:', existingFeeItems);
+        
+        // Only include fee items that have valid fee groups
+        const validFeeItems = existingFeeItems.filter(item => item.feeGroupName);
+        const existingFeeItemIds = validFeeItems.map(item => item.id);
         const invalidFeeItemIds = updates.feeItemIds.filter(id => !existingFeeItemIds.includes(id));
         
+        console.log('Valid fee items (with fee groups):', validFeeItems);
         console.log('Existing fee item IDs:', existingFeeItemIds);
         console.log('Invalid fee item IDs:', invalidFeeItemIds);
         
