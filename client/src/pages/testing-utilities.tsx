@@ -53,32 +53,58 @@ export default function TestingUtilities() {
   });
 
   // Function to handle database environment change
-  const handleDbEnvChange = (newEnv: string) => {
-    setSelectedDbEnv(newEnv);
-    
-    // Store database environment selection in localStorage
-    if (newEnv !== 'default') {
-      localStorage.setItem('selectedDbEnvironment', newEnv);
-    } else {
-      localStorage.removeItem('selectedDbEnvironment');
+  const handleDbEnvChange = async (newEnv: string) => {
+    try {
+      setSelectedDbEnv(newEnv);
+      
+      // Map 'default' to 'production' for the API
+      const environmentForAPI = newEnv === 'default' ? 'production' : newEnv;
+      
+      // Make POST request to update session database environment
+      const response = await fetch('/api/admin/db-environment', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({ environment: environmentForAPI }),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ message: response.statusText }));
+        throw new Error(errorData.message || 'Failed to switch database environment');
+      }
+      
+      // Store database environment selection in localStorage
+      if (newEnv !== 'default') {
+        localStorage.setItem('selectedDbEnvironment', newEnv);
+      } else {
+        localStorage.removeItem('selectedDbEnvironment');
+      }
+      
+      // Update URL to reflect database environment
+      const url = new URL(window.location.href);
+      if (newEnv !== 'default') {
+        url.searchParams.set('db', newEnv);
+      } else {
+        url.searchParams.delete('db');
+      }
+      window.history.replaceState({}, '', url.toString());
+      
+      // Dispatch custom event to notify header about database environment change
+      window.dispatchEvent(new CustomEvent('dbEnvironmentChanged', { 
+        detail: { environment: newEnv } 
+      }));
+      
+      // Refetch environment status to confirm the change
+      refetchDbEnvironment();
+      
+      console.log(`Successfully switched to ${environmentForAPI} database`);
+    } catch (error) {
+      console.error('Error switching database environment:', error);
+      // Revert the UI selection on error
+      refetchDbEnvironment();
     }
-    
-    // Update URL to reflect database environment
-    const url = new URL(window.location.href);
-    if (newEnv !== 'default') {
-      url.searchParams.set('db', newEnv);
-    } else {
-      url.searchParams.delete('db');
-    }
-    window.history.replaceState({}, '', url.toString());
-    
-    // Dispatch custom event to notify header about database environment change
-    window.dispatchEvent(new CustomEvent('dbEnvironmentChanged', { 
-      detail: { environment: newEnv } 
-    }));
-    
-    // Refetch environment status
-    refetchDbEnvironment();
   };
 
   // Initialize selected environment from current session database environment
