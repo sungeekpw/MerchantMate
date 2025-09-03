@@ -4909,7 +4909,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { eq, sql } = await import("drizzle-orm");
       
       // Get all pricing types from the selected database environment
+      console.log(`Querying pricing types from ${req.dbEnv} database...`);
       const allPricingTypes = await dbToUse.select().from(pricingTypes);
+      console.log(`Raw pricing types query result:`, allPricingTypes);
       
       // Add fee items count to each pricing type
       const pricingTypesWithFeeItems = await Promise.all(
@@ -4937,6 +4939,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       );
       
       console.log(`Found ${allPricingTypes.length} pricing types in ${req.dbEnv} database`);
+      console.log(`Final response being sent:`, pricingTypesWithFeeItems);
       res.json(pricingTypesWithFeeItems);
     } catch (error) {
       console.error('Error fetching pricing types:', error);
