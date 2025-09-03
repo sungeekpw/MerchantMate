@@ -668,6 +668,35 @@ export default function CampaignsPage() {
     },
   });
 
+  // Delete pricing type mutation
+  const deletePricingTypeMutation = useMutation({
+    mutationFn: async (pricingTypeId: number) => {
+      const response = await fetch(`/api/pricing-types/${pricingTypeId}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to delete pricing type');
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/pricing-types'] });
+      toast({
+        title: "Pricing Type Deleted",
+        description: "The pricing type has been successfully deleted.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete pricing type.",
+        variant: "destructive",
+      });
+    },
+  });
+
   // Deactivate campaign mutation
   const deactivateCampaignMutation = useMutation({
     mutationFn: async (campaignId: number) => {
@@ -1754,6 +1783,16 @@ export default function CampaignsPage() {
                                 <Edit className="mr-2 h-4 w-4" />
                                 Edit Type
                               </DropdownMenuItem>
+                              {(type.feeItems?.length || 0) === 0 && (
+                                <DropdownMenuItem 
+                                  onClick={() => deletePricingTypeMutation.mutate(type.id)}
+                                  className="text-destructive hover:text-destructive"
+                                  disabled={deletePricingTypeMutation.isPending}
+                                >
+                                  <Trash2 className="mr-2 h-4 w-4" />
+                                  {deletePricingTypeMutation.isPending ? 'Deleting...' : 'Delete Type'}
+                                </DropdownMenuItem>
+                              )}
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </TableCell>
