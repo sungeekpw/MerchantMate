@@ -525,6 +525,8 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getPricingTypeWithFeeItems(id: number): Promise<PricingTypeWithFeeItems | undefined> {
+    console.log('Fetching pricing type with fee items for ID:', id);
+    
     const result = await db
       .select({
         pricingType: pricingTypes,
@@ -537,6 +539,8 @@ export class DatabaseStorage implements IStorage {
       .leftJoin(feeItems, eq(pricingTypeFeeItems.feeItemId, feeItems.id))
       .leftJoin(feeGroups, eq(feeItems.feeGroupId, feeGroups.id))
       .where(eq(pricingTypes.id, id));
+
+    console.log('Raw query result:', result);
 
     if (result.length === 0) return undefined;
 
@@ -551,10 +555,16 @@ export class DatabaseStorage implements IStorage {
         },
       }));
 
-    return {
+    console.log('Filtered fee items:', associatedFeeItems);
+
+    const resultToReturn = {
       ...pricingType,
       feeItems: associatedFeeItems,
     };
+    
+    console.log('Final result:', resultToReturn);
+    
+    return resultToReturn;
   }
 
   async createPricingType(pricingType: InsertPricingType): Promise<PricingType> {
