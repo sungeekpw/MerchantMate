@@ -2019,25 +2019,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log(`DB Environment Switch - User ${req.userId} switching to ${environment} database`);
       
-      // Update session with new database environment
-      (req.session as any).dbEnv = environment;
+      // Store the new database environment before destroying session
+      const newEnvironment = environment;
       
-      // Clear user session data since the user may not exist in the new database
-      // This will force them to log in again with credentials that exist in the new environment
-      req.session.destroy((err) => {
-        if (err) {
-          console.error('Error destroying session during database switch:', err);
-        }
-      });
+      // Clear user authentication data but preserve database environment setting
+      delete req.session.userId;
+      delete req.session.user;
+      delete (req.session as any).passport;
       
-      // Clear the session cookie
-      res.clearCookie('connect.sid');
+      // Set the new database environment for the next login
+      (req.session as any).dbEnv = newEnvironment;
       
+      console.log(`Session cleared and database environment set to ${newEnvironment}`);
+      
+      // Return response indicating successful switch but requiring re-login
       res.json({
         success: true,
-        environment,
+        environment: newEnvironment,
         requiresLogin: true,
-        message: `Switched to ${environment} database environment. Please log in again.`
+        message: `Switched to ${newEnvironment} database environment. Please log in again.`
       });
     } catch (error) {
       console.error('Error switching database environment:', error);
