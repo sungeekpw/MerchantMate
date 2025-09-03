@@ -595,6 +595,48 @@ export class DatabaseStorage implements IStorage {
     ).orderBy(pricingTypes.name);
   }
 
+  async deletePricingType(id: number): Promise<{ success: boolean; message: string }> {
+    // First check if pricing type has any associated fee items
+    const associatedFeeItems = await db.select()
+      .from(pricingTypeFeeItems)
+      .where(eq(pricingTypeFeeItems.pricingTypeId, id));
+
+    if (associatedFeeItems.length > 0) {
+      return {
+        success: false,
+        message: `Cannot delete pricing type. It has ${associatedFeeItems.length} associated fee item(s). Please remove all fee item associations first.`
+      };
+    }
+
+    // Check if pricing type is used by any campaigns
+    const campaignsUsingPricingType = await db.select()
+      .from(campaigns)
+      .where(eq(campaigns.pricingTypeId, id));
+
+    if (campaignsUsingPricingType.length > 0) {
+      return {
+        success: false,
+        message: `Cannot delete pricing type. It is being used by ${campaignsUsingPricingType.length} campaign(s).`
+      };
+    }
+
+    // If no associations, delete the pricing type
+    const result = await db.delete(pricingTypes)
+      .where(eq(pricingTypes.id, id));
+
+    if (result.rowCount && result.rowCount > 0) {
+      return {
+        success: true,
+        message: 'Pricing type deleted successfully.'
+      };
+    } else {
+      return {
+        success: false,
+        message: 'Pricing type not found.'
+      };
+    }
+  }
+
   // Campaigns implementation (removed duplicate - using the simpler one above)
 
   async getCampaign(id: number): Promise<Campaign | undefined> {

@@ -4953,6 +4953,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.delete('/api/pricing-types/:id', requireRole(['admin', 'super_admin']), async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      
+      if (isNaN(id)) {
+        return res.status(400).json({ error: 'Invalid pricing type ID' });
+      }
+      
+      const result = await storage.deletePricingType(id);
+      
+      if (result.success) {
+        res.json({ success: true, message: result.message });
+      } else {
+        res.status(400).json({ success: false, error: result.message });
+      }
+    } catch (error) {
+      console.error('Error deleting pricing type:', error);
+      res.status(500).json({ error: 'Failed to delete pricing type' });
+    }
+  });
+
   // Duplicate fee groups endpoints removed - using the correct ones with dbEnvironmentMiddleware
 
   // Fee Items API endpoints
