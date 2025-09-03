@@ -1,6 +1,6 @@
 import { merchants, agents, transactions, users, loginAttempts, twoFactorCodes, userDashboardPreferences, agentMerchants, locations, addresses, pdfForms, pdfFormFields, pdfFormSubmissions, merchantProspects, prospectOwners, prospectSignatures, feeGroups, feeItemGroups, feeItems, pricingTypes, pricingTypeFeeItems, campaigns, campaignFeeValues, campaignAssignments, equipmentItems, campaignEquipment, apiKeys, apiRequestLogs, emailTemplates, emailActivity, emailTriggers, type Merchant, type Agent, type Transaction, type User, type InsertMerchant, type InsertAgent, type InsertTransaction, type UpsertUser, type MerchantWithAgent, type TransactionWithMerchant, type LoginAttempt, type TwoFactorCode, type UserDashboardPreference, type InsertUserDashboardPreference, type AgentMerchant, type InsertAgentMerchant, type Location, type InsertLocation, type Address, type InsertAddress, type LocationWithAddresses, type MerchantWithLocations, type PdfForm, type InsertPdfForm, type PdfFormField, type InsertPdfFormField, type PdfFormSubmission, type InsertPdfFormSubmission, type PdfFormWithFields, type MerchantProspect, type InsertMerchantProspect, type MerchantProspectWithAgent, type ProspectOwner, type InsertProspectOwner, type ProspectSignature, type InsertProspectSignature, type FeeGroup, type InsertFeeGroup, type FeeItemGroup, type InsertFeeItemGroup, type FeeItem, type InsertFeeItem, type PricingType, type InsertPricingType, type PricingTypeFeeItem, type InsertPricingTypeFeeItem, type Campaign, type InsertCampaign, type CampaignFeeValue, type InsertCampaignFeeValue, type CampaignAssignment, type InsertCampaignAssignment, type EquipmentItem, type InsertEquipmentItem, type CampaignEquipment, type InsertCampaignEquipment, type FeeGroupWithItems, type FeeItemGroupWithItems, type FeeGroupWithItemGroups, type PricingTypeWithFeeItems, type CampaignWithDetails, type ApiKey, type InsertApiKey, type ApiRequestLog, type InsertApiRequestLog, type EmailTemplate, type InsertEmailTemplate, type EmailActivity, type InsertEmailActivity, type EmailTrigger, type InsertEmailTrigger } from "@shared/schema";
 import { db } from "./db";
-import { eq, or, and, gte, sql, desc, inArray, like, ilike } from "drizzle-orm";
+import { eq, or, and, gte, sql, desc, inArray, like, ilike, not } from "drizzle-orm";
 
 export interface IStorage {
   // Merchant operations
@@ -633,6 +633,69 @@ export class DatabaseStorage implements IStorage {
       return {
         success: false,
         message: 'Pricing type not found.'
+      };
+    }
+  }
+
+  async updatePricingType(id: number, updates: { name: string; description?: string | null; feeItemIds: number[] }): Promise<{ success: boolean; message?: string; pricingType?: PricingType }> {
+    try {
+      // Check if name already exists for another pricing type
+      if (updates.name) {
+        const existingPricingType = await db.select()
+          .from(pricingTypes)
+          .where(and(
+            eq(pricingTypes.name, updates.name),
+            not(eq(pricingTypes.id, id))
+          ));
+
+        if (existingPricingType.length > 0) {
+          return {
+            success: false,
+            message: 'A pricing type with this name already exists.'
+          };
+        }
+      }
+
+      // Update the pricing type
+      const [updatedPricingType] = await db.update(pricingTypes)
+        .set({
+          name: updates.name,
+          description: updates.description,
+          updatedAt: new Date()
+        })
+        .where(eq(pricingTypes.id, id))
+        .returning();
+
+      if (!updatedPricingType) {
+        return {
+          success: false,
+          message: 'Pricing type not found.'
+        };
+      }
+
+      // Update fee item associations
+      // First delete all existing associations
+      await db.delete(pricingTypeFeeItems)
+        .where(eq(pricingTypeFeeItems.pricingTypeId, id));
+
+      // Then insert new associations
+      if (updates.feeItemIds && updates.feeItemIds.length > 0) {
+        await db.insert(pricingTypeFeeItems)
+          .values(updates.feeItemIds.map(feeItemId => ({
+            pricingTypeId: id,
+            feeItemId
+          })));
+      }
+
+      return {
+        success: true,
+        pricingType: updatedPricingType
+      };
+    } catch (error) {
+      console.error('Error updating pricing type:', error);
+      return {
+        success: false,
+        message: 'Failed to update pricing type.'
       };
     }
   }
