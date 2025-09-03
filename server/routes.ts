@@ -4773,17 +4773,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Campaign Management API endpoints
   
   // Campaigns
-  app.get('/api/campaigns', requireRole(['admin', 'super_admin']), async (req: ExpressRequest, res: Response) => {
+  app.get('/api/campaigns', dbEnvironmentMiddleware, requireRole(['admin', 'super_admin']), async (req: RequestWithDB, res: Response) => {
     try {
-      const campaigns = await storage.getAllCampaigns();
-      res.json(campaigns);
+      console.log(`Fetching campaigns - Database environment: ${req.dbEnv}`);
+      
+      // Use the dynamic database connection
+      const dbToUse = req.dynamicDB;
+      if (!dbToUse) {
+        return res.status(500).json({ error: "Database connection not available" });
+      }
+      
+      const { campaigns } = await import("@shared/schema");
+      const allCampaigns = await dbToUse.select().from(campaigns);
+      
+      console.log(`Found ${allCampaigns.length} campaigns in ${req.dbEnv} database`);
+      res.json(allCampaigns);
     } catch (error) {
       console.error('Error fetching campaigns:', error);
       res.status(500).json({ error: 'Failed to fetch campaigns' });
     }
   });
 
-  app.post('/api/campaigns', requireRole(['admin', 'super_admin']), async (req: ExpressRequest, res: Response) => {
+  app.post('/api/campaigns', dbEnvironmentMiddleware, requireRole(['admin', 'super_admin']), async (req: RequestWithDB, res: Response) => {
     try {
       const { feeValues, equipmentIds, ...campaignData } = req.body;
       
@@ -4804,7 +4815,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/campaigns/:id', requireRole(['admin', 'super_admin']), async (req: ExpressRequest, res: Response) => {
+  app.get('/api/campaigns/:id', dbEnvironmentMiddleware, requireRole(['admin', 'super_admin']), async (req: RequestWithDB, res: Response) => {
     try {
       const id = parseInt(req.params.id);
       const campaign = await storage.getCampaignWithDetails(id);
@@ -4933,18 +4944,62 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/pricing-types/:id/fee-items', requireRole(['admin', 'super_admin']), async (req: Request, res: Response) => {
+  app.get('/api/pricing-types/:id/fee-items', dbEnvironmentMiddleware, requireRole(['admin', 'super_admin']), async (req: RequestWithDB, res: Response) => {
     try {
+      console.log(`Fetching fee items for pricing type ${req.params.id} - Database environment: ${req.dbEnv}`);
+      
       const id = parseInt(req.params.id);
-      const feeItems = await storage.getPricingTypeFeeItems(id);
-      res.json(feeItems);
+      
+      // Use the dynamic database connection
+      const dbToUse = req.dynamicDB;
+      if (!dbToUse) {
+        return res.status(500).json({ error: "Database connection not available" });
+      }
+      
+      const { pricingTypes, pricingTypeFeeItems, feeItems, feeGroups } = await import("@shared/schema");
+      const { eq } = await import("drizzle-orm");
+      
+      // Get the pricing type and its fee items from the selected database environment
+      const result = await dbToUse.select({
+        pricingType: pricingTypes,
+        pricingTypeFeeItem: pricingTypeFeeItems,
+        feeItem: feeItems,
+        feeGroup: feeGroups
+      }).from(pricingTypes)
+      .leftJoin(pricingTypeFeeItems, eq(pricingTypes.id, pricingTypeFeeItems.pricingTypeId))
+      .leftJoin(feeItems, eq(pricingTypeFeeItems.feeItemId, feeItems.id))
+      .leftJoin(feeGroups, eq(feeItems.feeGroupId, feeGroups.id))
+      .where(eq(pricingTypes.id, id));
+      
+      if (result.length === 0) {
+        return res.status(404).json({ error: 'Pricing type not found' });
+      }
+      
+      const pricingType = result[0].pricingType;
+      const feeItemsWithGroups = result
+        .filter(row => row.feeItem && row.feeGroup)
+        .map(row => ({
+          ...row.pricingTypeFeeItem,
+          feeItem: {
+            ...row.feeItem,
+            feeGroup: row.feeGroup
+          }
+        }));
+      
+      const response = {
+        ...pricingType,
+        feeItems: feeItemsWithGroups
+      };
+      
+      console.log(`Found pricing type with ${feeItemsWithGroups.length} fee items in ${req.dbEnv} database`);
+      res.json(response);
     } catch (error) {
       console.error('Error fetching pricing type fee items:', error);
       res.status(500).json({ error: 'Failed to fetch fee items' });
     }
   });
 
-  app.post('/api/pricing-types', requireRole(['admin', 'super_admin']), async (req: Request, res: Response) => {
+  app.post('/api/pricing-types', dbEnvironmentMiddleware, requireRole(['admin', 'super_admin']), async (req: RequestWithDB, res: Response) => {
     try {
       const { name, description, feeItemIds = [] } = req.body;
       
@@ -4972,7 +5027,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete('/api/pricing-types/:id', requireRole(['admin', 'super_admin']), async (req: Request, res: Response) => {
+  app.delete('/api/pricing-types/:id', dbEnvironmentMiddleware, requireRole(['admin', 'super_admin']), async (req: RequestWithDB, res: Response) => {
     try {
       const id = parseInt(req.params.id);
       
@@ -5317,17 +5372,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Equipment Items API
-  app.get("/api/equipment-items", isAuthenticated, async (req, res) => {
+  app.get("/api/equipment-items", dbEnvironmentMiddleware, isAuthenticated, async (req: RequestWithDB, res) => {
     try {
-      const equipmentItems = await storage.getAllEquipmentItems();
-      res.json(equipmentItems);
+      console.log(`Fetching equipment items - Database environment: ${req.dbEnv}`);
+      
+      // Use the dynamic database connection
+      const dbToUse = req.dynamicDB;
+      if (!dbToUse) {
+        return res.status(500).json({ error: "Database connection not available" });
+      }
+      
+      const { equipmentItems } = await import("@shared/schema");
+      const allEquipmentItems = await dbToUse.select().from(equipmentItems);
+      
+      console.log(`Found ${allEquipmentItems.length} equipment items in ${req.dbEnv} database`);
+      res.json(allEquipmentItems);
     } catch (error) {
       console.error('Error fetching equipment items:', error);
       res.status(500).json({ message: 'Failed to fetch equipment items' });
     }
   });
 
-  app.post("/api/equipment-items", requireRole(['admin', 'super_admin']), async (req, res) => {
+  app.post("/api/equipment-items", dbEnvironmentMiddleware, requireRole(['admin', 'super_admin']), async (req: RequestWithDB, res) => {
     try {
       const { insertEquipmentItemSchema } = await import("@shared/schema");
       const validated = insertEquipmentItemSchema.parse(req.body);
@@ -5339,7 +5405,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/equipment-items/:id", requireRole(['admin', 'super_admin']), async (req, res) => {
+  app.put("/api/equipment-items/:id", dbEnvironmentMiddleware, requireRole(['admin', 'super_admin']), async (req: RequestWithDB, res) => {
     try {
       const { insertEquipmentItemSchema } = await import("@shared/schema");
       const id = parseInt(req.params.id);
@@ -5357,7 +5423,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/equipment-items/:id", requireRole(['admin', 'super_admin']), async (req, res) => {
+  app.delete("/api/equipment-items/:id", dbEnvironmentMiddleware, requireRole(['admin', 'super_admin']), async (req: RequestWithDB, res) => {
     try {
       const id = parseInt(req.params.id);
       const success = await storage.deleteEquipmentItem(id);
