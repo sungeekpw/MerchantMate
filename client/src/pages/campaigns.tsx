@@ -716,8 +716,14 @@ export default function CampaignsPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/pricing-types'] });
+      // Also invalidate individual pricing type queries
+      pricingTypes.forEach(type => {
+        queryClient.invalidateQueries({ queryKey: [`/api/pricing-types/${type.id}/fee-items`] });
+      });
       setShowEditPricingType(false);
       setEditingPricingType(null);
+      // Reset form
+      setPricingTypeForm({ name: '', description: '', feeItemIds: [] });
       toast({
         title: "Pricing Type Updated",
         description: "The pricing type has been successfully updated.",
@@ -1000,17 +1006,23 @@ export default function CampaignsPage() {
 
   // Handle opening edit pricing type dialog
   const handleEditPricingType = (pricingType: any) => {
+    console.log('Opening edit dialog for pricing type:', pricingType);
     setEditingPricingType(pricingType);
-    setPricingTypeForm({
+    const formData = {
       name: pricingType.name,
       description: pricingType.description || '',
       feeItemIds: pricingType.feeItems?.map((item: any) => item.id) || []
-    });
+    };
+    console.log('Setting form data:', formData);
+    setPricingTypeForm(formData);
     setShowEditPricingType(true);
   };
 
   // Handle updating pricing type
   const handleUpdatePricingType = () => {
+    console.log('Update called with form data:', pricingTypeForm);
+    console.log('Editing pricing type:', editingPricingType);
+    
     if (!pricingTypeForm.name.trim()) {
       toast({
         title: "Validation Error",
@@ -1022,13 +1034,17 @@ export default function CampaignsPage() {
 
     if (!editingPricingType) return;
 
+    const updateData = {
+      name: pricingTypeForm.name.trim(),
+      description: pricingTypeForm.description.trim() || undefined,
+      feeItemIds: pricingTypeForm.feeItemIds,
+    };
+    
+    console.log('Sending update data:', updateData);
+    
     editPricingTypeMutation.mutate({
       id: editingPricingType.id,
-      data: {
-        name: pricingTypeForm.name.trim(),
-        description: pricingTypeForm.description.trim() || undefined,
-        feeItemIds: pricingTypeForm.feeItemIds,
-      }
+      data: updateData
     });
   };
 
