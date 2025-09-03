@@ -1005,21 +1005,34 @@ export default function CampaignsPage() {
   };
 
   // Handle opening edit pricing type dialog
-  const handleEditPricingType = (pricingType: any) => {
+  const handleEditPricingType = async (pricingType: any) => {
     setEditingPricingType(pricingType);
     
-    // Only include fee items that actually exist and have valid data
-    const validFeeItemIds = pricingType.feeItems
-      ?.filter((item: any) => item.feeItem && item.feeItem.id && item.feeItem.name)
-      .map((item: any) => item.feeItem.id) || [];
-    
-    const formData = {
-      name: pricingType.name,
-      description: pricingType.description || '',
-      feeItemIds: validFeeItemIds
-    };
-    setPricingTypeForm(formData);
-    setShowEditPricingType(true);
+    try {
+      // Fetch the detailed fee items for this pricing type
+      const response = await fetch(`/api/pricing-types/${pricingType.id}/fee-items`);
+      const pricingTypeDetails = await response.json();
+      
+      // Extract fee item IDs from the detailed response
+      const validFeeItemIds = pricingTypeDetails.feeItems
+        ?.filter((item: any) => item.feeItem && item.feeItem.id && item.feeItem.name)
+        .map((item: any) => item.feeItem.id) || [];
+      
+      const formData = {
+        name: pricingType.name,
+        description: pricingType.description || '',
+        feeItemIds: validFeeItemIds
+      };
+      setPricingTypeForm(formData);
+      setShowEditPricingType(true);
+    } catch (error) {
+      console.error('Error fetching pricing type details:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load pricing type details for editing.",
+        variant: "destructive",
+      });
+    }
   };
 
   // Handle updating pricing type
