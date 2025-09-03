@@ -349,7 +349,11 @@ export function EnhancedCampaignDialog({
   const pricingTypesWithFeeItems = pricingTypeFeeItemsQueries.data || [];
   
   // Helper function to group fee items by fee group for each pricing type
-  const groupFeeItemsByGroup = (feeItems: FeeItem[]) => {
+  const groupFeeItemsByGroup = (feeItems: FeeItem[] | undefined) => {
+    // Ensure feeItems is an array before calling reduce
+    if (!feeItems || !Array.isArray(feeItems)) {
+      return {};
+    }
     return feeItems.reduce((groups: Record<string, FeeItem[]>, item: FeeItem) => {
       const groupName = item.feeGroup?.name || 'Other';
       if (!groups[groupName]) {
