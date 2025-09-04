@@ -197,6 +197,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     name: 'connect.sid'
   }));
 
+  // Apply database environment middleware globally so audit service has access
+  app.use(dbEnvironmentMiddleware);
+
   // Apply audit middleware to track all system activities for SOC2 compliance
   app.use(auditService.auditMiddleware());
 
