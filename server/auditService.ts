@@ -403,8 +403,8 @@ export class AuditService {
    * Calculate risk level based on request method and path
    */
   private calculateRiskLevel(method: string, path: string, statusCode: number): 'low' | 'medium' | 'high' | 'critical' {
-    // High-risk operations
-    if (method === 'DELETE' || path.includes('delete')) return 'high';
+    // High-risk operations - ALL delete operations are high risk
+    if (method === 'DELETE' || path.includes('delete') || path.includes('/delete')) return 'high';
     if (path.includes('admin') || path.includes('users') || path.includes('agents')) return 'medium';
     if (statusCode >= 400) return 'medium';
     
