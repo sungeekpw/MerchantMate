@@ -3982,13 +3982,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Security endpoints - admin only
-  app.get("/api/security/login-attempts", isAuthenticated, requireRole(["admin", "super_admin"]), async (req, res) => {
+  app.get("/api/security/login-attempts", isAuthenticated, requireRole(["admin", "super_admin"]), dbEnvironmentMiddleware, async (req: RequestWithDB, res) => {
     try {
-      const { db } = await import("./db");
       const { loginAttempts } = await import("@shared/schema");
       const { desc } = await import("drizzle-orm");
       
-      const attempts = await db.select().from(loginAttempts)
+      console.log(`Login attempts endpoint - Database environment: ${req.dbEnv}`);
+      const dynamicDB = getRequestDB(req);
+      
+      const attempts = await dynamicDB.select().from(loginAttempts)
         .orderBy(desc(loginAttempts.createdAt))
         .limit(100);
       
@@ -4000,9 +4002,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Comprehensive Audit Logs API - SOC2 Compliance
-  app.get("/api/security/audit-logs", isAuthenticated, requireRole(["admin", "super_admin"]), async (req, res) => {
+  app.get("/api/security/audit-logs", isAuthenticated, requireRole(["admin", "super_admin"]), dbEnvironmentMiddleware, async (req: RequestWithDB, res) => {
     try {
-      const { db } = await import("./db");
+      console.log(`Audit logs endpoint - Database environment: ${req.dbEnv}`);
+      const dynamicDB = getRequestDB(req);
       const { auditLogs } = await import("@shared/schema");
       const { desc, and, like, eq, gte, lte, sql } = await import("drizzle-orm");
       
@@ -4044,7 +4047,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
       
-      const logs = await db.select()
+      const logs = await dynamicDB.select()
         .from(auditLogs)
         .where(whereClause)
         .orderBy(desc(auditLogs.createdAt))
@@ -4059,13 +4062,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Security Events API
-  app.get("/api/security/events", isAuthenticated, requireRole(["admin", "super_admin"]), async (req, res) => {
+  app.get("/api/security/events", isAuthenticated, requireRole(["admin", "super_admin"]), dbEnvironmentMiddleware, async (req: RequestWithDB, res) => {
     try {
-      const { db } = await import("./db");
+      console.log(`Security events endpoint - Database environment: ${req.dbEnv}`);
+      const dynamicDB = getRequestDB(req);
       const { securityEvents } = await import("@shared/schema");
       const { desc } = await import("drizzle-orm");
       
-      const events = await db.select()
+      const events = await dynamicDB.select()
         .from(securityEvents)
         .orderBy(desc(securityEvents.detectedAt))
         .limit(100);
@@ -4078,34 +4082,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Audit Metrics API
-  app.get("/api/security/audit-metrics", isAuthenticated, requireRole(["admin", "super_admin"]), async (req, res) => {
+  app.get("/api/security/audit-metrics", isAuthenticated, requireRole(["admin", "super_admin"]), dbEnvironmentMiddleware, async (req: RequestWithDB, res) => {
     try {
-      const { db } = await import("./db");
+      console.log(`Audit metrics endpoint - Database environment: ${req.dbEnv}`);
+      const dynamicDB = getRequestDB(req);
       const { auditLogs, securityEvents } = await import("@shared/schema");
       const { count, gte, eq, and } = await import("drizzle-orm");
       
       const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
       
       // Get total audit logs
-      const totalLogs = await db.select({ count: count() }).from(auditLogs)
+      const totalLogs = await dynamicDB.select({ count: count() }).from(auditLogs)
         .where(gte(auditLogs.createdAt, thirtyDaysAgo));
       
       // Get high risk actions
-      const highRiskActions = await db.select({ count: count() }).from(auditLogs)
+      const highRiskActions = await dynamicDB.select({ count: count() }).from(auditLogs)
         .where(and(
           gte(auditLogs.createdAt, thirtyDaysAgo),
           eq(auditLogs.riskLevel, 'high')
         ));
       
       // Get critical risk actions
-      const criticalRiskActions = await db.select({ count: count() }).from(auditLogs)
+      const criticalRiskActions = await dynamicDB.select({ count: count() }).from(auditLogs)
         .where(and(
           gte(auditLogs.createdAt, thirtyDaysAgo),
           eq(auditLogs.riskLevel, 'critical')
         ));
       
       // Get security events count
-      const totalSecurityEvents = await db.select({ count: count() }).from(securityEvents)
+      const totalSecurityEvents = await dynamicDB.select({ count: count() }).from(securityEvents)
         .where(gte(securityEvents.createdAt, thirtyDaysAgo));
       
       res.json({
@@ -4200,9 +4205,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/security/metrics", isAuthenticated, requireRole(["admin", "super_admin"]), async (req, res) => {
+  app.get("/api/security/metrics", isAuthenticated, requireRole(["admin", "super_admin"]), dbEnvironmentMiddleware, async (req: RequestWithDB, res) => {
     try {
-      const { db } = await import("./db");
+      console.log(`Security metrics endpoint - Database environment: ${req.dbEnv}`);
+      const dynamicDB = getRequestDB(req);
       const { loginAttempts } = await import("@shared/schema");
       const { count, gte, and, eq } = await import("drizzle-orm");
       
@@ -4210,12 +4216,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
       // Get total attempts in last 30 days
-      const totalAttempts = await db.select({ count: count() })
+      const totalAttempts = await dynamicDB.select({ count: count() })
         .from(loginAttempts)
         .where(gte(loginAttempts.createdAt, thirtyDaysAgo));
 
       // Get successful logins in last 30 days
-      const successfulLogins = await db.select({ count: count() })
+      const successfulLogins = await dynamicDB.select({ count: count() })
         .from(loginAttempts)
         .where(and(
           gte(loginAttempts.createdAt, thirtyDaysAgo),
@@ -4223,7 +4229,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ));
 
       // Get failed logins in last 30 days
-      const failedLogins = await db.select({ count: count() })
+      const failedLogins = await dynamicDB.select({ count: count() })
         .from(loginAttempts)
         .where(and(
           gte(loginAttempts.createdAt, thirtyDaysAgo),
@@ -4231,12 +4237,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ));
 
       // Get unique IPs in last 30 days
-      const uniqueIPs = await db.selectDistinct({ ipAddress: loginAttempts.ipAddress })
+      const uniqueIPs = await dynamicDB.selectDistinct({ ipAddress: loginAttempts.ipAddress })
         .from(loginAttempts)
         .where(gte(loginAttempts.createdAt, thirtyDaysAgo));
 
       // Get recent failed attempts (last 24 hours)
-      const recentFailedAttempts = await db.select({ count: count() })
+      const recentFailedAttempts = await dynamicDB.select({ count: count() })
         .from(loginAttempts)
         .where(and(
           gte(loginAttempts.createdAt, twentyFourHoursAgo),
