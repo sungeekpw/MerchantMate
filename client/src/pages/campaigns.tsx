@@ -148,7 +148,7 @@ interface CreateFeeItemData {
 interface CreatePricingTypeData {
   name: string;
   description?: string;
-  feeItemIds: number[];
+  feeGroupIds: number[];
 }
 
 interface CreateCampaignData {
@@ -229,7 +229,7 @@ export default function CampaignsPage() {
     name: '',
     description: '',
     selectedFeeGroupIds: [] as number[],
-    feeItemIds: [] as number[],
+    feeGroupIds: [] as number[],
     expandedFeeGroups: [] as number[]
   });
 
@@ -653,7 +653,7 @@ export default function CampaignsPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/pricing-types'] });
       setShowAddPricingType(false);
-      setPricingTypeForm({ name: '', description: '', selectedFeeGroupIds: [], feeItemIds: [], expandedFeeGroups: [] });
+      setPricingTypeForm({ name: '', description: '', selectedFeeGroupIds: [], feeGroupIds: [], expandedFeeGroups: [] });
       toast({
         title: "Pricing Type Created",
         description: "The pricing type has been successfully created.",
@@ -703,7 +703,7 @@ export default function CampaignsPage() {
 
   // Edit pricing type mutation
   const editPricingTypeMutation = useMutation({
-    mutationFn: async ({ id, data }: { id: number; data: { name: string; description?: string; feeItemIds: number[] } }) => {
+    mutationFn: async ({ id, data }: { id: number; data: { name: string; description?: string; feeGroupIds: number[] } }) => {
       const response = await fetch(`/api/pricing-types/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -725,7 +725,7 @@ export default function CampaignsPage() {
       setShowEditPricingType(false);
       setEditingPricingType(null);
       // Reset form
-      setPricingTypeForm({ name: '', description: '', selectedFeeGroupIds: [], feeItemIds: [], expandedFeeGroups: [] });
+      setPricingTypeForm({ name: '', description: '', selectedFeeGroupIds: [], feeGroupIds: [], expandedFeeGroups: [] });
       toast({
         title: "Pricing Type Updated",
         description: "The pricing type has been successfully updated.",
@@ -971,26 +971,23 @@ export default function CampaignsPage() {
     createPricingTypeMutation.mutate({
       name: pricingTypeForm.name.trim(),
       description: pricingTypeForm.description.trim() || undefined,
-      feeItemIds: pricingTypeForm.feeItemIds,
+      feeGroupIds: pricingTypeForm.feeGroupIds,
     });
   };
 
-  // Handle fee group selection for pricing type
+  // Handle fee group selection for pricing type (fee groups are now the primary association)
   const handleFeeGroupSelection = (feeGroupId: number, isSelected: boolean) => {
     if (isSelected) {
       setPricingTypeForm(prev => ({
         ...prev,
-        selectedFeeGroupIds: [...prev.selectedFeeGroupIds, feeGroupId]
+        selectedFeeGroupIds: [...prev.selectedFeeGroupIds, feeGroupId],
+        feeGroupIds: [...prev.feeGroupIds, feeGroupId]
       }));
     } else {
       setPricingTypeForm(prev => ({
         ...prev,
         selectedFeeGroupIds: prev.selectedFeeGroupIds.filter(id => id !== feeGroupId),
-        // Remove all fee items from this fee group when deselecting the group
-        feeItemIds: prev.feeItemIds.filter(itemId => {
-          const item = feeItems.find(fi => fi.id === itemId);
-          return item?.feeGroupId !== feeGroupId;
-        })
+        feeGroupIds: prev.feeGroupIds.filter(id => id !== feeGroupId)
       }));
     }
   };
@@ -1005,20 +1002,7 @@ export default function CampaignsPage() {
     }));
   };
 
-  // Handle fee item selection for pricing type
-  const handleFeeItemSelection = (feeItemId: number, isSelected: boolean) => {
-    if (isSelected) {
-      setPricingTypeForm(prev => ({
-        ...prev,
-        feeItemIds: [...prev.feeItemIds, feeItemId]
-      }));
-    } else {
-      setPricingTypeForm(prev => ({
-        ...prev,
-        feeItemIds: prev.feeItemIds.filter(id => id !== feeItemId)
-      }));
-    }
-  };
+  // Note: Individual fee item selection removed - pricing types now associate fee items only via fee groups
 
   // Handle opening edit pricing type dialog
   const handleEditPricingType = async (pricingType: any) => {
@@ -1037,7 +1021,7 @@ export default function CampaignsPage() {
       const formData = {
         name: pricingType.name,
         description: pricingType.description || '',
-        feeItemIds: validFeeItemIds
+        feeGroupIds: [] as number[] // TODO: Need to implement fee group association fetching for edit mode
       };
       setPricingTypeForm(formData);
       setShowEditPricingType(true);
@@ -1067,7 +1051,7 @@ export default function CampaignsPage() {
     const updateData = {
       name: pricingTypeForm.name.trim(),
       description: pricingTypeForm.description.trim() || undefined,
-      feeItemIds: pricingTypeForm.feeItemIds,
+      feeGroupIds: pricingTypeForm.feeGroupIds,
     };
     
     editPricingTypeMutation.mutate({
@@ -2475,16 +2459,13 @@ export default function CampaignsPage() {
                       
                       {isGroupSelected && isExpanded && groupFeeItems.length > 0 && (
                         <div className="pl-6 space-y-1 border-l-2 border-muted">
+                          <div className="text-xs text-muted-foreground mb-2">
+                            All items in this fee group will be included:
+                          </div>
                           {groupFeeItems.map((item) => (
                             <div key={item.id} className="flex items-center space-x-2">
-                              <input 
-                                type="checkbox" 
-                                id={`fee-${item.id}`} 
-                                className="rounded" 
-                                checked={pricingTypeForm.feeItemIds.includes(item.id)}
-                                onChange={(e) => handleFeeItemSelection(item.id, e.target.checked)}
-                              />
-                              <Label htmlFor={`fee-${item.id}`} className="text-xs">
+                              <CheckCircle2 className="h-3 w-3 text-green-600" />
+                              <Label className="text-xs">
                                 {item.name}
                                 {item.description && (
                                   <span className="text-muted-foreground ml-1">- {item.description}</span>
@@ -2594,16 +2575,13 @@ export default function CampaignsPage() {
                       
                       {isGroupSelected && isExpanded && groupFeeItems.length > 0 && (
                         <div className="pl-6 space-y-1 border-l-2 border-muted">
+                          <div className="text-xs text-muted-foreground mb-2">
+                            All items in this fee group will be included:
+                          </div>
                           {groupFeeItems.map((item) => (
                             <div key={item.id} className="flex items-center space-x-2">
-                              <input 
-                                type="checkbox" 
-                                id={`edit-fee-${item.id}`} 
-                                className="rounded" 
-                                checked={pricingTypeForm.feeItemIds.includes(item.id)}
-                                onChange={(e) => handleFeeItemSelection(item.id, e.target.checked)}
-                              />
-                              <Label htmlFor={`edit-fee-${item.id}`} className="text-xs">
+                              <CheckCircle2 className="h-3 w-3 text-green-600" />
+                              <Label className="text-xs">
                                 {item.name}
                                 {item.description && (
                                   <span className="text-muted-foreground ml-1">- {item.description}</span>

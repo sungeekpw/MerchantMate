@@ -5303,7 +5303,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       console.log(`Creating pricing type - Database environment: ${req.dbEnv}`);
       
-      const { name, description, feeItemIds = [] } = req.body;
+      const { name, description, feeGroupIds = [] } = req.body;
       
       // Use the dynamic database connection
       const dbToUse = req.dynamicDB;
@@ -5324,29 +5324,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log('Created pricing type:', pricingType);
       
-      // Add fee items to the pricing type if provided
-      if (feeItemIds && Array.isArray(feeItemIds) && feeItemIds.length > 0) {
-        console.log('Adding fee items to pricing type:', feeItemIds);
+      // Add fee items to the pricing type via fee groups (pricing types can only associate fee items through fee groups)
+      if (feeGroupIds && Array.isArray(feeGroupIds) && feeGroupIds.length > 0) {
+        console.log('Adding fee items via fee groups to pricing type:', feeGroupIds);
         
-        // Validate fee items exist in the current database environment (fee items are now standalone)
-        const existingFeeItems = await dbToUse.select({ 
-          id: feeItems.id
-        })
-          .from(feeItems)
-          .where(inArray(feeItems.id, feeItemIds));
+        // Get all fee items that belong to the selected fee groups
+        const feeItemsFromGroups = await dbToUse
+          .select({ 
+            feeItemId: feeGroupFeeItems.feeItemId,
+            displayOrder: feeGroupFeeItems.displayOrder
+          })
+          .from(feeGroupFeeItems)
+          .where(inArray(feeGroupFeeItems.feeGroupId, feeGroupIds));
         
-        const validFeeItemIds = existingFeeItems.map(item => item.id);
+        console.log(`Found ${feeItemsFromGroups.length} fee items from selected fee groups`);
         
-        if (validFeeItemIds.length > 0) {
+        if (feeItemsFromGroups.length > 0) {
           await dbToUse.insert(pricingTypeFeeItems).values(
-            validFeeItemIds.map(feeItemId => ({
+            feeItemsFromGroups.map((item, index) => ({
               pricingTypeId: pricingType.id,
-              feeItemId,
+              feeItemId: item.feeItemId,
               isRequired: false,
-              displayOrder: 1
+              displayOrder: item.displayOrder || index + 1
             }))
           );
-          console.log(`Added ${validFeeItemIds.length} fee items to pricing type`);
+          console.log(`Added ${feeItemsFromGroups.length} fee items to pricing type via fee groups`);
         }
       }
       
@@ -5387,7 +5389,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: 'Invalid pricing type ID' });
       }
       
-      const { name, description, feeItemIds } = req.body;
+      const { name, description, feeGroupIds } = req.body;
       
       if (!name || !name.trim()) {
         return res.status(400).json({ error: 'Name is required' });
@@ -5398,7 +5400,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         id,
         name: name.trim(),
         description: description?.trim() || null,
-        feeItemIds: feeItemIds || []
+        feeGroupIds: feeGroupIds || []
       });
       
       // Use the dynamic database connection
@@ -5441,43 +5443,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await dbToUse.delete(pricingTypeFeeItems)
         .where(eq(pricingTypeFeeItems.pricingTypeId, id));
 
-      // Add new associations if provided
-      if (feeItemIds && feeItemIds.length > 0) {
-        console.log('Validating fee item IDs:', feeItemIds);
+      // Add new fee item associations via fee groups if provided
+      if (feeGroupIds && feeGroupIds.length > 0) {
+        console.log('Adding fee items via fee groups:', feeGroupIds);
         
-        // Validate that all fee item IDs exist AND have valid fee groups
-        const existingFeeItems = await dbToUse.select({ 
-          id: feeItems.id,
-          feeGroupId: feeItems.feeGroupId,
-          feeGroupName: feeGroups.name
-        })
-          .from(feeItems)
-          .leftJoin(feeGroups, eq(feeItems.feeGroupId, feeGroups.id))
-          .where(inArray(feeItems.id, feeItemIds));
+        // Get all fee items that belong to the selected fee groups
+        const feeItemsFromGroups = await dbToUse
+          .select({ 
+            feeItemId: feeGroupFeeItems.feeItemId,
+            displayOrder: feeGroupFeeItems.displayOrder
+          })
+          .from(feeGroupFeeItems)
+          .where(inArray(feeGroupFeeItems.feeGroupId, feeGroupIds));
         
-        console.log('Raw existing fee items from query:', existingFeeItems);
+        console.log(`Found ${feeItemsFromGroups.length} fee items from selected fee groups`);
         
-        // Only include fee items that have valid fee groups
-        const validFeeItems = existingFeeItems.filter(item => item.feeGroupName);
-        const validFeeItemIds = validFeeItems.map(item => item.id);
-        const invalidFeeItemIds = feeItemIds.filter(id => !validFeeItemIds.includes(id));
-        
-        console.log('Valid fee items (with fee groups):', validFeeItems);
-        console.log('Valid fee item IDs:', validFeeItemIds);
-        console.log('Invalid fee item IDs:', invalidFeeItemIds);
-        
-        if (invalidFeeItemIds.length > 0) {
-          return res.status(400).json({ 
-            error: `The following fee items do not exist: ${invalidFeeItemIds.join(', ')}`
-          });
+        if (feeItemsFromGroups.length > 0) {
+          await dbToUse.insert(pricingTypeFeeItems).values(
+            feeItemsFromGroups.map((item, index) => ({
+              pricingTypeId: id,
+              feeItemId: item.feeItemId,
+              isRequired: false,
+              displayOrder: item.displayOrder || index + 1
+            }))
+          );
+          console.log(`Added ${feeItemsFromGroups.length} fee items to pricing type via fee groups`);
         }
-        
-        console.log('Inserting new fee item associations:', validFeeItemIds);
-        await dbToUse.insert(pricingTypeFeeItems)
-          .values(validFeeItemIds.map(feeItemId => ({
-            pricingTypeId: id,
-            feeItemId
-          })));
       }
       
       console.log('Pricing type update completed successfully');
