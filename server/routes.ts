@@ -225,9 +225,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.on('finish', async () => {
       if (req.path.startsWith('/api/') && userId) {
         try {
-          const { AuditService } = await import('./auditService');
-          const { db } = await import('./db');
-          const auditServiceInstance = new AuditService(req.dynamicDB || db);
+          const auditServiceModule = await import('./auditService');
+          const dbModule = await import('./db');
+          const auditServiceInstance = new auditServiceModule.AuditService(req.dynamicDB || dbModule.db);
           
           // Extract resource and ID from URL path
           const pathParts = req.path.split('/');
