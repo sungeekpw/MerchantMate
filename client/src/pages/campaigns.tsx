@@ -228,7 +228,9 @@ export default function CampaignsPage() {
   const [pricingTypeForm, setPricingTypeForm] = useState({
     name: '',
     description: '',
-    feeItemIds: [] as number[]
+    selectedFeeGroupIds: [] as number[],
+    feeItemIds: [] as number[],
+    expandedFeeGroups: [] as number[]
   });
 
   // Update fee item form when selected fee group changes
@@ -651,7 +653,7 @@ export default function CampaignsPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/pricing-types'] });
       setShowAddPricingType(false);
-      setPricingTypeForm({ name: '', description: '', feeItemIds: [] });
+      setPricingTypeForm({ name: '', description: '', selectedFeeGroupIds: [], feeItemIds: [], expandedFeeGroups: [] });
       toast({
         title: "Pricing Type Created",
         description: "The pricing type has been successfully created.",
@@ -723,7 +725,7 @@ export default function CampaignsPage() {
       setShowEditPricingType(false);
       setEditingPricingType(null);
       // Reset form
-      setPricingTypeForm({ name: '', description: '', feeItemIds: [] });
+      setPricingTypeForm({ name: '', description: '', selectedFeeGroupIds: [], feeItemIds: [], expandedFeeGroups: [] });
       toast({
         title: "Pricing Type Updated",
         description: "The pricing type has been successfully updated.",
@@ -987,6 +989,36 @@ export default function CampaignsPage() {
       description: pricingTypeForm.description.trim() || undefined,
       feeItemIds: pricingTypeForm.feeItemIds,
     });
+  };
+
+  // Handle fee group selection for pricing type
+  const handleFeeGroupSelection = (feeGroupId: number, isSelected: boolean) => {
+    if (isSelected) {
+      setPricingTypeForm(prev => ({
+        ...prev,
+        selectedFeeGroupIds: [...prev.selectedFeeGroupIds, feeGroupId]
+      }));
+    } else {
+      setPricingTypeForm(prev => ({
+        ...prev,
+        selectedFeeGroupIds: prev.selectedFeeGroupIds.filter(id => id !== feeGroupId),
+        // Remove all fee items from this fee group when deselecting the group
+        feeItemIds: prev.feeItemIds.filter(itemId => {
+          const item = feeItems.find(fi => fi.id === itemId);
+          return item?.feeGroupId !== feeGroupId;
+        })
+      }));
+    }
+  };
+
+  // Handle fee group expand/collapse
+  const toggleFeeGroupExpansion = (feeGroupId: number) => {
+    setPricingTypeForm(prev => ({
+      ...prev,
+      expandedFeeGroups: prev.expandedFeeGroups.includes(feeGroupId)
+        ? prev.expandedFeeGroups.filter(id => id !== feeGroupId)
+        : [...prev.expandedFeeGroups, feeGroupId]
+    }));
   };
 
   // Handle fee item selection for pricing type
@@ -2395,7 +2427,7 @@ export default function CampaignsPage() {
 
       {/* Add Pricing Type Dialog */}
       <Dialog open={showAddPricingType} onOpenChange={setShowAddPricingType}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden">
           <DialogHeader>
             <DialogTitle>Add New Pricing Type</DialogTitle>
             <DialogDescription>
@@ -2420,25 +2452,79 @@ export default function CampaignsPage() {
               />
             </div>
             <div>
-              <Label>Associated Fee Items</Label>
+              <Label>Fee Groups & Associated Items</Label>
               <div className="text-sm text-muted-foreground mb-2">
-                Select fee items that will be available for this pricing type
+                Select fee groups and then choose specific fee items from each group
               </div>
-              <div className="border rounded-md p-3 max-h-40 overflow-y-auto">
-                {feeItems.filter(item => item.feeGroup && item.name && item.feeGroup.name && item.id).map((item) => (
-                  <div key={item.id} className="flex items-center space-x-2 py-1">
-                    <input 
-                      type="checkbox" 
-                      id={`fee-${item.id}`} 
-                      className="rounded" 
-                      checked={pricingTypeForm.feeItemIds.includes(item.id)}
-                      onChange={(e) => handleFeeItemSelection(item.id, e.target.checked)}
-                    />
-                    <Label htmlFor={`fee-${item.id}`} className="text-sm">
-                      {item.name} ({item.feeGroup?.name})
-                    </Label>
-                  </div>
-                ))}
+              <div className="border rounded-md p-3 max-h-60 overflow-y-auto space-y-3">
+                {feeGroups.map((group) => {
+                  const groupFeeItems = feeItems.filter(item => item.feeGroupId === group.id);
+                  const isGroupSelected = pricingTypeForm.selectedFeeGroupIds.includes(group.id);
+                  const isExpanded = pricingTypeForm.expandedFeeGroups.includes(group.id);
+                  
+                  return (
+                    <div key={group.id} className="border rounded-sm p-2">
+                      <div className="flex items-center space-x-2 mb-2">
+                        <input 
+                          type="checkbox" 
+                          id={`group-${group.id}`} 
+                          className="rounded" 
+                          checked={isGroupSelected}
+                          onChange={(e) => handleFeeGroupSelection(group.id, e.target.checked)}
+                        />
+                        <Label htmlFor={`group-${group.id}`} className="text-sm font-medium">
+                          {group.name}
+                        </Label>
+                        {groupFeeItems.length > 0 && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 w-6 p-0 ml-auto"
+                            onClick={() => toggleFeeGroupExpansion(group.id)}
+                            disabled={!isGroupSelected}
+                          >
+                            {isExpanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+                          </Button>
+                        )}
+                      </div>
+                      
+                      {isGroupSelected && isExpanded && groupFeeItems.length > 0 && (
+                        <div className="pl-6 space-y-1 border-l-2 border-muted">
+                          {groupFeeItems.map((item) => (
+                            <div key={item.id} className="flex items-center space-x-2">
+                              <input 
+                                type="checkbox" 
+                                id={`fee-${item.id}`} 
+                                className="rounded" 
+                                checked={pricingTypeForm.feeItemIds.includes(item.id)}
+                                onChange={(e) => handleFeeItemSelection(item.id, e.target.checked)}
+                              />
+                              <Label htmlFor={`fee-${item.id}`} className="text-xs">
+                                {item.name}
+                                {item.description && (
+                                  <span className="text-muted-foreground ml-1">- {item.description}</span>
+                                )}
+                              </Label>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      
+                      {isGroupSelected && !isExpanded && groupFeeItems.length > 0 && (
+                        <div className="text-xs text-muted-foreground pl-6">
+                          {groupFeeItems.length} items available (click to expand)
+                        </div>
+                      )}
+                      
+                      {groupFeeItems.length === 0 && (
+                        <div className="text-xs text-muted-foreground pl-6">
+                          No fee items in this group
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </div>
           </div>
@@ -2460,7 +2546,7 @@ export default function CampaignsPage() {
           setEditingPricingType(null);
         }
       }}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden">
           <DialogHeader>
             <DialogTitle>Edit Pricing Type</DialogTitle>
             <DialogDescription>
@@ -2485,25 +2571,79 @@ export default function CampaignsPage() {
               />
             </div>
             <div>
-              <Label>Associated Fee Items</Label>
+              <Label>Fee Groups & Associated Items</Label>
               <div className="text-sm text-muted-foreground mb-2">
-                Select fee items that will be available for this pricing type
+                Select fee groups and then choose specific fee items from each group
               </div>
-              <div className="border rounded-md p-3 max-h-40 overflow-y-auto">
-                {feeItems.filter(item => item.feeGroup && item.name && item.feeGroup.name && item.id).map((item) => (
-                  <div key={item.id} className="flex items-center space-x-2 py-1">
-                    <input 
-                      type="checkbox" 
-                      id={`edit-fee-${item.id}`} 
-                      className="rounded" 
-                      checked={pricingTypeForm.feeItemIds.includes(item.id)}
-                      onChange={(e) => handleFeeItemSelection(item.id, e.target.checked)}
-                    />
-                    <Label htmlFor={`edit-fee-${item.id}`} className="text-sm">
-                      {item.name} ({item.feeGroup?.name})
-                    </Label>
-                  </div>
-                ))}
+              <div className="border rounded-md p-3 max-h-60 overflow-y-auto space-y-3">
+                {feeGroups.map((group) => {
+                  const groupFeeItems = feeItems.filter(item => item.feeGroupId === group.id);
+                  const isGroupSelected = pricingTypeForm.selectedFeeGroupIds.includes(group.id);
+                  const isExpanded = pricingTypeForm.expandedFeeGroups.includes(group.id);
+                  
+                  return (
+                    <div key={group.id} className="border rounded-sm p-2">
+                      <div className="flex items-center space-x-2 mb-2">
+                        <input 
+                          type="checkbox" 
+                          id={`edit-group-${group.id}`} 
+                          className="rounded" 
+                          checked={isGroupSelected}
+                          onChange={(e) => handleFeeGroupSelection(group.id, e.target.checked)}
+                        />
+                        <Label htmlFor={`edit-group-${group.id}`} className="text-sm font-medium">
+                          {group.name}
+                        </Label>
+                        {groupFeeItems.length > 0 && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 w-6 p-0 ml-auto"
+                            onClick={() => toggleFeeGroupExpansion(group.id)}
+                            disabled={!isGroupSelected}
+                          >
+                            {isExpanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+                          </Button>
+                        )}
+                      </div>
+                      
+                      {isGroupSelected && isExpanded && groupFeeItems.length > 0 && (
+                        <div className="pl-6 space-y-1 border-l-2 border-muted">
+                          {groupFeeItems.map((item) => (
+                            <div key={item.id} className="flex items-center space-x-2">
+                              <input 
+                                type="checkbox" 
+                                id={`edit-fee-${item.id}`} 
+                                className="rounded" 
+                                checked={pricingTypeForm.feeItemIds.includes(item.id)}
+                                onChange={(e) => handleFeeItemSelection(item.id, e.target.checked)}
+                              />
+                              <Label htmlFor={`edit-fee-${item.id}`} className="text-xs">
+                                {item.name}
+                                {item.description && (
+                                  <span className="text-muted-foreground ml-1">- {item.description}</span>
+                                )}
+                              </Label>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      
+                      {isGroupSelected && !isExpanded && groupFeeItems.length > 0 && (
+                        <div className="text-xs text-muted-foreground pl-6">
+                          {groupFeeItems.length} items available (click to expand)
+                        </div>
+                      )}
+                      
+                      {groupFeeItems.length === 0 && (
+                        <div className="text-xs text-muted-foreground pl-6">
+                          No fee items in this group
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </div>
           </div>
