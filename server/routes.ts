@@ -200,6 +200,145 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Apply database environment middleware globally so audit service has access
   app.use(dbEnvironmentMiddleware);
 
+  // Enhanced CRUD audit logging middleware
+  app.use(async (req: RequestWithDB, res, next) => {
+    const userId = (req.session as any)?.userId;
+    const originalSend = res.send;
+    let requestBody: any = null;
+    let responseBody: any = null;
+    
+    // Capture request body for mutation operations
+    if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method)) {
+      requestBody = req.body;
+    }
+
+    // Override res.send to capture response data
+    res.send = function(data) {
+      responseBody = data;
+      return originalSend.call(this, data);
+    };
+
+    // Continue processing
+    next();
+
+    // Log detailed CRUD operations after response
+    res.on('finish', async () => {
+      if (req.path.startsWith('/api/') && userId) {
+        try {
+          const auditServiceInstance = new (require('./auditService').AuditService)(req.dynamicDB || require('./db').db);
+          
+          // Extract resource and ID from URL path
+          const pathParts = req.path.split('/');
+          const resource = pathParts[2]; // e.g., 'merchants', 'agents', 'fee-groups'
+          const resourceId = pathParts[3]; // e.g., '123'
+          
+          // Parse response to get created/updated data
+          let parsedResponse: any = null;
+          try {
+            if (typeof responseBody === 'string') {
+              parsedResponse = JSON.parse(responseBody);
+            } else {
+              parsedResponse = responseBody;
+            }
+          } catch (e) {
+            parsedResponse = responseBody;
+          }
+
+          // Log CRUD operations with detailed data
+          if (req.method === 'POST' && res.statusCode >= 200 && res.statusCode < 300) {
+            // CREATE operation
+            await auditServiceInstance.logAction(
+              'create',
+              resource,
+              {
+                userId,
+                ipAddress: req.ip || req.connection.remoteAddress || 'unknown',
+                userAgent: req.get('User-Agent') || null,
+                method: req.method,
+                endpoint: req.path,
+                requestData: requestBody,
+                responseData: parsedResponse,
+                resourceId: parsedResponse?.id || 'unknown',
+                environment: req.dbEnv || 'production'
+              },
+              {
+                riskLevel: 'medium',
+                dataClassification: resource.includes('user') || resource.includes('agent') ? 'restricted' : 'internal',
+                notes: `Created ${resource} record${parsedResponse?.id ? ` (ID: ${parsedResponse.id})` : ''}`
+              }
+            );
+          } else if (req.method === 'PUT' && res.statusCode >= 200 && res.statusCode < 300) {
+            // UPDATE operation
+            await auditServiceInstance.logAction(
+              'update',
+              resource,
+              {
+                userId,
+                ipAddress: req.ip || req.connection.remoteAddress || 'unknown',
+                userAgent: req.get('User-Agent') || null,
+                method: req.method,
+                endpoint: req.path,
+                requestData: requestBody,
+                responseData: parsedResponse,
+                resourceId,
+                environment: req.dbEnv || 'production'
+              },
+              {
+                riskLevel: 'medium',
+                dataClassification: resource.includes('user') || resource.includes('agent') ? 'restricted' : 'internal',
+                notes: `Updated ${resource} record${resourceId ? ` (ID: ${resourceId})` : ''}`
+              }
+            );
+          } else if (req.method === 'PATCH' && res.statusCode >= 200 && res.statusCode < 300) {
+            // PARTIAL UPDATE operation
+            await auditServiceInstance.logAction(
+              'update',
+              resource,
+              {
+                userId,
+                ipAddress: req.ip || req.connection.remoteAddress || 'unknown',
+                userAgent: req.get('User-Agent') || null,
+                method: req.method,
+                endpoint: req.path,
+                requestData: requestBody,
+                responseData: parsedResponse,
+                resourceId,
+                environment: req.dbEnv || 'production'
+              },
+              {
+                riskLevel: 'medium',
+                dataClassification: resource.includes('user') || resource.includes('agent') ? 'restricted' : 'internal',
+                notes: `Partially updated ${resource} record${resourceId ? ` (ID: ${resourceId})` : ''}`
+              }
+            );
+          } else if (req.method === 'DELETE' && res.statusCode >= 200 && res.statusCode < 300) {
+            // DELETE operation
+            await auditServiceInstance.logAction(
+              'delete',
+              resource,
+              {
+                userId,
+                ipAddress: req.ip || req.connection.remoteAddress || 'unknown',
+                userAgent: req.get('User-Agent') || null,
+                method: req.method,
+                endpoint: req.path,
+                resourceId,
+                environment: req.dbEnv || 'production'
+              },
+              {
+                riskLevel: 'high',
+                dataClassification: resource.includes('user') || resource.includes('agent') ? 'restricted' : 'internal',
+                notes: `Deleted ${resource} record${resourceId ? ` (ID: ${resourceId})` : ''}`
+              }
+            );
+          }
+        } catch (error) {
+          console.error('CRUD audit logging error:', error);
+        }
+      }
+    });
+  });
+
   // Apply audit middleware to track all system activities for SOC2 compliance
   app.use(auditService.auditMiddleware());
 
