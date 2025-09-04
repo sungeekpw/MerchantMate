@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { db, isShutdownInProgress } from './db';
 import { auditLogs, securityEvents, dataAccessLogs, type InsertAuditLog, type InsertSecurityEvent, type InsertDataAccessLog } from '@shared/schema';
+import type { NeonDatabase } from 'drizzle-orm/neon-serverless';
 
 export interface AuditContext {
   userId?: string;
@@ -19,6 +20,11 @@ export interface AuditContext {
 
 export class AuditService {
   private startTime: number = Date.now();
+  private database: any;
+  
+  constructor(database?: any) {
+    this.database = database || db; // Use provided database or default to static db
+  }
   
   /**
    * Log a comprehensive audit trail entry
@@ -77,7 +83,7 @@ export class AuditService {
         notes: options?.notes || null,
       };
 
-      const [result] = await db.insert(auditLogs).values(auditEntry).returning({ id: auditLogs.id });
+      const [result] = await this.database.insert(auditLogs).values(auditEntry).returning({ id: auditLogs.id });
       
       // Check if this action should trigger a security event
       await this.checkForSecurityEvents(result.id, action, resource, context, options);
@@ -123,7 +129,7 @@ export class AuditService {
         retentionPeriod: context.retentionPeriod || null,
       };
 
-      await db.insert(dataAccessLogs).values(dataAccessEntry);
+      await this.database.insert(dataAccessLogs).values(dataAccessEntry);
     } catch (error) {
       console.error('Failed to log data access:', error);
     }
@@ -156,7 +162,7 @@ export class AuditService {
         investigationNotes: options?.notes || null,
       };
 
-      await db.insert(securityEvents).values(securityEvent);
+      await this.database.insert(securityEvents).values(securityEvent);
     } catch (error) {
       console.error('Failed to create security event:', error);
     }
@@ -166,7 +172,7 @@ export class AuditService {
    * Express middleware for automatic audit logging
    */
   auditMiddleware() {
-    return async (req: Request & { user?: any }, res: Response, next: Function) => {
+    return async (req: Request & { user?: any; dynamicDB?: any; dbEnv?: string }, res: Response, next: Function) => {
       const startTime = Date.now();
       
       try {
@@ -182,7 +188,14 @@ export class AuditService {
             
             // Only log API endpoints to reduce noise
             if (req.path.startsWith('/api/')) {
-              await this.logAction(
+              // Use request database if available, otherwise fall back to instance database
+              const dbToUse = req.dynamicDB || this.database;
+              console.log(`Audit logging to database environment: ${req.dbEnv || 'production'}`);
+              
+              // Create a temporary audit service instance with the correct database
+              const contextualAuditService = new AuditService(dbToUse);
+              
+              await contextualAuditService.logAction(
                 req.method.toLowerCase(),
                 req.path,
                 {
@@ -195,11 +208,11 @@ export class AuditService {
                   requestParams: req.query,
                   statusCode: res.statusCode,
                   responseTime,
-                  environment: process.env.NODE_ENV || 'development'
+                  environment: req.dbEnv || process.env.NODE_ENV || 'production'
                 },
                 {
-                  riskLevel: 'low',
-                  dataClassification: 'internal',
+                  riskLevel: this.calculateRiskLevel(req.method, req.path, res.statusCode),
+                  dataClassification: this.classifyDataType(req.path),
                   notes: `${req.method} ${req.path} - ${res.statusCode}`
                 }
               );
@@ -384,6 +397,28 @@ export class AuditService {
       req.ip ||
       "unknown"
     );
+  }
+
+  /**
+   * Calculate risk level based on request method and path
+   */
+  private calculateRiskLevel(method: string, path: string, statusCode: number): 'low' | 'medium' | 'high' | 'critical' {
+    // High-risk operations
+    if (method === 'DELETE' || path.includes('delete')) return 'high';
+    if (path.includes('admin') || path.includes('users') || path.includes('agents')) return 'medium';
+    if (statusCode >= 400) return 'medium';
+    
+    return 'low';
+  }
+
+  /**
+   * Classify data type based on endpoint
+   */
+  private classifyDataType(path: string): 'public' | 'internal' | 'confidential' | 'restricted' {
+    if (path.includes('auth') || path.includes('user') || path.includes('security')) return 'confidential';
+    if (path.includes('admin') || path.includes('agents') || path.includes('merchants')) return 'restricted';
+    
+    return 'internal';
   }
 }
 
