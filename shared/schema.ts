@@ -543,12 +543,10 @@ export const feeItemGroups = pgTable("fee_item_groups", {
   uniqueFeeItemGroupPerFeeGroup: unique().on(table.feeGroupId, table.name),
 }));
 
-// Fee Items table - individual fees within fee item groups
+// Fee Items table - individual fees (now standalone, can belong to multiple fee groups)
 export const feeItems = pgTable("fee_items", {
   id: serial("id").primaryKey(),
-  feeGroupId: integer("fee_group_id").notNull().references(() => feeGroups.id, { onDelete: "cascade" }),
-  feeItemGroupId: integer("fee_item_group_id").references(() => feeItemGroups.id, { onDelete: "cascade" }), // Optional grouping
-  name: text("name").notNull(), // e.g., "Visa", "MasterCard", "American Express"
+  name: text("name").notNull().unique(), // e.g., "Visa", "MasterCard", "American Express"
   description: text("description"),
   valueType: text("value_type").notNull(), // "amount", "percentage", "placeholder"
   defaultValue: text("default_value"), // Default value for this fee item
@@ -558,8 +556,19 @@ export const feeItems = pgTable("fee_items", {
   author: text("author").notNull().default("System"), // System or user who created it
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// Fee Group Fee Items junction table - many-to-many relationship between fee groups and fee items
+export const feeGroupFeeItems = pgTable("fee_group_fee_items", {
+  id: serial("id").primaryKey(),
+  feeGroupId: integer("fee_group_id").notNull().references(() => feeGroups.id, { onDelete: "cascade" }),
+  feeItemId: integer("fee_item_id").notNull().references(() => feeItems.id, { onDelete: "cascade" }),
+  feeItemGroupId: integer("fee_item_group_id").references(() => feeItemGroups.id, { onDelete: "cascade" }), // Optional grouping within the fee group
+  displayOrder: integer("display_order").notNull().default(0),
+  isRequired: boolean("is_required").notNull().default(false),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
 }, (table) => ({
-  uniqueFeeItemPerGroup: unique().on(table.feeGroupId, table.name),
+  uniqueFeeGroupFeeItem: unique().on(table.feeGroupId, table.feeItemId),
 }));
 
 // Pricing Types table - defines which fee items are included in a pricing structure
@@ -672,6 +681,11 @@ export const insertFeeItemSchema = createInsertSchema(feeItems).omit({
   updatedAt: true,
 });
 
+export const insertFeeGroupFeeItemSchema = createInsertSchema(feeGroupFeeItems).omit({
+  id: true,
+  createdAt: true,
+});
+
 export const insertPricingTypeSchema = createInsertSchema(pricingTypes).omit({
   id: true,
   createdAt: true,
@@ -724,6 +738,8 @@ export type FeeItemGroup = typeof feeItemGroups.$inferSelect;
 export type InsertFeeItemGroup = z.infer<typeof insertFeeItemGroupSchema>;
 export type FeeItem = typeof feeItems.$inferSelect;
 export type InsertFeeItem = z.infer<typeof insertFeeItemSchema>;
+export type FeeGroupFeeItem = typeof feeGroupFeeItems.$inferSelect;
+export type InsertFeeGroupFeeItem = z.infer<typeof insertFeeGroupFeeItemSchema>;
 export type PricingType = typeof pricingTypes.$inferSelect;
 export type InsertPricingType = z.infer<typeof insertPricingTypeSchema>;
 export type PricingTypeFeeItem = typeof pricingTypeFeeItems.$inferSelect;

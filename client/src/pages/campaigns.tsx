@@ -871,14 +871,7 @@ export default function CampaignsPage() {
       return;
     }
 
-    if (!feeItemForm.feeGroupId) {
-      toast({
-        title: "Validation Error",
-        description: "Please select a fee group.",
-        variant: "destructive",
-      });
-      return;
-    }
+    // Fee items are now standalone - no fee group validation needed
 
     if (!feeItemForm.valueType) {
       toast({
@@ -892,7 +885,6 @@ export default function CampaignsPage() {
     createFeeItemMutation.mutate({
       name: feeItemForm.name.trim(),
       description: feeItemForm.description.trim() || undefined,
-      feeGroupId: feeItemForm.feeGroupId,
       defaultValue: feeItemForm.defaultValue.trim() || undefined,
       valueType: feeItemForm.valueType,
       isRequired: feeItemForm.isRequired,
@@ -939,14 +931,7 @@ export default function CampaignsPage() {
       return;
     }
 
-    if (!feeItemForm.feeGroupId) {
-      toast({
-        title: "Validation Error",
-        description: "Please select a fee group.",
-        variant: "destructive",
-      });
-      return;
-    }
+    // Fee items are now standalone - no fee group validation needed
 
     if (!feeItemForm.valueType) {
       toast({
@@ -963,7 +948,6 @@ export default function CampaignsPage() {
         data: {
           name: feeItemForm.name.trim(),
           description: feeItemForm.description.trim() || undefined,
-          feeGroupId: feeItemForm.feeGroupId,
           defaultValue: feeItemForm.defaultValue.trim() || undefined,
           valueType: feeItemForm.valueType,
           isRequired: feeItemForm.isRequired,
