@@ -5328,17 +5328,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (feeItemIds && Array.isArray(feeItemIds) && feeItemIds.length > 0) {
         console.log('Adding fee items to pricing type:', feeItemIds);
         
-        // Validate fee items exist in the current database environment
+        // Validate fee items exist in the current database environment (fee items are now standalone)
         const existingFeeItems = await dbToUse.select({ 
-          id: feeItems.id,
-          feeGroupName: feeGroups.name
+          id: feeItems.id
         })
           .from(feeItems)
-          .leftJoin(feeGroups, eq(feeItems.feeGroupId, feeGroups.id))
           .where(inArray(feeItems.id, feeItemIds));
         
-        const validFeeItems = existingFeeItems.filter(item => item.feeGroupName);
-        const validFeeItemIds = validFeeItems.map(item => item.id);
+        const validFeeItemIds = existingFeeItems.map(item => item.id);
         
         if (validFeeItemIds.length > 0) {
           await dbToUse.insert(pricingTypeFeeItems).values(
