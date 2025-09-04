@@ -4730,15 +4730,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Import the schema tables
-      const { feeGroups, feeItems } = await import("@shared/schema");
+      const { feeGroups, feeItems, feeGroupFeeItems } = await import("@shared/schema");
       const { eq } = await import("drizzle-orm");
       
       // Get all fee groups first
       const groups = await dbToUse.select().from(feeGroups).orderBy(feeGroups.displayOrder);
       
-      // For each group, fetch its associated fee items
+      // For each group, fetch its associated fee items through the junction table
       const result = await Promise.all(groups.map(async (group) => {
-        const items = await dbToUse.select().from(feeItems).where(eq(feeItems.feeGroupId, group.id));
+        const items = await dbToUse
+          .select({ 
+            id: feeItems.id,
+            name: feeItems.name,
+            description: feeItems.description,
+            valueType: feeItems.valueType,
+            defaultValue: feeItems.defaultValue,
+            additionalInfo: feeItems.additionalInfo,
+            displayOrder: feeItems.displayOrder,
+            isActive: feeItems.isActive,
+            author: feeItems.author,
+            createdAt: feeItems.createdAt,
+            updatedAt: feeItems.updatedAt
+          })
+          .from(feeItems)
+          .innerJoin(feeGroupFeeItems, eq(feeItems.id, feeGroupFeeItems.feeItemId))
+          .where(eq(feeGroupFeeItems.feeGroupId, group.id))
+          .orderBy(feeGroupFeeItems.displayOrder);
         return { ...group, feeItems: items };
       }));
       
@@ -4760,15 +4777,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(500).json({ message: "Database connection not available" });
       }
       
-      const { feeGroups, feeItems } = await import("@shared/schema");
+      const { feeGroups, feeItems, feeGroupFeeItems } = await import("@shared/schema");
+      const { eq } = await import("drizzle-orm");
       const [feeGroup] = await dbToUse.select().from(feeGroups).where(eq(feeGroups.id, id));
       
       if (!feeGroup) {
         return res.status(404).json({ message: "Fee group not found" });
       }
       
-      // Get associated fee items
-      const items = await dbToUse.select().from(feeItems).where(eq(feeItems.feeGroupId, id));
+      // Get associated fee items through the junction table
+      const items = await dbToUse
+        .select({ 
+          id: feeItems.id,
+          name: feeItems.name,
+          description: feeItems.description,
+          valueType: feeItems.valueType,
+          defaultValue: feeItems.defaultValue,
+          additionalInfo: feeItems.additionalInfo,
+          displayOrder: feeItems.displayOrder,
+          isActive: feeItems.isActive,
+          author: feeItems.author,
+          createdAt: feeItems.createdAt,
+          updatedAt: feeItems.updatedAt
+        })
+        .from(feeItems)
+        .innerJoin(feeGroupFeeItems, eq(feeItems.id, feeGroupFeeItems.feeItemId))
+        .where(eq(feeGroupFeeItems.feeGroupId, id))
+        .orderBy(feeGroupFeeItems.displayOrder);
       const result = { ...feeGroup, feeItems: items };
       
       res.json(result);
@@ -5154,7 +5189,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(500).json({ error: "Database connection not available" });
       }
       
-      const { pricingTypes, pricingTypeFeeItems, feeItems, feeGroups } = await import("@shared/schema");
+      const { pricingTypes, pricingTypeFeeItems, feeItems, feeGroups, feeGroupFeeItems } = await import("@shared/schema");
       const { eq } = await import("drizzle-orm");
       
       // Get the pricing type and its fee items from the selected database environment
@@ -5166,7 +5201,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }).from(pricingTypes)
       .leftJoin(pricingTypeFeeItems, eq(pricingTypes.id, pricingTypeFeeItems.pricingTypeId))
       .leftJoin(feeItems, eq(pricingTypeFeeItems.feeItemId, feeItems.id))
-      .leftJoin(feeGroups, eq(feeItems.feeGroupId, feeGroups.id))
+      .leftJoin(feeGroupFeeItems, eq(pricingTypeFeeItems.feeItemId, feeGroupFeeItems.feeItemId))
+      .leftJoin(feeGroups, eq(feeGroupFeeItems.feeGroupId, feeGroups.id))
       .where(eq(pricingTypes.id, id));
       
       if (result.length === 0) {
@@ -5210,7 +5246,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(500).json({ error: "Database connection not available" });
       }
       
-      const { pricingTypes, pricingTypeFeeItems, feeItems, feeGroups } = await import("@shared/schema");
+      const { pricingTypes, pricingTypeFeeItems, feeItems, feeGroups, feeGroupFeeItems } = await import("@shared/schema");
       const { eq, asc } = await import("drizzle-orm");
       
       // First verify the pricing type exists
@@ -5226,7 +5262,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         pricingTypeFeeItem: pricingTypeFeeItems
       }).from(pricingTypeFeeItems)
       .innerJoin(feeItems, eq(pricingTypeFeeItems.feeItemId, feeItems.id))
-      .innerJoin(feeGroups, eq(feeItems.feeGroupId, feeGroups.id))
+      .innerJoin(feeGroupFeeItems, eq(feeItems.id, feeGroupFeeItems.feeItemId))
+      .innerJoin(feeGroups, eq(feeGroupFeeItems.feeGroupId, feeGroups.id))
       .where(eq(pricingTypeFeeItems.pricingTypeId, id))
       .orderBy(asc(feeGroups.displayOrder), asc(feeItems.displayOrder));
       
@@ -5274,7 +5311,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(500).json({ error: "Database connection not available" });
       }
       
-      const { pricingTypes, pricingTypeFeeItems, feeItems, feeGroups } = await import("@shared/schema");
+      const { pricingTypes, pricingTypeFeeItems, feeItems, feeGroups, feeGroupFeeItems } = await import("@shared/schema");
       const { eq, inArray } = await import("drizzle-orm");
       
       // Create the pricing type first
@@ -5373,7 +5410,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(500).json({ error: "Database connection not available" });
       }
       
-      const { pricingTypes, pricingTypeFeeItems, feeItems, feeGroups } = await import("@shared/schema");
+      const { pricingTypes, pricingTypeFeeItems, feeItems, feeGroups, feeGroupFeeItems } = await import("@shared/schema");
       const { eq, inArray } = await import("drizzle-orm");
       
       // First check if pricing type exists in this database environment
@@ -5467,26 +5504,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(500).json({ error: "Database connection not available" });
       }
       
-      const { feeItems, feeGroups } = await import("@shared/schema");
-      const { eq } = await import("drizzle-orm");
+      const { feeItems } = await import("@shared/schema");
       
-      // Join fee items with fee groups to include group information
-      const result = await dbToUse.select({
-        feeItem: feeItems,
-        feeGroup: feeGroups
-      }).from(feeItems)
-      .leftJoin(feeGroups, eq(feeItems.feeGroupId, feeGroups.id))
-      .orderBy(feeItems.displayOrder);
+      // Get all fee items (now standalone - no direct fee group relationship)
+      const result = await dbToUse.select().from(feeItems).orderBy(feeItems.displayOrder);
 
-      // Transform the result to include feeGroup in the fee item object, filtering out items without valid fee groups
-      const feeItemsWithGroups = result
-        .filter(row => row.feeGroup && row.feeGroup.id && row.feeGroup.name)
-        .map(row => ({
-          ...row.feeItem,
-          feeGroup: row.feeGroup
-        }));
-
-      res.json(feeItemsWithGroups);
+      res.json(result);
     } catch (error) {
       console.error("Error fetching fee items:", error);
       res.status(500).json({ error: "Failed to fetch fee items" });
