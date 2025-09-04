@@ -6065,28 +6065,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get security events
-  app.get("/api/security/events", async (req, res) => {
-    try {
-      const limit = req.query.limit ? parseInt(req.query.limit as string) : 100;
-      const events = await storage.getSecurityEvents(limit);
-      res.json(events);
-    } catch (error) {
-      console.error("Error fetching security events:", error);
-      res.status(500).json({ message: "Failed to fetch security events" });
-    }
-  });
-
-  // Get security metrics
-  app.get("/api/security/metrics", async (req, res) => {
-    try {
-      const metrics = await storage.getSecurityMetrics();
-      res.json(metrics);
-    } catch (error) {
-      console.error("Error fetching security metrics:", error);
-      res.status(500).json({ message: "Failed to fetch security metrics" });
-    }
-  });
 
   const httpServer = createServer(app);
   return httpServer;
