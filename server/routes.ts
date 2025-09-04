@@ -5197,6 +5197,71 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get fee items organized by fee group for a specific pricing type (for campaign creation)
+  app.get('/api/pricing-types/:id/fee-groups', dbEnvironmentMiddleware, requireRole(['admin', 'super_admin']), async (req: RequestWithDB, res: Response) => {
+    try {
+      console.log(`Fetching fee items by fee group for pricing type ${req.params.id} - Database environment: ${req.dbEnv}`);
+      
+      const id = parseInt(req.params.id);
+      
+      // Use the dynamic database connection
+      const dbToUse = req.dynamicDB;
+      if (!dbToUse) {
+        return res.status(500).json({ error: "Database connection not available" });
+      }
+      
+      const { pricingTypes, pricingTypeFeeItems, feeItems, feeGroups } = await import("@shared/schema");
+      const { eq, asc } = await import("drizzle-orm");
+      
+      // First verify the pricing type exists
+      const pricingTypeResult = await dbToUse.select().from(pricingTypes).where(eq(pricingTypes.id, id));
+      if (pricingTypeResult.length === 0) {
+        return res.status(404).json({ error: 'Pricing type not found' });
+      }
+      
+      // Get fee items with their fee groups for this pricing type
+      const result = await dbToUse.select({
+        feeGroup: feeGroups,
+        feeItem: feeItems,
+        pricingTypeFeeItem: pricingTypeFeeItems
+      }).from(pricingTypeFeeItems)
+      .innerJoin(feeItems, eq(pricingTypeFeeItems.feeItemId, feeItems.id))
+      .innerJoin(feeGroups, eq(feeItems.feeGroupId, feeGroups.id))
+      .where(eq(pricingTypeFeeItems.pricingTypeId, id))
+      .orderBy(asc(feeGroups.displayOrder), asc(feeItems.displayOrder));
+      
+      // Group fee items by fee group
+      const feeGroupsMap = new Map();
+      
+      result.forEach(row => {
+        if (!feeGroupsMap.has(row.feeGroup.id)) {
+          feeGroupsMap.set(row.feeGroup.id, {
+            ...row.feeGroup,
+            feeItems: []
+          });
+        }
+        
+        feeGroupsMap.get(row.feeGroup.id).feeItems.push({
+          ...row.feeItem,
+          pricingTypeFeeItem: row.pricingTypeFeeItem
+        });
+      });
+      
+      const feeGroupsWithItems = Array.from(feeGroupsMap.values());
+      
+      const response = {
+        pricingType: pricingTypeResult[0],
+        feeGroups: feeGroupsWithItems
+      };
+      
+      console.log(`Found ${feeGroupsWithItems.length} fee groups with items for pricing type ${id} in ${req.dbEnv} database`);
+      res.json(response);
+    } catch (error) {
+      console.error('Error fetching pricing type fee groups:', error);
+      res.status(500).json({ error: 'Failed to fetch fee groups' });
+    }
+  });
+
   app.post('/api/pricing-types', dbEnvironmentMiddleware, requireRole(['admin', 'super_admin']), async (req: RequestWithDB, res: Response) => {
     try {
       console.log(`Creating pricing type - Database environment: ${req.dbEnv}`);
