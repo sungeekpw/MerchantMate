@@ -49,9 +49,9 @@ export function getDynamicDatabase(environment: string = 'production') {
     const url = getDatabaseUrl(environment);
     const dynamicPool = new Pool({
       connectionString: url,
-      max: 5,
-      idleTimeoutMillis: 30000,
-      connectionTimeoutMillis: 10000,
+      max: 3, // Reduced from 5 to prevent connection overload
+      idleTimeoutMillis: 15000, // Reduced from 30000 to free connections faster
+      connectionTimeoutMillis: 15000, // Increased from 10000 to allow more time for connections
     });
     connectionPools.set(environment, dynamicPool);
   }
@@ -118,6 +118,36 @@ export function closeAllConnections() {
     });
     connectionPools.clear();
   }, 1000); // 1 second delay
+}
+
+// Database operation retry utility
+export async function withRetry<T>(
+  operation: () => Promise<T>,
+  maxRetries: number = 3,
+  delayMs: number = 100
+): Promise<T> {
+  let lastError: any;
+  
+  for (let i = 0; i <= maxRetries; i++) {
+    try {
+      return await operation();
+    } catch (error: any) {
+      lastError = error;
+      
+      // Don't retry on certain error types (authentication, not found, etc.)
+      if (error.code === '23505' || error.status === 404 || error.status === 400) {
+        throw error;
+      }
+      
+      console.warn(`Database operation failed (attempt ${i + 1}/${maxRetries + 1}):`, error.message);
+      
+      if (i < maxRetries) {
+        await new Promise(resolve => setTimeout(resolve, delayMs * Math.pow(2, i)));
+      }
+    }
+  }
+  
+  throw lastError;
 }
 
 process.on('SIGTERM', closeAllConnections);

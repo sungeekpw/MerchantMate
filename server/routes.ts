@@ -4732,30 +4732,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Import the schema tables
       const { feeGroups, feeItems, feeGroupFeeItems } = await import("@shared/schema");
       const { eq } = await import("drizzle-orm");
+      const { withRetry } = await import("./db");
       
-      // Get all fee groups first
-      const groups = await dbToUse.select().from(feeGroups).orderBy(feeGroups.displayOrder);
+      // Get all fee groups first with retry logic
+      const groups = await withRetry(() => 
+        dbToUse.select().from(feeGroups).orderBy(feeGroups.displayOrder)
+      );
       
       // For each group, fetch its associated fee items through the junction table
       const result = await Promise.all(groups.map(async (group) => {
-        const items = await dbToUse
-          .select({ 
-            id: feeItems.id,
-            name: feeItems.name,
-            description: feeItems.description,
-            valueType: feeItems.valueType,
-            defaultValue: feeItems.defaultValue,
-            additionalInfo: feeItems.additionalInfo,
-            displayOrder: feeItems.displayOrder,
-            isActive: feeItems.isActive,
-            author: feeItems.author,
-            createdAt: feeItems.createdAt,
-            updatedAt: feeItems.updatedAt
-          })
-          .from(feeItems)
-          .innerJoin(feeGroupFeeItems, eq(feeItems.id, feeGroupFeeItems.feeItemId))
-          .where(eq(feeGroupFeeItems.feeGroupId, group.id))
-          .orderBy(feeGroupFeeItems.displayOrder);
+        const items = await withRetry(() =>
+          dbToUse
+            .select({ 
+              id: feeItems.id,
+              name: feeItems.name,
+              description: feeItems.description,
+              valueType: feeItems.valueType,
+              defaultValue: feeItems.defaultValue,
+              additionalInfo: feeItems.additionalInfo,
+              displayOrder: feeItems.displayOrder,
+              isActive: feeItems.isActive,
+              author: feeItems.author,
+              createdAt: feeItems.createdAt,
+              updatedAt: feeItems.updatedAt
+            })
+            .from(feeItems)
+            .innerJoin(feeGroupFeeItems, eq(feeItems.id, feeGroupFeeItems.feeItemId))
+            .where(eq(feeGroupFeeItems.feeGroupId, group.id))
+            .orderBy(feeGroupFeeItems.displayOrder)
+        );
         return { ...group, feeItems: items };
       }));
       
@@ -4837,7 +4842,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const { feeGroups } = await import("@shared/schema");
-      const [feeGroup] = await dbToUse.insert(feeGroups).values(feeGroupData).returning();
+      const { withRetry } = await import("./db");
+      const [feeGroup] = await withRetry(() => dbToUse.insert(feeGroups).values(feeGroupData).returning());
       res.status(201).json(feeGroup);
     } catch (error: any) {
       console.error("Error creating fee group:", error);
@@ -4994,8 +5000,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      // Use transaction for atomic operations
-      try {
+      const { withRetry } = await import("./db");
+      
+      // Use transaction for atomic operations with retry
+      await withRetry(async () => {
         // Remove all existing associations for this fee group
         await dbToUse.delete(feeGroupFeeItems).where(eq(feeGroupFeeItems.feeGroupId, feeGroupId));
 
@@ -5011,10 +5019,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
           await dbToUse.insert(feeGroupFeeItems).values(associations);
         }
-      } catch (dbError) {
-        console.error("Database transaction error:", dbError);
-        throw new Error("Failed to update fee group associations - database transaction failed");
-      }
+      });
 
       res.json({ 
         message: `Successfully updated fee group associations`,
