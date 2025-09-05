@@ -548,7 +548,7 @@ export const feeItems = pgTable("fee_items", {
   id: serial("id").primaryKey(),
   name: text("name").notNull().unique(), // e.g., "Visa", "MasterCard", "American Express"
   description: text("description"),
-  valueType: text("value_type").notNull(), // "amount", "percentage", "placeholder"
+  valueType: text("value_type").notNull(), // "percentage", "fixed", "basis_points", "numeric"
   defaultValue: text("default_value"), // Default value for this fee item
   additionalInfo: text("additional_info"), // Info shown when clicking "i" icon
   displayOrder: integer("display_order").notNull().default(0),
