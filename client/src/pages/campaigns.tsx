@@ -209,7 +209,6 @@ export default function CampaignsPage() {
   const [feeItemForm, setFeeItemForm] = useState({
     name: '',
     description: '',
-    feeGroupId: 0,
     defaultValue: '',
     valueType: 'percentage' as 'percentage' | 'fixed' | 'basis_points',
     isRequired: false,
@@ -1894,7 +1893,6 @@ export default function CampaignsPage() {
                                 setFeeItemForm({
                                   name: item.name,
                                   description: item.description || '',
-                                  feeGroupId: item.feeGroupId,
                                   defaultValue: item.defaultValue || '',
                                   valueType: item.valueType,
                                   isRequired: item.isRequired,
@@ -1911,7 +1909,7 @@ export default function CampaignsPage() {
                                   deleteFeeItemMutation.mutate(item.id);
                                 }}
                                 className="text-destructive hover:text-destructive"
-                                disabled={deleteFeeItemMutation.isPending || item.feeGroupId}
+                                disabled={deleteFeeItemMutation.isPending}
                               >
                                 <Trash2 className="mr-2 h-4 w-4" />
                                 Delete Item
@@ -2163,7 +2161,7 @@ export default function CampaignsPage() {
           <DialogHeader>
             <DialogTitle>Add New Fee Item</DialogTitle>
             <DialogDescription>
-              Create a new fee item within a fee group
+              Create a new fee item
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
@@ -2182,24 +2180,6 @@ export default function CampaignsPage() {
                 value={feeItemForm.description}
                 onChange={(e) => setFeeItemForm(prev => ({ ...prev, description: e.target.value }))}
               />
-            </div>
-            <div>
-              <Label>Fee Group *</Label>
-              <Select 
-                value={feeItemForm.feeGroupId?.toString() || ''} 
-                onValueChange={(value) => setFeeItemForm(prev => ({ ...prev, feeGroupId: parseInt(value) }))}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select fee group" />
-                </SelectTrigger>
-                <SelectContent>
-                  {feeGroups.map((group) => (
-                    <SelectItem key={group.id} value={group.id.toString()}>
-                      {group.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
             </div>
             <div>
               <Label>Default Value</Label>
@@ -2242,7 +2222,6 @@ export default function CampaignsPage() {
               setFeeItemForm({
                 name: '',
                 description: '',
-                feeGroupId: selectedFeeGroup || 0,
                 defaultValue: '',
                 valueType: 'percentage',
                 isRequired: false,
@@ -2288,24 +2267,6 @@ export default function CampaignsPage() {
               />
             </div>
             <div>
-              <Label>Fee Group *</Label>
-              <Select 
-                value={feeItemForm.feeGroupId?.toString() || ''} 
-                onValueChange={(value) => setFeeItemForm(prev => ({ ...prev, feeGroupId: parseInt(value) }))}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select fee group" />
-                </SelectTrigger>
-                <SelectContent>
-                  {feeGroups.map((group) => (
-                    <SelectItem key={group.id} value={group.id.toString()}>
-                      {group.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
               <Label>Default Value</Label>
               <Input 
                 placeholder="Enter default value (optional)" 
@@ -2347,7 +2308,6 @@ export default function CampaignsPage() {
               setFeeItemForm({
                 name: '',
                 description: '',
-                feeGroupId: 0,
                 defaultValue: '',
                 valueType: 'percentage',
                 isRequired: false,
