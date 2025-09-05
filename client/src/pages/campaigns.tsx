@@ -633,6 +633,66 @@ export default function CampaignsPage() {
     },
   });
 
+  // Delete Fee Group mutation
+  const deleteFeeGroupMutation = useMutation({
+    mutationFn: async (feeGroupId: number) => {
+      const response = await fetch(`/api/fee-groups/${feeGroupId}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to delete fee group');
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/fee-groups'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/fee-item-groups'] });
+      toast({
+        title: "Fee Group Deleted",
+        description: "The fee group has been successfully deleted.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete fee group.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Delete Fee Item mutation
+  const deleteFeeItemMutation = useMutation({
+    mutationFn: async (feeItemId: number) => {
+      const response = await fetch(`/api/fee-items/${feeItemId}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to delete fee item');
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/fee-items'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/fee-groups'] });
+      toast({
+        title: "Fee Item Deleted",
+        description: "The fee item has been successfully deleted.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete fee item.",
+        variant: "destructive",
+      });
+    },
+  });
+
   // Create Pricing Type mutation
   const createPricingTypeMutation = useMutation({
     mutationFn: async (pricingTypeData: CreatePricingTypeData) => {
@@ -1566,6 +1626,17 @@ export default function CampaignsPage() {
                                 <Edit className="mr-2 h-4 w-4" />
                                 Edit Group
                               </DropdownMenuItem>
+                              <DropdownMenuItem 
+                                onSelect={(e) => {
+                                  e.preventDefault();
+                                  deleteFeeGroupMutation.mutate(group.id);
+                                }}
+                                className="text-destructive hover:text-destructive"
+                                disabled={deleteFeeGroupMutation.isPending || (group.feeItems?.length || 0) > 0}
+                              >
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                Delete Group
+                              </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </TableCell>
@@ -1793,6 +1864,17 @@ export default function CampaignsPage() {
                               }}>
                                 <Edit className="mr-2 h-4 w-4" />
                                 Edit Item
+                              </DropdownMenuItem>
+                              <DropdownMenuItem 
+                                onSelect={(e) => {
+                                  e.preventDefault();
+                                  deleteFeeItemMutation.mutate(item.id);
+                                }}
+                                className="text-destructive hover:text-destructive"
+                                disabled={deleteFeeItemMutation.isPending || item.feeGroupId}
+                              >
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                Delete Item
                               </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>

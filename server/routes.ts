@@ -4903,6 +4903,59 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Delete fee group - with validation to prevent deletion if fee items are associated
+  app.delete('/api/fee-groups/:id', dbEnvironmentMiddleware, requireRole(['admin', 'super_admin']), async (req: RequestWithDB, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      console.log(`Deleting fee group ${id} - Database environment: ${req.dbEnv}`);
+      
+      if (isNaN(id)) {
+        return res.status(400).json({ message: "Invalid fee group ID" });
+      }
+
+      // Use the dynamic database connection
+      const dbToUse = req.dynamicDB;
+      if (!dbToUse) {
+        return res.status(500).json({ message: "Database connection not available" });
+      }
+
+      const { feeGroups, feeGroupFeeItems } = await import("@shared/schema");
+      const { eq } = await import("drizzle-orm");
+      
+      // First check if fee group exists
+      const existingFeeGroup = await dbToUse.select().from(feeGroups).where(eq(feeGroups.id, id));
+      if (existingFeeGroup.length === 0) {
+        return res.status(404).json({ message: "Fee group not found" });
+      }
+      
+      // Check if there are any fee items associated with this fee group
+      const associatedFeeItems = await dbToUse.select()
+        .from(feeGroupFeeItems)
+        .where(eq(feeGroupFeeItems.feeGroupId, id));
+      
+      if (associatedFeeItems.length > 0) {
+        return res.status(400).json({ 
+          message: `Cannot delete fee group "${existingFeeGroup[0].name}" because it has ${associatedFeeItems.length} associated fee item(s). Please remove all fee items from this group first.` 
+        });
+      }
+      
+      // Safe to delete - no associated fee items
+      const [deletedFeeGroup] = await dbToUse.delete(feeGroups)
+        .where(eq(feeGroups.id, id))
+        .returning();
+      
+      if (!deletedFeeGroup) {
+        return res.status(404).json({ message: "Fee group not found" });
+      }
+      
+      console.log(`Successfully deleted fee group: ${deletedFeeGroup.name}`);
+      res.json({ message: `Fee group "${deletedFeeGroup.name}" has been successfully deleted.`, deletedFeeGroup });
+    } catch (error: any) {
+      console.error("Error deleting fee group:", error);
+      res.status(500).json({ message: "Failed to delete fee group" });
+    }
+  });
+
   // Fee Item Groups endpoints
   app.get('/api/fee-item-groups', dbEnvironmentMiddleware, requireRole(['admin', 'super_admin']), async (req: RequestWithDB, res) => {
     try {
@@ -5577,6 +5630,59 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       res.status(500).json({ error: "Failed to update fee item" });
+    }
+  });
+
+  // Delete fee item - with validation to prevent deletion if associated with fee groups
+  app.delete('/api/fee-items/:id', dbEnvironmentMiddleware, requireRole(['admin', 'super_admin']), async (req: RequestWithDB, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      console.log(`Deleting fee item ${id} - Database environment: ${req.dbEnv}`);
+      
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "Invalid fee item ID" });
+      }
+
+      // Use the dynamic database connection
+      const dbToUse = req.dynamicDB;
+      if (!dbToUse) {
+        return res.status(500).json({ error: "Database connection not available" });
+      }
+
+      const { feeItems, feeGroupFeeItems } = await import("@shared/schema");
+      const { eq } = await import("drizzle-orm");
+      
+      // First check if fee item exists
+      const existingFeeItem = await dbToUse.select().from(feeItems).where(eq(feeItems.id, id));
+      if (existingFeeItem.length === 0) {
+        return res.status(404).json({ error: "Fee item not found" });
+      }
+      
+      // Check if this fee item is associated with any fee groups
+      const associatedFeeGroups = await dbToUse.select()
+        .from(feeGroupFeeItems)
+        .where(eq(feeGroupFeeItems.feeItemId, id));
+      
+      if (associatedFeeGroups.length > 0) {
+        return res.status(400).json({ 
+          error: `Cannot delete fee item "${existingFeeItem[0].name}" because it is associated with ${associatedFeeGroups.length} fee group(s). Please remove this fee item from all fee groups first.` 
+        });
+      }
+      
+      // Safe to delete - not associated with any fee groups
+      const [deletedFeeItem] = await dbToUse.delete(feeItems)
+        .where(eq(feeItems.id, id))
+        .returning();
+      
+      if (!deletedFeeItem) {
+        return res.status(404).json({ error: "Fee item not found" });
+      }
+      
+      console.log(`Successfully deleted fee item: ${deletedFeeItem.name}`);
+      res.json({ message: `Fee item "${deletedFeeItem.name}" has been successfully deleted.`, deletedFeeItem });
+    } catch (error: any) {
+      console.error("Error deleting fee item:", error);
+      res.status(500).json({ error: "Failed to delete fee item" });
     }
   });
 
