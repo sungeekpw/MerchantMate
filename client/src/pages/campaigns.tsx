@@ -148,7 +148,7 @@ interface CreateFeeItemData {
 interface CreatePricingTypeData {
   name: string;
   description?: string;
-  feeGroupIds: number[];
+  feeItemIds: number[];
 }
 
 interface CreateCampaignData {
@@ -1177,7 +1177,10 @@ export default function CampaignsPage() {
       const formData = {
         name: pricingType.name,
         description: pricingType.description || '',
-        feeGroupIds: [] as number[] // TODO: Need to implement fee group association fetching for edit mode
+        selectedFeeGroupIds: [] as number[],
+        selectedFeeItemIds: validFeeItemIds,
+        feeGroupIds: [] as number[],
+        expandedFeeGroups: [] as number[]
       };
       setPricingTypeForm(formData);
       setShowEditPricingType(true);
@@ -1207,7 +1210,7 @@ export default function CampaignsPage() {
     const updateData = {
       name: pricingTypeForm.name.trim(),
       description: pricingTypeForm.description.trim() || undefined,
-      feeGroupIds: pricingTypeForm.feeGroupIds,
+      feeItemIds: pricingTypeForm.selectedFeeItemIds,
     };
     
     editPricingTypeMutation.mutate({
