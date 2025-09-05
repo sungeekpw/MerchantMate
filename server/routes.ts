@@ -4956,6 +4956,71 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Manage fee group-fee item associations
+  app.put('/api/fee-groups/:id/fee-items', dbEnvironmentMiddleware, requireRole(['admin', 'super_admin']), async (req: RequestWithDB, res) => {
+    try {
+      const feeGroupId = parseInt(req.params.id);
+      const { feeItemIds } = req.body;
+      console.log(`Managing fee group ${feeGroupId} fee items - Database environment: ${req.dbEnv}`, feeItemIds);
+      
+      if (isNaN(feeGroupId)) {
+        return res.status(400).json({ message: "Invalid fee group ID" });
+      }
+
+      if (!Array.isArray(feeItemIds)) {
+        return res.status(400).json({ message: "Fee item IDs must be an array" });
+      }
+
+      // Use the dynamic database connection
+      const dbToUse = req.dynamicDB;
+      if (!dbToUse) {
+        return res.status(500).json({ message: "Database connection not available" });
+      }
+
+      const { feeGroups, feeItems, feeGroupFeeItems } = await import("@shared/schema");
+      const { eq, inArray } = await import("drizzle-orm");
+      
+      // Verify fee group exists
+      const existingFeeGroup = await dbToUse.select().from(feeGroups).where(eq(feeGroups.id, feeGroupId));
+      if (existingFeeGroup.length === 0) {
+        return res.status(404).json({ message: "Fee group not found" });
+      }
+
+      // Verify all fee items exist if any are provided
+      if (feeItemIds.length > 0) {
+        const existingFeeItems = await dbToUse.select().from(feeItems).where(inArray(feeItems.id, feeItemIds));
+        if (existingFeeItems.length !== feeItemIds.length) {
+          return res.status(400).json({ message: "One or more fee items not found" });
+        }
+      }
+
+      // Start transaction - remove all existing associations for this fee group
+      await dbToUse.delete(feeGroupFeeItems).where(eq(feeGroupFeeItems.feeGroupId, feeGroupId));
+
+      // Add new associations
+      if (feeItemIds.length > 0) {
+        const associations = feeItemIds.map((feeItemId: number, index: number) => ({
+          feeGroupId,
+          feeItemId,
+          displayOrder: index,
+          isRequired: false,
+          createdAt: new Date()
+        }));
+
+        await dbToUse.insert(feeGroupFeeItems).values(associations);
+      }
+
+      res.json({ 
+        message: `Successfully updated fee group associations`,
+        feeGroupId,
+        associatedFeeItemIds: feeItemIds
+      });
+    } catch (error: any) {
+      console.error("Error managing fee group-fee item associations:", error);
+      res.status(500).json({ message: "Failed to manage fee group associations" });
+    }
+  });
+
   // Fee Item Groups endpoints
   app.get('/api/fee-item-groups', dbEnvironmentMiddleware, requireRole(['admin', 'super_admin']), async (req: RequestWithDB, res) => {
     try {
