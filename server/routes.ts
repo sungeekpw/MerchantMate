@@ -4994,20 +4994,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      // Start transaction - remove all existing associations for this fee group
-      await dbToUse.delete(feeGroupFeeItems).where(eq(feeGroupFeeItems.feeGroupId, feeGroupId));
+      // Use transaction for atomic operations
+      try {
+        // Remove all existing associations for this fee group
+        await dbToUse.delete(feeGroupFeeItems).where(eq(feeGroupFeeItems.feeGroupId, feeGroupId));
 
-      // Add new associations
-      if (feeItemIds.length > 0) {
-        const associations = feeItemIds.map((feeItemId: number, index: number) => ({
-          feeGroupId,
-          feeItemId,
-          displayOrder: index,
-          isRequired: false,
-          createdAt: new Date()
-        }));
+        // Add new associations
+        if (feeItemIds.length > 0) {
+          const associations = feeItemIds.map((feeItemId: number, index: number) => ({
+            feeGroupId,
+            feeItemId,
+            displayOrder: index,
+            isRequired: false,
+            createdAt: new Date()
+          }));
 
-        await dbToUse.insert(feeGroupFeeItems).values(associations);
+          await dbToUse.insert(feeGroupFeeItems).values(associations);
+        }
+      } catch (dbError) {
+        console.error("Database transaction error:", dbError);
+        throw new Error("Failed to update fee group associations - database transaction failed");
       }
 
       res.json({ 
