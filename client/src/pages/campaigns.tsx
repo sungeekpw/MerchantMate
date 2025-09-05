@@ -94,7 +94,7 @@ interface FeeItem {
   description?: string;
   feeGroupId: number;
   defaultValue?: string;
-  valueType: 'percentage' | 'fixed' | 'basis_points';
+  valueType: 'percentage' | 'fixed' | 'basis_points' | 'numeric';
   isRequired: boolean;
   displayOrder: number;
   isActive: boolean;
@@ -122,7 +122,7 @@ interface CampaignFeeValue {
   campaignId: number;
   feeItemId: number;
   value: string;
-  valueType: 'percentage' | 'fixed' | 'basis_points';
+  valueType: 'percentage' | 'fixed' | 'basis_points' | 'numeric';
   createdAt: string;
   updatedAt: string;
   feeItem?: FeeItem & { feeGroup: FeeGroup };
@@ -140,7 +140,7 @@ interface CreateFeeItemData {
   description?: string;
   feeGroupId: number;
   defaultValue?: string;
-  valueType: 'percentage' | 'fixed' | 'basis_points';
+  valueType: 'percentage' | 'fixed' | 'basis_points' | 'numeric';
   isRequired: boolean;
   displayOrder: number;
 }
@@ -160,7 +160,7 @@ interface CreateCampaignData {
   feeValues: {
     feeItemId: number;
     value: string;
-    valueType: 'percentage' | 'fixed' | 'basis_points';
+    valueType: 'percentage' | 'fixed' | 'basis_points' | 'numeric';
   }[];
 }
 
@@ -210,7 +210,7 @@ export default function CampaignsPage() {
     name: '',
     description: '',
     defaultValue: '',
-    valueType: 'percentage' as 'percentage' | 'fixed' | 'basis_points',
+    valueType: 'percentage' as 'percentage' | 'fixed' | 'basis_points' | 'numeric',
     displayOrder: 1
   });
 
@@ -2189,7 +2189,7 @@ export default function CampaignsPage() {
               <Label>Value Type *</Label>
               <Select 
                 value={feeItemForm.valueType} 
-                onValueChange={(value: 'percentage' | 'fixed' | 'basis_points') => 
+                onValueChange={(value: 'percentage' | 'fixed' | 'basis_points' | 'numeric') => 
                   setFeeItemForm(prev => ({ ...prev, valueType: value }))
                 }
               >
@@ -2200,6 +2200,7 @@ export default function CampaignsPage() {
                   <SelectItem value="percentage">Percentage (%)</SelectItem>
                   <SelectItem value="fixed">Fixed Amount ($)</SelectItem>
                   <SelectItem value="basis_points">Basis Points (bps)</SelectItem>
+                  <SelectItem value="numeric">Numeric</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -2265,7 +2266,7 @@ export default function CampaignsPage() {
               <Label>Value Type *</Label>
               <Select 
                 value={feeItemForm.valueType} 
-                onValueChange={(value: 'percentage' | 'fixed' | 'basis_points') => 
+                onValueChange={(value: 'percentage' | 'fixed' | 'basis_points' | 'numeric') => 
                   setFeeItemForm(prev => ({ ...prev, valueType: value }))
                 }
               >
@@ -2276,6 +2277,7 @@ export default function CampaignsPage() {
                   <SelectItem value="percentage">Percentage (%)</SelectItem>
                   <SelectItem value="fixed">Fixed Amount ($)</SelectItem>
                   <SelectItem value="basis_points">Basis Points (bps)</SelectItem>
+                  <SelectItem value="numeric">Numeric</SelectItem>
                 </SelectContent>
               </Select>
             </div>
