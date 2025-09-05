@@ -5377,50 +5377,63 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const { pricingTypes, pricingTypeFeeItems, feeItems, feeGroups, feeGroupFeeItems } = await import("@shared/schema");
       const { eq, asc } = await import("drizzle-orm");
+      const { withRetry } = await import("./db");
       
       // First verify the pricing type exists
-      const pricingTypeResult = await dbToUse.select().from(pricingTypes).where(eq(pricingTypes.id, id));
+      const pricingTypeResult = await withRetry(() => 
+        dbToUse.select().from(pricingTypes).where(eq(pricingTypes.id, id))
+      );
       if (pricingTypeResult.length === 0) {
         return res.status(404).json({ error: 'Pricing type not found' });
       }
       
-      // Get fee items with their fee groups for this pricing type
-      const result = await dbToUse.select({
-        feeGroup: feeGroups,
-        feeItem: feeItems,
-        pricingTypeFeeItem: pricingTypeFeeItems
-      }).from(pricingTypeFeeItems)
-      .innerJoin(feeItems, eq(pricingTypeFeeItems.feeItemId, feeItems.id))
-      .innerJoin(feeGroupFeeItems, eq(feeItems.id, feeGroupFeeItems.feeItemId))
-      .innerJoin(feeGroups, eq(feeGroupFeeItems.feeGroupId, feeGroups.id))
-      .where(eq(pricingTypeFeeItems.pricingTypeId, id))
-      .orderBy(asc(feeGroups.displayOrder), asc(feeItems.displayOrder));
+      // Get all fee groups with their fee items (not just ones associated with this pricing type)
+      // This allows the pricing type creation/edit to show all available fee groups
+      const allFeeGroups = await withRetry(() =>
+        dbToUse.select().from(feeGroups).orderBy(asc(feeGroups.displayOrder))
+      );
       
-      // Group fee items by fee group
-      const feeGroupsMap = new Map();
+      // For each fee group, get its fee items
+      const feeGroupsWithItems = await Promise.all(
+        allFeeGroups.map(async (feeGroup) => {
+          const items = await withRetry(() =>
+            dbToUse
+              .select({
+                id: feeItems.id,
+                name: feeItems.name,
+                description: feeItems.description,
+                valueType: feeItems.valueType,
+                defaultValue: feeItems.defaultValue,
+                additionalInfo: feeItems.additionalInfo,
+                displayOrder: feeItems.displayOrder,
+                isActive: feeItems.isActive,
+                author: feeItems.author,
+                createdAt: feeItems.createdAt,
+                updatedAt: feeItems.updatedAt,
+                isRequired: feeGroupFeeItems.isRequired
+              })
+              .from(feeItems)
+              .innerJoin(feeGroupFeeItems, eq(feeItems.id, feeGroupFeeItems.feeItemId))
+              .where(eq(feeGroupFeeItems.feeGroupId, feeGroup.id))
+              .orderBy(asc(feeGroupFeeItems.displayOrder))
+          );
+          
+          return {
+            ...feeGroup,
+            feeItems: items
+          };
+        })
+      );
       
-      result.forEach(row => {
-        if (!feeGroupsMap.has(row.feeGroup.id)) {
-          feeGroupsMap.set(row.feeGroup.id, {
-            ...row.feeGroup,
-            feeItems: []
-          });
-        }
-        
-        feeGroupsMap.get(row.feeGroup.id).feeItems.push({
-          ...row.feeItem,
-          pricingTypeFeeItem: row.pricingTypeFeeItem
-        });
-      });
-      
-      const feeGroupsWithItems = Array.from(feeGroupsMap.values());
+      // Filter out fee groups with no fee items
+      const feeGroupsWithActiveItems = feeGroupsWithItems.filter(group => group.feeItems.length > 0);
       
       const response = {
         pricingType: pricingTypeResult[0],
-        feeGroups: feeGroupsWithItems
+        feeGroups: feeGroupsWithActiveItems
       };
       
-      console.log(`Found ${feeGroupsWithItems.length} fee groups with items for pricing type ${id} in ${req.dbEnv} database`);
+      console.log(`Found ${feeGroupsWithActiveItems.length} fee groups with items for pricing type ${id} in ${req.dbEnv} database`);
       res.json(response);
     } catch (error) {
       console.error('Error fetching pricing type fee groups:', error);
