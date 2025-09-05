@@ -5445,7 +5445,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       console.log(`Creating pricing type - Database environment: ${req.dbEnv}`);
       
-      const { name, description, feeGroupIds = [] } = req.body;
+      const { name, description, feeItemIds = [] } = req.body;
       
       // Use the dynamic database connection
       const dbToUse = req.dynamicDB;
@@ -5453,45 +5453,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(500).json({ error: "Database connection not available" });
       }
       
-      const { pricingTypes, pricingTypeFeeItems, feeItems, feeGroups, feeGroupFeeItems } = await import("@shared/schema");
-      const { eq, inArray } = await import("drizzle-orm");
+      const { pricingTypes, pricingTypeFeeItems } = await import("@shared/schema");
+      const { withRetry } = await import("./db");
       
       // Create the pricing type first
-      const [pricingType] = await dbToUse.insert(pricingTypes).values({
-        name,
-        description,
-        isActive: true,
-        author: 'System'
-      }).returning();
+      const [pricingType] = await withRetry(() =>
+        dbToUse.insert(pricingTypes).values({
+          name,
+          description,
+          isActive: true,
+          author: 'System'
+        }).returning()
+      );
       
       console.log('Created pricing type:', pricingType);
       
-      // Add fee items to the pricing type via fee groups (pricing types can only associate fee items through fee groups)
-      if (feeGroupIds && Array.isArray(feeGroupIds) && feeGroupIds.length > 0) {
-        console.log('Adding fee items via fee groups to pricing type:', feeGroupIds);
+      // Add selected fee items to the pricing type
+      if (feeItemIds && Array.isArray(feeItemIds) && feeItemIds.length > 0) {
+        console.log('Adding selected fee items to pricing type:', feeItemIds);
         
-        // Get all fee items that belong to the selected fee groups
-        const feeItemsFromGroups = await dbToUse
-          .select({ 
-            feeItemId: feeGroupFeeItems.feeItemId,
-            displayOrder: feeGroupFeeItems.displayOrder
-          })
-          .from(feeGroupFeeItems)
-          .where(inArray(feeGroupFeeItems.feeGroupId, feeGroupIds));
-        
-        console.log(`Found ${feeItemsFromGroups.length} fee items from selected fee groups`);
-        
-        if (feeItemsFromGroups.length > 0) {
-          await dbToUse.insert(pricingTypeFeeItems).values(
-            feeItemsFromGroups.map((item, index) => ({
+        await withRetry(() =>
+          dbToUse.insert(pricingTypeFeeItems).values(
+            feeItemIds.map((feeItemId: number, index: number) => ({
               pricingTypeId: pricingType.id,
-              feeItemId: item.feeItemId,
+              feeItemId,
               isRequired: false,
-              displayOrder: item.displayOrder || index + 1
+              displayOrder: index + 1
             }))
-          );
-          console.log(`Added ${feeItemsFromGroups.length} fee items to pricing type via fee groups`);
-        }
+          )
+        );
+        
+        console.log(`Added ${feeItemIds.length} fee items to pricing type`);
       }
       
       console.log(`Pricing type created successfully in ${req.dbEnv} database`);
