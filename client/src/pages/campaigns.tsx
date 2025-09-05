@@ -2135,7 +2135,7 @@ export default function CampaignsPage() {
                 <div className="text-center py-4 text-muted-foreground">No fee items available</div>
               ) : (
                 <div className="max-h-48 overflow-y-auto border rounded-md p-3 space-y-2">
-                  {feeItems.map((item) => (
+                  {feeItems.sort((a, b) => a.name.localeCompare(b.name)).map((item) => (
                     <div key={item.id} className="flex items-center space-x-3">
                       <input
                         type="checkbox"
@@ -2231,7 +2231,7 @@ export default function CampaignsPage() {
                 <div className="text-center py-4 text-muted-foreground">No fee items available</div>
               ) : (
                 <div className="max-h-48 overflow-y-auto border rounded-md p-3 space-y-2">
-                  {feeItems.map((item) => (
+                  {feeItems.sort((a, b) => a.name.localeCompare(b.name)).map((item) => (
                     <div key={item.id} className="flex items-center space-x-3">
                       <input
                         type="checkbox"
