@@ -5505,13 +5505,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: 'Invalid pricing type ID' });
       }
       
-      const result = await storage.deletePricingType(id);
+      console.log(`Deleting pricing type ${id} - Database environment: ${req.dbEnv}`);
       
-      if (result.success) {
-        res.json({ success: true, message: result.message });
-      } else {
-        res.status(400).json({ success: false, error: result.message });
+      // Use the dynamic database connection
+      const dbToUse = req.dynamicDB;
+      if (!dbToUse) {
+        return res.status(500).json({ error: "Database connection not available" });
       }
+      
+      const { pricingTypes, pricingTypeFeeItems } = await import("@shared/schema");
+      const { eq } = await import("drizzle-orm");
+      const { withRetry } = await import("./db");
+      
+      // First check if pricing type exists
+      const existingPricingType = await withRetry(() =>
+        dbToUse.select().from(pricingTypes).where(eq(pricingTypes.id, id))
+      );
+      
+      if (existingPricingType.length === 0) {
+        return res.status(404).json({ error: 'Pricing type not found' });
+      }
+      
+      // Check if this pricing type has any associated fee items
+      const associatedFeeItems = await withRetry(() =>
+        dbToUse.select().from(pricingTypeFeeItems).where(eq(pricingTypeFeeItems.pricingTypeId, id))
+      );
+      
+      console.log(`Found ${associatedFeeItems.length} associated fee items for pricing type ${id}`);
+      
+      if (associatedFeeItems.length > 0) {
+        // First delete all fee item associations
+        await withRetry(() =>
+          dbToUse.delete(pricingTypeFeeItems).where(eq(pricingTypeFeeItems.pricingTypeId, id))
+        );
+        console.log(`Deleted ${associatedFeeItems.length} fee item associations`);
+      }
+      
+      // Now delete the pricing type
+      const [deletedPricingType] = await withRetry(() =>
+        dbToUse.delete(pricingTypes).where(eq(pricingTypes.id, id)).returning()
+      );
+      
+      if (!deletedPricingType) {
+        return res.status(404).json({ error: 'Pricing type not found' });
+      }
+      
+      console.log(`Successfully deleted pricing type: ${deletedPricingType.name}`);
+      res.json({ success: true, message: `Pricing type "${deletedPricingType.name}" has been successfully deleted.` });
     } catch (error) {
       console.error('Error deleting pricing type:', error);
       res.status(500).json({ error: 'Failed to delete pricing type' });
