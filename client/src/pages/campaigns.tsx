@@ -2668,7 +2668,7 @@ export default function CampaignsPage() {
                           <div className="text-xs text-muted-foreground mb-2">
                             Select individual fee items from this group:
                           </div>
-                          {groupFeeItems.map((item) => (
+                          {groupFeeItems.sort((a, b) => a.name.localeCompare(b.name)).map((item) => (
                             <div key={item.id} className="flex items-center space-x-2">
                               <input
                                 type="checkbox"
@@ -2790,7 +2790,7 @@ export default function CampaignsPage() {
                           <div className="text-xs text-muted-foreground mb-2">
                             Select individual fee items from this group:
                           </div>
-                          {groupFeeItems.map((item) => (
+                          {groupFeeItems.sort((a, b) => a.name.localeCompare(b.name)).map((item) => (
                             <div key={item.id} className="flex items-center space-x-2">
                               <input
                                 type="checkbox"
