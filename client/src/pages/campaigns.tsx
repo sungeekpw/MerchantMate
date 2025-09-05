@@ -2618,7 +2618,7 @@ export default function CampaignsPage() {
               </div>
               <div className="border rounded-md p-3 max-h-60 overflow-y-auto space-y-3">
                 {feeGroups.map((group) => {
-                  const groupFeeItems = feeItems.filter(item => item.feeGroupId === group.id);
+                  const groupFeeItems = group.feeItems || [];
                   const isGroupSelected = pricingTypeForm.selectedFeeGroupIds.includes(group.id);
                   const isExpanded = pricingTypeForm.expandedFeeGroups.includes(group.id);
                   
@@ -2734,7 +2734,7 @@ export default function CampaignsPage() {
               </div>
               <div className="border rounded-md p-3 max-h-60 overflow-y-auto space-y-3">
                 {feeGroups.map((group) => {
-                  const groupFeeItems = feeItems.filter(item => item.feeGroupId === group.id);
+                  const groupFeeItems = group.feeItems || [];
                   const isGroupSelected = pricingTypeForm.selectedFeeGroupIds.includes(group.id);
                   const isExpanded = pricingTypeForm.expandedFeeGroups.includes(group.id);
                   
