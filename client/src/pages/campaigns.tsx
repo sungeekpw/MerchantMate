@@ -202,7 +202,8 @@ export default function CampaignsPage() {
   const [feeGroupForm, setFeeGroupForm] = useState({
     name: '',
     description: '',
-    displayOrder: 1
+    displayOrder: 1,
+    selectedFeeItems: [] as number[]
   });
 
   // Fee Item form state
@@ -400,10 +401,35 @@ export default function CampaignsPage() {
       }
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: async (createdFeeGroup) => {
+      // If fee items are selected, associate them with the newly created fee group
+      if (feeGroupForm.selectedFeeItems.length > 0) {
+        try {
+          const response = await fetch(`/api/fee-groups/${createdFeeGroup.id}/fee-items`, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ feeItemIds: feeGroupForm.selectedFeeItems }),
+            credentials: 'include',
+          });
+          
+          if (!response.ok) {
+            throw new Error('Failed to associate fee items');
+          }
+        } catch (error) {
+          console.error('Error associating fee items:', error);
+          toast({
+            title: "Warning",
+            description: "Fee group created but some fee items couldn't be associated.",
+            variant: "destructive",
+          });
+        }
+      }
+      
       queryClient.invalidateQueries({ queryKey: ['/api/fee-groups'] });
       setShowAddFeeGroup(false);
-      setFeeGroupForm({ name: '', description: '', displayOrder: 1 });
+      setFeeGroupForm({ name: '', description: '', displayOrder: 1, selectedFeeItems: [] });
       toast({
         title: "Fee Group Created",
         description: "The fee group has been successfully created.",
@@ -568,11 +594,34 @@ export default function CampaignsPage() {
       }
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: async (updatedFeeGroup) => {
+      // Update fee item associations
+      try {
+        const response = await fetch(`/api/fee-groups/${editFeeGroupId}/fee-items`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ feeItemIds: feeGroupForm.selectedFeeItems }),
+          credentials: 'include',
+        });
+        
+        if (!response.ok) {
+          throw new Error('Failed to update fee item associations');
+        }
+      } catch (error) {
+        console.error('Error updating fee item associations:', error);
+        toast({
+          title: "Warning",
+          description: "Fee group updated but some fee item associations couldn't be saved.",
+          variant: "destructive",
+        });
+      }
+      
       queryClient.invalidateQueries({ queryKey: ['/api/fee-groups'] });
       setShowEditFeeGroup(false);
       setEditFeeGroupId(null);
-      setFeeGroupForm({ name: '', description: '', displayOrder: 1 });
+      setFeeGroupForm({ name: '', description: '', displayOrder: 1, selectedFeeItems: [] });
       toast({
         title: "Fee Group Updated",
         description: "The fee group has been successfully updated.",
@@ -878,10 +927,15 @@ export default function CampaignsPage() {
   const handleEditFeeGroup = (feeGroup: FeeGroup) => {
     console.log('Edit fee group clicked:', feeGroup);
     setEditFeeGroupId(feeGroup.id);
+    
+    // Extract fee item IDs from the fee group's associated fee items
+    const selectedFeeItemIds = (feeGroup as any).feeItems ? (feeGroup as any).feeItems.map((item: any) => item.id) : [];
+    
     setFeeGroupForm({
       name: feeGroup.name,
       description: feeGroup.description || '',
       displayOrder: feeGroup.displayOrder,
+      selectedFeeItems: selectedFeeItemIds,
     });
     setShowEditFeeGroup(true);
     console.log('Edit dialog should open, showEditFeeGroup:', true);
@@ -2033,7 +2087,7 @@ export default function CampaignsPage() {
 
       {/* Add Fee Group Dialog */}
       <Dialog open={showAddFeeGroup} onOpenChange={setShowAddFeeGroup}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Add New Fee Group</DialogTitle>
             <DialogDescription>
@@ -2067,6 +2121,48 @@ export default function CampaignsPage() {
                 onChange={(e) => setFeeGroupForm(prev => ({ ...prev, displayOrder: parseInt(e.target.value) || 1 }))}
               />
             </div>
+            
+            {/* Fee Items Selection */}
+            <div>
+              <Label className="text-base font-medium">Select Fee Items</Label>
+              <p className="text-sm text-muted-foreground mb-3">Choose which fee items should belong to this group</p>
+              {feeItemsLoading ? (
+                <div className="text-center py-4 text-muted-foreground">Loading fee items...</div>
+              ) : feeItems.length === 0 ? (
+                <div className="text-center py-4 text-muted-foreground">No fee items available</div>
+              ) : (
+                <div className="max-h-48 overflow-y-auto border rounded-md p-3 space-y-2">
+                  {feeItems.map((item) => (
+                    <div key={item.id} className="flex items-center space-x-3">
+                      <input
+                        type="checkbox"
+                        id={`fee-item-${item.id}`}
+                        checked={feeGroupForm.selectedFeeItems.includes(item.id)}
+                        onChange={(e) => {
+                          const isChecked = e.target.checked;
+                          setFeeGroupForm(prev => ({
+                            ...prev,
+                            selectedFeeItems: isChecked 
+                              ? [...prev.selectedFeeItems, item.id]
+                              : prev.selectedFeeItems.filter(id => id !== item.id)
+                          }));
+                        }}
+                        className="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
+                      />
+                      <label 
+                        htmlFor={`fee-item-${item.id}`} 
+                        className="flex-1 text-sm cursor-pointer"
+                      >
+                        <div className="font-medium">{item.name}</div>
+                        {item.description && (
+                          <div className="text-muted-foreground text-xs">{item.description}</div>
+                        )}
+                      </label>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowAddFeeGroup(false)}>
@@ -2087,11 +2183,11 @@ export default function CampaignsPage() {
         console.log('🔄 Dialog onOpenChange called with:', open);
         setShowEditFeeGroup(open);
       }}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Edit Fee Group</DialogTitle>
             <DialogDescription>
-              Update fee group information
+              Update fee group information and fee item associations
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
@@ -2121,12 +2217,54 @@ export default function CampaignsPage() {
                 onChange={(e) => setFeeGroupForm(prev => ({ ...prev, displayOrder: parseInt(e.target.value) || 1 }))}
               />
             </div>
+            
+            {/* Fee Items Selection */}
+            <div>
+              <Label className="text-base font-medium">Select Fee Items</Label>
+              <p className="text-sm text-muted-foreground mb-3">Choose which fee items should belong to this group</p>
+              {feeItemsLoading ? (
+                <div className="text-center py-4 text-muted-foreground">Loading fee items...</div>
+              ) : feeItems.length === 0 ? (
+                <div className="text-center py-4 text-muted-foreground">No fee items available</div>
+              ) : (
+                <div className="max-h-48 overflow-y-auto border rounded-md p-3 space-y-2">
+                  {feeItems.map((item) => (
+                    <div key={item.id} className="flex items-center space-x-3">
+                      <input
+                        type="checkbox"
+                        id={`edit-fee-item-${item.id}`}
+                        checked={feeGroupForm.selectedFeeItems.includes(item.id)}
+                        onChange={(e) => {
+                          const isChecked = e.target.checked;
+                          setFeeGroupForm(prev => ({
+                            ...prev,
+                            selectedFeeItems: isChecked 
+                              ? [...prev.selectedFeeItems, item.id]
+                              : prev.selectedFeeItems.filter(id => id !== item.id)
+                          }));
+                        }}
+                        className="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
+                      />
+                      <label 
+                        htmlFor={`edit-fee-item-${item.id}`} 
+                        className="flex-1 text-sm cursor-pointer"
+                      >
+                        <div className="font-medium">{item.name}</div>
+                        {item.description && (
+                          <div className="text-muted-foreground text-xs">{item.description}</div>
+                        )}
+                      </label>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => {
               setShowEditFeeGroup(false);
               setEditFeeGroupId(null);
-              setFeeGroupForm({ name: '', description: '', displayOrder: 1 });
+              setFeeGroupForm({ name: '', description: '', displayOrder: 1, selectedFeeItems: [] });
             }}>
               Cancel
             </Button>
