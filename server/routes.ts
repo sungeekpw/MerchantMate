@@ -5447,6 +5447,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const { name, description, feeItemIds = [] } = req.body;
       
+      console.log('Request body:', JSON.stringify(req.body, null, 2));
+      console.log('Extracted feeItemIds:', feeItemIds, 'Type:', typeof feeItemIds, 'Length:', feeItemIds?.length);
+      
       // Use the dynamic database connection
       const dbToUse = req.dynamicDB;
       if (!dbToUse) {

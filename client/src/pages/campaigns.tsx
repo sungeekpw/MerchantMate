@@ -1111,6 +1111,13 @@ export default function CampaignsPage() {
       return;
     }
 
+    console.log('Creating pricing type with data:', {
+      name: pricingTypeForm.name.trim(),
+      description: pricingTypeForm.description.trim() || undefined,
+      feeItemIds: pricingTypeForm.selectedFeeItemIds,
+    });
+    console.log('Current form state:', pricingTypeForm);
+    
     createPricingTypeMutation.mutate({
       name: pricingTypeForm.name.trim(),
       description: pricingTypeForm.description.trim() || undefined,
