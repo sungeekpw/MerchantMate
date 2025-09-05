@@ -1808,16 +1808,6 @@ export default function CampaignsPage() {
                           {getSortIcon('name', feeItemSort)}
                         </Button>
                       </TableHead>
-                      <TableHead>
-                        <Button 
-                          variant="ghost" 
-                          className="h-auto p-0 font-medium flex items-center gap-1"
-                          onClick={() => handleSort('feeGroup.name', feeItemSort, setFeeItemSort)}
-                        >
-                          Fee Group
-                          {getSortIcon('feeGroup.name', feeItemSort)}
-                        </Button>
-                      </TableHead>
                       <TableHead>Default Value</TableHead>
                       <TableHead>
                         <Button 
@@ -1856,7 +1846,6 @@ export default function CampaignsPage() {
                     {sortData(feeItems, feeItemSort).map((item) => (
                       <TableRow key={item.id}>
                         <TableCell className="font-medium">{item.name}</TableCell>
-                        <TableCell>{item.feeGroup?.name || '—'}</TableCell>
                         <TableCell>
                           {item.defaultValue ? `${item.defaultValue}${item.valueType === 'percentage' ? '%' : item.valueType === 'fixed' ? ' USD' : ' bps'}` : '—'}
                         </TableCell>
