@@ -693,6 +693,35 @@ export default function CampaignsPage() {
     },
   });
 
+  // Delete Fee Item Group mutation
+  const deleteFeeItemGroupMutation = useMutation({
+    mutationFn: async (feeItemGroupId: number) => {
+      const response = await fetch(`/api/fee-item-groups/${feeItemGroupId}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to delete fee item group');
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/fee-item-groups'] });
+      toast({
+        title: "Fee Item Group Deleted",
+        description: "The fee item group has been successfully deleted.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete fee item group.",
+        variant: "destructive",
+      });
+    },
+  });
+
   // Create Pricing Type mutation
   const createPricingTypeMutation = useMutation({
     mutationFn: async (pricingTypeData: CreatePricingTypeData) => {
@@ -1717,6 +1746,17 @@ export default function CampaignsPage() {
                               }}>
                                 <Edit className="mr-2 h-4 w-4" />
                                 Edit Group
+                              </DropdownMenuItem>
+                              <DropdownMenuItem 
+                                onSelect={(e) => {
+                                  e.preventDefault();
+                                  deleteFeeItemGroupMutation.mutate(group.id);
+                                }}
+                                className="text-destructive hover:text-destructive"
+                                disabled={deleteFeeItemGroupMutation.isPending}
+                              >
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                Delete Group
                               </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
