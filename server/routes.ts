@@ -4759,7 +4759,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             .from(feeItems)
             .innerJoin(feeGroupFeeItems, eq(feeItems.id, feeGroupFeeItems.feeItemId))
             .where(eq(feeGroupFeeItems.feeGroupId, group.id))
-            .orderBy(feeGroupFeeItems.displayOrder)
+            .orderBy(feeItems.name)
         );
         return { ...group, feeItems: items };
       }));
@@ -5415,7 +5415,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               .from(feeItems)
               .innerJoin(feeGroupFeeItems, eq(feeItems.id, feeGroupFeeItems.feeItemId))
               .where(eq(feeGroupFeeItems.feeGroupId, feeGroup.id))
-              .orderBy(asc(feeGroupFeeItems.displayOrder))
+              .orderBy(asc(feeItems.name))
           );
           
           return {
