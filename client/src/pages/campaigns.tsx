@@ -405,6 +405,9 @@ export default function CampaignsPage() {
       // If fee items are selected, associate them with the newly created fee group
       if (feeGroupForm.selectedFeeItems.length > 0) {
         try {
+          // Add a small delay to ensure database transaction is fully committed
+          await new Promise(resolve => setTimeout(resolve, 100));
+          
           const response = await fetch(`/api/fee-groups/${createdFeeGroup.id}/fee-items`, {
             method: 'PUT',
             headers: {
