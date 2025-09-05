@@ -211,7 +211,6 @@ export default function CampaignsPage() {
     description: '',
     defaultValue: '',
     valueType: 'percentage' as 'percentage' | 'fixed' | 'basis_points',
-    isRequired: false,
     displayOrder: 1
   });
 
@@ -975,7 +974,6 @@ export default function CampaignsPage() {
       description: feeItemForm.description.trim() || undefined,
       defaultValue: feeItemForm.defaultValue.trim() || undefined,
       valueType: feeItemForm.valueType,
-      isRequired: feeItemForm.isRequired,
       displayOrder: feeItemForm.displayOrder || 1,
     });
   };
@@ -1038,7 +1036,6 @@ export default function CampaignsPage() {
           description: feeItemForm.description.trim() || undefined,
           defaultValue: feeItemForm.defaultValue.trim() || undefined,
           valueType: feeItemForm.valueType,
-          isRequired: feeItemForm.isRequired,
           displayOrder: feeItemForm.displayOrder || 1,
         }
       });
@@ -1895,7 +1892,6 @@ export default function CampaignsPage() {
                                   description: item.description || '',
                                   defaultValue: item.defaultValue || '',
                                   valueType: item.valueType,
-                                  isRequired: item.isRequired,
                                   displayOrder: item.displayOrder
                                 });
                                 setShowEditFeeItem(true);
@@ -2207,14 +2203,6 @@ export default function CampaignsPage() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="flex items-center space-x-2">
-              <Switch 
-                id="required" 
-                checked={feeItemForm.isRequired}
-                onCheckedChange={(checked) => setFeeItemForm(prev => ({ ...prev, isRequired: checked }))}
-              />
-              <Label htmlFor="required">Required for campaigns</Label>
-            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => {
@@ -2224,7 +2212,6 @@ export default function CampaignsPage() {
                 description: '',
                 defaultValue: '',
                 valueType: 'percentage',
-                isRequired: false,
                 displayOrder: 1
               });
             }}>
@@ -2292,14 +2279,6 @@ export default function CampaignsPage() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="flex items-center space-x-2">
-              <Switch 
-                id="required-edit" 
-                checked={feeItemForm.isRequired}
-                onCheckedChange={(checked) => setFeeItemForm(prev => ({ ...prev, isRequired: checked }))}
-              />
-              <Label htmlFor="required-edit">Required for campaigns</Label>
-            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => {
@@ -2310,7 +2289,6 @@ export default function CampaignsPage() {
                 description: '',
                 defaultValue: '',
                 valueType: 'percentage',
-                isRequired: false,
                 displayOrder: 1
               });
             }}>
