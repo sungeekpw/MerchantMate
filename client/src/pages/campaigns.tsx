@@ -843,7 +843,7 @@ export default function CampaignsPage() {
 
   // Edit pricing type mutation
   const editPricingTypeMutation = useMutation({
-    mutationFn: async ({ id, data }: { id: number; data: { name: string; description?: string; feeGroupIds: number[] } }) => {
+    mutationFn: async ({ id, data }: { id: number; data: { name: string; description?: string; feeItemIds: number[] } }) => {
       const response = await fetch(`/api/pricing-types/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
