@@ -228,6 +228,7 @@ export default function CampaignsPage() {
     name: '',
     description: '',
     selectedFeeGroupIds: [] as number[],
+    selectedFeeItemIds: [] as number[],
     feeGroupIds: [] as number[],
     expandedFeeGroups: [] as number[]
   });
@@ -792,7 +793,7 @@ export default function CampaignsPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/pricing-types'] });
       setShowAddPricingType(false);
-      setPricingTypeForm({ name: '', description: '', selectedFeeGroupIds: [], feeGroupIds: [], expandedFeeGroups: [] });
+      setPricingTypeForm({ name: '', description: '', selectedFeeGroupIds: [], selectedFeeItemIds: [], feeGroupIds: [], expandedFeeGroups: [] });
       toast({
         title: "Pricing Type Created",
         description: "The pricing type has been successfully created.",
@@ -864,7 +865,7 @@ export default function CampaignsPage() {
       setShowEditPricingType(false);
       setEditingPricingType(null);
       // Reset form
-      setPricingTypeForm({ name: '', description: '', selectedFeeGroupIds: [], feeGroupIds: [], expandedFeeGroups: [] });
+      setPricingTypeForm({ name: '', description: '', selectedFeeGroupIds: [], selectedFeeItemIds: [], feeGroupIds: [], expandedFeeGroups: [] });
       toast({
         title: "Pricing Type Updated",
         description: "The pricing type has been successfully updated.",
@@ -1113,22 +1114,27 @@ export default function CampaignsPage() {
     createPricingTypeMutation.mutate({
       name: pricingTypeForm.name.trim(),
       description: pricingTypeForm.description.trim() || undefined,
-      feeGroupIds: pricingTypeForm.feeGroupIds,
+      feeItemIds: pricingTypeForm.selectedFeeItemIds,
     });
   };
 
-  // Handle fee group selection for pricing type (fee groups are now the primary association)
+  // Handle fee group selection for pricing type
   const handleFeeGroupSelection = (feeGroupId: number, isSelected: boolean) => {
+    const group = feeGroups.find(g => g.id === feeGroupId);
+    const groupFeeItemIds = group?.feeItems?.map(item => item.id) || [];
+    
     if (isSelected) {
       setPricingTypeForm(prev => ({
         ...prev,
         selectedFeeGroupIds: [...prev.selectedFeeGroupIds, feeGroupId],
+        selectedFeeItemIds: [...new Set([...prev.selectedFeeItemIds, ...groupFeeItemIds])],
         feeGroupIds: [...prev.feeGroupIds, feeGroupId]
       }));
     } else {
       setPricingTypeForm(prev => ({
         ...prev,
         selectedFeeGroupIds: prev.selectedFeeGroupIds.filter(id => id !== feeGroupId),
+        selectedFeeItemIds: prev.selectedFeeItemIds.filter(id => !groupFeeItemIds.includes(id)),
         feeGroupIds: prev.feeGroupIds.filter(id => id !== feeGroupId)
       }));
     }
@@ -1144,7 +1150,15 @@ export default function CampaignsPage() {
     }));
   };
 
-  // Note: Individual fee item selection removed - pricing types now associate fee items only via fee groups
+  // Handle individual fee item selection
+  const handleFeeItemSelection = (itemId: number, isSelected: boolean) => {
+    setPricingTypeForm(prev => ({
+      ...prev,
+      selectedFeeItemIds: isSelected
+        ? [...prev.selectedFeeItemIds, itemId]
+        : prev.selectedFeeItemIds.filter(id => id !== itemId)
+    }));
+  };
 
   // Handle opening edit pricing type dialog
   const handleEditPricingType = async (pricingType: any) => {
@@ -2652,12 +2666,18 @@ export default function CampaignsPage() {
                       {isGroupSelected && isExpanded && groupFeeItems.length > 0 && (
                         <div className="pl-6 space-y-1 border-l-2 border-muted">
                           <div className="text-xs text-muted-foreground mb-2">
-                            All items in this fee group will be included:
+                            Select individual fee items from this group:
                           </div>
                           {groupFeeItems.map((item) => (
                             <div key={item.id} className="flex items-center space-x-2">
-                              <CheckCircle2 className="h-3 w-3 text-green-600" />
-                              <Label className="text-xs">
+                              <input
+                                type="checkbox"
+                                id={`fee-item-${item.id}`}
+                                className="rounded"
+                                checked={pricingTypeForm.selectedFeeItemIds.includes(item.id)}
+                                onChange={(e) => handleFeeItemSelection(item.id, e.target.checked)}
+                              />
+                              <Label htmlFor={`fee-item-${item.id}`} className="text-xs cursor-pointer">
                                 {item.name}
                                 {item.description && (
                                   <span className="text-muted-foreground ml-1">- {item.description}</span>
@@ -2768,12 +2788,18 @@ export default function CampaignsPage() {
                       {isGroupSelected && isExpanded && groupFeeItems.length > 0 && (
                         <div className="pl-6 space-y-1 border-l-2 border-muted">
                           <div className="text-xs text-muted-foreground mb-2">
-                            All items in this fee group will be included:
+                            Select individual fee items from this group:
                           </div>
                           {groupFeeItems.map((item) => (
                             <div key={item.id} className="flex items-center space-x-2">
-                              <CheckCircle2 className="h-3 w-3 text-green-600" />
-                              <Label className="text-xs">
+                              <input
+                                type="checkbox"
+                                id={`fee-item-${item.id}`}
+                                className="rounded"
+                                checked={pricingTypeForm.selectedFeeItemIds.includes(item.id)}
+                                onChange={(e) => handleFeeItemSelection(item.id, e.target.checked)}
+                              />
+                              <Label htmlFor={`fee-item-${item.id}`} className="text-xs cursor-pointer">
                                 {item.name}
                                 {item.description && (
                                   <span className="text-muted-foreground ml-1">- {item.description}</span>
