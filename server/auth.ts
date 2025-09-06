@@ -35,7 +35,16 @@ export class AuthService {
 
   // Verify password against hash
   async verifyPassword(password: string, hash: string): Promise<boolean> {
-    return bcrypt.compare(password, hash);
+    console.log(`verifyPassword: Input password: "${password}" (length: ${password?.length})`);
+    console.log(`verifyPassword: Hash: "${hash}" (length: ${hash?.length})`);
+    try {
+      const result = await bcrypt.compare(password, hash);
+      console.log(`verifyPassword: Comparison result: ${result}`);
+      return result;
+    } catch (error) {
+      console.error(`verifyPassword: Error during comparison:`, error);
+      return false;
+    }
   }
 
   // Generate secure random token
@@ -159,7 +168,7 @@ export class AuthService {
         passwordHash,
         firstName: userData.firstName,
         lastName: userData.lastName,
-        role: userData.role || "merchant",
+        roles: userData.roles || ["merchant"],
         emailVerificationToken,
         emailVerified: false,
         status: 'active' as const,
@@ -223,7 +232,7 @@ export class AuthService {
         passwordHash,
         firstName: userData.firstName,
         lastName: userData.lastName,
-        role: userData.role || "merchant",
+        roles: userData.roles || ["merchant"],
         emailVerificationToken,
         emailVerified: false,
       });
@@ -416,6 +425,7 @@ export class AuthService {
         const [userByUsername] = await db.select().from(users).where(eq(users.username, loginData.usernameOrEmail));
         if (userByUsername) {
           console.log(`LoginWithDB: Found user by username: ${userByUsername.username} (${userByUsername.id})`);
+          console.log(`LoginWithDB: Password hash preview: ${userByUsername.passwordHash?.substring(0, 30)}...`);
           user = userByUsername;
         } else {
           console.log(`LoginWithDB: No user found by username, trying email...`);
