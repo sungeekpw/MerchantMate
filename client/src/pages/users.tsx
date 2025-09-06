@@ -562,7 +562,7 @@ export default function UsersPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {users.filter((u: User) => u.role === "agent").length}
+              {users.filter((u: User) => u.roles?.includes("agent")).length}
             </div>
           </CardContent>
         </Card>
@@ -573,7 +573,7 @@ export default function UsersPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {users.filter((u: User) => u.role === "merchant").length}
+              {users.filter((u: User) => u.roles?.includes("merchant")).length}
             </div>
           </CardContent>
         </Card>
@@ -584,7 +584,7 @@ export default function UsersPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {users.filter((u: User) => u.role === "admin" || u.role === "super_admin").length}
+              {users.filter((u: User) => u.roles?.includes("admin") || u.roles?.includes("super_admin")).length}
             </div>
           </CardContent>
         </Card>
