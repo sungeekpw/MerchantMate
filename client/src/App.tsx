@@ -320,7 +320,8 @@ function AuthenticatedApp() {
           </Route>
           <Route path="/email-management">
             {() => {
-              if (!user || (user.role !== 'admin' && user.role !== 'super_admin')) return <NotFound />;
+              const userRoles = (user as any)?.roles || [];
+              if (!user || (!userRoles.includes('admin') && !userRoles.includes('super_admin'))) return <NotFound />;
               const pageInfo = getPageInfo("/email-management");
               return (
                 <>
