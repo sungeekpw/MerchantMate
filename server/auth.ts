@@ -4,6 +4,8 @@ import crypto from "crypto";
 import { v4 as uuidv4 } from "uuid";
 import sgMail from "@sendgrid/mail";
 import { storage } from "./storage";
+import { users } from "@shared/schema";
+import { eq } from "drizzle-orm";
 import type { Request } from "express";
 import type { 
   RegisterUser, 
@@ -386,7 +388,7 @@ export class AuthService {
     }
   }
 
-  // Login with dynamic database support - use storage layer for consistency
+  // Login with dynamic database support - bypasses storage layer for database switching
   async loginWithDB(loginData: LoginUser, req: Request, db: any): Promise<{ 
     success: boolean; 
     message: string; 
@@ -394,8 +396,150 @@ export class AuthService {
     requires2FA?: boolean;
     sessionId?: string;
   }> {
-    // Use the standard login method which uses storage layer
-    return this.login(loginData, req);
+    const ip = this.getClientIP(req);
+    const userAgent = req.headers["user-agent"] || "";
+
+    try {
+      // Check login attempts
+      if (!(await this.checkLoginAttempts(loginData.usernameOrEmail, ip))) {
+        await this.logLoginAttempt(loginData.usernameOrEmail, ip, userAgent, false, "too_many_attempts");
+        return {
+          success: false,
+          message: "Too many failed login attempts. Please try again in 15 minutes."
+        };
+      }
+
+      // Get user by username or email using dynamic database
+      let user;
+      try {
+        console.log(`LoginWithDB: Looking for user with username/email: ${loginData.usernameOrEmail}`);
+        const [userByUsername] = await db.select().from(users).where(eq(users.username, loginData.usernameOrEmail));
+        if (userByUsername) {
+          console.log(`LoginWithDB: Found user by username: ${userByUsername.username} (${userByUsername.id})`);
+          user = userByUsername;
+        } else {
+          console.log(`LoginWithDB: No user found by username, trying email...`);
+          const [userByEmail] = await db.select().from(users).where(eq(users.email, loginData.usernameOrEmail));
+          if (userByEmail) {
+            console.log(`LoginWithDB: Found user by email: ${userByEmail.username} (${userByEmail.id})`);
+            user = userByEmail;
+          } else {
+            console.log(`LoginWithDB: No user found by username or email`);
+          }
+        }
+      } catch (dbError) {
+        console.error("Database query error:", dbError);
+        await this.logLoginAttempt(loginData.usernameOrEmail, ip, userAgent, false, "database_error");
+        return {
+          success: false,
+          message: "Login failed. Please try again."
+        };
+      }
+
+      if (!user) {
+        await this.logLoginAttempt(loginData.usernameOrEmail, ip, userAgent, false, "user_not_found");
+        return {
+          success: false,
+          message: "Invalid username/email or password"
+        };
+      }
+
+      // Check if account is active
+      if (user.status !== "active") {
+        await this.logLoginAttempt(loginData.usernameOrEmail, ip, userAgent, false, "account_inactive");
+        return {
+          success: false,
+          message: "Account is suspended. Please contact support."
+        };
+      }
+
+      // Verify password
+      if (!(await this.verifyPassword(loginData.password, user.passwordHash))) {
+        await this.logLoginAttempt(loginData.usernameOrEmail, ip, userAgent, false, "invalid_password");
+        return {
+          success: false,
+          message: "Invalid username/email or password"
+        };
+      }
+
+      // Check if IP changed or 2FA is enabled
+      const ipChanged = await this.hasIPChanged(user, ip);
+      if (user.twoFactorEnabled || ipChanged) {
+        if (!loginData.twoFactorCode) {
+          // Generate and send 2FA code
+          const code = this.generate2FACode();
+          const type = ipChanged ? "ip_change" : "login";
+          
+          await storage.create2FACode({
+            userId: user.id,
+            code,
+            type,
+            expiresAt: new Date(Date.now() + TWO_FACTOR_EXPIRES),
+          });
+
+          // Send 2FA code via email
+          await this.sendEmail(
+            user.email,
+            `CoreCRM Security Code${ipChanged ? " - New IP Address Detected" : ""}`,
+            `
+            <h2>Security Code Required</h2>
+            ${ipChanged ? "<p><strong>We detected a login from a new IP address.</strong></p>" : ""}
+            <p>Your verification code is: <strong style="font-size: 24px; color: #007bff;">${code}</strong></p>
+            <p>This code will expire in 5 minutes.</p>
+            <p>IP Address: ${ip}</p>
+            `
+          );
+
+          return {
+            success: false,
+            requires2FA: true,
+            message: ipChanged 
+              ? "New IP address detected. Please check your email for a security code."
+              : "Please enter your 2FA code."
+          };
+        } else {
+          // Verify 2FA code
+          const validCode = await storage.verify2FACode(user.id, loginData.twoFactorCode);
+          if (!validCode) {
+            await this.logLoginAttempt(loginData.usernameOrEmail, ip, userAgent, false, "invalid_2fa");
+            return {
+              success: false,
+              message: "Invalid or expired security code"
+            };
+          }
+        }
+      }
+
+      // Update user login info with timezone if provided using dynamic database
+      const updateData: any = {
+        lastLoginAt: new Date(),
+        lastLoginIp: ip,
+      };
+      
+      // Update timezone if provided in login data
+      if (loginData.timezone) {
+        updateData.timezone = loginData.timezone;
+      }
+      
+      await db.update(users).set(updateData).where(eq(users.id, user.id));
+
+      // Log successful login
+      await this.logLoginAttempt(loginData.usernameOrEmail, ip, userAgent, true);
+
+      return {
+        success: true,
+        message: "Login successful",
+        user,
+        sessionId: uuidv4()
+      };
+    } catch (error) {
+      console.error("Login error:", error);
+      await this.logLoginAttempt(loginData.usernameOrEmail, ip, userAgent, false, "system_error");
+      return {
+        success: false,
+        message: "Login failed. Please try again."
+      };
+    }
   }
 
   // Request password reset
