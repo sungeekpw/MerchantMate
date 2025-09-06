@@ -25,20 +25,13 @@ export function setupAuthRoutes(app: Express) {
       return res.status(401).json({ message: "Authentication required" });
     }
     
-    // Use dynamic database if available, otherwise fallback to default storage
+    // Use storage layer for consistent user lookup across environments
     let user;
-    if (req.dynamicDB) {
-      const schema = await import('@shared/schema');
-      const { eq } = await import('drizzle-orm');
-      
-      const users = await req.dynamicDB
-        .select()
-        .from(schema.users)
-        .where(eq(schema.users.id, req.session.userId));
-      
-      user = users[0];
-    } else {
+    try {
       user = await storage.getUser(req.session.userId);
+    } catch (error) {
+      console.error("Error fetching user from storage:", error);
+      user = null;
     }
     
     if (!user || user.status !== 'active') {
