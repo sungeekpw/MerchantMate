@@ -23,17 +23,6 @@ export const dbEnvironmentMiddleware = (req: RequestWithDB, res: Response, next:
                             req.get('host')?.includes('charrg.com') ||
                             process.env.NODE_ENV === 'production';
   
-  if (isProductionDomain) {
-    // Force production database for production deployments
-    req.dbEnv = 'production';
-    req.dynamicDB = getDynamicDatabase('production');
-    req.db = req.dynamicDB;
-    res.setHeader('X-Database-Environment', 'production');
-    console.log('Production deployment: forcing production database');
-    next();
-    return;
-  }
-  
   // First check if there's a stored database environment in session
   const sessionDbEnv = (req.session as any)?.dbEnv;
   if (sessionDbEnv && ['test', 'development', 'dev', 'production'].includes(sessionDbEnv)) {
@@ -49,20 +38,34 @@ export const dbEnvironmentMiddleware = (req: RequestWithDB, res: Response, next:
   // Extract database environment from URL parameters, headers, or subdomain
   const dbEnv = extractDbEnv(req);
   
+  // Allow explicit environment switching even on production domains for development/testing
   if (dbEnv && ['test', 'development', 'dev'].includes(dbEnv)) {
     req.dbEnv = dbEnv;
     req.dynamicDB = getDynamicDatabase(dbEnv);
     req.db = req.dynamicDB;
     res.setHeader('X-Database-Environment', dbEnv);
-    console.log(`Database switching: using ${dbEnv} database`);
-  } else {
-    // Use default production database
+    console.log(`Database switching: using ${dbEnv} database (production domain: ${isProductionDomain})`);
+    next();
+    return;
+  }
+  
+  if (isProductionDomain) {
+    // Use production database for production deployments (default behavior)
     req.dbEnv = 'production';
     req.dynamicDB = getDynamicDatabase('production');
     req.db = req.dynamicDB;
     res.setHeader('X-Database-Environment', 'production');
-    console.log('Using default production database');
+    console.log('Production deployment: using production database');
+    next();
+    return;
   }
+  
+  // If no explicit environment selection, use default production database
+  req.dbEnv = 'production';
+  req.dynamicDB = getDynamicDatabase('production');
+  req.db = req.dynamicDB;
+  res.setHeader('X-Database-Environment', 'production');
+  console.log('Using default production database');
   
   next();
 };
