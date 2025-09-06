@@ -212,7 +212,7 @@ export const users = pgTable("users", {
   firstName: varchar("first_name"),
   lastName: varchar("last_name"),
   profileImageUrl: varchar("profile_image_url"),
-  role: text("role").notNull().default("merchant"), // merchant, agent, admin, corporate, super_admin
+  roles: text("roles").array().notNull().default("{merchant}"), // Array of roles: merchant, agent, admin, corporate, super_admin
   status: text("status").notNull().default("active"), // active, suspended, inactive
   permissions: jsonb("permissions").default("{}"),
   lastLoginAt: timestamp("last_login_at"),
@@ -270,7 +270,7 @@ export const registerUserSchema = z.object({
   confirmPassword: z.string(),
   firstName: z.string().min(1, "First name required"),
   lastName: z.string().min(1, "Last name required"),
-  role: z.string().default("merchant"),
+  roles: z.array(z.enum(["merchant", "agent", "admin", "corporate", "super_admin"])).default(["merchant"]),
 }).refine((data) => data.password === data.confirmPassword, {
   message: "Passwords don't match",
   path: ["confirmPassword"],
