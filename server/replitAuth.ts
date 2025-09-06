@@ -164,21 +164,9 @@ export const isAuthenticated: RequestHandler = async (req, res, next) => {
     try {
       let dbUser;
       
-      // Use session-stored database environment for user lookup
-      if (sessionDbEnv) {
-        const { getDynamicDatabase } = await import('./db');
-        const { users } = await import('@shared/schema');
-        const { eq } = await import('drizzle-orm');
-        
-        const dynamicDB = getDynamicDatabase(sessionDbEnv);
-        const userResults = await dynamicDB.select().from(users).where(eq(users.id, sessionUserId));
-        dbUser = userResults[0] || null;
-        console.log(`Session Auth - Looking in ${sessionDbEnv} database for user:`, sessionUserId);
-      } else {
-        // Fallback to default storage
-        dbUser = await storage.getUser(sessionUserId);
-        console.log('Session Auth - Using default storage for user lookup');
-      }
+      // Always use storage layer for user lookup to avoid schema mismatch issues
+      dbUser = await storage.getUser(sessionUserId);
+      console.log('Session Auth - Using storage layer for user lookup');
       
       console.log('Session Auth - Found user:', dbUser ? `${dbUser.username} (${dbUser.roles.join(', ')})` : 'NULL');
       if (dbUser && dbUser.status === 'active') {
