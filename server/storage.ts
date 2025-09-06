@@ -1683,12 +1683,12 @@ export class DatabaseStorage implements IStorage {
     if (!user) return [];
 
     // Super admin and admin can see all merchants
-    if (['super_admin', 'admin'].includes(user.role)) {
+    if (user.roles.some(role => ['super_admin', 'admin'].includes(role))) {
       return this.getAllMerchants();
     }
 
     // Agent can see their assigned merchants
-    if (user.role === 'agent') {
+    if (user.roles.includes('agent')) {
       const agent = await db.select().from(agents).where(eq(agents.userId, userId)).limit(1);
       if (agent[0]) {
         return this.getMerchantsByAgent(agent[0].id);
@@ -1696,7 +1696,7 @@ export class DatabaseStorage implements IStorage {
     }
 
     // Merchant can see only their own data
-    if (user.role === 'merchant') {
+    if (user.roles.includes('merchant')) {
       const merchant = await db.select().from(merchants).where(eq(merchants.userId, userId)).limit(1);
       if (merchant[0]) {
         return [{ ...merchant[0] }];

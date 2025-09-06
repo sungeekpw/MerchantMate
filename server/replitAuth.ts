@@ -180,7 +180,7 @@ export const isAuthenticated: RequestHandler = async (req, res, next) => {
         console.log('Session Auth - Using default storage for user lookup');
       }
       
-      console.log('Session Auth - Found user:', dbUser ? `${dbUser.username} (${dbUser.role})` : 'NULL');
+      console.log('Session Auth - Found user:', dbUser ? `${dbUser.username} (${dbUser.roles.join(', ')})` : 'NULL');
       if (dbUser && dbUser.status === 'active') {
         // Set up user object for session-based auth
         req.user = { 
@@ -287,7 +287,9 @@ export const requireRole = (allowedRoles: string[]): RequestHandler => {
           return res.status(403).json({ message: "Account suspended" });
         }
 
-        if (!allowedRoles.includes(dbUser.role)) {
+        // Check if user has any of the allowed roles
+        const hasAllowedRole = dbUser.roles.some(role => allowedRoles.includes(role));
+        if (!hasAllowedRole) {
           return res.status(403).json({ message: "Insufficient permissions" });
         }
 
@@ -321,7 +323,9 @@ export const requireRole = (allowedRoles: string[]): RequestHandler => {
           return res.status(403).json({ message: "Account suspended" });
         }
 
-        if (!allowedRoles.includes(dbUser.role)) {
+        // Check if user has any of the allowed roles
+        const hasAllowedRole = dbUser.roles.some(role => allowedRoles.includes(role));
+        if (!hasAllowedRole) {
           return res.status(403).json({ message: "Insufficient permissions" });
         }
 
@@ -358,7 +362,9 @@ export const requireRole = (allowedRoles: string[]): RequestHandler => {
         return res.status(403).json({ message: "Account suspended" });
       }
 
-      if (!allowedRoles.includes(dbUser.role)) {
+      // Check if user has any of the allowed roles
+      const hasAllowedRole = dbUser.roles.some(role => allowedRoles.includes(role));
+      if (!hasAllowedRole) {
         return res.status(403).json({ message: "Insufficient permissions" });
       }
 
@@ -394,7 +400,7 @@ export const requirePermission = (permission: string): RequestHandler => {
       const permissions = dbUser.permissions as Record<string, boolean> || {};
       
       // Super admin has all permissions
-      if (dbUser.role === 'super_admin') {
+      if (dbUser.roles.includes('super_admin')) {
         (req as any).currentUser = dbUser;
         return next();
       }
