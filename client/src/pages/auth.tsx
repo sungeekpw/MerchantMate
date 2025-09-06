@@ -106,6 +106,9 @@ export default function Auth() {
       let url = "/api/auth/login";
       if (isNonProduction && data.database) {
         url += `?db=${data.database}`;
+      } else if (isProduction) {
+        // On production domain, force production database
+        url += `?db=production`;
       }
       
       const response = await fetch(url, {
