@@ -18,9 +18,8 @@ export const dbEnvironmentMiddleware = (req: RequestWithDB, res: Response, next:
     req.userId = req.user.id;
   }
   
-  // Check if we're in a production deployment environment (Replit production domain)
-  const isProductionDomain = req.get('host')?.includes('.replit.app') || 
-                            req.get('host')?.includes('charrg.com') ||
+  // Check if we're in a production deployment environment (only crm.charrg.com)
+  const isProductionDomain = req.get('host')?.includes('crm.charrg.com') ||
                             process.env.NODE_ENV === 'production';
   
   // First check if there's a stored database environment in session
