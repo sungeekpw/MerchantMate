@@ -55,6 +55,20 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import type { User } from "@shared/schema";
 
+// User create form schema
+const createUserSchema = z.object({
+  firstName: z.string().min(1, "First name is required"),
+  lastName: z.string().min(1, "Last name is required"),
+  email: z.string().email("Invalid email address"),
+  username: z.string().min(3, "Username must be at least 3 characters"),
+  password: z.string().min(8, "Password must be at least 8 characters"),
+  confirmPassword: z.string(),
+  role: z.enum(["merchant", "agent", "admin", "corporate", "super_admin"]),
+}).refine((data) => data.password === data.confirmPassword, {
+  message: "Passwords don't match",
+  path: ["confirmPassword"],
+});
+
 // User update form schema
 const updateUserSchema = z.object({
   firstName: z.string().min(1, "First name is required"),
@@ -65,7 +79,201 @@ const updateUserSchema = z.object({
   status: z.enum(["active", "suspended", "inactive"]),
 });
 
+type CreateUserFormData = z.infer<typeof createUserSchema>;
 type UpdateUserFormData = z.infer<typeof updateUserSchema>;
+
+// Create User Form Component
+function CreateUserForm({ onSuccess }: { onSuccess: () => void }) {
+  const [dialogOpen, setDialogOpen] = useState(true);
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  const createUserForm = useForm<CreateUserFormData>({
+    resolver: zodResolver(createUserSchema),
+    defaultValues: {
+      firstName: "",
+      lastName: "",
+      email: "",
+      username: "",
+      password: "",
+      confirmPassword: "",
+      role: "merchant",
+    },
+  });
+
+  const createUserMutation = useMutation({
+    mutationFn: async (data: CreateUserFormData) => {
+      const response = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(data),
+      });
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to create user');
+      }
+      
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+      toast({
+        title: "Success",
+        description: "User account created successfully. A verification email has been sent.",
+      });
+      createUserForm.reset();
+      setDialogOpen(false);
+      onSuccess();
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const onSubmit = (data: CreateUserFormData) => {
+    createUserMutation.mutate(data);
+  };
+
+  return (
+    <Form {...createUserForm}>
+      <form onSubmit={createUserForm.handleSubmit(onSubmit)} className="space-y-4">
+        <div className="grid grid-cols-2 gap-4">
+          <FormField
+            control={createUserForm.control}
+            name="firstName"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>First Name</FormLabel>
+                <FormControl>
+                  <Input placeholder="Enter first name" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={createUserForm.control}
+            name="lastName"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Last Name</FormLabel>
+                <FormControl>
+                  <Input placeholder="Enter last name" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
+        
+        <FormField
+          control={createUserForm.control}
+          name="email"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Email</FormLabel>
+              <FormControl>
+                <Input type="email" placeholder="Enter email address" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        
+        <FormField
+          control={createUserForm.control}
+          name="username"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Username</FormLabel>
+              <FormControl>
+                <Input placeholder="Enter username" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        
+        <div className="grid grid-cols-2 gap-4">
+          <FormField
+            control={createUserForm.control}
+            name="password"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Password</FormLabel>
+                <FormControl>
+                  <Input type="password" placeholder="Enter password" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          
+          <FormField
+            control={createUserForm.control}
+            name="confirmPassword"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Confirm Password</FormLabel>
+                <FormControl>
+                  <Input type="password" placeholder="Confirm password" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
+        
+        <FormField
+          control={createUserForm.control}
+          name="role"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Role</FormLabel>
+              <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a role" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  <SelectItem value="merchant">Merchant</SelectItem>
+                  <SelectItem value="agent">Agent</SelectItem>
+                  <SelectItem value="admin">Admin</SelectItem>
+                  <SelectItem value="corporate">Corporate</SelectItem>
+                  <SelectItem value="super_admin">Super Admin</SelectItem>
+                </SelectContent>
+              </Select>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        
+        <div className="flex justify-end gap-2 pt-4">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => {
+              createUserForm.reset();
+              setDialogOpen(false);
+            }}
+          >
+            Cancel
+          </Button>
+          <Button type="submit" disabled={createUserMutation.isPending}>
+            {createUserMutation.isPending ? "Creating..." : "Create User"}
+          </Button>
+        </div>
+      </form>
+    </Form>
+  );
+}
 
 export default function UsersPage() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -219,21 +427,43 @@ export default function UsersPage() {
   return (
     <div className="p-6 space-y-6">
       {/* Action Buttons */}
-      <div className="flex justify-end gap-2">
-        <Button onClick={() => refetch()} disabled={isLoading}>
-          {isLoading ? "Refreshing..." : "Refresh Data"}
-        </Button>
-        <Button 
-          variant="outline" 
-          onClick={async () => {
-            // Clear React Query cache and force fresh data fetch
-            await queryClient.resetQueries();
-            window.location.reload();
-          }} 
-          disabled={isLoading}
-        >
-          Force Refresh
-        </Button>
+      <div className="flex justify-between">
+        <div className="flex items-center gap-4">
+          <h1 className="text-2xl font-bold">Users</h1>
+        </div>
+        <div className="flex gap-2">
+          <Dialog>
+            <DialogTrigger asChild>
+              <Button>
+                <Users className="h-4 w-4 mr-2" />
+                Create User
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[425px]">
+              <DialogHeader>
+                <DialogTitle>Create New User</DialogTitle>
+                <DialogDescription>
+                  Add a new user to the system with their role and details.
+                </DialogDescription>
+              </DialogHeader>
+              <CreateUserForm onSuccess={() => refetch()} />
+            </DialogContent>
+          </Dialog>
+          <Button onClick={() => refetch()} disabled={isLoading} variant="outline">
+            {isLoading ? "Refreshing..." : "Refresh Data"}
+          </Button>
+          <Button 
+            variant="outline" 
+            onClick={async () => {
+              // Clear React Query cache and force fresh data fetch
+              await queryClient.resetQueries();
+              window.location.reload();
+            }} 
+            disabled={isLoading}
+          >
+            Force Refresh
+          </Button>
+        </div>
       </div>
 
       {/* Stats Cards */}
