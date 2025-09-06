@@ -424,58 +424,14 @@ export class AuthService {
       let user;
       try {
         console.log(`LoginWithDB: Looking for user with username/email: ${loginData.usernameOrEmail}`);
-        const [userByUsername] = await db.select({
-          id: users.id,
-          email: users.email,
-          username: users.username,
-          passwordHash: users.passwordHash,
-          firstName: users.firstName,
-          lastName: users.lastName,
-          profileImageUrl: users.profileImageUrl,
-          status: users.status,
-          permissions: users.permissions,
-          lastLoginAt: users.lastLoginAt,
-          lastLoginIp: users.lastLoginIp,
-          timezone: users.timezone,
-          twoFactorEnabled: users.twoFactorEnabled,
-          twoFactorSecret: users.twoFactorSecret,
-          passwordResetToken: users.passwordResetToken,
-          passwordResetExpires: users.passwordResetExpires,
-          emailVerified: users.emailVerified,
-          emailVerificationToken: users.emailVerificationToken,
-          createdAt: users.createdAt,
-          updatedAt: users.updatedAt,
-          roles: users.roles
-        }).from(users).where(eq(users.username, loginData.usernameOrEmail));
+        const [userByUsername] = await db.select().from(users).where(eq(users.username, loginData.usernameOrEmail));
         if (userByUsername) {
           console.log(`LoginWithDB: Found user by username: ${userByUsername.username} (${userByUsername.id})`);
           console.log(`LoginWithDB: Password hash preview: ${userByUsername.passwordHash?.substring(0, 30)}...`);
           user = userByUsername;
         } else {
           console.log(`LoginWithDB: No user found by username, trying email...`);
-          const [userByEmail] = await db.select({
-            id: users.id,
-            email: users.email,
-            username: users.username,
-            passwordHash: users.passwordHash,
-            firstName: users.firstName,
-            lastName: users.lastName,
-            profileImageUrl: users.profileImageUrl,
-            status: users.status,
-            permissions: users.permissions,
-            lastLoginAt: users.lastLoginAt,
-            lastLoginIp: users.lastLoginIp,
-            timezone: users.timezone,
-            twoFactorEnabled: users.twoFactorEnabled,
-            twoFactorSecret: users.twoFactorSecret,
-            passwordResetToken: users.passwordResetToken,
-            passwordResetExpires: users.passwordResetExpires,
-            emailVerified: users.emailVerified,
-            emailVerificationToken: users.emailVerificationToken,
-            createdAt: users.createdAt,
-            updatedAt: users.updatedAt,
-            roles: users.roles
-          }).from(users).where(eq(users.email, loginData.usernameOrEmail));
+          const [userByEmail] = await db.select().from(users).where(eq(users.email, loginData.usernameOrEmail));
           if (userByEmail) {
             console.log(`LoginWithDB: Found user by email: ${userByEmail.username} (${userByEmail.id})`);
             user = userByEmail;
