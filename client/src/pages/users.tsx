@@ -63,7 +63,7 @@ const createUserSchema = z.object({
   username: z.string().min(3, "Username must be at least 3 characters"),
   password: z.string().min(8, "Password must be at least 8 characters"),
   confirmPassword: z.string(),
-  role: z.enum(["merchant", "agent", "admin", "corporate", "super_admin"]),
+  roles: z.array(z.enum(["merchant", "agent", "admin", "corporate", "super_admin"])).min(1, "At least one role is required"),
 }).refine((data) => data.password === data.confirmPassword, {
   message: "Passwords don't match",
   path: ["confirmPassword"],
@@ -75,7 +75,7 @@ const updateUserSchema = z.object({
   lastName: z.string().min(1, "Last name is required"),
   email: z.string().email("Invalid email address"),
   username: z.string().min(3, "Username must be at least 3 characters"),
-  role: z.enum(["merchant", "agent", "admin", "corporate", "super_admin"]),
+  roles: z.array(z.enum(["merchant", "agent", "admin", "corporate", "super_admin"])).min(1, "At least one role is required"),
   status: z.enum(["active", "suspended", "inactive"]),
 });
 
@@ -96,7 +96,7 @@ function CreateUserForm({ onSuccess, onCancel }: { onSuccess: () => void; onCanc
       username: "",
       password: "",
       confirmPassword: "",
-      role: "merchant",
+      roles: ["merchant"],
     },
   });
 
@@ -230,24 +230,37 @@ function CreateUserForm({ onSuccess, onCancel }: { onSuccess: () => void; onCanc
         
         <FormField
           control={createUserForm.control}
-          name="role"
+          name="roles"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Role</FormLabel>
-              <Select onValueChange={field.onChange} defaultValue={field.value}>
-                <FormControl>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a role" />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  <SelectItem value="merchant">Merchant</SelectItem>
-                  <SelectItem value="agent">Agent</SelectItem>
-                  <SelectItem value="admin">Admin</SelectItem>
-                  <SelectItem value="corporate">Corporate</SelectItem>
-                  <SelectItem value="super_admin">Super Admin</SelectItem>
-                </SelectContent>
-              </Select>
+              <FormLabel>Roles</FormLabel>
+              <FormControl>
+                <div className="space-y-2">
+                  {[
+                    { value: "merchant", label: "Merchant" },
+                    { value: "agent", label: "Agent" },
+                    { value: "admin", label: "Admin" },
+                    { value: "corporate", label: "Corporate" },
+                    { value: "super_admin", label: "Super Admin" },
+                  ].map((role) => (
+                    <label key={role.value} className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        checked={field.value.includes(role.value)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            field.onChange([...field.value, role.value]);
+                          } else {
+                            field.onChange(field.value.filter((r: string) => r !== role.value));
+                          }
+                        }}
+                        className="rounded"
+                      />
+                      <span className="text-sm">{role.label}</span>
+                    </label>
+                  ))}
+                </div>
+              </FormControl>
               <FormMessage />
             </FormItem>
           )}
@@ -288,7 +301,7 @@ export default function UsersPage() {
       lastName: "",
       email: "",
       username: "",
-      role: "merchant",
+      roles: ["merchant"],
       status: "active",
     },
   });
@@ -385,7 +398,7 @@ export default function UsersPage() {
     user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
     user.firstName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     user.lastName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    user.role.toLowerCase().includes(searchTerm.toLowerCase())
+    user.roles.some((role: string) => role.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
   const getRoleBadgeVariant = (role: string) => {
@@ -568,9 +581,13 @@ export default function UsersPage() {
                     <TableCell>{user.email}</TableCell>
                     <TableCell>{user.username}</TableCell>
                     <TableCell>
-                      <Badge variant={getRoleBadgeVariant(user.role)}>
-                        {user.role.replace('_', ' ').toUpperCase()}
-                      </Badge>
+                      <div className="flex flex-wrap gap-1">
+                        {user.roles.map((role: string) => (
+                          <Badge key={role} variant={getRoleBadgeVariant(role)}>
+                            {role.replace('_', ' ').toUpperCase()}
+                          </Badge>
+                        ))}
+                      </div>
                     </TableCell>
                     <TableCell>
                       <Badge variant={getStatusBadgeVariant(user.status)}>
@@ -732,24 +749,37 @@ export default function UsersPage() {
               <div className="grid grid-cols-2 gap-4">
                 <FormField
                   control={updateUserForm.control}
-                  name="role"
+                  name="roles"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Role</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="merchant">Merchant</SelectItem>
-                          <SelectItem value="agent">Agent</SelectItem>
-                          <SelectItem value="admin">Admin</SelectItem>
-                          <SelectItem value="corporate">Corporate</SelectItem>
-                          <SelectItem value="super_admin">Super Admin</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      <FormLabel>Roles</FormLabel>
+                      <FormControl>
+                        <div className="space-y-2">
+                          {[
+                            { value: "merchant", label: "Merchant" },
+                            { value: "agent", label: "Agent" },
+                            { value: "admin", label: "Admin" },
+                            { value: "corporate", label: "Corporate" },
+                            { value: "super_admin", label: "Super Admin" },
+                          ].map((role) => (
+                            <label key={role.value} className="flex items-center space-x-2">
+                              <input
+                                type="checkbox"
+                                checked={field.value.includes(role.value)}
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    field.onChange([...field.value, role.value]);
+                                  } else {
+                                    field.onChange(field.value.filter((r: string) => r !== role.value));
+                                  }
+                                }}
+                                className="rounded"
+                              />
+                              <span className="text-sm">{role.label}</span>
+                            </label>
+                          ))}
+                        </div>
+                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -809,7 +839,7 @@ export default function UsersPage() {
       lastName: user.lastName || "",
       email: user.email,
       username: user.username,
-      role: user.role as any,
+      roles: user.roles || ["merchant"],
       status: user.status as any,
     });
     setEditDialogOpen(true);
