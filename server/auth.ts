@@ -168,6 +168,8 @@ export class AuthService {
         passwordHash,
         firstName: userData.firstName,
         lastName: userData.lastName,
+        phone: userData.phone,
+        communicationPreference: userData.communicationPreference || "email",
         roles: userData.roles || ["merchant"],
         emailVerificationToken,
         emailVerified: false,
