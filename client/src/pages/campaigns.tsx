@@ -1174,13 +1174,32 @@ export default function CampaignsPage() {
         ?.filter((item: any) => item.feeItem && item.feeItem.id && item.feeItem.name)
         .map((item: any) => item.feeItem.id) || [];
       
+      // Calculate which fee groups should be selected and expanded
+      const selectedFeeGroupIds: number[] = [];
+      const expandedFeeGroups: number[] = [];
+      
+      feeGroups.forEach(group => {
+        const groupFeeItemIds = group.feeItems?.map(item => item.id) || [];
+        const hasSelectedItems = groupFeeItemIds.some(id => validFeeItemIds.includes(id));
+        
+        if (hasSelectedItems) {
+          expandedFeeGroups.push(group.id);
+          
+          // Check if ALL items in the group are selected (for full group selection)
+          const allItemsSelected = groupFeeItemIds.every(id => validFeeItemIds.includes(id));
+          if (allItemsSelected && groupFeeItemIds.length > 0) {
+            selectedFeeGroupIds.push(group.id);
+          }
+        }
+      });
+      
       const formData = {
         name: pricingType.name,
         description: pricingType.description || '',
-        selectedFeeGroupIds: [] as number[],
+        selectedFeeGroupIds: selectedFeeGroupIds,
         selectedFeeItemIds: validFeeItemIds,
-        feeGroupIds: [] as number[],
-        expandedFeeGroups: [] as number[]
+        feeGroupIds: selectedFeeGroupIds,
+        expandedFeeGroups: expandedFeeGroups
       };
       setPricingTypeForm(formData);
       setShowEditPricingType(true);
