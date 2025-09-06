@@ -1111,13 +1111,6 @@ export default function CampaignsPage() {
       return;
     }
 
-    console.log('Creating pricing type with data:', {
-      name: pricingTypeForm.name.trim(),
-      description: pricingTypeForm.description.trim() || undefined,
-      feeItemIds: pricingTypeForm.selectedFeeItemIds,
-    });
-    console.log('Current form state:', pricingTypeForm);
-    
     createPricingTypeMutation.mutate({
       name: pricingTypeForm.name.trim(),
       description: pricingTypeForm.description.trim() || undefined,
@@ -1214,13 +1207,6 @@ export default function CampaignsPage() {
 
     if (!editingPricingType) return;
 
-    console.log('Updating pricing type with data:', {
-      name: pricingTypeForm.name.trim(),
-      description: pricingTypeForm.description.trim() || undefined,
-      feeItemIds: pricingTypeForm.selectedFeeItemIds,
-    });
-    console.log('Current form state during update:', pricingTypeForm);
-    
     const updateData = {
       name: pricingTypeForm.name.trim(),
       description: pricingTypeForm.description.trim() || undefined,
