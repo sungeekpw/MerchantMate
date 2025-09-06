@@ -211,7 +211,9 @@ export const users = pgTable("users", {
   passwordHash: varchar("password_hash").notNull(),
   firstName: varchar("first_name"),
   lastName: varchar("last_name"),
+  phone: varchar("phone").notNull(), // Required phone number
   profileImageUrl: varchar("profile_image_url"),
+  communicationPreference: text("communication_preference").notNull().default("email"), // email or sms
   roles: text("roles").array().notNull().default("{merchant}"), // Array of roles: merchant, agent, admin, corporate, super_admin
   status: text("status").notNull().default("active"), // active, suspended, inactive
   permissions: jsonb("permissions").default("{}"),
@@ -270,6 +272,8 @@ export const registerUserSchema = z.object({
   confirmPassword: z.string(),
   firstName: z.string().min(1, "First name required"),
   lastName: z.string().min(1, "Last name required"),
+  phone: z.string().min(10, "Phone number must be at least 10 digits").regex(/^\+?[\d\s\-\(\)]+$/, "Invalid phone number format"),
+  communicationPreference: z.enum(["email", "sms"]).default("email"),
   roles: z.array(z.enum(["merchant", "agent", "admin", "corporate", "super_admin"])).default(["merchant"]),
 }).refine((data) => data.password === data.confirmPassword, {
   message: "Passwords don't match",

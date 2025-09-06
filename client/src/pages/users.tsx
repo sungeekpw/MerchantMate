@@ -63,6 +63,8 @@ const createUserSchema = z.object({
   username: z.string().min(3, "Username must be at least 3 characters"),
   password: z.string().min(8, "Password must be at least 8 characters"),
   confirmPassword: z.string(),
+  phone: z.string().min(10, "Phone number must be at least 10 digits").regex(/^\+?[\d\s\-\(\)]+$/, "Invalid phone number format"),
+  communicationPreference: z.enum(["email", "sms"]).default("email"),
   roles: z.array(z.enum(["merchant", "agent", "admin", "corporate", "super_admin"])).min(1, "At least one role is required"),
 }).refine((data) => data.password === data.confirmPassword, {
   message: "Passwords don't match",
@@ -96,6 +98,8 @@ function CreateUserForm({ onSuccess, onCancel }: { onSuccess: () => void; onCanc
       username: "",
       password: "",
       confirmPassword: "",
+      phone: "",
+      communicationPreference: "email" as const,
       roles: ["merchant"],
     },
   });
@@ -192,6 +196,62 @@ function CreateUserForm({ onSuccess, onCancel }: { onSuccess: () => void; onCanc
               <FormLabel>Username</FormLabel>
               <FormControl>
                 <Input placeholder="Enter username" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        
+        <FormField
+          control={createUserForm.control}
+          name="phone"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Phone Number *</FormLabel>
+              <FormControl>
+                <Input type="tel" placeholder="Enter phone number (e.g., +1-555-123-4567)" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        
+        <FormField
+          control={createUserForm.control}
+          name="communicationPreference"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Communication Preferences *</FormLabel>
+              <FormControl>
+                <div className="space-y-3">
+                  <div className="text-sm text-gray-600 mb-2">
+                    Choose how you'd like to receive notifications:
+                  </div>
+                  <div className="space-y-2">
+                    <label className="flex items-center space-x-2">
+                      <input
+                        type="radio"
+                        name="communicationPreference"
+                        value="email"
+                        checked={field.value === "email"}
+                        onChange={() => field.onChange("email")}
+                        className="rounded"
+                      />
+                      <span className="text-sm">📧 Email notifications</span>
+                    </label>
+                    <label className="flex items-center space-x-2">
+                      <input
+                        type="radio"
+                        name="communicationPreference"
+                        value="sms"
+                        checked={field.value === "sms"}
+                        onChange={() => field.onChange("sms")}
+                        className="rounded"
+                      />
+                      <span className="text-sm">📱 SMS text messages</span>
+                    </label>
+                  </div>
+                </div>
               </FormControl>
               <FormMessage />
             </FormItem>
