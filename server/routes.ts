@@ -933,30 +933,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const dynamicDB = getRequestDB(req);
       
       // Get users from the dynamic database
-      const { users: usersTable } = await import('@shared/schema');
-      const users = await dynamicDB.select({
-        id: usersTable.id,
-        email: usersTable.email,
-        username: usersTable.username,
-        passwordHash: usersTable.passwordHash,
-        firstName: usersTable.firstName,
-        lastName: usersTable.lastName,
-        profileImageUrl: usersTable.profileImageUrl,
-        status: usersTable.status,
-        permissions: usersTable.permissions,
-        lastLoginAt: usersTable.lastLoginAt,
-        lastLoginIp: usersTable.lastLoginIp,
-        timezone: usersTable.timezone,
-        twoFactorEnabled: usersTable.twoFactorEnabled,
-        twoFactorSecret: usersTable.twoFactorSecret,
-        passwordResetToken: usersTable.passwordResetToken,
-        passwordResetExpires: usersTable.passwordResetExpires,
-        emailVerified: usersTable.emailVerified,
-        emailVerificationToken: usersTable.emailVerificationToken,
-        createdAt: usersTable.createdAt,
-        updatedAt: usersTable.updatedAt,
-        roles: usersTable.roles
-      }).from(usersTable);
+      const users = await dynamicDB.select().from((await import('@shared/schema')).users);
       console.log('Users endpoint - Found', users.length, 'users');
       console.log('Users found:', users.map((u: any) => ({ id: u.id, username: u.username, email: u.email, role: u.role })));
       res.json(users);
