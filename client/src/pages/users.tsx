@@ -83,8 +83,7 @@ type CreateUserFormData = z.infer<typeof createUserSchema>;
 type UpdateUserFormData = z.infer<typeof updateUserSchema>;
 
 // Create User Form Component
-function CreateUserForm({ onSuccess }: { onSuccess: () => void }) {
-  const [dialogOpen, setDialogOpen] = useState(true);
+function CreateUserForm({ onSuccess, onCancel }: { onSuccess: () => void; onCancel: () => void }) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -124,7 +123,6 @@ function CreateUserForm({ onSuccess }: { onSuccess: () => void }) {
         description: "User account created successfully. A verification email has been sent.",
       });
       createUserForm.reset();
-      setDialogOpen(false);
       onSuccess();
     },
     onError: (error: any) => {
@@ -261,7 +259,7 @@ function CreateUserForm({ onSuccess }: { onSuccess: () => void }) {
             variant="outline"
             onClick={() => {
               createUserForm.reset();
-              setDialogOpen(false);
+              onCancel();
             }}
           >
             Cancel
@@ -279,6 +277,7 @@ export default function UsersPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -432,7 +431,7 @@ export default function UsersPage() {
           <h1 className="text-2xl font-bold">Users</h1>
         </div>
         <div className="flex gap-2">
-          <Dialog>
+          <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
             <DialogTrigger asChild>
               <Button>
                 <Users className="h-4 w-4 mr-2" />
@@ -446,7 +445,13 @@ export default function UsersPage() {
                   Add a new user to the system with their role and details.
                 </DialogDescription>
               </DialogHeader>
-              <CreateUserForm onSuccess={() => refetch()} />
+              <CreateUserForm 
+                onSuccess={() => {
+                  setCreateDialogOpen(false);
+                  refetch();
+                }} 
+                onCancel={() => setCreateDialogOpen(false)}
+              />
             </DialogContent>
           </Dialog>
           <Button onClick={() => refetch()} disabled={isLoading} variant="outline">
