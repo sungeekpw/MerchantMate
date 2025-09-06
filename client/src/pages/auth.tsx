@@ -53,14 +53,12 @@ export default function Auth() {
   const [, setLocation] = useLocation();
   const { refetch } = useAuth();
 
-  // Check if we're in development environment
-  const isNonProduction = import.meta.env.DEV || 
-    window.location.hostname === 'localhost' ||
-    window.location.hostname.includes('.dev') ||
-    window.location.hostname.includes('test') ||
-    window.location.port !== '';
+  // Check if we're in development environment (show environment selector)
+  // Hide selector on production domain (crm.charrg.com), show on .replit.app and development
+  const isProduction = window.location.hostname === 'crm.charrg.com';
+  const isNonProduction = !isProduction;
 
-  const [selectedDatabase, setSelectedDatabase] = useState("dev");
+  const [selectedDatabase, setSelectedDatabase] = useState(isProduction ? "production" : "dev");
 
 
 
@@ -71,7 +69,7 @@ export default function Auth() {
       usernameOrEmail: "",
       password: "",
       twoFactorCode: "",
-      database: "dev",
+      database: isProduction ? "production" : "dev",
     },
   });
 
