@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { CreditCard, BarChart3, Store, Users, Receipt, FileText, LogOut, User, MapPin, Shield, Upload, UserPlus, DollarSign, ChevronLeft, ChevronRight, Monitor, ChevronDown, ChevronUp, Book, TestTube, Mail } from "lucide-react";
+import { CreditCard, BarChart3, Store, Users, Receipt, FileText, LogOut, User, MapPin, Shield, Upload, UserPlus, DollarSign, ChevronLeft, ChevronRight, Monitor, ChevronDown, ChevronUp, Book, TestTube, Mail, Crown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import { canAccessAnalytics, canAccessMerchants, canAccessAgents, canAccessTransactions } from "@/lib/authUtils";
@@ -217,11 +217,17 @@ export function Sidebar() {
                 <User className="w-4 h-4 text-gray-600" />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-gray-900 truncate">
-                  {(user as any)?.firstName} {(user as any)?.lastName}
-                </p>
+                <div className="flex items-center space-x-2">
+                  <p className="text-sm font-medium text-gray-900 truncate">
+                    {(user as any)?.firstName} {(user as any)?.lastName}
+                  </p>
+                  {/* Super Admin Crown Badge */}
+                  {(user as any)?.roles?.includes('super_admin') && (
+                    <Crown className="w-4 h-4 text-yellow-500" title="Super Administrator" />
+                  )}
+                </div>
                 <p className="text-xs text-gray-500 capitalize">
-                  {(user as any)?.role?.replace('_', ' ')}
+                  {(user as any)?.roles?.[0]?.replace('_', ' ') || 'User'}
                 </p>
               </div>
             </div>
