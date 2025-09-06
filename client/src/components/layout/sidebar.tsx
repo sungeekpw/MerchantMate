@@ -63,15 +63,20 @@ export function Sidebar() {
   const getFilteredNavigation = () => {
     if (!user) return [];
     
-    const userRole = (user as any)?.role;
+    const userRoles = (user as any)?.roles || [];
+    
+    // Helper function to check if user has any of the required roles
+    const hasRequiredRole = (requiredRoles: string[]) => {
+      return userRoles.some((userRole: string) => requiredRoles.includes(userRole));
+    };
     
     // Filter base navigation with sub-items
     const filteredBase = baseNavigation.filter(item => {
-      return item.requiresRole.includes(userRole);
+      return hasRequiredRole(item.requiresRole);
     }).map(item => ({
       ...item,
       subItems: (item as any).subItems?.filter((subItem: any) => 
-        subItem.requiresRole.includes(userRole)
+        hasRequiredRole(subItem.requiresRole)
       ) || []
     }));
 
@@ -79,7 +84,7 @@ export function Sidebar() {
     const dynamicNavItems = pdfForms
       .filter((form: any) => 
         form.showInNavigation && 
-        form.allowedRoles.includes(userRole)
+        hasRequiredRole(form.allowedRoles)
       )
       .map((form: any) => ({
         name: form.navigationTitle || form.name,
