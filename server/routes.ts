@@ -5363,7 +5363,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const pricingType = result[0].pricingType;
       const feeItemsWithGroups = result
-        .filter(row => row.feeItem && row.feeGroup)
+        .filter(row => row.feeItem)
         .map(row => ({
           ...row.pricingTypeFeeItem,
           feeItem: {
