@@ -1172,10 +1172,16 @@ export default function CampaignsPage() {
       });
       const pricingTypeDetails = await response.json();
       
+      console.log('API Response:', pricingTypeDetails);
+      console.log('Fee Items Array:', pricingTypeDetails.feeItems);
+      console.log('Fee Items Length:', pricingTypeDetails.feeItems?.length);
+      
       // Extract fee item IDs from the detailed response (use feeItemId from the association)
       const validFeeItemIds = (pricingTypeDetails.feeItems ?? [])
         .map((item: any) => Number(item.feeItemId))
         .filter((id: number) => Number.isFinite(id));
+        
+      console.log('Extracted Fee Item IDs:', validFeeItemIds);
       
       // Calculate which fee groups should be selected and expanded
       const selectedFeeGroupIds: number[] = [];

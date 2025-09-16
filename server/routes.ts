@@ -5378,6 +5378,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       };
       
       console.log(`Found pricing type with ${feeItemsWithGroups.length} fee items in ${req.dbEnv} database`);
+      console.log('First 2 fee items structure:', feeItemsWithGroups.slice(0, 2));
+      console.log('Response structure:', {
+        id: response.id,
+        name: response.name,
+        feeItemsCount: response.feeItems?.length
+      });
       res.json(response);
     } catch (error) {
       console.error('Error fetching pricing type fee items:', error);
