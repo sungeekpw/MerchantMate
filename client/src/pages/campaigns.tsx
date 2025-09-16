@@ -1196,6 +1196,8 @@ export default function CampaignsPage() {
         console.log(`Group ${group.name} (${group.id}) fee items:`, groupFeeItemIds);
         console.log(`First few fee items in ${group.name}:`, group.feeItems?.slice(0, 2));
         console.log('Valid fee item IDs to match:', validFeeItemIds);
+        console.log('Data types - group items:', typeof groupFeeItemIds[0], 'selected items:', typeof validFeeItemIds[0]);
+        console.log('Sample comparison:', groupFeeItemIds[0], 'includes in', validFeeItemIds, '=', validFeeItemIds.includes(groupFeeItemIds[0]));
         console.log('Overlap check for', group.name, ':', groupFeeItemIds.filter(id => validFeeItemIds.includes(id)));
         const hasSelectedItems = groupFeeItemIds.some(id => validFeeItemIds.includes(id));
         console.log(`Group ${group.name} has selected items:`, hasSelectedItems);
