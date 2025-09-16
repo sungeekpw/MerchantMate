@@ -1196,28 +1196,19 @@ export default function CampaignsPage() {
       );
       const uniqueFeeGroupIds: number[] = Array.from(feeGroupIdSet);
       
-      // Calculate which fee groups should be selected (only if ALL items in group are selected)
-      const selectedFeeGroupIds: number[] = [];
-      
       // For expansion, we'll use the unique fee group IDs directly from the response
       const expandedFeeGroups = uniqueFeeGroupIds;
       
-      // Check which groups should be selected (any items selected)
-      feeGroups.forEach(group => {
-        const groupFeeItemIds = group.feeItems?.map(item => Number(item.id)) || [];
-        const hasSelectedItems = groupFeeItemIds.some(id => validFeeItemIds.includes(id));
-        if (hasSelectedItems) {
-          selectedFeeGroupIds.push(group.id);
-        }
-      });
-      
+      // CRITICAL FIX: During edit initialization, only set selectedFeeItemIds from backend
+      // Do NOT set selectedFeeGroupIds to prevent group auto-completion that inflates the count
+      // Only set expanded groups for visual purposes (user can see which groups contain selected items)
       const formData = {
         name: pricingType.name,
         description: pricingType.description || '',
-        selectedFeeGroupIds: selectedFeeGroupIds,
-        selectedFeeItemIds: validFeeItemIds,
-        feeGroupIds: selectedFeeGroupIds,
-        expandedFeeGroups: expandedFeeGroups
+        selectedFeeGroupIds: [], // Empty during edit initialization to prevent auto-expansion
+        selectedFeeItemIds: Array.from(new Set(validFeeItemIds.map(Number))), // Dedupe and normalize
+        feeGroupIds: [], // Empty during edit initialization
+        expandedFeeGroups: expandedFeeGroups // Keep for visual expansion only
       };
       
       setPricingTypeForm(formData);
