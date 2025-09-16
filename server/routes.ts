@@ -5377,7 +5377,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       .where(eq(pricingTypeFeeItems.pricingTypeId, id));
       
       const distinctFeeItemIds = [...new Set(feeItemIdRows.map(row => row.feeItemId))];
-      console.log(`Found ${distinctFeeItemIds.length} distinct fee items for pricing type ${id}`);
+      console.log(`STEP 1: Found ${distinctFeeItemIds.length} distinct fee items for pricing type ${id}:`, distinctFeeItemIds);
       
       // STEP 2: Fetch the actual fee items by those IDs (if any exist)
       const feeItemsWithGroups = [];
@@ -5392,6 +5392,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .leftJoin(feeGroupFeeItems, eq(feeItems.id, feeGroupFeeItems.feeItemId))
         .leftJoin(feeGroups, eq(feeGroupFeeItems.feeGroupId, feeGroups.id))
         .where(inArray(feeItems.id, distinctFeeItemIds));
+        
+        console.log(`STEP 2: Raw query returned ${feeItemsResult.length} rows`);
         
         // Dedupe results by fee item ID (in case one item belongs to multiple groups)
         const seenIds = new Set();
@@ -5408,6 +5410,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             });
           }
         }
+        console.log(`STEP 2: After deduplication, got ${feeItemsWithGroups.length} unique fee items`);
       }
       
       const response = {
