@@ -2081,7 +2081,7 @@ export default function CampaignsPage() {
                             {type.isActive ? "Active" : "Inactive"}
                           </Badge>
                         </TableCell>
-                        <TableCell>{type.feeItemsCount || 0} items</TableCell>
+                        <TableCell>{(type as any).feeItemsCount || 0} items</TableCell>
                         <TableCell className="text-right">
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
@@ -2094,7 +2094,7 @@ export default function CampaignsPage() {
                                 <Edit className="mr-2 h-4 w-4" />
                                 Edit Type
                               </DropdownMenuItem>
-                              {(type.feeItemsCount || 0) === 0 && (
+                              {((type as any).feeItemsCount || 0) === 0 && (
                                 <DropdownMenuItem 
                                   onClick={() => deletePricingTypeMutation.mutate(type.id)}
                                   className="text-destructive hover:text-destructive"
