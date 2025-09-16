@@ -5369,30 +5369,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const pricingType = pricingTypeResult[0];
       
-      // DEBUG: Verify actual database state with the same connection
-      const debugCount = await dbToUse.select({ count: sql`count(*)` })
-        .from(pricingTypeFeeItems)
-        .where(eq(pricingTypeFeeItems.pricingTypeId, id));
-      console.log(`DEBUG - Direct count query shows: ${debugCount[0]?.count} fee items for pricing type ${id} in ${req.dbEnv} database`);
-      
-      // Then get the fee items (only if there are associations)
-      const feeItemsResult = await dbToUse.select({
-        pricingTypeFeeItem: pricingTypeFeeItems,
-        feeItem: feeItems,
-        feeGroup: feeGroups
-      }).from(pricingTypeFeeItems)
-      .innerJoin(feeItems, eq(pricingTypeFeeItems.feeItemId, feeItems.id))
-      .leftJoin(feeGroupFeeItems, eq(pricingTypeFeeItems.feeItemId, feeGroupFeeItems.feeItemId))
-      .leftJoin(feeGroups, eq(feeGroupFeeItems.feeGroupId, feeGroups.id))
+      // STEP 1: Get distinct fee item IDs (prevents JOIN duplication)
+      const feeItemIdRows = await dbToUse.select({ 
+        feeItemId: pricingTypeFeeItems.feeItemId 
+      })
+      .from(pricingTypeFeeItems)
       .where(eq(pricingTypeFeeItems.pricingTypeId, id));
       
-      const feeItemsWithGroups = feeItemsResult.map(row => ({
-        ...row.pricingTypeFeeItem,
-        feeItem: {
-          ...row.feeItem,
-          feeGroup: row.feeGroup
+      const distinctFeeItemIds = [...new Set(feeItemIdRows.map(row => row.feeItemId))];
+      console.log(`Found ${distinctFeeItemIds.length} distinct fee items for pricing type ${id}`);
+      
+      // STEP 2: Fetch the actual fee items by those IDs (if any exist)
+      const feeItemsWithGroups = [];
+      if (distinctFeeItemIds.length > 0) {
+        const { inArray } = await import("drizzle-orm");
+        
+        const feeItemsResult = await dbToUse.select({
+          feeItem: feeItems,
+          feeGroup: feeGroups
+        })
+        .from(feeItems)
+        .leftJoin(feeGroupFeeItems, eq(feeItems.id, feeGroupFeeItems.feeItemId))
+        .leftJoin(feeGroups, eq(feeGroupFeeItems.feeGroupId, feeGroups.id))
+        .where(inArray(feeItems.id, distinctFeeItemIds));
+        
+        // Dedupe results by fee item ID (in case one item belongs to multiple groups)
+        const seenIds = new Set();
+        for (const row of feeItemsResult) {
+          if (!seenIds.has(row.feeItem.id)) {
+            seenIds.add(row.feeItem.id);
+            feeItemsWithGroups.push({
+              feeItemId: row.feeItem.id,
+              pricingTypeId: id,
+              feeItem: {
+                ...row.feeItem,
+                feeGroup: row.feeGroup
+              }
+            });
+          }
         }
-      }));
+      }
       
       const response = {
         ...pricingType,
