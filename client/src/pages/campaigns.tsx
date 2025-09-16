@@ -1179,16 +1179,10 @@ export default function CampaignsPage() {
       
       const pricingTypeDetails = await response.json();
       
-      // DEBUG: Log the detailed response
-      console.log('🔍 Detailed API response:', pricingTypeDetails);
-      
       // Extract fee item IDs from the detailed response (use feeItem.id from the nested structure)
       const validFeeItemIds = (pricingTypeDetails.feeItems ?? [])
         .map((item: any) => Number(item.feeItem?.id))
         .filter((id: number) => Number.isFinite(id));
-      
-      // DEBUG: Log extracted IDs
-      console.log('🔍 Valid fee item IDs:', validFeeItemIds);
       
       // Extract unique fee group IDs from the detailed response
       const feeGroupIdSet = new Set<number>(
@@ -1199,20 +1193,17 @@ export default function CampaignsPage() {
       );
       const uniqueFeeGroupIds: number[] = Array.from(feeGroupIdSet);
       
-      // DEBUG: Log fee group IDs  
-      console.log('🔍 Unique fee group IDs:', uniqueFeeGroupIds);
-      
       // Calculate which fee groups should be selected (only if ALL items in group are selected)
       const selectedFeeGroupIds: number[] = [];
       
       // For expansion, we'll use the unique fee group IDs directly from the response
       const expandedFeeGroups = uniqueFeeGroupIds;
       
-      // Check which groups should be fully selected (all items selected)
+      // Check which groups should be selected (any items selected)
       feeGroups.forEach(group => {
         const groupFeeItemIds = group.feeItems?.map(item => Number(item.id)) || [];
-        const allItemsSelected = groupFeeItemIds.length > 0 && groupFeeItemIds.every(id => validFeeItemIds.includes(id));
-        if (allItemsSelected) {
+        const hasSelectedItems = groupFeeItemIds.some(id => validFeeItemIds.includes(id));
+        if (hasSelectedItems) {
           selectedFeeGroupIds.push(group.id);
         }
       });
@@ -1225,9 +1216,6 @@ export default function CampaignsPage() {
         feeGroupIds: selectedFeeGroupIds,
         expandedFeeGroups: expandedFeeGroups
       };
-      
-      // DEBUG: Log final form data
-      console.log('🔍 Final form data being set:', formData);
       
       setPricingTypeForm(formData);
       
