@@ -1172,45 +1172,27 @@ export default function CampaignsPage() {
       });
       const pricingTypeDetails = await response.json();
       
-      console.log('API Response:', pricingTypeDetails);
-      console.log('Fee Items Array:', pricingTypeDetails.feeItems);
-      console.log('Fee Items Length:', pricingTypeDetails.feeItems?.length);
-      
       // Extract fee item IDs from the detailed response (use feeItemId from the association)
       const validFeeItemIds = (pricingTypeDetails.feeItems ?? [])
         .map((item: any) => Number(item.feeItemId))
         .filter((id: number) => Number.isFinite(id));
-        
-      console.log('Extracted Fee Item IDs:', validFeeItemIds);
       
       // Calculate which fee groups should be selected and expanded
       const selectedFeeGroupIds: number[] = [];
       const expandedFeeGroups: number[] = [];
       
-      console.log('Fee Groups data:', feeGroups);
-      console.log('First fee group structure:', feeGroups[0]);
-      
       // Find groups that contain selected items and determine which groups should be fully selected
       feeGroups.forEach(group => {
         const groupFeeItemIds = group.feeItems?.map(item => Number(item.id)) || [];
-        console.log(`Group ${group.name} (${group.id}) fee items:`, groupFeeItemIds);
-        console.log(`First few fee items in ${group.name}:`, group.feeItems?.slice(0, 2));
-        console.log('Valid fee item IDs to match:', validFeeItemIds);
-        console.log('Data types - group items:', typeof groupFeeItemIds[0], 'selected items:', typeof validFeeItemIds[0]);
-        console.log('Sample comparison:', groupFeeItemIds[0], 'includes in', validFeeItemIds, '=', validFeeItemIds.includes(groupFeeItemIds[0]));
-        console.log('Overlap check for', group.name, ':', groupFeeItemIds.filter(id => validFeeItemIds.includes(id)));
-        const hasSelectedItems = groupFeeItemIds.some(id => validFeeItemIds.includes(id));
-        console.log(`Group ${group.name} has selected items:`, hasSelectedItems);
+        const overlap = groupFeeItemIds.filter(id => validFeeItemIds.includes(id));
+        const hasSelectedItems = overlap.length > 0;
         
         if (hasSelectedItems) {
-          console.log(`PUSHING ${group.name} (${group.id}) to expandedFeeGroups`);
           expandedFeeGroups.push(group.id);
           
           // Check if ALL items in the group are selected (for full group selection)
           const allItemsSelected = groupFeeItemIds.length > 0 && groupFeeItemIds.every(id => validFeeItemIds.includes(id));
-          console.log(`${group.name} - All items selected:`, allItemsSelected, `(${groupFeeItemIds.length} items total)`);
           if (allItemsSelected) {
-            console.log(`PUSHING ${group.name} (${group.id}) to selectedFeeGroupIds`);
             selectedFeeGroupIds.push(group.id);
           }
         }
@@ -1225,10 +1207,6 @@ export default function CampaignsPage() {
         expandedFeeGroups: expandedFeeGroups
       };
       
-      console.log('Final form data being set:', formData);
-      console.log('Selected fee groups:', selectedFeeGroupIds);
-      console.log('Expanded fee groups:', expandedFeeGroups);
-      console.log('Selected fee items:', validFeeItemIds);
       
       setPricingTypeForm(formData);
       setShowEditPricingType(true);
