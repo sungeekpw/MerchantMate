@@ -1170,6 +1170,11 @@ export default function CampaignsPage() {
         credentials: 'include',
         cache: 'no-store'
       });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      
       const pricingTypeDetails = await response.json();
       
       // Extract fee item IDs from the detailed response (use feeItemId from the association)
@@ -1177,24 +1182,26 @@ export default function CampaignsPage() {
         .map((item: any) => Number(item.feeItemId))
         .filter((id: number) => Number.isFinite(id));
       
-      // Calculate which fee groups should be selected and expanded
-      const selectedFeeGroupIds: number[] = [];
-      const expandedFeeGroups: number[] = [];
+      // Extract unique fee group IDs from the detailed response
+      const uniqueFeeGroupIds = [...new Set(
+        (pricingTypeDetails.feeItems ?? [])
+          .map((item: any) => item.feeItem?.feeGroup?.id)
+          .filter((id: any) => id != null)
+          .map((id: any) => Number(id))
+      )];
       
-      // Find groups that contain selected items and determine which groups should be fully selected
+      // Calculate which fee groups should be selected (only if ALL items in group are selected)
+      const selectedFeeGroupIds: number[] = [];
+      
+      // For expansion, we'll use the unique fee group IDs directly from the response
+      const expandedFeeGroups = uniqueFeeGroupIds;
+      
+      // Check which groups should be fully selected (all items selected)
       feeGroups.forEach(group => {
         const groupFeeItemIds = group.feeItems?.map(item => Number(item.id)) || [];
-        const overlap = groupFeeItemIds.filter(id => validFeeItemIds.includes(id));
-        const hasSelectedItems = overlap.length > 0;
-        
-        if (hasSelectedItems) {
-          expandedFeeGroups.push(group.id);
-          
-          // Check if ALL items in the group are selected (for full group selection)
-          const allItemsSelected = groupFeeItemIds.length > 0 && groupFeeItemIds.every(id => validFeeItemIds.includes(id));
-          if (allItemsSelected) {
-            selectedFeeGroupIds.push(group.id);
-          }
+        const allItemsSelected = groupFeeItemIds.length > 0 && groupFeeItemIds.every(id => validFeeItemIds.includes(id));
+        if (allItemsSelected) {
+          selectedFeeGroupIds.push(group.id);
         }
       });
       
@@ -1207,9 +1214,11 @@ export default function CampaignsPage() {
         expandedFeeGroups: expandedFeeGroups
       };
       
-      
       setPricingTypeForm(formData);
+      
+      // Only open dialog after data is properly set
       setShowEditPricingType(true);
+      
     } catch (error) {
       console.error('Error fetching pricing type details:', error);
       toast({
