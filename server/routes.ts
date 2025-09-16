@@ -5638,30 +5638,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: 'Pricing type not found' });
       }
 
-      // Update fee item associations
-      console.log('Deleting existing fee item associations...');
-      await dbToUse.delete(pricingTypeFeeItems)
-        .where(eq(pricingTypeFeeItems.pricingTypeId, id));
+      // Update fee item associations using a database transaction to prevent race conditions
+      console.log('Updating fee item associations in transaction...');
+      await dbToUse.transaction(async (tx) => {
+        // Delete existing fee item associations
+        console.log('Deleting existing fee item associations...');
+        await tx.delete(pricingTypeFeeItems)
+          .where(eq(pricingTypeFeeItems.pricingTypeId, id));
 
-      // Add new fee item associations if provided
-      if (feeItemIds && Array.isArray(feeItemIds) && feeItemIds.length > 0) {
-        console.log('Adding selected fee items to pricing type:', feeItemIds);
-        
-        const { withRetry } = await import("./db");
-        
-        await withRetry(() =>
-          dbToUse.insert(pricingTypeFeeItems).values(
+        // Add new fee item associations if provided
+        if (feeItemIds && Array.isArray(feeItemIds) && feeItemIds.length > 0) {
+          console.log('Adding selected fee items to pricing type:', feeItemIds);
+          
+          await tx.insert(pricingTypeFeeItems).values(
             feeItemIds.map((feeItemId: number, index: number) => ({
               pricingTypeId: id,
               feeItemId,
               isRequired: false,
               displayOrder: index + 1
             }))
-          )
-        );
-        
-        console.log(`Added ${feeItemIds.length} fee items to pricing type`);
-      }
+          );
+          
+          console.log(`Added ${feeItemIds.length} fee items to pricing type`);
+        }
+      });
       
       console.log('Pricing type update completed successfully');
       res.json(updatedPricingType);
