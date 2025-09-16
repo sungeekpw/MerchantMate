@@ -1203,11 +1203,14 @@ export default function CampaignsPage() {
         console.log(`Group ${group.name} has selected items:`, hasSelectedItems);
         
         if (hasSelectedItems) {
+          console.log(`PUSHING ${group.name} (${group.id}) to expandedFeeGroups`);
           expandedFeeGroups.push(group.id);
           
           // Check if ALL items in the group are selected (for full group selection)
           const allItemsSelected = groupFeeItemIds.length > 0 && groupFeeItemIds.every(id => validFeeItemIds.includes(id));
+          console.log(`${group.name} - All items selected:`, allItemsSelected, `(${groupFeeItemIds.length} items total)`);
           if (allItemsSelected) {
+            console.log(`PUSHING ${group.name} (${group.id}) to selectedFeeGroupIds`);
             selectedFeeGroupIds.push(group.id);
           }
         }
