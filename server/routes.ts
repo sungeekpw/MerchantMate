@@ -5356,7 +5356,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const { pricingTypes, pricingTypeFeeItems, feeItems, feeGroups, feeGroupFeeItems } = await import("@shared/schema");
-      const { eq } = await import("drizzle-orm");
+      const { eq, sql } = await import("drizzle-orm");
       
       // First, get the pricing type
       const pricingTypeResult = await dbToUse.select()
