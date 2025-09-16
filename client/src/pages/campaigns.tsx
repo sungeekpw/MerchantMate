@@ -1165,8 +1165,11 @@ export default function CampaignsPage() {
     setEditingPricingType(pricingType);
     
     try {
-      // Fetch the fee items organized by fee groups for this pricing type
-      const response = await fetch(`/api/pricing-types/${pricingType.id}/fee-items`);
+      // Fetch the fee items organized by fee groups for this pricing type (bypass cache)
+      const response = await fetch(`/api/pricing-types/${pricingType.id}/fee-items?ts=${Date.now()}`, {
+        credentials: 'include',
+        cache: 'no-store'
+      });
       const pricingTypeDetails = await response.json();
       
       // Extract fee item IDs from the detailed response (use feeItemId from the association)
