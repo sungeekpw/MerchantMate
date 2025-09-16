@@ -1177,6 +1177,15 @@ export default function CampaignsPage() {
       
       const pricingTypeDetails = await response.json();
       
+      // DEBUG: Log what we received from the server
+      console.log('🔍 API Response received:', {
+        responseKeys: Object.keys(pricingTypeDetails),
+        feeItemsLength: pricingTypeDetails.feeItems?.length,
+        feeItemsType: typeof pricingTypeDetails.feeItems,
+        firstFeeItem: pricingTypeDetails.feeItems?.[0],
+        fullResponse: pricingTypeDetails
+      });
+      
       // Extract fee item IDs from the detailed response (use feeItemId from the association)
       const validFeeItemIds = (pricingTypeDetails.feeItems ?? [])
         .map((item: any) => Number(item.feeItemId))
