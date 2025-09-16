@@ -1222,6 +1222,10 @@ export default function CampaignsPage() {
         expandedFeeGroups: expandedFeeGroups
       };
       
+      console.log('Final form data being set:', formData);
+      console.log('Selected fee groups:', selectedFeeGroupIds);
+      console.log('Expanded fee groups:', expandedFeeGroups);
+      console.log('Selected fee items:', validFeeItemIds);
       
       setPricingTypeForm(formData);
       setShowEditPricingType(true);
