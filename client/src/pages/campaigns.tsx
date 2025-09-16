@@ -1187,10 +1187,15 @@ export default function CampaignsPage() {
       const selectedFeeGroupIds: number[] = [];
       const expandedFeeGroups: number[] = [];
       
+      console.log('Fee Groups data:', feeGroups);
+      console.log('First fee group structure:', feeGroups[0]);
+      
       // Find groups that contain selected items and determine which groups should be fully selected
       feeGroups.forEach(group => {
         const groupFeeItemIds = group.feeItems?.map(item => Number(item.id)) || [];
+        console.log(`Group ${group.name} (${group.id}) fee items:`, groupFeeItemIds);
         const hasSelectedItems = groupFeeItemIds.some(id => validFeeItemIds.includes(id));
+        console.log(`Group ${group.name} has selected items:`, hasSelectedItems);
         
         if (hasSelectedItems) {
           expandedFeeGroups.push(group.id);
