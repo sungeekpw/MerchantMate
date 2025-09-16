@@ -858,12 +858,15 @@ export default function CampaignsPage() {
       }
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: (data, variables) => {
+      // Invalidate all related queries
       queryClient.invalidateQueries({ queryKey: ['/api/pricing-types'] });
-      // Also invalidate individual pricing type queries
-      pricingTypes.forEach(type => {
-        queryClient.invalidateQueries({ queryKey: [`/api/pricing-types/${type.id}/fee-items`] });
-      });
+      queryClient.invalidateQueries({ queryKey: ['/api/fee-items'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/fee-groups'] });
+      
+      // Invalidate the specific pricing type that was edited
+      queryClient.invalidateQueries({ queryKey: [`/api/pricing-types/${variables.id}/fee-items`] });
+      
       setShowEditPricingType(false);
       setEditingPricingType(null);
       // Reset form
