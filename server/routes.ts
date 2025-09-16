@@ -5355,6 +5355,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const pricingType = pricingTypeResult[0];
       
+      // DEBUG: Verify actual database state with the same connection
+      const debugCount = await dbToUse.select({ count: sql`count(*)` })
+        .from(pricingTypeFeeItems)
+        .where(eq(pricingTypeFeeItems.pricingTypeId, id));
+      console.log(`DEBUG - Direct count query shows: ${debugCount[0]?.count} fee items for pricing type ${id} in ${req.dbEnv} database`);
+      
       // Then get the fee items (only if there are associations)
       const feeItemsResult = await dbToUse.select({
         pricingTypeFeeItem: pricingTypeFeeItems,
