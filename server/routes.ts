@@ -5344,33 +5344,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { pricingTypes, pricingTypeFeeItems, feeItems, feeGroups, feeGroupFeeItems } = await import("@shared/schema");
       const { eq } = await import("drizzle-orm");
       
-      // Get the pricing type and its fee items from the selected database environment
-      const result = await dbToUse.select({
-        pricingType: pricingTypes,
-        pricingTypeFeeItem: pricingTypeFeeItems,
-        feeItem: feeItems,
-        feeGroup: feeGroups
-      }).from(pricingTypes)
-      .leftJoin(pricingTypeFeeItems, eq(pricingTypes.id, pricingTypeFeeItems.pricingTypeId))
-      .leftJoin(feeItems, eq(pricingTypeFeeItems.feeItemId, feeItems.id))
-      .leftJoin(feeGroupFeeItems, eq(pricingTypeFeeItems.feeItemId, feeGroupFeeItems.feeItemId))
-      .leftJoin(feeGroups, eq(feeGroupFeeItems.feeGroupId, feeGroups.id))
-      .where(eq(pricingTypes.id, id));
+      // First, get the pricing type
+      const pricingTypeResult = await dbToUse.select()
+        .from(pricingTypes)
+        .where(eq(pricingTypes.id, id));
       
-      if (result.length === 0) {
+      if (pricingTypeResult.length === 0) {
         return res.status(404).json({ error: 'Pricing type not found' });
       }
       
-      const pricingType = result[0].pricingType;
-      const feeItemsWithGroups = result
-        .filter(row => row.feeItem)
-        .map(row => ({
-          ...row.pricingTypeFeeItem,
-          feeItem: {
-            ...row.feeItem,
-            feeGroup: row.feeGroup
-          }
-        }));
+      const pricingType = pricingTypeResult[0];
+      
+      // Then get the fee items (only if there are associations)
+      const feeItemsResult = await dbToUse.select({
+        pricingTypeFeeItem: pricingTypeFeeItems,
+        feeItem: feeItems,
+        feeGroup: feeGroups
+      }).from(pricingTypeFeeItems)
+      .innerJoin(feeItems, eq(pricingTypeFeeItems.feeItemId, feeItems.id))
+      .leftJoin(feeGroupFeeItems, eq(pricingTypeFeeItems.feeItemId, feeGroupFeeItems.feeItemId))
+      .leftJoin(feeGroups, eq(feeGroupFeeItems.feeGroupId, feeGroups.id))
+      .where(eq(pricingTypeFeeItems.pricingTypeId, id));
+      
+      const feeItemsWithGroups = feeItemsResult.map(row => ({
+        ...row.pricingTypeFeeItem,
+        feeItem: {
+          ...row.feeItem,
+          feeGroup: row.feeGroup
+        }
+      }));
       
       const response = {
         ...pricingType,
