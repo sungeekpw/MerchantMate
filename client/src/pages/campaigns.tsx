@@ -1183,12 +1183,13 @@ export default function CampaignsPage() {
         .filter((id: number) => Number.isFinite(id));
       
       // Extract unique fee group IDs from the detailed response
-      const uniqueFeeGroupIds = [...new Set(
+      const feeGroupIdSet = new Set(
         (pricingTypeDetails.feeItems ?? [])
           .map((item: any) => item.feeItem?.feeGroup?.id)
           .filter((id: any) => id != null)
           .map((id: any) => Number(id))
-      )];
+      );
+      const uniqueFeeGroupIds = Array.from(feeGroupIdSet);
       
       // Calculate which fee groups should be selected (only if ALL items in group are selected)
       const selectedFeeGroupIds: number[] = [];
