@@ -1127,7 +1127,7 @@ export default function CampaignsPage() {
       setPricingTypeForm(prev => ({
         ...prev,
         selectedFeeGroupIds: [...prev.selectedFeeGroupIds, feeGroupId],
-        selectedFeeItemIds: [...new Set([...prev.selectedFeeItemIds, ...groupFeeItemIds])],
+        selectedFeeItemIds: Array.from(new Set([...prev.selectedFeeItemIds, ...groupFeeItemIds])),
         feeGroupIds: [...prev.feeGroupIds, feeGroupId]
       }));
     } else {
@@ -1203,9 +1203,6 @@ export default function CampaignsPage() {
         expandedFeeGroups: expandedFeeGroups
       };
       
-      console.log('Setting pricing type form data:', formData);
-      console.log('Valid fee item IDs count:', validFeeItemIds.length, 'IDs:', validFeeItemIds.slice(0, 5));
-      console.log('Sample fee group items for comparison:', feeGroups[0]?.feeItems?.slice(0, 3).map(item => item.id));
       
       setPricingTypeForm(formData);
       setShowEditPricingType(true);
