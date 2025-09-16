@@ -1169,26 +1169,26 @@ export default function CampaignsPage() {
       const response = await fetch(`/api/pricing-types/${pricingType.id}/fee-items`);
       const pricingTypeDetails = await response.json();
       
-      // Extract fee item IDs from the detailed response
-      const validFeeItemIds = pricingTypeDetails.feeItems
-        ?.filter((item: any) => item.feeItem && item.feeItem.id && item.feeItem.name)
-        .map((item: any) => item.feeItem.id) || [];
+      // Extract fee item IDs from the detailed response (use feeItemId from the association)
+      const validFeeItemIds = (pricingTypeDetails.feeItems ?? [])
+        .map((item: any) => Number(item.feeItemId))
+        .filter((id: number) => Number.isFinite(id));
       
       // Calculate which fee groups should be selected and expanded
       const selectedFeeGroupIds: number[] = [];
       const expandedFeeGroups: number[] = [];
       
-      // Use the current feeGroups data to determine which groups have selected items
+      // Find groups that contain selected items and determine which groups should be fully selected
       feeGroups.forEach(group => {
-        const groupFeeItemIds = group.feeItems?.map(item => item.id) || [];
+        const groupFeeItemIds = group.feeItems?.map(item => Number(item.id)) || [];
         const hasSelectedItems = groupFeeItemIds.some(id => validFeeItemIds.includes(id));
         
         if (hasSelectedItems) {
           expandedFeeGroups.push(group.id);
           
           // Check if ALL items in the group are selected (for full group selection)
-          const allItemsSelected = groupFeeItemIds.every(id => validFeeItemIds.includes(id));
-          if (allItemsSelected && groupFeeItemIds.length > 0) {
+          const allItemsSelected = groupFeeItemIds.length > 0 && groupFeeItemIds.every(id => validFeeItemIds.includes(id));
+          if (allItemsSelected) {
             selectedFeeGroupIds.push(group.id);
           }
         }
@@ -1204,7 +1204,8 @@ export default function CampaignsPage() {
       };
       
       console.log('Setting pricing type form data:', formData);
-      console.log('Valid fee item IDs:', validFeeItemIds);
+      console.log('Valid fee item IDs count:', validFeeItemIds.length, 'IDs:', validFeeItemIds.slice(0, 5));
+      console.log('Sample fee group items for comparison:', feeGroups[0]?.feeItems?.slice(0, 3).map(item => item.id));
       
       setPricingTypeForm(formData);
       setShowEditPricingType(true);
