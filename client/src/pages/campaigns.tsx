@@ -1245,10 +1245,13 @@ export default function CampaignsPage() {
 
     if (!editingPricingType) return;
 
+    // Remove duplicates from selected fee item IDs to prevent constraint violations
+    const uniqueFeeItemIds = [...new Set(pricingTypeForm.selectedFeeItemIds)];
+    
     const updateData = {
       name: pricingTypeForm.name.trim(),
       description: pricingTypeForm.description.trim() || undefined,
-      feeItemIds: pricingTypeForm.selectedFeeItemIds,
+      feeItemIds: uniqueFeeItemIds,
     };
     
     editPricingTypeMutation.mutate({
