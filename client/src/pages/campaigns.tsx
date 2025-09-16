@@ -1165,7 +1165,7 @@ export default function CampaignsPage() {
     setEditingPricingType(pricingType);
     
     try {
-      // Fetch the detailed fee items for this pricing type
+      // Fetch the fee items organized by fee groups for this pricing type
       const response = await fetch(`/api/pricing-types/${pricingType.id}/fee-items`);
       const pricingTypeDetails = await response.json();
       
@@ -1178,6 +1178,7 @@ export default function CampaignsPage() {
       const selectedFeeGroupIds: number[] = [];
       const expandedFeeGroups: number[] = [];
       
+      // Use the current feeGroups data to determine which groups have selected items
       feeGroups.forEach(group => {
         const groupFeeItemIds = group.feeItems?.map(item => item.id) || [];
         const hasSelectedItems = groupFeeItemIds.some(id => validFeeItemIds.includes(id));
@@ -1201,6 +1202,10 @@ export default function CampaignsPage() {
         feeGroupIds: selectedFeeGroupIds,
         expandedFeeGroups: expandedFeeGroups
       };
+      
+      console.log('Setting pricing type form data:', formData);
+      console.log('Valid fee item IDs:', validFeeItemIds);
+      
       setPricingTypeForm(formData);
       setShowEditPricingType(true);
     } catch (error) {
