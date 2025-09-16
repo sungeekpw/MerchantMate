@@ -2243,9 +2243,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return `postgresql://***:***@${hostPart}`;
       };
       
-      // Test actual database connections by counting users
+      // Test actual database connections by counting users and key tables
       const dynamicDB = getRequestDB(req);
       const users = await dynamicDB.select().from((await import('@shared/schema')).users);
+      
+      // Get table counts for pricing/fee tables to verify which database we're hitting
+      const { pricingTypeFeeItems, feeItems, pricingTypes } = await import("@shared/schema");
+      const { sql } = await import("drizzle-orm");
+      
+      const pricingTypeCount = await dynamicDB.select({ count: sql`count(*)` }).from(pricingTypes);
+      const feeItemCount = await dynamicDB.select({ count: sql`count(*)` }).from(feeItems);  
+      const pricingTypeFeeItemCount = await dynamicDB.select({ count: sql`count(*)` }).from(pricingTypeFeeItems);
       
       res.json({
         success: true,
@@ -2261,6 +2269,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
           url: maskUrl(getDatabaseUrl(dbEnv)),
           userCount: users.length,
           users: users.map((u: any) => ({ id: u.id, username: u.username, email: u.email }))
+        },
+        table_counts: {
+          pricing_types: Number(pricingTypeCount[0]?.count || 0),
+          fee_items: Number(feeItemCount[0]?.count || 0), 
+          pricing_type_fee_items: Number(pricingTypeFeeItemCount[0]?.count || 0)
         }
       });
     } catch (error) {
@@ -2272,6 +2285,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     }
   });
+
 
   // Schema comparison between environments
   app.get("/api/admin/schema-compare", requireRole(['super_admin']), async (req, res) => {
