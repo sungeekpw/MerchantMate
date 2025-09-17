@@ -1188,7 +1188,7 @@ export default function CampaignsPage() {
         .map((item: any) => Number(item.feeItemId))
         .filter((id: number) => Number.isFinite(id));
       
-      // Extract unique fee group IDs from the detailed response
+      // Extract unique fee group IDs from the detailed response for auto-expansion
       const feeGroupIdSet = new Set<number>(
         (pricingTypeDetails.feeItems ?? [])
           .map((item: any) => item.feeItem?.feeGroup?.id)
@@ -1197,7 +1197,7 @@ export default function CampaignsPage() {
       );
       const uniqueFeeGroupIds: number[] = Array.from(feeGroupIdSet);
       
-      // For expansion, we'll use the unique fee group IDs directly from the response
+      // Auto-expand all fee groups that contain selected items so user can see them
       const expandedFeeGroups = uniqueFeeGroupIds;
       
       // CRITICAL FIX: During edit initialization, only set selectedFeeItemIds from backend
