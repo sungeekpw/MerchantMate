@@ -5989,9 +5989,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/equipment-items", dbEnvironmentMiddleware, requireRole(['admin', 'super_admin']), async (req: RequestWithDB, res) => {
     try {
-      const { insertEquipmentItemSchema } = await import("@shared/schema");
+      console.log(`Creating equipment item - Database environment: ${req.dbEnv}`);
+      
+      // Use the dynamic database connection
+      const dbToUse = req.dynamicDB;
+      if (!dbToUse) {
+        return res.status(500).json({ error: "Database connection not available" });
+      }
+      
+      const { insertEquipmentItemSchema, equipmentItems } = await import("@shared/schema");
       const validated = insertEquipmentItemSchema.parse(req.body);
-      const equipmentItem = await storage.createEquipmentItem(validated);
+      
+      const [equipmentItem] = await dbToUse.insert(equipmentItems).values(validated).returning();
+      console.log(`Created equipment item in ${req.dbEnv} database:`, equipmentItem);
       res.json(equipmentItem);
     } catch (error) {
       console.error('Error creating equipment item:', error);
@@ -6001,15 +6011,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put("/api/equipment-items/:id", dbEnvironmentMiddleware, requireRole(['admin', 'super_admin']), async (req: RequestWithDB, res) => {
     try {
-      const { insertEquipmentItemSchema } = await import("@shared/schema");
+      console.log(`Updating equipment item - Database environment: ${req.dbEnv}`);
+      
+      // Use the dynamic database connection
+      const dbToUse = req.dynamicDB;
+      if (!dbToUse) {
+        return res.status(500).json({ error: "Database connection not available" });
+      }
+      
+      const { insertEquipmentItemSchema, equipmentItems } = await import("@shared/schema");
       const id = parseInt(req.params.id);
       const validated = insertEquipmentItemSchema.partial().parse(req.body);
-      const equipmentItem = await storage.updateEquipmentItem(id, validated);
+      
+      const [equipmentItem] = await dbToUse.update(equipmentItems)
+        .set({ ...validated, updatedAt: new Date() })
+        .where(eq(equipmentItems.id, id))
+        .returning();
       
       if (!equipmentItem) {
         return res.status(404).json({ message: 'Equipment item not found' });
       }
       
+      console.log(`Updated equipment item in ${req.dbEnv} database:`, equipmentItem);
       res.json(equipmentItem);
     } catch (error) {
       console.error('Error updating equipment item:', error);
@@ -6019,13 +6042,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.delete("/api/equipment-items/:id", dbEnvironmentMiddleware, requireRole(['admin', 'super_admin']), async (req: RequestWithDB, res) => {
     try {
-      const id = parseInt(req.params.id);
-      const success = await storage.deleteEquipmentItem(id);
+      console.log(`Deleting equipment item - Database environment: ${req.dbEnv}`);
       
-      if (!success) {
+      // Use the dynamic database connection
+      const dbToUse = req.dynamicDB;
+      if (!dbToUse) {
+        return res.status(500).json({ error: "Database connection not available" });
+      }
+      
+      const { equipmentItems } = await import("@shared/schema");
+      const id = parseInt(req.params.id);
+      
+      const deletedRows = await dbToUse.delete(equipmentItems)
+        .where(eq(equipmentItems.id, id))
+        .returning();
+      
+      if (deletedRows.length === 0) {
         return res.status(404).json({ message: 'Equipment item not found' });
       }
       
+      console.log(`Deleted equipment item from ${req.dbEnv} database:`, deletedRows[0]);
       res.json({ success: true });
     } catch (error) {
       console.error('Error deleting equipment item:', error);
