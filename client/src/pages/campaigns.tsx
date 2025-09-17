@@ -1181,20 +1181,12 @@ export default function CampaignsPage() {
       }
       
       const pricingTypeDetails = await response.json();
-      console.log('DEBUG - Response structure:', pricingTypeDetails);
-      console.log('DEBUG - Fee items array:', pricingTypeDetails.feeItems);
       
       // Extract fee item IDs from the detailed response
       // Backend returns: { feeItemId: number, pricingTypeId: number, feeItem: {...} }
       const validFeeItemIds = (pricingTypeDetails.feeItems ?? [])
-        .map((item: any) => {
-          // Try both possible structures for robustness
-          const id = item.feeItemId || item.feeItem?.id;
-          return Number(id);
-        })
+        .map((item: any) => Number(item.feeItemId))
         .filter((id: number) => Number.isFinite(id));
-      
-      console.log('DEBUG - Extracted fee item IDs:', validFeeItemIds);
       
       // Extract unique fee group IDs from the detailed response
       const feeGroupIdSet = new Set<number>(
