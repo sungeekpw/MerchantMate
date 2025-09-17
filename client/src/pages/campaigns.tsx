@@ -1127,7 +1127,10 @@ export default function CampaignsPage() {
   // Compute tri-state group checkbox state
   const computeGroupState = (feeGroupId: number) => {
     const group = feeGroups.find(g => g.id === feeGroupId);
-    const groupItemIds = group?.feeItems?.map(item => item.id) || [];
+    // DEFENSIVE FILTER: Only include items that actually belong to this group
+    const groupItemIds = (group?.feeItems || [])
+      .filter(item => item.feeGroupId === feeGroupId)
+      .map(item => item.id);
     
     if (groupItemIds.length === 0) {
       return { checked: false, indeterminate: false };
@@ -1146,7 +1149,10 @@ export default function CampaignsPage() {
   // Handle fee group "select all" checkbox (separate from expansion)
   const handleFeeGroupSelectAll = (feeGroupId: number, isSelected: boolean) => {
     const group = feeGroups.find(g => g.id === feeGroupId);
-    const groupFeeItemIds = group?.feeItems?.map(item => item.id) || [];
+    // DEFENSIVE FILTER: Only include items that actually belong to this group
+    const groupFeeItemIds = (group?.feeItems || [])
+      .filter(item => item.feeGroupId === feeGroupId)
+      .map(item => item.id);
     
     setPricingTypeForm(prev => ({
       ...prev,
@@ -2892,7 +2898,8 @@ export default function CampaignsPage() {
                 ) : (
                   // "Browse All" mode - improved UX with tri-state group selection
                   feeGroups.map((group) => {
-                    const groupFeeItems = group.feeItems || [];
+                    // DEFENSIVE FILTER: Only include items that actually belong to this group
+                    const groupFeeItems = (group.feeItems || []).filter(item => item.feeGroupId === group.id);
                     const isExpanded = pricingTypeForm.expandedFeeGroups.includes(group.id);
                     const groupState = computeGroupState(group.id);
                     
