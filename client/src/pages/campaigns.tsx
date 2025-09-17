@@ -1124,30 +1124,40 @@ export default function CampaignsPage() {
     });
   };
 
-  // Handle fee group selection for pricing type
-  const handleFeeGroupSelection = (feeGroupId: number, isSelected: boolean) => {
+  // Compute tri-state group checkbox state
+  const computeGroupState = (feeGroupId: number) => {
+    const group = feeGroups.find(g => g.id === feeGroupId);
+    const groupItemIds = group?.feeItems?.map(item => item.id) || [];
+    
+    if (groupItemIds.length === 0) {
+      return { checked: false, indeterminate: false };
+    }
+    
+    const selectedInGroup = groupItemIds.filter(id => pricingTypeForm.selectedFeeItemIds.includes(id));
+    const allSelected = selectedInGroup.length === groupItemIds.length;
+    const noneSelected = selectedInGroup.length === 0;
+    
+    return {
+      checked: allSelected,
+      indeterminate: !allSelected && !noneSelected
+    };
+  };
+
+  // Handle fee group "select all" checkbox (separate from expansion)
+  const handleFeeGroupSelectAll = (feeGroupId: number, isSelected: boolean) => {
     const group = feeGroups.find(g => g.id === feeGroupId);
     const groupFeeItemIds = group?.feeItems?.map(item => item.id) || [];
     
-    if (isSelected) {
-      setPricingTypeForm(prev => ({
-        ...prev,
-        selectedFeeGroupIds: [...prev.selectedFeeGroupIds, feeGroupId],
-        selectedFeeItemIds: Array.from(new Set([...prev.selectedFeeItemIds, ...groupFeeItemIds])),
-        feeGroupIds: [...prev.feeGroupIds, feeGroupId]
-      }));
-    } else {
-      setPricingTypeForm(prev => ({
-        ...prev,
-        selectedFeeGroupIds: prev.selectedFeeGroupIds.filter(id => id !== feeGroupId),
-        selectedFeeItemIds: prev.selectedFeeItemIds.filter(id => !groupFeeItemIds.includes(id)),
-        feeGroupIds: prev.feeGroupIds.filter(id => id !== feeGroupId)
-      }));
-    }
+    setPricingTypeForm(prev => ({
+      ...prev,
+      selectedFeeItemIds: isSelected
+        ? Array.from(new Set([...prev.selectedFeeItemIds, ...groupFeeItemIds]))
+        : prev.selectedFeeItemIds.filter(id => !groupFeeItemIds.includes(id))
+    }));
   };
 
-  // Handle fee group expand/collapse
-  const toggleFeeGroupExpansion = (feeGroupId: number) => {
+  // Handle fee group row click (expansion only, no selection)
+  const handleFeeGroupRowClick = (feeGroupId: number) => {
     setPricingTypeForm(prev => ({
       ...prev,
       expandedFeeGroups: prev.expandedFeeGroups.includes(feeGroupId)
@@ -1155,6 +1165,8 @@ export default function CampaignsPage() {
         : [...prev.expandedFeeGroups, feeGroupId]
     }));
   };
+
+  // toggleFeeGroupExpansion removed - replaced by handleFeeGroupRowClick
 
   // Handle individual fee item selection
   const handleFeeItemSelection = (itemId: number, isSelected: boolean) => {
@@ -2878,11 +2890,11 @@ export default function CampaignsPage() {
                     ))
                   })()
                 ) : (
-                  // "Browse All" mode - existing functionality
+                  // "Browse All" mode - improved UX with tri-state group selection
                   feeGroups.map((group) => {
                     const groupFeeItems = group.feeItems || [];
-                    const isGroupSelected = pricingTypeForm.selectedFeeGroupIds.includes(group.id);
                     const isExpanded = pricingTypeForm.expandedFeeGroups.includes(group.id);
+                    const groupState = computeGroupState(group.id);
                     
                     return (
                       <div key={group.id} className="border rounded-sm p-2">
@@ -2891,11 +2903,23 @@ export default function CampaignsPage() {
                             type="checkbox" 
                             id={`edit-group-${group.id}`} 
                             className="rounded" 
-                            checked={isGroupSelected}
-                            onChange={(e) => handleFeeGroupSelection(group.id, e.target.checked)}
+                            checked={groupState.checked}
+                            ref={(checkbox) => {
+                              if (checkbox) checkbox.indeterminate = groupState.indeterminate;
+                            }}
+                            onChange={(e) => handleFeeGroupSelectAll(group.id, e.target.checked)}
+                            title={groupState.indeterminate ? "Some items selected" : groupState.checked ? "All items selected" : "No items selected"}
                           />
-                          <Label htmlFor={`edit-group-${group.id}`} className="text-sm font-medium">
+                          <Label 
+                            htmlFor={`edit-group-${group.id}`} 
+                            className="text-sm font-medium cursor-pointer flex-1"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              handleFeeGroupRowClick(group.id);
+                            }}
+                          >
                             {group.name}
+                            {groupState.indeterminate && <span className="text-xs text-muted-foreground ml-1">(partially selected)</span>}
                           </Label>
                           {groupFeeItems.length > 0 && (
                             <Button
@@ -2903,18 +2927,40 @@ export default function CampaignsPage() {
                               variant="ghost"
                               size="sm"
                               className="h-6 w-6 p-0 ml-auto"
-                              onClick={() => toggleFeeGroupExpansion(group.id)}
-                              disabled={!isGroupSelected}
+                              onClick={() => handleFeeGroupRowClick(group.id)}
+                              title={isExpanded ? "Collapse group" : "Expand group"}
                             >
                               {isExpanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
                             </Button>
                           )}
                         </div>
                         
-                        {isGroupSelected && isExpanded && groupFeeItems.length > 0 && (
+                        {isExpanded && groupFeeItems.length > 0 && (
                           <div className="pl-6 space-y-1 border-l-2 border-muted">
-                            <div className="text-xs text-muted-foreground mb-2">
-                              Select individual fee items from this group:
+                            <div className="text-xs text-muted-foreground mb-2 flex items-center justify-between">
+                              <span>Select individual fee items:</span>
+                              {!groupState.checked && groupFeeItems.length > 1 && (
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-5 text-xs px-2"
+                                  onClick={() => handleFeeGroupSelectAll(group.id, true)}
+                                >
+                                  Select All
+                                </Button>
+                              )}
+                              {groupState.checked && (
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-5 text-xs px-2"
+                                  onClick={() => handleFeeGroupSelectAll(group.id, false)}
+                                >
+                                  Deselect All
+                                </Button>
+                              )}
                             </div>
                             {groupFeeItems.sort((a, b) => a.name.localeCompare(b.name)).map((item) => (
                               <div key={item.id} className="flex items-center space-x-2">
@@ -2936,9 +2982,9 @@ export default function CampaignsPage() {
                           </div>
                         )}
                         
-                        {isGroupSelected && !isExpanded && groupFeeItems.length > 0 && (
+                        {!isExpanded && groupFeeItems.length > 0 && (
                           <div className="text-xs text-muted-foreground pl-6">
-                            {groupFeeItems.length} items available (click to expand)
+                            {groupFeeItems.length} items available • {groupState.indeterminate ? 'Some selected' : groupState.checked ? 'All selected' : 'None selected'} (click to expand)
                           </div>
                         )}
                         
