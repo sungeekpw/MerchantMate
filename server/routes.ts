@@ -5991,17 +5991,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       console.log(`Creating equipment item - Database environment: ${req.dbEnv}`);
       
-      // Use the dynamic database connection
-      const dbToUse = req.dynamicDB;
+      // Use the request-specific database connection (critical for environment isolation)
+      const { getRequestDB } = await import("./dbMiddleware");
+      const dbToUse = getRequestDB(req);
       if (!dbToUse) {
         return res.status(500).json({ error: "Database connection not available" });
       }
       
       const { insertEquipmentItemSchema, equipmentItems } = await import("@shared/schema");
+      const { eq, and, sql } = await import("drizzle-orm");
       const validated = insertEquipmentItemSchema.parse(req.body);
       
+      // Duplicate prevention: check for existing item with same name (case-insensitive)
+      const normalizedName = validated.name.toLowerCase().trim();
+      const existingItem = await dbToUse.select()
+        .from(equipmentItems)
+        .where(sql`LOWER(TRIM(${equipmentItems.name})) = ${normalizedName}`)
+        .limit(1);
+      
+      if (existingItem.length > 0) {
+        console.log(`Duplicate equipment item prevented in ${req.dbEnv} database: "${validated.name}"`);
+        return res.status(409).json({ 
+          message: `Equipment item "${validated.name}" already exists. Please use a different name.`,
+          existingItem: existingItem[0]
+        });
+      }
+      
       const [equipmentItem] = await dbToUse.insert(equipmentItems).values(validated).returning();
-      console.log(`Created equipment item in ${req.dbEnv} database:`, equipmentItem);
+      console.log(`✅ Created equipment item in ${req.dbEnv} database:`, equipmentItem);
       res.json(equipmentItem);
     } catch (error) {
       console.error('Error creating equipment item:', error);
@@ -6013,13 +6030,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       console.log(`Updating equipment item - Database environment: ${req.dbEnv}`);
       
-      // Use the dynamic database connection
-      const dbToUse = req.dynamicDB;
+      // Use the request-specific database connection (critical for environment isolation)
+      const { getRequestDB } = await import("./dbMiddleware");
+      const dbToUse = getRequestDB(req);
       if (!dbToUse) {
         return res.status(500).json({ error: "Database connection not available" });
       }
       
       const { insertEquipmentItemSchema, equipmentItems } = await import("@shared/schema");
+      const { eq } = await import("drizzle-orm");
       const id = parseInt(req.params.id);
       const validated = insertEquipmentItemSchema.partial().parse(req.body);
       
@@ -6032,7 +6051,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: 'Equipment item not found' });
       }
       
-      console.log(`Updated equipment item in ${req.dbEnv} database:`, equipmentItem);
+      console.log(`✅ Updated equipment item in ${req.dbEnv} database:`, equipmentItem);
       res.json(equipmentItem);
     } catch (error) {
       console.error('Error updating equipment item:', error);
@@ -6044,13 +6063,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       console.log(`Deleting equipment item - Database environment: ${req.dbEnv}`);
       
-      // Use the dynamic database connection
-      const dbToUse = req.dynamicDB;
+      // Use the request-specific database connection (critical for environment isolation)
+      const { getRequestDB } = await import("./dbMiddleware");
+      const dbToUse = getRequestDB(req);
       if (!dbToUse) {
         return res.status(500).json({ error: "Database connection not available" });
       }
       
       const { equipmentItems } = await import("@shared/schema");
+      const { eq } = await import("drizzle-orm");
       const id = parseInt(req.params.id);
       
       const deletedRows = await dbToUse.delete(equipmentItems)
@@ -6061,7 +6082,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: 'Equipment item not found' });
       }
       
-      console.log(`Deleted equipment item from ${req.dbEnv} database:`, deletedRows[0]);
+      console.log(`✅ Deleted equipment item from ${req.dbEnv} database:`, deletedRows[0]);
       res.json({ success: true });
     } catch (error) {
       console.error('Error deleting equipment item:', error);
