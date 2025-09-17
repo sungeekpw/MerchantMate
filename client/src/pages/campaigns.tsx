@@ -2789,82 +2789,169 @@ export default function CampaignsPage() {
               />
             </div>
             <div>
-              <Label>Fee Groups & Associated Items</Label>
-              <div className="text-sm text-muted-foreground mb-2">
-                Select fee groups and then choose specific fee items from each group
+              <div className="flex items-center justify-between mb-2">
+                <div>
+                  <Label>Fee Groups & Associated Items</Label>
+                  <div className="text-sm text-muted-foreground">
+                    {showSelectedOnly 
+                      ? `Currently selected items (${pricingTypeForm.selectedFeeItemIds.length})` 
+                      : 'Select fee groups and then choose specific fee items from each group'
+                    }
+                  </div>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowSelectedOnly(!showSelectedOnly)}
+                  className="flex items-center gap-2"
+                >
+                  {showSelectedOnly ? (
+                    <>
+                      <Search className="h-4 w-4" />
+                      Browse All
+                    </>
+                  ) : (
+                    <>
+                      <Eye className="h-4 w-4" />
+                      Selected Only
+                    </>
+                  )}
+                </Button>
               </div>
               <div className="border rounded-md p-3 max-h-60 overflow-y-auto space-y-3">
-                {feeGroups.map((group) => {
-                  const groupFeeItems = group.feeItems || [];
-                  const isGroupSelected = pricingTypeForm.selectedFeeGroupIds.includes(group.id);
-                  const isExpanded = pricingTypeForm.expandedFeeGroups.includes(group.id);
-                  
-                  return (
-                    <div key={group.id} className="border rounded-sm p-2">
-                      <div className="flex items-center space-x-2 mb-2">
-                        <input 
-                          type="checkbox" 
-                          id={`edit-group-${group.id}`} 
-                          className="rounded" 
-                          checked={isGroupSelected}
-                          onChange={(e) => handleFeeGroupSelection(group.id, e.target.checked)}
-                        />
-                        <Label htmlFor={`edit-group-${group.id}`} className="text-sm font-medium">
-                          {group.name}
-                        </Label>
-                        {groupFeeItems.length > 0 && (
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            className="h-6 w-6 p-0 ml-auto"
-                            onClick={() => toggleFeeGroupExpansion(group.id)}
-                            disabled={!isGroupSelected}
-                          >
-                            {isExpanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
-                          </Button>
+                {/* EDIT-PRICING-TYPE-FEES START */}
+                {showSelectedOnly ? (
+                  // "Selected Only" mode - show only fee groups with selected items
+                  (() => {
+                    const selectedIds = pricingTypeForm.selectedFeeItemIds;
+                    const selectedGroups = feeGroups.filter(g => (g.feeItems || []).some(i => selectedIds.includes(i.id)));
+                    
+                    return selectedGroups.length === 0 ? (
+                      <div className="text-sm text-muted-foreground text-center py-4">
+                        No items selected. Click "Browse All" to add items.
+                      </div>
+                    ) : selectedGroups.map(group => (
+                      <div key={group.id} className="border rounded-sm p-2 bg-blue-50 dark:bg-blue-950">
+                        <div className="flex items-center space-x-2 mb-2">
+                          <div className="w-4 h-4 bg-blue-500 rounded-sm flex items-center justify-center">
+                            <Check className="h-3 w-3 text-white" />
+                          </div>
+                          <Label className="text-sm font-medium text-blue-700 dark:text-blue-300">
+                            {group.name} ({group.feeItems!.filter(i => selectedIds.includes(i.id)).length} selected)
+                          </Label>
+                        </div>
+                        
+                        <div className="pl-6 space-y-1 border-l-2 border-blue-200 dark:border-blue-800">
+                          {group.feeItems!
+                            .filter(i => selectedIds.includes(i.id))
+                            .sort((a, b) => a.name.localeCompare(b.name))
+                            .map(item => (
+                              <div key={item.id} className="flex items-center justify-between">
+                                <div className="flex items-center space-x-2">
+                                  <div className="w-3 h-3 bg-green-500 rounded-sm flex items-center justify-center">
+                                    <Check className="h-2 w-2 text-white" />
+                                  </div>
+                                  <Label className="text-xs text-green-700 dark:text-green-300">
+                                    {item.name}
+                                    {item.description && (
+                                      <span className="text-muted-foreground ml-1">- {item.description}</span>
+                                    )}
+                                  </Label>
+                                </div>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-5 w-5 p-0 text-red-500 hover:text-red-700"
+                                  onClick={() => handleFeeItemSelection(item.id, false)}
+                                  title="Remove this item"
+                                  data-testid={`button-remove-fee-item-${item.id}`}
+                                >
+                                  <X className="h-3 w-3" />
+                                </Button>
+                              </div>
+                            ))
+                          }
+                        </div>
+                      </div>
+                    ))
+                  })()
+                ) : (
+                  // "Browse All" mode - existing functionality
+                  feeGroups.map((group) => {
+                    const groupFeeItems = group.feeItems || [];
+                    const isGroupSelected = pricingTypeForm.selectedFeeGroupIds.includes(group.id);
+                    const isExpanded = pricingTypeForm.expandedFeeGroups.includes(group.id);
+                    
+                    return (
+                      <div key={group.id} className="border rounded-sm p-2">
+                        <div className="flex items-center space-x-2 mb-2">
+                          <input 
+                            type="checkbox" 
+                            id={`edit-group-${group.id}`} 
+                            className="rounded" 
+                            checked={isGroupSelected}
+                            onChange={(e) => handleFeeGroupSelection(group.id, e.target.checked)}
+                          />
+                          <Label htmlFor={`edit-group-${group.id}`} className="text-sm font-medium">
+                            {group.name}
+                          </Label>
+                          {groupFeeItems.length > 0 && (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              className="h-6 w-6 p-0 ml-auto"
+                              onClick={() => toggleFeeGroupExpansion(group.id)}
+                              disabled={!isGroupSelected}
+                            >
+                              {isExpanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+                            </Button>
+                          )}
+                        </div>
+                        
+                        {isGroupSelected && isExpanded && groupFeeItems.length > 0 && (
+                          <div className="pl-6 space-y-1 border-l-2 border-muted">
+                            <div className="text-xs text-muted-foreground mb-2">
+                              Select individual fee items from this group:
+                            </div>
+                            {groupFeeItems.sort((a, b) => a.name.localeCompare(b.name)).map((item) => (
+                              <div key={item.id} className="flex items-center space-x-2">
+                                <input
+                                  type="checkbox"
+                                  id={`fee-item-${item.id}`}
+                                  className="rounded"
+                                  checked={pricingTypeForm.selectedFeeItemIds.includes(item.id)}
+                                  onChange={(e) => handleFeeItemSelection(item.id, e.target.checked)}
+                                />
+                                <Label htmlFor={`fee-item-${item.id}`} className="text-xs cursor-pointer">
+                                  {item.name}
+                                  {item.description && (
+                                    <span className="text-muted-foreground ml-1">- {item.description}</span>
+                                  )}
+                                </Label>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        
+                        {isGroupSelected && !isExpanded && groupFeeItems.length > 0 && (
+                          <div className="text-xs text-muted-foreground pl-6">
+                            {groupFeeItems.length} items available (click to expand)
+                          </div>
+                        )}
+                        
+                        {groupFeeItems.length === 0 && (
+                          <div className="text-xs text-muted-foreground pl-6">
+                            No fee items in this group
+                          </div>
                         )}
                       </div>
-                      
-                      {isGroupSelected && isExpanded && groupFeeItems.length > 0 && (
-                        <div className="pl-6 space-y-1 border-l-2 border-muted">
-                          <div className="text-xs text-muted-foreground mb-2">
-                            Select individual fee items from this group:
-                          </div>
-                          {groupFeeItems.sort((a, b) => a.name.localeCompare(b.name)).map((item) => (
-                            <div key={item.id} className="flex items-center space-x-2">
-                              <input
-                                type="checkbox"
-                                id={`fee-item-${item.id}`}
-                                className="rounded"
-                                checked={pricingTypeForm.selectedFeeItemIds.includes(item.id)}
-                                onChange={(e) => handleFeeItemSelection(item.id, e.target.checked)}
-                              />
-                              <Label htmlFor={`fee-item-${item.id}`} className="text-xs cursor-pointer">
-                                {item.name}
-                                {item.description && (
-                                  <span className="text-muted-foreground ml-1">- {item.description}</span>
-                                )}
-                              </Label>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                      
-                      {isGroupSelected && !isExpanded && groupFeeItems.length > 0 && (
-                        <div className="text-xs text-muted-foreground pl-6">
-                          {groupFeeItems.length} items available (click to expand)
-                        </div>
-                      )}
-                      
-                      {groupFeeItems.length === 0 && (
-                        <div className="text-xs text-muted-foreground pl-6">
-                          No fee items in this group
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
+                    );
+                  })
+                )}
+                {/* EDIT-PRICING-TYPE-FEES END */}
               </div>
             </div>
           </div>
