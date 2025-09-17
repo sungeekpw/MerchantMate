@@ -1184,9 +1184,14 @@ export default function CampaignsPage() {
       console.log('DEBUG - Response structure:', pricingTypeDetails);
       console.log('DEBUG - Fee items array:', pricingTypeDetails.feeItems);
       
-      // Extract fee item IDs from the detailed response (use feeItem.id from the nested structure)
+      // Extract fee item IDs from the detailed response
+      // Backend returns: { feeItemId: number, pricingTypeId: number, feeItem: {...} }
       const validFeeItemIds = (pricingTypeDetails.feeItems ?? [])
-        .map((item: any) => Number(item.feeItem?.id))
+        .map((item: any) => {
+          // Try both possible structures for robustness
+          const id = item.feeItemId || item.feeItem?.id;
+          return Number(id);
+        })
         .filter((id: number) => Number.isFinite(id));
       
       console.log('DEBUG - Extracted fee item IDs:', validFeeItemIds);
