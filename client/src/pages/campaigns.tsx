@@ -182,6 +182,7 @@ export default function CampaignsPage() {
   const [showAddPricingType, setShowAddPricingType] = useState(false);
   const [showEditPricingType, setShowEditPricingType] = useState(false);
   const [editingPricingType, setEditingPricingType] = useState<any>(null);
+  const [showSelectedOnly, setShowSelectedOnly] = useState(true); // Default to "Selected Only" mode
   const [selectedFeeGroup, setSelectedFeeGroup] = useState<number | null>(null);
   const [editCampaignId, setEditCampaignId] = useState<number | null>(null);
   const [editCampaignData, setEditCampaignData] = useState<Campaign | null>(null);
@@ -1168,6 +1169,7 @@ export default function CampaignsPage() {
   // Handle opening edit pricing type dialog
   const handleEditPricingType = async (pricingType: any) => {
     setEditingPricingType(pricingType);
+    setShowSelectedOnly(true); // Always start in "Selected Only" mode
     
     try {
       // Fetch the fee items organized by fee groups for this pricing type (bypass cache)
