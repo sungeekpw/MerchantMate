@@ -231,7 +231,8 @@ export default function CampaignsPage() {
     name: '',
     description: '',
     selectedFeeGroupIds: [] as number[],
-    selectedFeeItemIds: [] as number[],
+    selectedFeeItemIds: [] as number[], // Keep for backward compatibility
+    selectedFeeGroupItems: [] as {feeGroupId: number, feeItemId: number}[], // New: Track group-item combinations
     feeGroupIds: [] as number[],
     expandedFeeGroups: [] as number[]
   });
@@ -796,7 +797,7 @@ export default function CampaignsPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/pricing-types'] });
       setShowAddPricingType(false);
-      setPricingTypeForm({ name: '', description: '', selectedFeeGroupIds: [], selectedFeeItemIds: [], feeGroupIds: [], expandedFeeGroups: [] });
+      setPricingTypeForm({ name: '', description: '', selectedFeeGroupIds: [], selectedFeeItemIds: [], selectedFeeGroupItems: [], feeGroupIds: [], expandedFeeGroups: [] });
       toast({
         title: "Pricing Type Created",
         description: "The pricing type has been successfully created.",
@@ -871,7 +872,7 @@ export default function CampaignsPage() {
       setShowEditPricingType(false);
       setEditingPricingType(null);
       // Reset form
-      setPricingTypeForm({ name: '', description: '', selectedFeeGroupIds: [], selectedFeeItemIds: [], feeGroupIds: [], expandedFeeGroups: [] });
+      setPricingTypeForm({ name: '', description: '', selectedFeeGroupIds: [], selectedFeeItemIds: [], selectedFeeGroupItems: [], feeGroupIds: [], expandedFeeGroups: [] });
       toast({
         title: "Pricing Type Updated",
         description: "The pricing type has been successfully updated.",
@@ -1133,7 +1134,12 @@ export default function CampaignsPage() {
       return { checked: false, indeterminate: false };
     }
     
-    const selectedInGroup = groupItemIds.filter(id => pricingTypeForm.selectedFeeItemIds.includes(id));
+    // Check which items in this group are selected (using group-item combinations)
+    const selectedInGroup = groupItemIds.filter(itemId => 
+      (pricingTypeForm.selectedFeeGroupItems || []).some(combo => 
+        combo.feeGroupId === feeGroupId && combo.feeItemId === itemId
+      )
+    );
     const allSelected = selectedInGroup.length === groupItemIds.length;
     const noneSelected = selectedInGroup.length === 0;
     
@@ -1148,12 +1154,35 @@ export default function CampaignsPage() {
     const group = feeGroups.find(g => g.id === feeGroupId);
     const groupFeeItemIds = (group?.feeItems || []).map(item => item.id);
     
-    setPricingTypeForm(prev => ({
-      ...prev,
-      selectedFeeItemIds: isSelected
-        ? Array.from(new Set([...prev.selectedFeeItemIds, ...groupFeeItemIds]))
-        : prev.selectedFeeItemIds.filter(id => !groupFeeItemIds.includes(id))
-    }));
+    setPricingTypeForm(prev => {
+      let newSelectedFeeGroupItems = [...(prev.selectedFeeGroupItems || [])];
+      
+      if (isSelected) {
+        // Add all items from this group (avoid duplicates)
+        groupFeeItemIds.forEach(itemId => {
+          const exists = newSelectedFeeGroupItems.some(combo => 
+            combo.feeGroupId === feeGroupId && combo.feeItemId === itemId
+          );
+          if (!exists) {
+            newSelectedFeeGroupItems.push({ feeGroupId, feeItemId: itemId });
+          }
+        });
+      } else {
+        // Remove only items from this specific group
+        newSelectedFeeGroupItems = newSelectedFeeGroupItems.filter(combo => 
+          !(combo.feeGroupId === feeGroupId && groupFeeItemIds.includes(combo.feeItemId))
+        );
+      }
+      
+      // Update legacy selectedFeeItemIds for backward compatibility
+      const uniqueFeeItemIds = Array.from(new Set(newSelectedFeeGroupItems.map(combo => combo.feeItemId)));
+      
+      return {
+        ...prev,
+        selectedFeeGroupItems: newSelectedFeeGroupItems,
+        selectedFeeItemIds: uniqueFeeItemIds
+      };
+    });
   };
 
   // Handle fee group row click (expansion only, no selection)
@@ -1168,14 +1197,35 @@ export default function CampaignsPage() {
 
   // toggleFeeGroupExpansion removed - replaced by handleFeeGroupRowClick
 
-  // Handle individual fee item selection
-  const handleFeeItemSelection = (itemId: number, isSelected: boolean) => {
-    setPricingTypeForm(prev => ({
-      ...prev,
-      selectedFeeItemIds: isSelected
-        ? [...prev.selectedFeeItemIds, itemId]
-        : prev.selectedFeeItemIds.filter(id => id !== itemId)
-    }));
+  // Handle individual fee item selection (requires group context)
+  const handleFeeItemSelection = (feeGroupId: number, itemId: number, isSelected: boolean) => {
+    setPricingTypeForm(prev => {
+      let newSelectedFeeGroupItems = [...(prev.selectedFeeGroupItems || [])];
+      
+      if (isSelected) {
+        // Add this group-item combination (avoid duplicates)
+        const exists = newSelectedFeeGroupItems.some(combo => 
+          combo.feeGroupId === feeGroupId && combo.feeItemId === itemId
+        );
+        if (!exists) {
+          newSelectedFeeGroupItems.push({ feeGroupId, feeItemId: itemId });
+        }
+      } else {
+        // Remove only this specific group-item combination
+        newSelectedFeeGroupItems = newSelectedFeeGroupItems.filter(combo => 
+          !(combo.feeGroupId === feeGroupId && combo.feeItemId === itemId)
+        );
+      }
+      
+      // Update legacy selectedFeeItemIds for backward compatibility
+      const uniqueFeeItemIds = Array.from(new Set(newSelectedFeeGroupItems.map(combo => combo.feeItemId)));
+      
+      return {
+        ...prev,
+        selectedFeeGroupItems: newSelectedFeeGroupItems,
+        selectedFeeItemIds: uniqueFeeItemIds
+      };
+    });
   };
 
   // Handle opening edit pricing type dialog
@@ -1217,11 +1267,21 @@ export default function CampaignsPage() {
       // CRITICAL FIX: During edit initialization, only set selectedFeeItemIds from backend
       // Do NOT set selectedFeeGroupIds to prevent group auto-completion that inflates the count
       // Only set expanded groups for visual purposes (user can see which groups contain selected items)
+      
+      // Build selectedFeeGroupItems from backend data to fix cross-group selection
+      const selectedFeeGroupItems = (pricingTypeDetails.feeItems ?? [])
+        .map((item: any) => ({
+          feeGroupId: Number(item.feeItem?.feeGroup?.id),
+          feeItemId: Number(item.feeItem?.id)
+        }))
+        .filter((combo: any) => Number.isFinite(combo.feeGroupId) && Number.isFinite(combo.feeItemId));
+      
       const formData = {
         name: pricingType.name,
         description: pricingType.description || '',
         selectedFeeGroupIds: [], // Empty during edit initialization to prevent auto-expansion
         selectedFeeItemIds: Array.from(new Set(validFeeItemIds.map(Number))), // Dedupe and normalize
+        selectedFeeGroupItems: selectedFeeGroupItems, // Initialize with group-item combinations
         feeGroupIds: [], // Empty during edit initialization
         expandedFeeGroups: expandedFeeGroups // Keep for visual expansion only
       };
@@ -2727,8 +2787,10 @@ export default function CampaignsPage() {
                                 type="checkbox"
                                 id={`fee-item-${item.id}`}
                                 className="rounded"
-                                checked={pricingTypeForm.selectedFeeItemIds.includes(item.id)}
-                                onChange={(e) => handleFeeItemSelection(item.id, e.target.checked)}
+                                checked={(pricingTypeForm.selectedFeeGroupItems || []).some(combo => 
+                                  combo.feeGroupId === group.id && combo.feeItemId === item.id
+                                )}
+                                onChange={(e) => handleFeeItemSelection(group.id, item.id, e.target.checked)}
                               />
                               <Label htmlFor={`fee-item-${item.id}`} className="text-xs cursor-pointer">
                                 {item.name}
@@ -2876,7 +2938,7 @@ export default function CampaignsPage() {
                                   variant="ghost"
                                   size="sm"
                                   className="h-5 w-5 p-0 text-red-500 hover:text-red-700"
-                                  onClick={() => handleFeeItemSelection(item.id, false)}
+                                  onClick={() => handleFeeItemSelection(group.id, item.id, false)}
                                   title="Remove this item"
                                   data-testid={`button-remove-fee-item-${item.id}`}
                                 >
@@ -2968,8 +3030,10 @@ export default function CampaignsPage() {
                                   type="checkbox"
                                   id={`fee-item-${item.id}`}
                                   className="rounded"
-                                  checked={pricingTypeForm.selectedFeeItemIds.includes(item.id)}
-                                  onChange={(e) => handleFeeItemSelection(item.id, e.target.checked)}
+                                  checked={(pricingTypeForm.selectedFeeGroupItems || []).some(combo => 
+                                  combo.feeGroupId === group.id && combo.feeItemId === item.id
+                                )}
+                                  onChange={(e) => handleFeeItemSelection(group.id, item.id, e.target.checked)}
                                 />
                                 <Label htmlFor={`fee-item-${item.id}`} className="text-xs cursor-pointer">
                                   {item.name}
