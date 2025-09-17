@@ -2868,7 +2868,7 @@ export default function CampaignsPage() {
                   <Label>Fee Groups & Associated Items</Label>
                   <div className="text-sm text-muted-foreground">
                     {showSelectedOnly 
-                      ? `Currently selected items (${pricingTypeForm.selectedFeeItemIds.length})` 
+                      ? `Currently selected items (${(pricingTypeForm.selectedFeeGroupItems || []).length})` 
                       : 'Select fee groups and then choose specific fee items from each group'
                     }
                   </div>
@@ -2896,60 +2896,76 @@ export default function CampaignsPage() {
               <div className="border rounded-md p-3 max-h-60 overflow-y-auto space-y-3">
                 {/* EDIT-PRICING-TYPE-FEES START */}
                 {showSelectedOnly ? (
-                  // "Selected Only" mode - show only fee groups with selected items
+                  // "Selected Only" mode - show only fee groups with selected items (using group-item combinations)
                   (() => {
-                    const selectedIds = pricingTypeForm.selectedFeeItemIds;
-                    const selectedGroups = feeGroups.filter(g => (g.feeItems || []).some(i => selectedIds.includes(i.id)));
+                    const selectedCombos = pricingTypeForm.selectedFeeGroupItems || [];
+                    
+                    // Group selected items by fee group
+                    const groupedSelections: { [groupId: number]: number[] } = {};
+                    selectedCombos.forEach(combo => {
+                      if (!groupedSelections[combo.feeGroupId]) {
+                        groupedSelections[combo.feeGroupId] = [];
+                      }
+                      groupedSelections[combo.feeGroupId].push(combo.feeItemId);
+                    });
+                    
+                    const selectedGroups = feeGroups.filter(g => groupedSelections[g.id]?.length > 0);
                     
                     return selectedGroups.length === 0 ? (
                       <div className="text-sm text-muted-foreground text-center py-4">
                         No items selected. Click "Browse All" to add items.
                       </div>
-                    ) : selectedGroups.map(group => (
-                      <div key={group.id} className="border rounded-sm p-2 bg-blue-50 dark:bg-blue-950">
-                        <div className="flex items-center space-x-2 mb-2">
-                          <div className="w-4 h-4 bg-blue-500 rounded-sm flex items-center justify-center">
-                            <Check className="h-3 w-3 text-white" />
+                    ) : selectedGroups.map(group => {
+                      const selectedItemIdsInGroup = groupedSelections[group.id] || [];
+                      const selectedItemsInGroup = (group.feeItems || []).filter(item => 
+                        selectedItemIdsInGroup.includes(item.id)
+                      );
+                      
+                      return (
+                        <div key={group.id} className="border rounded-sm p-2 bg-blue-50 dark:bg-blue-950">
+                          <div className="flex items-center space-x-2 mb-2">
+                            <div className="w-4 h-4 bg-blue-500 rounded-sm flex items-center justify-center">
+                              <Check className="h-3 w-3 text-white" />
+                            </div>
+                            <Label className="text-sm font-medium text-blue-700 dark:text-blue-300">
+                              {group.name} ({selectedItemsInGroup.length} selected)
+                            </Label>
                           </div>
-                          <Label className="text-sm font-medium text-blue-700 dark:text-blue-300">
-                            {group.name} ({group.feeItems!.filter(i => selectedIds.includes(i.id)).length} selected)
-                          </Label>
-                        </div>
-                        
-                        <div className="pl-6 space-y-1 border-l-2 border-blue-200 dark:border-blue-800">
-                          {group.feeItems!
-                            .filter(i => selectedIds.includes(i.id))
-                            .sort((a, b) => a.name.localeCompare(b.name))
-                            .map(item => (
-                              <div key={item.id} className="flex items-center justify-between">
-                                <div className="flex items-center space-x-2">
-                                  <div className="w-3 h-3 bg-green-500 rounded-sm flex items-center justify-center">
-                                    <Check className="h-2 w-2 text-white" />
+                          
+                          <div className="pl-6 space-y-1 border-l-2 border-blue-200 dark:border-blue-800">
+                            {selectedItemsInGroup
+                              .sort((a, b) => a.name.localeCompare(b.name))
+                              .map(item => (
+                                <div key={item.id} className="flex items-center justify-between">
+                                  <div className="flex items-center space-x-2">
+                                    <div className="w-3 h-3 bg-green-500 rounded-sm flex items-center justify-center">
+                                      <Check className="h-2 w-2 text-white" />
+                                    </div>
+                                    <Label className="text-xs text-green-700 dark:text-green-300">
+                                      {item.name}
+                                      {item.description && (
+                                        <span className="text-muted-foreground ml-1">- {item.description}</span>
+                                      )}
+                                    </Label>
                                   </div>
-                                  <Label className="text-xs text-green-700 dark:text-green-300">
-                                    {item.name}
-                                    {item.description && (
-                                      <span className="text-muted-foreground ml-1">- {item.description}</span>
-                                    )}
-                                  </Label>
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-5 w-5 p-0 text-red-500 hover:text-red-700"
+                                    onClick={() => handleFeeItemSelection(group.id, item.id, false)}
+                                    title="Remove this item"
+                                    data-testid={`button-remove-fee-item-${item.id}`}
+                                  >
+                                    <X className="h-3 w-3" />
+                                  </Button>
                                 </div>
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="sm"
-                                  className="h-5 w-5 p-0 text-red-500 hover:text-red-700"
-                                  onClick={() => handleFeeItemSelection(group.id, item.id, false)}
-                                  title="Remove this item"
-                                  data-testid={`button-remove-fee-item-${item.id}`}
-                                >
-                                  <X className="h-3 w-3" />
-                                </Button>
-                              </div>
-                            ))
-                          }
+                              ))
+                            }
+                          </div>
                         </div>
-                      </div>
-                    ))
+                      );
+                    })
                   })()
                 ) : (
                   // "Browse All" mode - improved UX with tri-state group selection
