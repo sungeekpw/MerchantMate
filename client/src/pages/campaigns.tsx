@@ -1129,15 +1129,6 @@ export default function CampaignsPage() {
     const group = feeGroups.find(g => g.id === feeGroupId);
     const groupItemIds = (group?.feeItems || []).map(item => item.id);
     
-    // DEBUG: Log the group structure to understand the data
-    if (group && group.feeItems?.length > 0) {
-      console.log(`Group ${group.name} (ID: ${group.id}):`, {
-        itemCount: group.feeItems.length,
-        firstItem: group.feeItems[0],
-        itemIds: group.feeItems.map(item => item.id)
-      });
-    }
-    
     if (groupItemIds.length === 0) {
       return { checked: false, indeterminate: false };
     }
