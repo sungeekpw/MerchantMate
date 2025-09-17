@@ -1184,10 +1184,10 @@ export default function CampaignsPage() {
       
       const pricingTypeDetails = await response.json();
       
-      // Extract fee item IDs from the detailed response
-      // Backend returns: { feeItemId: number, pricingTypeId: number, feeItem: {...} }
+      // Extract fee item IDs from the detailed response - use feeItem.id to match UI checkboxes
+      // Backend returns: { feeItemId: number, pricingTypeId: number, feeItem: { id: number, ... } }
       const validFeeItemIds = (pricingTypeDetails.feeItems ?? [])
-        .map((item: any) => Number(item.feeItemId))
+        .map((item: any) => Number(item.feeItem?.id))
         .filter((id: number) => Number.isFinite(id));
       
       // Extract unique fee group IDs from the detailed response for auto-expansion
