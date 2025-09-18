@@ -5201,8 +5201,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(500).json({ error: "Database connection not available" });
       }
       
-      const { campaigns } = await import("@shared/schema");
-      const allCampaigns = await dbToUse.select().from(campaigns);
+      const { campaigns, pricingTypes, eq } = await import("@shared/schema");
+      
+      // Join campaigns with pricing types to get full pricing type data
+      const allCampaigns = await dbToUse
+        .select({
+          id: campaigns.id,
+          name: campaigns.name,
+          description: campaigns.description,
+          acquirer: campaigns.acquirer,
+          currency: campaigns.currency,
+          equipment: campaigns.equipment,
+          isActive: campaigns.isActive,
+          isDefault: campaigns.isDefault,
+          createdBy: campaigns.createdBy,
+          createdAt: campaigns.createdAt,
+          updatedAt: campaigns.updatedAt,
+          pricingTypeId: campaigns.pricingTypeId,
+          pricingType: {
+            id: pricingTypes.id,
+            name: pricingTypes.name,
+            description: pricingTypes.description,
+          }
+        })
+        .from(campaigns)
+        .leftJoin(pricingTypes, eq(campaigns.pricingTypeId, pricingTypes.id));
       
       console.log(`Found ${allCampaigns.length} campaigns in ${req.dbEnv} database`);
       res.json(allCampaigns);
