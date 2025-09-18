@@ -5230,7 +5230,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const insertCampaign = {
         ...campaignData,
-        createdBy: userId ? parseInt(userId.replace(/admin-(demo|prod)-/, '')) : undefined,
+        createdBy: null, // Set to null since user may not exist in target database environment
       };
 
       console.log(`Inserting campaign with fee values:`, { campaignData: insertCampaign, feeValuesCount: feeValues?.length || 0 });
