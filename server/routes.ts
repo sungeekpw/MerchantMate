@@ -5224,43 +5224,90 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(500).json({ error: "Database connection not available" });
       }
       
-      // Get current user from session
+      // Get current user from session (server-derived, never from client)
       const session = req.session as any;
       const userId = session?.userId;
-      
-      const insertCampaign = {
-        ...campaignData,
-        createdBy: null, // Set to null since user may not exist in target database environment
-      };
+      if (!userId) {
+        return res.status(401).json({ error: "Authentication required" });
+      }
 
-      console.log(`Inserting campaign with fee values:`, { campaignData: insertCampaign, feeValuesCount: feeValues?.length || 0 });
+      console.log(`Validating and inserting campaign with fee values:`, { 
+        campaignName: campaignData.name, 
+        userId, 
+        feeValuesCount: feeValues?.length || 0,
+        equipmentCount: equipmentIds?.length || 0
+      });
 
-      // Use database transaction to ensure atomicity
+      // Use database transaction to ensure atomicity for ALL operations
       const result = await dbToUse.transaction(async (tx) => {
         // Import schemas
-        const { campaigns, campaignFeeValues, campaignEquipment } = await import("@shared/schema");
+        const { campaigns, campaignFeeValues, campaignEquipment, users, feeItems, equipmentItems } = await import("@shared/schema");
         
-        // Create the campaign
+        // 1. Verify user exists in target database
+        const [userExists] = await tx.select({ id: users.id }).from(users).where(eq(users.id, userId)).limit(1);
+        if (!userExists) {
+          throw new Error(`User ${userId} not found in ${req.dbEnv} database`);
+        }
+        
+        // 2. Prepare campaign data with server-derived createdBy
+        const insertCampaign = {
+          ...campaignData,
+          createdBy: userId, // Server-derived from authenticated session
+        };
+        
+        // 3. Create the campaign
         const [campaign] = await tx.insert(campaigns).values(insertCampaign).returning();
         console.log(`Created campaign with ID: ${campaign.id} in ${req.dbEnv} database`);
         
-        // Insert fee values if provided
+        // 4. Insert fee values if provided (with deduplication and validation)
         if (feeValues && feeValues.length > 0) {
-          console.log(`Inserting ${feeValues.length} fee values for campaign ${campaign.id}`);
+          console.log(`Processing ${feeValues.length} fee values for campaign ${campaign.id}`);
           
-          const feeValueInserts = feeValues.map((fv: any) => ({
+          // Deduplicate by feeItemId to prevent unique constraint violations
+          const uniqueFeeValues = feeValues.reduce((acc: any[], curr: any) => {
+            if (!acc.find(item => item.feeItemId === curr.feeItemId)) {
+              acc.push(curr);
+            }
+            return acc;
+          }, []);
+          
+          if (uniqueFeeValues.length !== feeValues.length) {
+            console.log(`Deduplicated fee values: ${feeValues.length} → ${uniqueFeeValues.length}`);
+          }
+          
+          // Validate all fee items exist
+          const feeItemIds = uniqueFeeValues.map((fv: any) => fv.feeItemId);
+          const existingFeeItems = await tx.select({ id: feeItems.id })
+            .from(feeItems)
+            .where(sql`${feeItems.id} = ANY(${feeItemIds})`);
+          
+          if (existingFeeItems.length !== feeItemIds.length) {
+            throw new Error("Some fee items do not exist");
+          }
+          
+          const feeValueInserts = uniqueFeeValues.map((fv: any) => ({
             campaignId: campaign.id,
             feeItemId: fv.feeItemId,
-            value: fv.value
+            value: fv.value || "",
+            valueType: fv.valueType || "percentage"
           }));
           
           await tx.insert(campaignFeeValues).values(feeValueInserts);
-          console.log(`Successfully inserted fee values for campaign ${campaign.id}`);
+          console.log(`Successfully inserted ${feeValueInserts.length} fee values for campaign ${campaign.id}`);
         }
         
-        // Insert equipment associations if provided
+        // 5. Insert equipment associations if provided
         if (equipmentIds && equipmentIds.length > 0) {
-          console.log(`Inserting ${equipmentIds.length} equipment associations for campaign ${campaign.id}`);
+          console.log(`Processing ${equipmentIds.length} equipment associations for campaign ${campaign.id}`);
+          
+          // Validate all equipment items exist
+          const existingEquipment = await tx.select({ id: equipmentItems.id })
+            .from(equipmentItems)
+            .where(sql`${equipmentItems.id} = ANY(${equipmentIds})`);
+          
+          if (existingEquipment.length !== equipmentIds.length) {
+            throw new Error("Some equipment items do not exist");
+          }
           
           const equipmentInserts = equipmentIds.map((equipmentId: number, index: number) => ({
             campaignId: campaign.id,
@@ -5270,7 +5317,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }));
           
           await tx.insert(campaignEquipment).values(equipmentInserts);
-          console.log(`Successfully inserted equipment associations for campaign ${campaign.id}`);
+          console.log(`Successfully inserted ${equipmentInserts.length} equipment associations for campaign ${campaign.id}`);
         }
         
         return campaign;
@@ -5278,8 +5325,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       console.log(`Campaign creation completed successfully in ${req.dbEnv} database`);
       res.status(201).json(result);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating campaign:', error);
+      
+      // Map database errors to appropriate HTTP status codes
+      if (error.message?.includes('not found')) {
+        return res.status(404).json({ error: error.message });
+      }
+      if (error.message?.includes('do not exist')) {
+        return res.status(400).json({ error: error.message });
+      }
+      if (error.code === '23503') { // Foreign key violation
+        return res.status(400).json({ error: 'Invalid reference to related data' });
+      }
+      if (error.code === '23505') { // Unique constraint violation
+        return res.status(409).json({ error: 'Duplicate data detected' });
+      }
+      
       res.status(500).json({ error: 'Failed to create campaign' });
     }
   });
