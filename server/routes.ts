@@ -5491,9 +5491,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       });
       
-      // Convert map to array and filter out empty groups
+      // Convert map to array, sort fee groups by displayOrder, and sort fee items within each group
       const feeGroupsWithActiveItems = Array.from(feeGroupMap.values())
-        .filter((group: any) => group.feeItems.length > 0);
+        .filter((group: any) => group.feeItems.length > 0)
+        .map((group: any) => ({
+          ...group,
+          // Sort fee items within each group by displayOrder
+          feeItems: group.feeItems.sort((a: any, b: any) => (a.displayOrder || 0) - (b.displayOrder || 0))
+        }))
+        // Sort fee groups by displayOrder
+        .sort((a: any, b: any) => (a.displayOrder || 0) - (b.displayOrder || 0));
       
       const response = {
         pricingType: pricingTypeResult[0],
