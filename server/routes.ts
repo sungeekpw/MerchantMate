@@ -5214,7 +5214,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post('/api/campaigns', dbEnvironmentMiddleware, requireRole(['admin', 'super_admin']), async (req: RequestWithDB, res: Response) => {
     try {
+      console.log(`Creating campaign - Database environment: ${req.dbEnv}`);
+      
       const { feeValues, equipmentIds, ...campaignData } = req.body;
+      
+      // Use the dynamic database connection
+      const dbToUse = req.dynamicDB;
+      if (!dbToUse) {
+        return res.status(500).json({ error: "Database connection not available" });
+      }
       
       // Get current user from session
       const session = req.session as any;
@@ -5225,8 +5233,51 @@ export async function registerRoutes(app: Express): Promise<Server> {
         createdBy: userId ? parseInt(userId.replace('admin-demo-', '')) : undefined,
       };
 
-      const campaign = await storage.createCampaign(insertCampaign, feeValues || [], equipmentIds || []);
-      res.status(201).json(campaign);
+      console.log(`Inserting campaign with fee values:`, { campaignData: insertCampaign, feeValuesCount: feeValues?.length || 0 });
+
+      // Use database transaction to ensure atomicity
+      const result = await dbToUse.transaction(async (tx) => {
+        // Import schemas
+        const { campaigns, campaignFeeValues, campaignEquipment } = await import("@shared/schema");
+        
+        // Create the campaign
+        const [campaign] = await tx.insert(campaigns).values(insertCampaign).returning();
+        console.log(`Created campaign with ID: ${campaign.id} in ${req.dbEnv} database`);
+        
+        // Insert fee values if provided
+        if (feeValues && feeValues.length > 0) {
+          console.log(`Inserting ${feeValues.length} fee values for campaign ${campaign.id}`);
+          
+          const feeValueInserts = feeValues.map((fv: any) => ({
+            campaignId: campaign.id,
+            feeItemId: fv.feeItemId,
+            value: fv.value
+          }));
+          
+          await tx.insert(campaignFeeValues).values(feeValueInserts);
+          console.log(`Successfully inserted fee values for campaign ${campaign.id}`);
+        }
+        
+        // Insert equipment associations if provided
+        if (equipmentIds && equipmentIds.length > 0) {
+          console.log(`Inserting ${equipmentIds.length} equipment associations for campaign ${campaign.id}`);
+          
+          const equipmentInserts = equipmentIds.map((equipmentId: number, index: number) => ({
+            campaignId: campaign.id,
+            equipmentItemId: equipmentId,
+            isRequired: false,
+            displayOrder: index
+          }));
+          
+          await tx.insert(campaignEquipment).values(equipmentInserts);
+          console.log(`Successfully inserted equipment associations for campaign ${campaign.id}`);
+        }
+        
+        return campaign;
+      });
+
+      console.log(`Campaign creation completed successfully in ${req.dbEnv} database`);
+      res.status(201).json(result);
     } catch (error) {
       console.error('Error creating campaign:', error);
       res.status(500).json({ error: 'Failed to create campaign' });
