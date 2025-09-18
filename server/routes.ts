@@ -5264,7 +5264,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Use database transaction to ensure atomicity for ALL operations
       const result = await dbToUse.transaction(async (tx) => {
         // Import schemas
-        const { campaigns, campaignFeeValues, campaignEquipment, users, feeItems, equipmentItems } = await import("@shared/schema");
+        const { campaigns, campaignFeeValues, campaignEquipment, users, feeItems, equipmentItems, sql } = await import("@shared/schema");
         
         // 1. Verify user exists in target database
         const [userExists] = await tx.select({ id: users.id }).from(users).where(eq(users.id, userId)).limit(1);
