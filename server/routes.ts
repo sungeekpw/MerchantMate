@@ -905,6 +905,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Use production auth setup for all environments
   await setupAuth(app);
 
+  // Debug endpoint to check database environment and connection
+  app.get('/api/debug/database', isAuthenticated, dbEnvironmentMiddleware, requireRole(['admin', 'super_admin']), async (req: RequestWithDB, res: Response) => {
+    try {
+      const dbToUse = req.dynamicDB;
+      const { withRetry } = await import("./db");
+      
+      // Get a count from fee_items to verify connection and environment
+      const { feeItems } = await import("@shared/schema");
+      const result = await withRetry(() => dbToUse!.select().from(feeItems));
+      
+      res.json({
+        sessionDbEnv: req.dbEnv,
+        feeItemsCount: result.length,
+        environment: req.dbEnv,
+        timestamp: new Date().toISOString(),
+        sampleItems: result.slice(0, 3).map(item => ({ id: item.id, name: item.name, displayOrder: item.displayOrder }))
+      });
+    } catch (error) {
+      res.status(500).json({ error: 'Debug failed', details: error });
+    }
+  });
+
   app.get('/api/auth/user', isAuthenticated, dbEnvironmentMiddleware, async (req: RequestWithDB, res) => {
     try {
       const userId = req.user.claims.sub;

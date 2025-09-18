@@ -19,8 +19,8 @@ function getDatabaseUrl(environment?: string): string {
   }
 }
 
-// Get database URL based on environment - always use production to show seeded data
-const environment = 'production';
+// Get database URL based on environment - default to production but allow dynamic switching
+const environment = process.env.DEFAULT_DB_ENV || 'production';
 const databaseUrl = getDatabaseUrl(environment);
 
 if (!databaseUrl) {
