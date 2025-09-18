@@ -5451,46 +5451,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: 'Pricing type not found' });
       }
       
-      // Get all fee groups with their fee items (not just ones associated with this pricing type)
-      // This allows the pricing type creation/edit to show all available fee groups
-      const allFeeGroups = await withRetry(() =>
-        dbToUse.select().from(feeGroups).orderBy(asc(feeGroups.displayOrder))
+      // Get ONLY the fee items that are associated with this specific pricing type
+      // This ensures campaign creation shows only relevant fee items, not all items in groups
+      const pricingTypeFeeItemsRaw = await withRetry(() =>
+        dbToUse
+          .select({
+            feeItem: feeItems,
+            feeGroup: feeGroups,
+            pricingTypeFeeItem: pricingTypeFeeItems
+          })
+          .from(pricingTypeFeeItems)
+          .innerJoin(feeItems, eq(pricingTypeFeeItems.feeItemId, feeItems.id))
+          .innerJoin(feeGroupFeeItems, eq(feeItems.id, feeGroupFeeItems.feeItemId))
+          .innerJoin(feeGroups, eq(feeGroupFeeItems.feeGroupId, feeGroups.id))
+          .where(eq(pricingTypeFeeItems.pricingTypeId, id))
+          .orderBy(asc(feeGroups.displayOrder), asc(feeItems.displayOrder))
       );
       
-      // For each fee group, get its fee items
-      const feeGroupsWithItems = await Promise.all(
-        allFeeGroups.map(async (feeGroup) => {
-          const items = await withRetry(() =>
-            dbToUse
-              .select({
-                id: feeItems.id,
-                name: feeItems.name,
-                description: feeItems.description,
-                valueType: feeItems.valueType,
-                defaultValue: feeItems.defaultValue,
-                additionalInfo: feeItems.additionalInfo,
-                displayOrder: feeItems.displayOrder,
-                isActive: feeItems.isActive,
-                author: feeItems.author,
-                createdAt: feeItems.createdAt,
-                updatedAt: feeItems.updatedAt,
-                isRequired: feeGroupFeeItems.isRequired
-              })
-              .from(feeItems)
-              .innerJoin(feeGroupFeeItems, eq(feeItems.id, feeGroupFeeItems.feeItemId))
-              .where(eq(feeGroupFeeItems.feeGroupId, feeGroup.id))
-              .orderBy(asc(feeItems.name))
-          );
-          
-          return {
-            ...feeGroup,
-            feeItems: items
-          };
-        })
-      );
+      // Group fee items by fee group
+      const feeGroupMap = new Map();
       
-      // Filter out fee groups with no fee items
-      const feeGroupsWithActiveItems = feeGroupsWithItems.filter(group => group.feeItems.length > 0);
+      pricingTypeFeeItemsRaw.forEach(row => {
+        const groupId = row.feeGroup.id;
+        if (!feeGroupMap.has(groupId)) {
+          feeGroupMap.set(groupId, {
+            ...row.feeGroup,
+            feeItems: []
+          });
+        }
+        
+        // Add fee item with additional properties from the associations
+        const feeGroupData = feeGroupMap.get(groupId);
+        const existingItem = feeGroupData.feeItems.find((item: any) => item.id === row.feeItem.id);
+        if (!existingItem) {
+          feeGroupData.feeItems.push({
+            ...row.feeItem,
+            isRequired: row.pricingTypeFeeItem.isRequired || false
+          });
+        }
+      });
+      
+      // Convert map to array and filter out empty groups
+      const feeGroupsWithActiveItems = Array.from(feeGroupMap.values())
+        .filter((group: any) => group.feeItems.length > 0);
       
       const response = {
         pricingType: pricingTypeResult[0],
