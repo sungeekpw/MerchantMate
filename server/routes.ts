@@ -17,7 +17,7 @@ import { dbEnvironmentMiddleware, adminDbMiddleware, getRequestDB, type RequestW
 import { getDynamicDatabase } from "./db";
 import { users, agents, merchants, agentMerchants } from "@shared/schema";
 import crypto from "crypto";
-import { eq, or, ilike } from "drizzle-orm";
+import { eq, or, ilike, sql } from "drizzle-orm";
 
 // Helper functions for user account creation
 async function generateUsername(firstName: string, lastName: string, email: string, dynamicDB: any): Promise<string> {
