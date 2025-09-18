@@ -1,4 +1,5 @@
 import { pgTable, text, serial, integer, boolean, timestamp, decimal, varchar, jsonb, index, unique, real, numeric } from "drizzle-orm/pg-core";
+import { sql, eq } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -978,3 +979,6 @@ export type EmailActivity = typeof emailActivity.$inferSelect;
 export type InsertEmailActivity = z.infer<typeof insertEmailActivitySchema>;
 export type EmailTrigger = typeof emailTriggers.$inferSelect;
 export type InsertEmailTrigger = z.infer<typeof insertEmailTriggerSchema>;
+
+// Export Drizzle utilities
+export { sql, eq };
