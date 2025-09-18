@@ -276,11 +276,20 @@ export function EnhancedCampaignDialog({
   const handleSubmit = () => {
     if (!validateForm()) return;
 
+    // Transform feeValues object to array format expected by backend
+    const feeValuesArray = Object.entries(feeValues)
+      .filter(([_, value]) => value && value.trim() !== '') // Only include non-empty values
+      .map(([feeItemId, value]) => ({
+        feeItemId: parseInt(feeItemId),
+        value: value.trim(),
+        valueType: "percentage" // Default to percentage, can be enhanced later
+      }));
+
     const campaignData = {
       ...formData,
       pricingTypeId: formData.pricingTypeId,
-      feeValues,
-      selectedEquipment,
+      feeValues: feeValuesArray,
+      equipmentIds: selectedEquipment, // Backend expects 'equipmentIds', not 'selectedEquipment'
     };
 
     if (editCampaignId) {
