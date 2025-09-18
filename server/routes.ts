@@ -5279,21 +5279,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Campaign not found" });
       }
       
-      // Get fee values with fee item details
+      // Get fee values with fee item and fee group details
       const feeValues = await dbToUse
         .select({
           id: campaignFeeValues.id,
           feeItemId: campaignFeeValues.feeItemId,
+          feeGroupId: campaignFeeValues.feeGroupId,
           value: campaignFeeValues.value,
           valueType: campaignFeeValues.valueType,
           feeItem: {
             id: feeItems.id,
             name: feeItems.name,
             description: feeItems.description,
+          },
+          feeGroup: {
+            id: feeGroups.id,
+            name: feeGroups.name,
+            description: feeGroups.description,
           }
         })
         .from(campaignFeeValues)
         .leftJoin(feeItems, eq(campaignFeeValues.feeItemId, feeItems.id))
+        .leftJoin(feeGroups, eq(campaignFeeValues.feeGroupId, feeGroups.id))
         .where(eq(campaignFeeValues.campaignId, campaignId));
       
       // Get equipment associations with equipment details
@@ -5402,12 +5409,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
             throw new Error("Some fee items do not exist");
           }
           
-          const feeValueInserts = uniqueFeeValues.map((fv: any) => ({
-            campaignId: campaign.id,
-            feeItemId: fv.feeItemId,
-            value: fv.value || "",
-            valueType: fv.valueType || "percentage"
-          }));
+          // Fetch fee group IDs for each fee item
+          const feeItemsWithGroups = await tx
+            .select({
+              feeItemId: feeItems.id,
+              feeGroupId: feeGroups.id,
+            })
+            .from(feeItems)
+            .leftJoin(feeItemGroups, eq(feeItems.feeItemGroupId, feeItemGroups.id))
+            .leftJoin(feeGroups, eq(feeItemGroups.feeGroupId, feeGroups.id))
+            .where(inArray(feeItems.id, feeItemIds));
+          
+          const feeValueInserts = uniqueFeeValues.map((fv: any) => {
+            const feeItemWithGroup = feeItemsWithGroups.find(fig => fig.feeItemId === fv.feeItemId);
+            if (!feeItemWithGroup || !feeItemWithGroup.feeGroupId) {
+              throw new Error(`Fee group not found for fee item ${fv.feeItemId}`);
+            }
+            
+            return {
+              campaignId: campaign.id,
+              feeItemId: fv.feeItemId,
+              feeGroupId: feeItemWithGroup.feeGroupId,
+              value: fv.value || "",
+              valueType: fv.valueType || "percentage"
+            };
+          });
           
           await tx.insert(campaignFeeValues).values(feeValueInserts);
           console.log(`Successfully inserted ${feeValueInserts.length} fee values for campaign ${campaign.id}`);
