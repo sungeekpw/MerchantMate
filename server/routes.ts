@@ -5235,6 +5235,100 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get single campaign by ID with full details
+  app.get('/api/campaigns/:id', dbEnvironmentMiddleware, requireRole(['admin', 'super_admin']), async (req: RequestWithDB, res: Response) => {
+    try {
+      const campaignId = parseInt(req.params.id);
+      console.log(`Fetching campaign ${campaignId} - Database environment: ${req.dbEnv}`);
+      
+      // Use the dynamic database connection
+      const dbToUse = req.dynamicDB;
+      if (!dbToUse) {
+        return res.status(500).json({ error: "Database connection not available" });
+      }
+      
+      const { campaigns, pricingTypes, campaignFeeValues, campaignEquipment, feeItems, equipmentItems, eq } = await import("@shared/schema");
+      
+      // Get campaign with pricing type
+      const [campaign] = await dbToUse
+        .select({
+          id: campaigns.id,
+          name: campaigns.name,
+          description: campaigns.description,
+          acquirer: campaigns.acquirer,
+          currency: campaigns.currency,
+          equipment: campaigns.equipment,
+          isActive: campaigns.isActive,
+          isDefault: campaigns.isDefault,
+          createdBy: campaigns.createdBy,
+          createdAt: campaigns.createdAt,
+          updatedAt: campaigns.updatedAt,
+          pricingTypeId: campaigns.pricingTypeId,
+          pricingType: {
+            id: pricingTypes.id,
+            name: pricingTypes.name,
+            description: pricingTypes.description,
+          }
+        })
+        .from(campaigns)
+        .leftJoin(pricingTypes, eq(campaigns.pricingTypeId, pricingTypes.id))
+        .where(eq(campaigns.id, campaignId))
+        .limit(1);
+      
+      if (!campaign) {
+        return res.status(404).json({ error: "Campaign not found" });
+      }
+      
+      // Get fee values with fee item details
+      const feeValues = await dbToUse
+        .select({
+          id: campaignFeeValues.id,
+          feeItemId: campaignFeeValues.feeItemId,
+          value: campaignFeeValues.value,
+          valueType: campaignFeeValues.valueType,
+          feeItem: {
+            id: feeItems.id,
+            name: feeItems.name,
+            description: feeItems.description,
+          }
+        })
+        .from(campaignFeeValues)
+        .leftJoin(feeItems, eq(campaignFeeValues.feeItemId, feeItems.id))
+        .where(eq(campaignFeeValues.campaignId, campaignId));
+      
+      // Get equipment associations with equipment details
+      const equipmentAssociations = await dbToUse
+        .select({
+          id: campaignEquipment.id,
+          equipmentItemId: campaignEquipment.equipmentItemId,
+          isRequired: campaignEquipment.isRequired,
+          displayOrder: campaignEquipment.displayOrder,
+          equipmentItem: {
+            id: equipmentItems.id,
+            name: equipmentItems.name,
+            description: equipmentItems.description,
+          }
+        })
+        .from(campaignEquipment)
+        .leftJoin(equipmentItems, eq(campaignEquipment.equipmentItemId, equipmentItems.id))
+        .where(eq(campaignEquipment.campaignId, campaignId))
+        .orderBy(campaignEquipment.displayOrder);
+      
+      // Combine all data
+      const campaignWithDetails = {
+        ...campaign,
+        feeValues,
+        equipmentAssociations
+      };
+      
+      console.log(`Found campaign ${campaignId} with ${feeValues.length} fee values and ${equipmentAssociations.length} equipment items in ${req.dbEnv} database`);
+      res.json(campaignWithDetails);
+    } catch (error) {
+      console.error('Error fetching campaign:', error);
+      res.status(500).json({ error: 'Failed to fetch campaign' });
+    }
+  });
+
   app.post('/api/campaigns', dbEnvironmentMiddleware, requireRole(['admin', 'super_admin']), async (req: RequestWithDB, res: Response) => {
     try {
       console.log(`Creating campaign - Database environment: ${req.dbEnv}`);
