@@ -9,6 +9,19 @@ import connectPg from "connect-pg-simple";
 import { storage } from "./storage";
 import { v4 as uuidv4 } from "uuid";
 
+// Helper function to get user from dynamic database
+async function getUserFromDynamicDB(dynamicDB: any, userId: string) {
+  try {
+    const { users } = await import('@shared/schema');
+    const { eq } = await import('drizzle-orm');
+    const result = await dynamicDB.select().from(users).where(eq(users.id, userId)).limit(1);
+    return result[0] || null;
+  } catch (error) {
+    console.error('Error getting user from dynamic database:', error);
+    return null;
+  }
+}
+
 if (!process.env.REPLIT_DOMAINS) {
   throw new Error("Environment variable REPLIT_DOMAINS not provided");
 }
@@ -266,7 +279,11 @@ export const requireRole = (allowedRoles: string[]): RequestHandler => {
     const sessionUserId = (req.session as any)?.userId;
     if (sessionUserId) {
       try {
-        const dbUser = await storage.getUser(sessionUserId);
+        // Use dynamic database from request if available, otherwise fallback to global storage
+        const reqWithDB = req as any;
+        const dbUser = reqWithDB.dynamicDB 
+          ? await getUserFromDynamicDB(reqWithDB.dynamicDB, sessionUserId)
+          : await storage.getUser(sessionUserId);
         if (!dbUser) {
           return res.status(401).json({ message: "User not found" });
         }
@@ -302,7 +319,11 @@ export const requireRole = (allowedRoles: string[]): RequestHandler => {
       (req.session as any).sessionId = uuidv4();
       
       try {
-        const dbUser = await storage.getUser(userId);
+        // Use dynamic database from request if available, otherwise fallback to global storage
+        const reqWithDB = req as any;
+        const dbUser = reqWithDB.dynamicDB 
+          ? await getUserFromDynamicDB(reqWithDB.dynamicDB, userId)
+          : await storage.getUser(userId);
         if (!dbUser) {
           return res.status(401).json({ message: "User not found" });
         }
