@@ -5523,6 +5523,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }))
         // Sort fee groups by displayOrder
         .sort((a: any, b: any) => (a.displayOrder || 0) - (b.displayOrder || 0));
+
+      console.log('=== DISPLAY ORDER DEBUG ===');
+      feeGroupsWithActiveItems.forEach((group: any, groupIndex: number) => {
+        console.log(`Group ${groupIndex + 1}: "${group.name}" (displayOrder: ${group.displayOrder})`);
+        group.feeItems.slice(0, 3).forEach((item: any, itemIndex: number) => {
+          console.log(`  Item ${itemIndex + 1}: "${item.name}" (displayOrder: ${item.displayOrder})`);
+        });
+      });
+      console.log('=== END DEBUG ===');
       
       const response = {
         pricingType: pricingTypeResult[0],
