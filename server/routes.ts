@@ -17,7 +17,7 @@ import { dbEnvironmentMiddleware, adminDbMiddleware, getRequestDB, type RequestW
 import { getDynamicDatabase } from "./db";
 import { users, agents, merchants, agentMerchants } from "@shared/schema";
 import crypto from "crypto";
-import { eq, or, ilike, sql } from "drizzle-orm";
+import { eq, or, ilike, sql, inArray } from "drizzle-orm";
 
 // Helper functions for user account creation
 async function generateUsername(firstName: string, lastName: string, email: string, dynamicDB: any): Promise<string> {
@@ -5302,7 +5302,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const feeItemIds = uniqueFeeValues.map((fv: any) => fv.feeItemId);
           const existingFeeItems = await tx.select({ id: feeItems.id })
             .from(feeItems)
-            .where(sql`${feeItems.id} = ANY(${feeItemIds})`);
+            .where(inArray(feeItems.id, feeItemIds));
           
           if (existingFeeItems.length !== feeItemIds.length) {
             throw new Error("Some fee items do not exist");
@@ -5326,7 +5326,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Validate all equipment items exist
           const existingEquipment = await tx.select({ id: equipmentItems.id })
             .from(equipmentItems)
-            .where(sql`${equipmentItems.id} = ANY(${equipmentIds})`);
+            .where(inArray(equipmentItems.id, equipmentIds));
           
           if (existingEquipment.length !== equipmentIds.length) {
             throw new Error("Some equipment items do not exist");
