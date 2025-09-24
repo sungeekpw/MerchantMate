@@ -223,11 +223,13 @@ export default function CampaignView() {
                   </div>
                   <div className="text-right">
                     <p className="font-medium" data-testid={`text-fee-value-${feeValue.id}`}>
+                      {feeValue.feeItem?.valueType === 'fixed' && '$'}
                       {feeValue.value}
-                      {feeValue.valueType === 'percentage' && '%'}
+                      {feeValue.feeItem?.valueType === 'percentage' && '%'}
+                      {feeValue.feeItem?.valueType === 'basis_points' && ' bps'}
                     </p>
                     <p className="text-sm text-muted-foreground capitalize" data-testid={`text-fee-type-${feeValue.id}`}>
-                      {feeValue.valueType}
+                      {feeValue.feeItem?.valueType || 'unknown'}
                     </p>
                   </div>
                 </div>
