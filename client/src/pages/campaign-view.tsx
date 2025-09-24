@@ -153,6 +153,25 @@ export default function CampaignView() {
                 </p>
               )}
             </div>
+            {campaign.pricingType && (
+              <div>
+                <label className="text-sm font-medium text-muted-foreground">Available Fee Structure</label>
+                <div className="mt-2 space-y-2">
+                  {campaign.pricingType.feeGroups && campaign.pricingType.feeGroups.length > 0 ? (
+                    campaign.pricingType.feeGroups.map((feeGroup: any) => (
+                      <div key={feeGroup.id} className="flex items-center justify-between p-2 bg-muted/50 rounded">
+                        <span className="text-sm font-medium">{feeGroup.name}</span>
+                        <Badge variant="secondary" className="text-xs">
+                          {feeGroup.feeItemsCount || 0} item{(feeGroup.feeItemsCount || 0) !== 1 ? 's' : ''}
+                        </Badge>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-sm text-muted-foreground">No fee groups configured</p>
+                  )}
+                </div>
+              </div>
+            )}
             <div>
               <label className="text-sm font-medium text-muted-foreground">Created Date</label>
               <p data-testid="text-campaign-created">
