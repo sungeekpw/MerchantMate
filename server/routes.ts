@@ -5544,12 +5544,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put('/api/campaigns/:id', requireRole(['admin', 'super_admin']), async (req: Request, res: Response) => {
+  app.put('/api/campaigns/:id', dbEnvironmentMiddleware, requireRole(['admin', 'super_admin']), async (req: RequestWithDB, res: Response) => {
     try {
       const id = parseInt(req.params.id);
       const { feeValues, equipmentIds, pricingTypeIds, ...campaignData } = req.body;
       
       console.log('Campaign update request:', { id, campaignData, feeValues, equipmentIds, pricingTypeIds });
+      console.log(`Updating campaign ${id} - Database environment: ${req.dbEnv}`);
+      
+      // Use the dynamic database connection
+      const dbToUse = req.dynamicDB;
+      if (!dbToUse) {
+        return res.status(500).json({ error: "Database connection not available" });
+      }
+      
+      const { campaigns, pricingTypes, campaignFeeValues, campaignEquipment, feeItems, feeGroups, equipmentItems, eq } = await import("@shared/schema");
       
       // Get current user from session
       const session = req.session as any;
@@ -5560,20 +5569,69 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ? pricingTypeIds[0] 
         : campaignData.pricingTypeId;
       
-      const updateCampaign = {
+      const updateData = {
         ...campaignData,
         pricingTypeId,
-        updatedBy: userId ? parseInt(userId.replace('admin-demo-', '')) : undefined,
+        updatedAt: new Date(),
       };
 
-      const campaign = await storage.updateCampaign(id, updateCampaign, feeValues || [], equipmentIds || []);
+      // Update the campaign
+      const [updatedCampaign] = await dbToUse
+        .update(campaigns)
+        .set(updateData)
+        .where(eq(campaigns.id, id))
+        .returning();
       
-      if (!campaign) {
+      if (!updatedCampaign) {
         return res.status(404).json({ error: 'Campaign not found' });
       }
       
-      console.log('Campaign updated successfully:', campaign);
-      res.json(campaign);
+      // Handle fee values update if provided
+      if (feeValues && feeValues.length > 0) {
+        // Delete existing fee values for this campaign
+        await dbToUse
+          .delete(campaignFeeValues)
+          .where(eq(campaignFeeValues.campaignId, id));
+        
+        // Insert new fee values with fee group mapping
+        for (const feeValue of feeValues) {
+          // Get fee group ID for this fee item
+          const [feeItem] = await dbToUse
+            .select({ feeGroupId: feeItems.feeGroupId })
+            .from(feeItems)
+            .where(eq(feeItems.id, feeValue.feeItemId))
+            .limit(1);
+          
+          await dbToUse.insert(campaignFeeValues).values({
+            campaignId: id,
+            feeItemId: feeValue.feeItemId,
+            feeGroupId: feeItem?.feeGroupId || 9, // Default to first fee group if not found
+            value: feeValue.value,
+            valueType: feeValue.valueType || 'percentage',
+          });
+        }
+      }
+      
+      // Handle equipment associations if provided
+      if (equipmentIds && equipmentIds.length > 0) {
+        // Delete existing equipment associations
+        await dbToUse
+          .delete(campaignEquipment)
+          .where(eq(campaignEquipment.campaignId, id));
+        
+        // Insert new equipment associations
+        for (let i = 0; i < equipmentIds.length; i++) {
+          await dbToUse.insert(campaignEquipment).values({
+            campaignId: id,
+            equipmentItemId: equipmentIds[i],
+            isRequired: false,
+            displayOrder: i,
+          });
+        }
+      }
+      
+      console.log('Campaign updated successfully:', updatedCampaign.id);
+      res.json(updatedCampaign);
     } catch (error) {
       console.error('Error updating campaign:', error);
       res.status(500).json({ error: 'Failed to update campaign' });
