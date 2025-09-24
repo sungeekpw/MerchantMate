@@ -11,7 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Progress } from "@/components/ui/progress";
 import TestingDashboard from "@/components/TestingDashboard";
-import { Trash2, RefreshCw, Database, CheckCircle, X, Server, Shield, ShieldCheck, TestTube, Settings, Play, Pause, BarChart3, FileText, AlertCircle, Clock } from "lucide-react";
+import { Trash2, RefreshCw, Database, CheckCircle, X, Server, Shield, ShieldCheck, TestTube, Settings, Play, Pause, BarChart3, FileText, AlertCircle, Clock, Copy, Terminal } from "lucide-react";
 
 interface ResetResult {
   success: boolean;
@@ -32,6 +32,16 @@ export default function TestingUtilities() {
   const [showAuditModal, setShowAuditModal] = useState(false);
   const [showComparisonModal, setShowComparisonModal] = useState(false);
   const [schemaData, setSchemaData] = useState<any>(null);
+
+  // Helper function to copy text to clipboard
+  const copyToClipboard = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      // Could add a toast notification here
+    } catch (err) {
+      console.error('Failed to copy text: ', err);
+    }
+  };
 
   const queryClient = useQueryClient();
 
@@ -634,23 +644,93 @@ Check console for full details.`);
                       </h4>
                       
                       {diff.missingTables.length > 0 && (
-                        <div className="mb-2">
-                          <p className="text-sm font-medium text-orange-600">Missing Tables:</p>
-                          <div className="flex flex-wrap gap-1 mt-1">
-                            {diff.missingTables.map((table: string) => (
-                              <Badge key={table} variant="destructive">{table}</Badge>
-                            ))}
+                        <div className="mb-4">
+                          <p className="text-sm font-medium text-orange-600 mb-2">Missing Tables:</p>
+                          <div className="space-y-3">
+                            {diff.missingTables.map((tableItem: any, index: number) => {
+                              const tableName = typeof tableItem === 'string' ? tableItem : tableItem.table;
+                              const commands = tableItem.recommendedCommands || [];
+                              
+                              return (
+                                <div key={index} className="border rounded-lg p-3 bg-red-50 dark:bg-red-900/20">
+                                  <div className="flex items-center justify-between mb-2">
+                                    <Badge variant="destructive">{tableName}</Badge>
+                                    <Badge variant="outline" className="text-xs">Missing Table</Badge>
+                                  </div>
+                                  
+                                  {commands.length > 0 && (
+                                    <div className="mt-2">
+                                      <p className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-2">
+                                        Recommended Commands:
+                                      </p>
+                                      <div className="space-y-1">
+                                        {commands.map((cmd: any, cmdIndex: number) => (
+                                          <div key={cmdIndex} className="flex items-center gap-2 p-2 bg-white dark:bg-gray-800 rounded border text-xs">
+                                            <Terminal className="h-3 w-3 text-gray-500" />
+                                            <code className="flex-1 font-mono text-xs">{cmd.command}</code>
+                                            <Button
+                                              size="sm"
+                                              variant="ghost"
+                                              className="h-6 w-6 p-0"
+                                              onClick={() => copyToClipboard(cmd.command)}
+                                              title="Copy command"
+                                            >
+                                              <Copy className="h-3 w-3" />
+                                            </Button>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
                           </div>
                         </div>
                       )}
                       
                       {diff.extraTables.length > 0 && (
-                        <div className="mb-2">
-                          <p className="text-sm font-medium text-blue-600">Extra Tables:</p>
-                          <div className="flex flex-wrap gap-1 mt-1">
-                            {diff.extraTables.map((table: string) => (
-                              <Badge key={table} variant="secondary">{table}</Badge>
-                            ))}
+                        <div className="mb-4">
+                          <p className="text-sm font-medium text-blue-600 mb-2">Extra Tables:</p>
+                          <div className="space-y-3">
+                            {diff.extraTables.map((tableItem: any, index: number) => {
+                              const tableName = typeof tableItem === 'string' ? tableItem : tableItem.table;
+                              const commands = tableItem.recommendedCommands || [];
+                              
+                              return (
+                                <div key={index} className="border rounded-lg p-3 bg-blue-50 dark:bg-blue-900/20">
+                                  <div className="flex items-center justify-between mb-2">
+                                    <Badge variant="secondary">{tableName}</Badge>
+                                    <Badge variant="outline" className="text-xs">Extra Table</Badge>
+                                  </div>
+                                  
+                                  {commands.length > 0 && (
+                                    <div className="mt-2">
+                                      <p className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-2">
+                                        Recommended Commands:
+                                      </p>
+                                      <div className="space-y-1">
+                                        {commands.map((cmd: any, cmdIndex: number) => (
+                                          <div key={cmdIndex} className="flex items-center gap-2 p-2 bg-white dark:bg-gray-800 rounded border text-xs">
+                                            <Terminal className="h-3 w-3 text-gray-500" />
+                                            <code className="flex-1 font-mono text-xs">{cmd.command}</code>
+                                            <Button
+                                              size="sm"
+                                              variant="ghost"
+                                              className="h-6 w-6 p-0"
+                                              onClick={() => copyToClipboard(cmd.command)}
+                                              title="Copy command"
+                                            >
+                                              <Copy className="h-3 w-3" />
+                                            </Button>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
                           </div>
                         </div>
                       )}
@@ -660,36 +740,63 @@ Check console for full details.`);
                           <p className="text-sm font-medium text-yellow-600 mb-3">
                             Column Differences ({diff.columnDifferences.length}):
                           </p>
-                          <div className="space-y-2 bg-gray-50 dark:bg-gray-800 p-3 rounded-lg">
+                          <div className="space-y-3">
                             {diff.columnDifferences.map((colDiff: any, index: number) => (
-                              <div key={index} className="flex items-center justify-between p-2 bg-white dark:bg-gray-700 rounded border">
-                                <div className="flex-1">
-                                  <div className="font-mono text-sm">
-                                    <span className="font-medium">{colDiff.table}</span>
-                                    <span className="text-gray-500">.</span>
-                                    <span className="text-blue-600 dark:text-blue-400">{colDiff.column}</span>
+                              <div key={index} className="border rounded-lg p-3 bg-yellow-50 dark:bg-yellow-900/20">
+                                <div className="flex items-center justify-between mb-2">
+                                  <div className="flex-1">
+                                    <div className="font-mono text-sm">
+                                      <span className="font-medium">{colDiff.table}</span>
+                                      <span className="text-gray-500">.</span>
+                                      <span className="text-blue-600 dark:text-blue-400">{colDiff.column}</span>
+                                    </div>
+                                    <div className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                                      {colDiff.details.data_type}
+                                      {colDiff.details.is_nullable === 'NO' && (
+                                        <span className="ml-2 text-red-600">NOT NULL</span>
+                                      )}
+                                      {colDiff.details.column_default && (
+                                        <span className="ml-2 text-green-600">DEFAULT: {colDiff.details.column_default}</span>
+                                      )}
+                                    </div>
                                   </div>
-                                  <div className="text-xs text-gray-600 dark:text-gray-400 mt-1">
-                                    {colDiff.details.data_type}
-                                    {colDiff.details.is_nullable === 'NO' && (
-                                      <span className="ml-2 text-red-600">NOT NULL</span>
+                                  <div className="ml-2">
+                                    {colDiff.type === 'missing_in_target' && (
+                                      <Badge variant="destructive" className="text-xs">Missing in Dev</Badge>
                                     )}
-                                    {colDiff.details.column_default && (
-                                      <span className="ml-2 text-green-600">DEFAULT: {colDiff.details.column_default}</span>
+                                    {colDiff.type === 'extra_in_target' && (
+                                      <Badge variant="secondary" className="text-xs">Extra in Dev</Badge>
+                                    )}
+                                    {colDiff.type === 'different_in_target' && (
+                                      <Badge variant="outline" className="text-xs">Different</Badge>
                                     )}
                                   </div>
                                 </div>
-                                <div className="ml-2">
-                                  {colDiff.type === 'missing_in_target' && (
-                                    <Badge variant="destructive" className="text-xs">Missing in Dev</Badge>
-                                  )}
-                                  {colDiff.type === 'extra_in_target' && (
-                                    <Badge variant="secondary" className="text-xs">Extra in Dev</Badge>
-                                  )}
-                                  {colDiff.type === 'different_in_target' && (
-                                    <Badge variant="outline" className="text-xs">Different</Badge>
-                                  )}
-                                </div>
+                                
+                                {colDiff.recommendedCommands && colDiff.recommendedCommands.length > 0 && (
+                                  <div className="mt-2">
+                                    <p className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-2">
+                                      Recommended Commands:
+                                    </p>
+                                    <div className="space-y-1">
+                                      {colDiff.recommendedCommands.map((cmd: any, cmdIndex: number) => (
+                                        <div key={cmdIndex} className="flex items-center gap-2 p-2 bg-white dark:bg-gray-800 rounded border text-xs">
+                                          <Terminal className="h-3 w-3 text-gray-500" />
+                                          <code className="flex-1 font-mono text-xs">{cmd.command}</code>
+                                          <Button
+                                            size="sm"
+                                            variant="ghost"
+                                            className="h-6 w-6 p-0"
+                                            onClick={() => copyToClipboard(cmd.command)}
+                                            title="Copy command"
+                                          >
+                                            <Copy className="h-3 w-3" />
+                                          </Button>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
                               </div>
                             ))}
                           </div>
