@@ -5279,47 +5279,59 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Campaign not found" });
       }
       
-      // Get fee values with fee item and fee group details
-      const feeValues = await dbToUse
-        .select({
-          id: campaignFeeValues.id,
-          feeItemId: campaignFeeValues.feeItemId,
-          feeGroupId: campaignFeeValues.feeGroupId,
-          value: campaignFeeValues.value,
-          valueType: campaignFeeValues.valueType,
-          feeItem: {
-            id: feeItems.id,
-            name: feeItems.name,
-            description: feeItems.description,
-          },
-          feeGroup: {
-            id: feeGroups.id,
-            name: feeGroups.name,
-            description: feeGroups.description,
-          }
-        })
-        .from(campaignFeeValues)
-        .leftJoin(feeItems, eq(campaignFeeValues.feeItemId, feeItems.id))
-        .leftJoin(feeGroups, eq(campaignFeeValues.feeGroupId, feeGroups.id))
-        .where(eq(campaignFeeValues.campaignId, campaignId));
+      // Get fee values (handle empty case gracefully)
+      let feeValues: any[] = [];
+      try {
+        feeValues = await dbToUse
+          .select({
+            id: campaignFeeValues.id,
+            feeItemId: campaignFeeValues.feeItemId,
+            feeGroupId: campaignFeeValues.feeGroupId,
+            value: campaignFeeValues.value,
+            valueType: campaignFeeValues.valueType,
+            feeItem: {
+              id: feeItems.id,
+              name: feeItems.name,
+              description: feeItems.description,
+            },
+            feeGroup: {
+              id: feeGroups.id,
+              name: feeGroups.name,
+              description: feeGroups.description,
+            }
+          })
+          .from(campaignFeeValues)
+          .leftJoin(feeItems, eq(campaignFeeValues.feeItemId, feeItems.id))
+          .leftJoin(feeGroups, eq(campaignFeeValues.feeGroupId, feeGroups.id))
+          .where(eq(campaignFeeValues.campaignId, campaignId));
+      } catch (error) {
+        console.log(`No fee values found for campaign ${campaignId}:`, error);
+        feeValues = [];
+      }
       
-      // Get equipment associations with equipment details
-      const equipmentAssociations = await dbToUse
-        .select({
-          id: campaignEquipment.id,
-          equipmentItemId: campaignEquipment.equipmentItemId,
-          isRequired: campaignEquipment.isRequired,
-          displayOrder: campaignEquipment.displayOrder,
-          equipmentItem: {
-            id: equipmentItems.id,
-            name: equipmentItems.name,
-            description: equipmentItems.description,
-          }
-        })
-        .from(campaignEquipment)
-        .leftJoin(equipmentItems, eq(campaignEquipment.equipmentItemId, equipmentItems.id))
-        .where(eq(campaignEquipment.campaignId, campaignId))
-        .orderBy(campaignEquipment.displayOrder);
+      // Get equipment associations (handle empty case gracefully)
+      let equipmentAssociations: any[] = [];
+      try {
+        equipmentAssociations = await dbToUse
+          .select({
+            id: campaignEquipment.id,
+            equipmentItemId: campaignEquipment.equipmentItemId,
+            isRequired: campaignEquipment.isRequired,
+            displayOrder: campaignEquipment.displayOrder,
+            equipmentItem: {
+              id: equipmentItems.id,
+              name: equipmentItems.name,
+              description: equipmentItems.description,
+            }
+          })
+          .from(campaignEquipment)
+          .leftJoin(equipmentItems, eq(campaignEquipment.equipmentItemId, equipmentItems.id))
+          .where(eq(campaignEquipment.campaignId, campaignId))
+          .orderBy(campaignEquipment.displayOrder);
+      } catch (error) {
+        console.log(`No equipment associations found for campaign ${campaignId}:`, error);
+        equipmentAssociations = [];
+      }
       
       // Combine all data
       const campaignWithDetails = {
