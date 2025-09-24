@@ -5334,9 +5334,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
         equipmentAssociations = [];
       }
       
+      // Get fee groups with item counts for the pricing type (if available)
+      let pricingTypeFeeGroups: any[] = [];
+      if (campaign.pricingTypeId) {
+        try {
+          const { feeGroupFeeItems } = await import("@shared/schema");
+          const { count, sql } = await import("drizzle-orm");
+          
+          pricingTypeFeeGroups = await dbToUse
+            .select({
+              id: feeGroups.id,
+              name: feeGroups.name,
+              description: feeGroups.description,
+              feeItemsCount: count(feeGroupFeeItems.id),
+            })
+            .from(feeGroups)
+            .leftJoin(feeGroupFeeItems, eq(feeGroups.id, feeGroupFeeItems.feeGroupId))
+            .where(eq(feeGroups.pricingTypeId, campaign.pricingTypeId))
+            .groupBy(feeGroups.id, feeGroups.name, feeGroups.description)
+            .orderBy(feeGroups.name);
+        } catch (error) {
+          console.log(`Error fetching fee groups for pricing type ${campaign.pricingTypeId}:`, error);
+          pricingTypeFeeGroups = [];
+        }
+      }
+      
       // Combine all data
       const campaignWithDetails = {
         ...campaign,
+        pricingType: campaign.pricingType ? {
+          ...campaign.pricingType,
+          feeGroups: pricingTypeFeeGroups
+        } : null,
         feeValues,
         equipmentAssociations
       };

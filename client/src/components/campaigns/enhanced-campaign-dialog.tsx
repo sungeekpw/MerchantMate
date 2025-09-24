@@ -458,9 +458,6 @@ export function EnhancedCampaignDialog({
                         <div key={feeGroup.id} className="space-y-3">
                           <div className="flex items-center space-x-2">
                             <h4 className="font-medium text-sm">{feeGroup.name}</h4>
-                            <Badge variant="secondary" className="text-xs">
-                              {feeGroup.feeItems.length} item{feeGroup.feeItems.length !== 1 ? 's' : ''}
-                            </Badge>
                             {feeGroup.description && (
                               <p className="text-xs text-muted-foreground">- {feeGroup.description}</p>
                             )}
