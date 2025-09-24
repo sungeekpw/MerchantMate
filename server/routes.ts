@@ -2313,6 +2313,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/admin/schema-compare", requireRole(['super_admin']), async (req, res) => {
     try {
       const { getDynamicDatabase } = await import("./db");
+      const { MigrationCommandBuilder } = await import("./utils/migrationCommandBuilder");
       
       // Get schema information from each environment
       const getSchemaInfo = async (environment: string) => {
@@ -2393,13 +2394,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Find missing and extra tables
         for (const table of schema1Tables) {
           if (!schema2Tables.has(table)) {
-            differences.missingTables.push(table);
+            const diff = {
+              table: table,
+              type: 'missing_table' as const
+            };
+            differences.missingTables.push({
+              table: table,
+              recommendedCommands: MigrationCommandBuilder.generateCommandsForDifference(diff)
+            });
           }
         }
         
         for (const table of schema2Tables) {
           if (!schema1Tables.has(table)) {
-            differences.extraTables.push(table);
+            const diff = {
+              table: table,
+              type: 'extra_table' as const
+            };
+            differences.extraTables.push({
+              table: table,
+              recommendedCommands: MigrationCommandBuilder.generateCommandsForDifference(diff)
+            });
           }
         }
         
@@ -2414,22 +2429,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
             
             for (const col of schema1ColNames) {
               if (!schema2ColNames.has(col)) {
-                differences.columnDifferences.push({
+                const diff = {
                   table: table,
                   column: col,
-                  type: 'missing_in_target',
+                  type: 'missing_in_target' as const,
                   details: schema1Cols.find((c: any) => c.column_name === col)
+                };
+                differences.columnDifferences.push({
+                  ...diff,
+                  recommendedCommands: MigrationCommandBuilder.generateCommandsForDifference(diff)
                 });
               }
             }
             
             for (const col of schema2ColNames) {
               if (!schema1ColNames.has(col)) {
-                differences.columnDifferences.push({
+                const diff = {
                   table: table,
                   column: col,
-                  type: 'extra_in_target',
+                  type: 'extra_in_target' as const,
                   details: schema2Cols.find((c: any) => c.column_name === col)
+                };
+                differences.columnDifferences.push({
+                  ...diff,
+                  recommendedCommands: MigrationCommandBuilder.generateCommandsForDifference(diff)
                 });
               }
             }
