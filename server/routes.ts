@@ -5338,9 +5338,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let pricingTypeFeeGroups: any[] = [];
       if (campaign.pricingTypeId) {
         try {
-          const { feeGroupFeeItems } = await import("@shared/schema");
+          const { feeGroupFeeItems, pricingTypeFeeItems } = await import("@shared/schema");
           const { count } = await import("drizzle-orm");
           
+          // Get fee groups that contain fee items belonging to this pricing type
           pricingTypeFeeGroups = await dbToUse
             .select({
               id: feeGroups.id,
@@ -5349,8 +5350,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
               feeItemsCount: count(feeGroupFeeItems.id),
             })
             .from(feeGroups)
-            .leftJoin(feeGroupFeeItems, eq(feeGroups.id, feeGroupFeeItems.feeGroupId))
-            .where(eq(feeGroups.pricingTypeId, campaign.pricingTypeId))
+            .innerJoin(feeGroupFeeItems, eq(feeGroups.id, feeGroupFeeItems.feeGroupId))
+            .innerJoin(pricingTypeFeeItems, eq(feeGroupFeeItems.feeItemId, pricingTypeFeeItems.feeItemId))
+            .where(eq(pricingTypeFeeItems.pricingTypeId, campaign.pricingTypeId))
             .groupBy(feeGroups.id, feeGroups.name, feeGroups.description)
             .orderBy(feeGroups.name);
         } catch (error) {
