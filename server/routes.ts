@@ -5604,13 +5604,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
             .where(eq(feeGroupFeeItems.feeItemId, feeValue.feeItemId))
             .limit(1);
           
-          await dbToUse.insert(campaignFeeValues).values({
-            campaignId: id,
-            feeItemId: feeValue.feeItemId,
-            feeGroupId: result?.feeGroupId || 9, // Default to first fee group if not found
-            value: feeValue.value,
-            valueType: feeValue.valueType || 'percentage',
-          });
+          // Only insert if we have a valid fee group, otherwise skip this fee value
+          if (result?.feeGroupId) {
+            await dbToUse.insert(campaignFeeValues).values({
+              campaignId: id,
+              feeItemId: feeValue.feeItemId,
+              feeGroupId: result.feeGroupId,
+              value: feeValue.value,
+              valueType: feeValue.valueType || 'percentage',
+            });
+          } else {
+            console.log(`Warning: No fee group found for fee item ${feeValue.feeItemId}, skipping insertion`);
+          }
         }
       }
       
