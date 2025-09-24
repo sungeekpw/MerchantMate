@@ -5558,7 +5558,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(500).json({ error: "Database connection not available" });
       }
       
-      const { campaigns, pricingTypes, campaignFeeValues, campaignEquipment, feeItems, feeGroups, equipmentItems } = await import("@shared/schema");
+      const { campaigns, pricingTypes, campaignFeeValues, campaignEquipment, feeItems, feeGroups, equipmentItems, feeItemGroups } = await import("@shared/schema");
       const { eq } = await import("drizzle-orm");
       
       // Get current user from session
@@ -5597,7 +5597,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Insert new fee values with fee group mapping
         for (const feeValue of feeValues) {
           // Get fee group ID through fee_item_groups join
-          const { feeItemGroups } = await import("@shared/schema");
           const [result] = await dbToUse
             .select({ feeGroupId: feeItemGroups.feeGroupId })
             .from(feeItems)
