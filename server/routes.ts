@@ -5280,9 +5280,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Campaign not found" });
       }
       
-      // Get fee values (temporarily disabled due to schema issue)
+      // Get fee values with proper schema structure
       let feeValues: any[] = [];
-      console.log(`Temporarily skipping fee values query for campaign ${campaignId} due to schema issues`);
+      try {
+        feeValues = await dbToUse
+          .select({
+            id: campaignFeeValues.id,
+            campaignId: campaignFeeValues.campaignId,
+            feeItemId: campaignFeeValues.feeItemId,
+            feeGroupFeeItemId: campaignFeeValues.feeGroupFeeItemId,
+            value: campaignFeeValues.value,
+            valueType: campaignFeeValues.valueType,
+            createdAt: campaignFeeValues.createdAt,
+            updatedAt: campaignFeeValues.updatedAt,
+            feeItem: {
+              id: feeItems.id,
+              name: feeItems.name,
+              description: feeItems.description,
+              defaultValue: feeItems.defaultValue,
+              valueType: feeItems.valueType,
+            }
+          })
+          .from(campaignFeeValues)
+          .leftJoin(feeItems, eq(campaignFeeValues.feeItemId, feeItems.id))
+          .where(eq(campaignFeeValues.campaignId, campaignId))
+          .orderBy(feeItems.name);
+      } catch (error) {
+        console.log(`Error fetching fee values for campaign ${campaignId}:`, error);
+        feeValues = [];
+      }
       
       // Get equipment associations (handle empty case gracefully)
       let equipmentAssociations: any[] = [];
