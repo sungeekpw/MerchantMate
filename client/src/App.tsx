@@ -39,6 +39,7 @@ import ApplicationView from "@/pages/application-view";
 import ApplicationPrint from "@/pages/application-print";
 import AgentDashboard from "@/pages/agent-dashboard";
 import Campaigns from "@/pages/campaigns";
+import CampaignView from "@/pages/campaign-view";
 import Equipment from "@/pages/equipment";
 import EmailManagement from "@/pages/email-management";
 import ApiDocumentation from "@/pages/api-documentation";
@@ -472,7 +473,7 @@ function AuthenticatedApp() {
                     onSearch={setGlobalSearch}
                   />
                   <main className="flex-1 overflow-auto bg-gray-50">
-                    <Campaigns />
+                    <CampaignView />
                   </main>
                 </>
               );
