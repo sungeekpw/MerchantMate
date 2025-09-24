@@ -14,15 +14,13 @@ export interface RequestWithDB extends Request {
  */
 export const dbEnvironmentMiddleware = (req: RequestWithDB, res: Response, next: NextFunction) => {
   // Set userId from authentication context if available
-  if (!req.userId && req.user?.id) {
-    req.userId = req.user.id;
+  if (!req.userId && (req.user as any)?.id) {
+    req.userId = (req.user as any).id;
   }
   
   // Check if we're in a production deployment environment 
   const host = req.get('host') || '';
-  const isProductionDomain = host.includes('.replit.app') || 
-                            host.includes('charrg.com') ||
-                            process.env.NODE_ENV === 'production';
+  const isProductionDomain = host === 'crm.charrg.com';
   
   // First check if there's a stored database environment in session
   const sessionDbEnv = (req.session as any)?.dbEnv;
@@ -83,9 +81,7 @@ export const getRequestDB = (req: RequestWithDB) => {
  */
 export const adminDbMiddleware = (req: RequestWithDB, res: Response, next: NextFunction) => {
   // Check if we're in a production deployment environment
-  const isProductionDomain = req.get('host')?.includes('.replit.app') || 
-                            req.get('host')?.includes('charrg.com') ||
-                            process.env.NODE_ENV === 'production';
+  const isProductionDomain = req.get('host') === 'crm.charrg.com';
   
   if (isProductionDomain) {
     // Force production database for production deployments
