@@ -40,10 +40,16 @@ interface Campaign {
   assignedMerchants?: number;
   totalRevenue?: number;
   feeValues?: CampaignFeeValue[];
-  equipment?: {
+  equipmentAssociations?: {
     id: number;
-    name: string;
-    description?: string;
+    equipmentItemId: number;
+    isRequired: boolean;
+    displayOrder: number;
+    equipmentItem: {
+      id: number;
+      name: string;
+      description?: string;
+    };
   }[];
 }
 
