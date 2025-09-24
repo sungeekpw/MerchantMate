@@ -130,10 +130,10 @@ export function setupAuthRoutes(app: Express) {
   });
 
   // Forgot password
-  app.post('/api/auth/forgot-password', async (req, res) => {
+  app.post('/api/auth/forgot-password', dbEnvironmentMiddleware, async (req: RequestWithDB, res) => {
     try {
       const validatedData = passwordResetRequestSchema.parse(req.body);
-      const result = await authService.requestPasswordReset(validatedData);
+      const result = await authService.requestPasswordReset(validatedData, req.dbEnv);
       res.json(result);
     } catch (error) {
       console.error("Password reset request error:", error);
@@ -145,10 +145,12 @@ export function setupAuthRoutes(app: Express) {
   });
 
   // Reset password
-  app.post('/api/auth/reset-password', async (req, res) => {
+  app.post('/api/auth/reset-password', dbEnvironmentMiddleware, async (req: RequestWithDB, res) => {
     try {
       const validatedData = passwordResetSchema.parse(req.body);
-      const result = await authService.resetPassword(validatedData);
+      // Use dynamic database for password reset
+      const dynamicDB = getRequestDB(req);
+      const result = await authService.resetPasswordWithDB(validatedData, dynamicDB);
       
       if (result.success) {
         res.json(result);
