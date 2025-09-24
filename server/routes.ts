@@ -5339,7 +5339,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (campaign.pricingTypeId) {
         try {
           const { feeGroupFeeItems } = await import("@shared/schema");
-          const { count, sql } = await import("drizzle-orm");
+          const { count, sql, eq } = await import("drizzle-orm");
           
           pricingTypeFeeGroups = await dbToUse
             .select({
