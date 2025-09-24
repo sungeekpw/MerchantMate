@@ -5247,7 +5247,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(500).json({ error: "Database connection not available" });
       }
       
-      const { campaigns, pricingTypes, campaignFeeValues, campaignEquipment, feeItems, equipmentItems, eq } = await import("@shared/schema");
+      const { campaigns, pricingTypes, campaignFeeValues, campaignEquipment, feeItems, feeGroups, equipmentItems, eq } = await import("@shared/schema");
       
       // Get campaign with pricing type
       const [campaign] = await dbToUse
