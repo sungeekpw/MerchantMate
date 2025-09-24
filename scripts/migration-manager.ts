@@ -161,21 +161,37 @@ class MigrationManager {
     
     try {
       // Use Drizzle generate to create proper migration files
+      // We need to handle potential interactive prompts by providing input
       const command = `DATABASE_URL="${devUrl}" npx drizzle-kit generate --name=${migrationName}`;
-      const { stdout, stderr } = await execAsync(command);
       
-      if (stderr && !stderr.includes('Warning')) {
-        throw new Error(stderr);
-      }
+      console.log('🔄 Running drizzle-kit generate...');
+      console.log('ℹ️ If prompted about column changes, please respond appropriately');
+      console.log('💡 Tip: Use "create column" for new columns, "rename column" for renamed ones');
       
-      console.log('✅ Migration generated successfully');
-      console.log(`📄 Migration ID: ${migrationId}`);
-      console.log(`📁 Check migrations directory for generated files`);
+      // Use spawn instead of exec to handle interactive prompts
+      const { spawn } = await import('child_process');
       
-      if (stdout.includes('No schema changes')) {
-        console.log('ℹ️ No schema changes detected');
-        return;
-      }
+      return new Promise((resolve, reject) => {
+        const child = spawn('npx', ['drizzle-kit', 'generate', `--name=${migrationName}`], {
+          env: { ...process.env, DATABASE_URL: devUrl },
+          stdio: 'inherit' // This allows interactive input/output
+        });
+        
+        child.on('close', (code) => {
+          if (code === 0) {
+            console.log('✅ Migration generated successfully');
+            console.log(`📄 Migration ID: ${migrationId}`);
+            console.log(`📁 Check migrations directory for generated files`);
+            resolve();
+          } else {
+            reject(new Error(`drizzle-kit generate exited with code ${code}`));
+          }
+        });
+        
+        child.on('error', (error) => {
+          reject(error);
+        });
+      });
       
     } catch (error: any) {
       console.error('❌ Failed to generate migration:', error.message);
