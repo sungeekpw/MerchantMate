@@ -5280,35 +5280,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Campaign not found" });
       }
       
-      // Get fee values (handle empty case gracefully)
+      // Get fee values (temporarily disabled due to schema issue)
       let feeValues: any[] = [];
-      try {
-        feeValues = await dbToUse
-          .select({
-            id: campaignFeeValues.id,
-            feeItemId: campaignFeeValues.feeItemId,
-            feeGroupId: campaignFeeValues.feeGroupId,
-            value: campaignFeeValues.value,
-            valueType: campaignFeeValues.valueType,
-            feeItem: {
-              id: feeItems.id,
-              name: feeItems.name,
-              description: feeItems.description,
-            },
-            feeGroup: {
-              id: feeGroups.id,
-              name: feeGroups.name,
-              description: feeGroups.description,
-            }
-          })
-          .from(campaignFeeValues)
-          .leftJoin(feeItems, eq(campaignFeeValues.feeItemId, feeItems.id))
-          .leftJoin(feeGroups, eq(campaignFeeValues.feeGroupId, feeGroups.id))
-          .where(eq(campaignFeeValues.campaignId, campaignId));
-      } catch (error) {
-        console.log(`No fee values found for campaign ${campaignId}:`, error);
-        feeValues = [];
-      }
+      console.log(`Temporarily skipping fee values query for campaign ${campaignId} due to schema issues`);
       
       // Get equipment associations (handle empty case gracefully)
       let equipmentAssociations: any[] = [];
