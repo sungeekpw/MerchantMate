@@ -5587,10 +5587,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
             console.log(`Found fee group fee item association: id=${feeGroupFeeItem.id}, feeGroupId=${feeGroupFeeItem.feeGroupId}, feeItemId=${feeGroupFeeItem.feeItemId}`);
             console.log(`Inserting fee value: campaignId=${id}, feeGroupFeeItemId=${feeGroupFeeItem.id}, value=${feeValue.value}`);
             
-            // Use the proper relationship-based approach
+            // Use the proper relationship-based approach with backward compatibility
             await dbToUse.insert(campaignFeeValues).values({
               campaignId: id,
-              feeGroupFeeItemId: feeGroupFeeItem.id,
+              feeItemId: feeValue.feeItemId, // Maintain backward compatibility
+              feeGroupFeeItemId: feeGroupFeeItem.id, // New relationship structure
               value: feeValue.value,
               valueType: feeValue.valueType || 'percentage',
             });
