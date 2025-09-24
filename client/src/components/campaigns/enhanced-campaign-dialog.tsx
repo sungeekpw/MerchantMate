@@ -321,8 +321,8 @@ export function EnhancedCampaignDialog({
       }
       
       // Set selected equipment if available
-      if (editCampaignData.equipment) {
-        const equipmentIds = editCampaignData.equipment.map(eq => eq.id);
+      if (editCampaignData.equipmentAssociations) {
+        const equipmentIds = editCampaignData.equipmentAssociations.map(assoc => assoc.equipmentItem.id);
         setSelectedEquipment(equipmentIds);
       }
     } else if (!editCampaignData && open) {
