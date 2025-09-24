@@ -126,7 +126,7 @@ export default function CampaignView() {
             <div>
               <label className="text-sm font-medium text-muted-foreground">Status</label>
               <div>
-                <Badge variant={campaign.isActive ? "success" : "secondary"} data-testid="badge-campaign-status">
+                <Badge variant={campaign.isActive ? "default" : "secondary"} data-testid="badge-campaign-status">
                   {campaign.isActive ? "Active" : "Inactive"}
                 </Badge>
                 {campaign.isDefault && (
