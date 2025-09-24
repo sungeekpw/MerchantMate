@@ -5422,16 +5422,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
             throw new Error("Some fee items do not exist");
           }
           
-          // Fetch fee group IDs for each fee item
+          // Fetch fee group IDs for each fee item through junction table
+          const { feeGroupFeeItems } = await import("@shared/schema");
           const feeItemsWithGroups = await tx
             .select({
-              feeItemId: feeItems.id,
-              feeGroupId: feeGroups.id,
+              feeItemId: feeGroupFeeItems.feeItemId,
+              feeGroupId: feeGroupFeeItems.feeGroupId,
             })
-            .from(feeItems)
-            .leftJoin(feeItemGroups, eq(feeItems.feeItemGroupId, feeItemGroups.id))
-            .leftJoin(feeGroups, eq(feeItemGroups.feeGroupId, feeGroups.id))
-            .where(inArray(feeItems.id, feeItemIds));
+            .from(feeGroupFeeItems)
+            .where(inArray(feeGroupFeeItems.feeItemId, feeItemIds));
           
           const feeValueInserts = uniqueFeeValues.map((fv: any) => {
             const feeItemWithGroup = feeItemsWithGroups.find(fig => fig.feeItemId === fv.feeItemId);
@@ -5597,12 +5596,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         // Insert new fee values with fee group mapping
         for (const feeValue of feeValues) {
-          // Get fee group ID through fee_item_groups join
+          // Get fee group ID through fee_group_fee_items junction table
+          const { feeGroupFeeItems } = await import("@shared/schema");
           const [result] = await dbToUse
-            .select({ feeGroupId: feeItemGroups.feeGroupId })
-            .from(feeItems)
-            .innerJoin(feeItemGroups, eq(feeItems.feeItemGroupId, feeItemGroups.id))
-            .where(eq(feeItems.id, feeValue.feeItemId))
+            .select({ feeGroupId: feeGroupFeeItems.feeGroupId })
+            .from(feeGroupFeeItems)
+            .where(eq(feeGroupFeeItems.feeItemId, feeValue.feeItemId))
             .limit(1);
           
           await dbToUse.insert(campaignFeeValues).values({
