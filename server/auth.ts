@@ -3,7 +3,7 @@ import speakeasy from "speakeasy";
 import crypto from "crypto";
 import { v4 as uuidv4 } from "uuid";
 import sgMail from "@sendgrid/mail";
-import { storage } from "./storage";
+import { storage, DatabaseStorage } from "./storage";
 import { users } from "@shared/schema";
 import { eq } from "drizzle-orm";
 import type { Request } from "express";
@@ -423,7 +423,6 @@ export class AuthService {
       // Get user by username or email using dynamic database
       let user;
       try {
-        console.log(`LoginWithDB: Looking for user with username/email: ${loginData.usernameOrEmail}`);
         const [userByUsername] = await db.select({
           id: users.id,
           email: users.email,
@@ -452,7 +451,6 @@ export class AuthService {
           console.log(`LoginWithDB: Password hash preview: ${userByUsername.passwordHash?.substring(0, 30)}...`);
           user = userByUsername;
         } else {
-          console.log(`LoginWithDB: No user found by username, trying email...`);
           const [userByEmail] = await db.select({
             id: users.id,
             email: users.email,
@@ -599,7 +597,7 @@ export class AuthService {
   }
 
   // Request password reset
-  async requestPasswordReset(data: PasswordResetRequest): Promise<{ success: boolean; message: string }> {
+  async requestPasswordReset(data: PasswordResetRequest, dbEnv?: string): Promise<{ success: boolean; message: string }> {
     try {
       const user = await storage.getUserByUsernameOrEmail(data.usernameOrEmail, data.usernameOrEmail);
       if (!user) {
@@ -620,6 +618,13 @@ export class AuthService {
         passwordResetExpires: resetExpires,
       });
 
+      // Build reset URL with database environment if provided
+      const baseUrl = process.env.APP_URL || "http://localhost:5000";
+      let resetUrl = `${baseUrl}/auth/reset-password?token=${resetToken}`;
+      if (dbEnv && dbEnv !== 'production') {
+        resetUrl += `&db=${dbEnv}`;
+      }
+
       // Send reset email
       await this.sendEmail(
         user.email,
@@ -628,11 +633,12 @@ export class AuthService {
         <h2>Password Reset Request</h2>
         <p>You requested a password reset for your CoreCRM account.</p>
         <p>Click the link below to reset your password:</p>
-        <a href="${process.env.APP_URL || "http://localhost:5000"}/auth/reset-password?token=${resetToken}">
+        <a href="${resetUrl}">
           Reset Password
         </a>
         <p>This link will expire in 1 hour.</p>
         <p>If you didn't request this reset, please ignore this email.</p>
+        ${dbEnv && dbEnv !== 'production' ? `<p><em>Note: This reset is for the ${dbEnv} database environment.</em></p>` : ''}
         `
       );
 
@@ -665,6 +671,54 @@ export class AuthService {
 
       // Update user
       await storage.updateUser(user.id, {
+        passwordHash,
+        passwordResetToken: null,
+        passwordResetExpires: null,
+      });
+
+      // Send confirmation email
+      await this.sendEmail(
+        user.email,
+        "CoreCRM Password Changed",
+        `
+        <h2>Password Successfully Changed</h2>
+        <p>Your CoreCRM account password has been successfully changed.</p>
+        <p>If you didn't make this change, please contact support immediately.</p>
+        `
+      );
+
+      return {
+        success: true,
+        message: "Password reset successful. You can now log in with your new password."
+      };
+    } catch (error) {
+      console.error("Password reset error:", error);
+      return {
+        success: false,
+        message: "Password reset failed. Please try again."
+      };
+    }
+  }
+
+  // Reset password with dynamic database
+  async resetPasswordWithDB(data: PasswordReset, dynamicDB: any): Promise<{ success: boolean; message: string }> {
+    try {
+      // Create a temporary storage instance with the dynamic database
+      const tempStorage = new DatabaseStorage(dynamicDB);
+      
+      const user = await tempStorage.getUserByResetToken(data.token);
+      if (!user || !user.passwordResetExpires || user.passwordResetExpires < new Date()) {
+        return {
+          success: false,
+          message: "Invalid or expired reset token"
+        };
+      }
+
+      // Hash new password
+      const passwordHash = await this.hashPassword(data.password);
+
+      // Update user
+      await tempStorage.updateUser(user.id, {
         passwordHash,
         passwordResetToken: null,
         passwordResetExpires: null,

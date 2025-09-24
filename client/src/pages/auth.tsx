@@ -58,7 +58,7 @@ export default function Auth() {
   const isProduction = window.location.hostname === 'crm.charrg.com';
   const isNonProduction = !isProduction;
 
-  const [selectedDatabase, setSelectedDatabase] = useState(isProduction ? "production" : "dev");
+  const [selectedDatabase, setSelectedDatabase] = useState(isProduction ? "production" : "development");
 
 
 
@@ -69,7 +69,7 @@ export default function Auth() {
       usernameOrEmail: "",
       password: "",
       twoFactorCode: "",
-      database: isProduction ? "production" : "dev",
+      database: isProduction ? "production" : "development",
     },
   });
 
@@ -223,14 +223,22 @@ export default function Auth() {
     resetPasswordMutation.mutate(data);
   };
 
-  // Check URL for reset token
+  // Check URL for reset token and database environment
   useState(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const token = urlParams.get("token");
+    const dbParam = urlParams.get("db");
+    
     if (token) {
       setResetToken(token);
       setActiveTab("reset");
       resetPasswordForm.setValue("token", token);
+      
+      // Set database environment if provided in URL
+      if (dbParam && !isProduction) {
+        setSelectedDatabase(dbParam);
+        loginForm.setValue("database", dbParam);
+      }
     }
   });
 
