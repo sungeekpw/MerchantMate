@@ -5596,17 +5596,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         // Insert new fee values with fee group mapping
         for (const feeValue of feeValues) {
-          // Get fee group ID for this fee item
-          const [feeItem] = await dbToUse
-            .select({ feeGroupId: feeItems.feeGroupId })
+          // Get fee group ID through fee_item_groups join
+          const { feeItemGroups } = await import("@shared/schema");
+          const [result] = await dbToUse
+            .select({ feeGroupId: feeItemGroups.feeGroupId })
             .from(feeItems)
+            .innerJoin(feeItemGroups, eq(feeItems.feeItemGroupId, feeItemGroups.id))
             .where(eq(feeItems.id, feeValue.feeItemId))
             .limit(1);
           
           await dbToUse.insert(campaignFeeValues).values({
             campaignId: id,
             feeItemId: feeValue.feeItemId,
-            feeGroupId: feeItem?.feeGroupId || 9, // Default to first fee group if not found
+            feeGroupId: result?.feeGroupId || 9, // Default to first fee group if not found
             value: feeValue.value,
             valueType: feeValue.valueType || 'percentage',
           });
