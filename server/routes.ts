@@ -5579,13 +5579,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           // Only insert if we have a valid fee group, otherwise skip this fee value
           if (result?.feeGroupId) {
-            await dbToUse.insert(campaignFeeValues).values({
-              campaignId: id,
-              feeItemId: feeValue.feeItemId,
-              feeGroupId: result.feeGroupId,
-              value: feeValue.value,
-              valueType: feeValue.valueType || 'percentage',
-            });
+            console.log(`Inserting fee value: campaignId=${id}, feeItemId=${feeValue.feeItemId}, feeGroupId=${result.feeGroupId}, value=${feeValue.value}`);
+            
+            // Use raw SQL to bypass Drizzle schema issues
+            const { sql } = await import("drizzle-orm");
+            await dbToUse.execute(sql`
+              INSERT INTO campaign_fee_values (campaign_id, fee_item_id, fee_group_id, value, value_type, created_at, updated_at)
+              VALUES (${id}, ${feeValue.feeItemId}, ${result.feeGroupId}, ${feeValue.value}, ${feeValue.valueType || 'percentage'}, NOW(), NOW())
+            `);
+            console.log(`Successfully inserted fee value for campaign ${id}`);
           } else {
             console.log(`Warning: No fee group found for fee item ${feeValue.feeItemId}, skipping insertion`);
           }
