@@ -647,14 +647,13 @@ export const campaigns = pgTable("campaigns", {
 export const campaignFeeValues = pgTable("campaign_fee_values", {
   id: serial("id").primaryKey(),
   campaignId: integer("campaign_id").notNull().references(() => campaigns.id, { onDelete: "cascade" }),
-  feeItemId: integer("fee_item_id").notNull().references(() => feeItems.id, { onDelete: "cascade" }),
-  feeGroupId: integer("fee_group_id").notNull().references(() => feeGroups.id, { onDelete: "cascade" }),
+  feeGroupFeeItemId: integer("fee_group_fee_item_id").notNull().references(() => feeGroupFeeItems.id, { onDelete: "cascade" }),
   value: text("value").notNull(), // The actual fee value (amount, percentage, or placeholder text)
   valueType: text("value_type").notNull().default("percentage"), // Type of value: 'percentage', 'amount', 'placeholder'
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 }, (table) => ({
-  uniqueCampaignFeeItem: unique().on(table.campaignId, table.feeItemId, table.feeGroupId),
+  uniqueCampaignFeeItem: unique().on(table.campaignId, table.feeGroupFeeItemId),
 }));
 
 // Campaign Assignment table - links campaigns to merchant applications/prospects

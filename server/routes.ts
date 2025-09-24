@@ -5568,28 +5568,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
           .delete(campaignFeeValues)
           .where(eq(campaignFeeValues.campaignId, id));
         
-        // Insert new fee values with fee group mapping
+        // Insert new fee values using the new fee_group_fee_items relationship
         for (const feeValue of feeValues) {
-          // Get fee group ID through fee_group_fee_items junction table
-          const [result] = await dbToUse
-            .select({ feeGroupId: feeGroupFeeItems.feeGroupId })
+          // Get fee_group_fee_items.id that matches the feeItemId
+          const [feeGroupFeeItem] = await dbToUse
+            .select({ id: feeGroupFeeItems.id })
             .from(feeGroupFeeItems)
             .where(eq(feeGroupFeeItems.feeItemId, feeValue.feeItemId))
             .limit(1);
           
-          // Only insert if we have a valid fee group, otherwise skip this fee value
-          if (result?.feeGroupId) {
-            console.log(`Inserting fee value: campaignId=${id}, feeItemId=${feeValue.feeItemId}, feeGroupId=${result.feeGroupId}, value=${feeValue.value}`);
+          // Only insert if we have a valid fee_group_fee_item association
+          if (feeGroupFeeItem?.id) {
+            console.log(`Inserting fee value: campaignId=${id}, feeItemId=${feeValue.feeItemId}, feeGroupFeeItemId=${feeGroupFeeItem.id}, value=${feeValue.value}`);
             
-            // Use raw SQL to bypass Drizzle schema issues
-            const { sql } = await import("drizzle-orm");
-            await dbToUse.execute(sql`
-              INSERT INTO campaign_fee_values (campaign_id, fee_item_id, fee_group_id, value, value_type, created_at, updated_at)
-              VALUES (${id}, ${feeValue.feeItemId}, ${result.feeGroupId}, ${feeValue.value}, ${feeValue.valueType || 'percentage'}, NOW(), NOW())
-            `);
+            // Use Drizzle ORM with the new schema
+            await dbToUse.insert(campaignFeeValues).values({
+              campaignId: id,
+              feeGroupFeeItemId: feeGroupFeeItem.id,
+              value: feeValue.value,
+              valueType: feeValue.valueType || 'percentage',
+            });
             console.log(`Successfully inserted fee value for campaign ${id}`);
           } else {
-            console.log(`Warning: No fee group found for fee item ${feeValue.feeItemId}, skipping insertion`);
+            console.log(`Warning: No fee group fee item association found for fee item ${feeValue.feeItemId}, skipping insertion`);
           }
         }
       }
