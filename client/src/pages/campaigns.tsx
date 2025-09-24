@@ -40,6 +40,11 @@ interface Campaign {
   assignedMerchants?: number;
   totalRevenue?: number;
   feeValues?: CampaignFeeValue[];
+  equipment?: {
+    id: number;
+    name: string;
+    description?: string;
+  }[];
 }
 
 interface PricingType {

@@ -319,6 +319,12 @@ export function EnhancedCampaignDialog({
         });
         setFeeValues(feeValueMap);
       }
+      
+      // Set selected equipment if available
+      if (editCampaignData.equipment) {
+        const equipmentIds = editCampaignData.equipment.map(eq => eq.id);
+        setSelectedEquipment(equipmentIds);
+      }
     } else if (!editCampaignData && open) {
       // Reset form when opening for creation
       resetForm();
