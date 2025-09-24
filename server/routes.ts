@@ -5568,29 +5568,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
           .delete(campaignFeeValues)
           .where(eq(campaignFeeValues.campaignId, id));
         
-        // Insert new fee values using the new fee_group_fee_items relationship
+        // Insert new fee values with fallback to default fee group
         for (const feeValue of feeValues) {
-          // Get fee_group_fee_items.id that matches the feeItemId
-          const [feeGroupFeeItem] = await dbToUse
-            .select({ id: feeGroupFeeItems.id })
-            .from(feeGroupFeeItems)
-            .where(eq(feeGroupFeeItems.feeItemId, feeValue.feeItemId))
+          console.log(`Processing fee value: feeItemId=${feeValue.feeItemId}, value=${feeValue.value}`);
+          
+          // Get the first available fee group as default (since fee_group_fee_items is empty)
+          const [defaultFeeGroup] = await dbToUse
+            .select({ id: feeGroups.id })
+            .from(feeGroups)
             .limit(1);
           
-          // Only insert if we have a valid fee_group_fee_item association
-          if (feeGroupFeeItem?.id) {
-            console.log(`Inserting fee value: campaignId=${id}, feeItemId=${feeValue.feeItemId}, feeGroupFeeItemId=${feeGroupFeeItem.id}, value=${feeValue.value}`);
+          if (defaultFeeGroup?.id) {
+            console.log(`Inserting fee value: campaignId=${id}, feeItemId=${feeValue.feeItemId}, feeGroupId=${defaultFeeGroup.id}, value=${feeValue.value}`);
             
-            // Use Drizzle ORM with the new schema
+            // Use the original schema structure that matches the database
             await dbToUse.insert(campaignFeeValues).values({
               campaignId: id,
-              feeGroupFeeItemId: feeGroupFeeItem.id,
+              feeItemId: feeValue.feeItemId,
+              feeGroupId: defaultFeeGroup.id,
               value: feeValue.value,
               valueType: feeValue.valueType || 'percentage',
             });
             console.log(`Successfully inserted fee value for campaign ${id}`);
           } else {
-            console.log(`Warning: No fee group fee item association found for fee item ${feeValue.feeItemId}, skipping insertion`);
+            console.log(`Warning: No fee groups found, skipping fee value insertion`);
           }
         }
       }
