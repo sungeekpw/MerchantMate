@@ -5568,30 +5568,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
           .delete(campaignFeeValues)
           .where(eq(campaignFeeValues.campaignId, id));
         
-        // Insert new fee values with fallback to default fee group
+        // Insert new fee values using proper fee_group_fee_items relationship
         for (const feeValue of feeValues) {
           console.log(`Processing fee value: feeItemId=${feeValue.feeItemId}, value=${feeValue.value}`);
           
-          // Get the first available fee group as default (since fee_group_fee_items is empty)
-          const [defaultFeeGroup] = await dbToUse
-            .select({ id: feeGroups.id })
-            .from(feeGroups)
+          // Find the correct fee_group_fee_items record for this fee item
+          const [feeGroupFeeItem] = await dbToUse
+            .select({ 
+              id: feeGroupFeeItems.id,
+              feeGroupId: feeGroupFeeItems.feeGroupId,
+              feeItemId: feeGroupFeeItems.feeItemId
+            })
+            .from(feeGroupFeeItems)
+            .where(eq(feeGroupFeeItems.feeItemId, feeValue.feeItemId))
             .limit(1);
           
-          if (defaultFeeGroup?.id) {
-            console.log(`Inserting fee value: campaignId=${id}, feeItemId=${feeValue.feeItemId}, feeGroupId=${defaultFeeGroup.id}, value=${feeValue.value}`);
+          if (feeGroupFeeItem?.id) {
+            console.log(`Found fee group fee item association: id=${feeGroupFeeItem.id}, feeGroupId=${feeGroupFeeItem.feeGroupId}, feeItemId=${feeGroupFeeItem.feeItemId}`);
+            console.log(`Inserting fee value: campaignId=${id}, feeGroupFeeItemId=${feeGroupFeeItem.id}, value=${feeValue.value}`);
             
-            // Use the original schema structure that matches the database
+            // Use the proper relationship-based approach
             await dbToUse.insert(campaignFeeValues).values({
               campaignId: id,
-              feeItemId: feeValue.feeItemId,
-              feeGroupId: defaultFeeGroup.id,
+              feeGroupFeeItemId: feeGroupFeeItem.id,
               value: feeValue.value,
               valueType: feeValue.valueType || 'percentage',
             });
             console.log(`Successfully inserted fee value for campaign ${id}`);
           } else {
-            console.log(`Warning: No fee groups found, skipping fee value insertion`);
+            console.log(`Warning: No fee_group_fee_items association found for fee item ${feeValue.feeItemId}. Available associations should be checked.`);
           }
         }
       }
