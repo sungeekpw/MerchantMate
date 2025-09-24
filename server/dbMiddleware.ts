@@ -18,8 +18,10 @@ export const dbEnvironmentMiddleware = (req: RequestWithDB, res: Response, next:
     req.userId = req.user.id;
   }
   
-  // Check if we're in a production deployment environment (only crm.charrg.com)
-  const isProductionDomain = req.get('host')?.includes('crm.charrg.com') ||
+  // Check if we're in a production deployment environment 
+  const host = req.get('host') || '';
+  const isProductionDomain = host.includes('.replit.app') || 
+                            host.includes('charrg.com') ||
                             process.env.NODE_ENV === 'production';
   
   // First check if there's a stored database environment in session
@@ -59,12 +61,12 @@ export const dbEnvironmentMiddleware = (req: RequestWithDB, res: Response, next:
     return;
   }
   
-  // If no explicit environment selection, use default production database
-  req.dbEnv = 'production';
-  req.dynamicDB = getDynamicDatabase('production');
+  // If no explicit environment selection, use development database for non-production domains
+  req.dbEnv = 'development';
+  req.dynamicDB = getDynamicDatabase('development');
   req.db = req.dynamicDB;
-  res.setHeader('X-Database-Environment', 'production');
-  console.log('Using default production database');
+  res.setHeader('X-Database-Environment', 'development');
+  console.log('Non-production domain: using default development database');
   
   next();
 };
