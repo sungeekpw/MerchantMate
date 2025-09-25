@@ -1099,6 +1099,58 @@ function ApplicationsManagementDialog({
   const { toast } = useToast();
   const [selectedAcquirer, setSelectedAcquirer] = useState<number | null>(null);
 
+  // Application status badge helper function
+  const getApplicationStatusBadge = (status: string) => {
+    const styles = {
+      draft: "bg-gray-100 text-gray-800",
+      in_progress: "bg-blue-100 text-blue-800",
+      submitted: "bg-purple-100 text-purple-800",
+      approved: "bg-green-100 text-green-800",
+      rejected: "bg-red-100 text-red-800",
+    };
+    return styles[status as keyof typeof styles] || "bg-gray-100 text-gray-800";
+  };
+
+  // Download PDF handler for applications
+  const handleDownloadPDF = async (application: ProspectApplicationWithDetails) => {
+    try {
+      if (!application.generatedPdfPath) {
+        toast({
+          title: "PDF Not Available",
+          description: "This application has not been submitted yet or PDF generation failed",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      const response = await fetch(`/api/prospect-applications/${application.id}/download-pdf`);
+      if (!response.ok) {
+        throw new Error('Failed to download PDF');
+      }
+      
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${application.prospect.firstName}_${application.prospect.lastName}_${application.acquirer.name}_Application.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      
+      toast({
+        title: "Success",
+        description: "Application PDF downloaded successfully",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to download PDF",
+        variant: "destructive",
+      });
+    }
+  };
+
   // Fetch application templates for the selected acquirer
   const { data: templates = [] } = useQuery({
     queryKey: ["/api/acquirer-application-templates", selectedAcquirer],
