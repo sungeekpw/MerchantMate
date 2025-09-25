@@ -19,8 +19,9 @@ function getDatabaseUrl(environment?: string): string {
   }
 }
 
-// Get database URL based on environment - default to production but allow dynamic switching
-const environment = process.env.DEFAULT_DB_ENV || 'production';
+// Get database URL based on environment - default to DEVELOPMENT for safety, not production
+// Production should only be used explicitly to prevent accidental data changes
+const environment = process.env.DEFAULT_DB_ENV || 'development';
 const databaseUrl = getDatabaseUrl(environment);
 
 if (!databaseUrl) {
@@ -30,7 +31,14 @@ if (!databaseUrl) {
   );
 }
 
-console.log(`${environment.charAt(0).toUpperCase() + environment.slice(1)} database for ${environment} environment`);
+// PRODUCTION SAFETY WARNING
+if (environment === 'production') {
+  console.warn('\n🚨 WARNING: USING PRODUCTION DATABASE CONNECTION');
+  console.warn('🚨 This can cause PRODUCTION OUTAGES if schema changes are made!');
+  console.warn('🚨 Ensure this is intentional for production operations only.\n');
+} else {
+  console.log(`📊 Database: ${environment.charAt(0).toUpperCase() + environment.slice(1)} environment`);
+}
 
 export const pool = new Pool({ 
   connectionString: databaseUrl,
