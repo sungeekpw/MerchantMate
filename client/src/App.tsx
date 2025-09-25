@@ -41,6 +41,7 @@ import AgentDashboard from "@/pages/agent-dashboard";
 import Campaigns from "@/pages/campaigns";
 import CampaignView from "@/pages/campaign-view";
 import Equipment from "@/pages/equipment";
+import Acquirers from "@/pages/acquirers";
 import EmailManagement from "@/pages/email-management";
 import ApiDocumentation from "@/pages/api-documentation";
 import TestingUtilities from "@/pages/testing-utilities";
@@ -155,6 +156,11 @@ function AuthenticatedApp() {
         return {
           title: "Equipment Management",
           subtitle: "Manage payment equipment and processing devices"
+        };
+      case "/acquirers":
+        return {
+          title: "Acquirer Management",
+          subtitle: "Manage payment processors and their application requirements"
         };
       case "/api-documentation":
         return {
@@ -508,6 +514,23 @@ function AuthenticatedApp() {
                   />
                   <main className="flex-1 overflow-auto bg-gray-50">
                     <Equipment />
+                  </main>
+                </>
+              );
+            }}
+          </Route>
+          <Route path="/acquirers">
+            {() => {
+              if (!canAccessAgentManagement(user)) return <NotFound />;
+              const pageInfo = getPageInfo("/acquirers");
+              return (
+                <>
+                  <Header 
+                    title={pageInfo.title} 
+                    onSearch={setGlobalSearch}
+                  />
+                  <main className="flex-1 overflow-auto bg-gray-50">
+                    <Acquirers />
                   </main>
                 </>
               );
