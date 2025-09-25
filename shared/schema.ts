@@ -6,10 +6,11 @@ import { z } from "zod";
 export const merchants = pgTable("merchants", {
   id: serial("id").primaryKey(),
   userId: varchar("user_id").references(() => users.id, { onDelete: "cascade" }).unique(),
-  businessName: text("business_name").notNull(),
-  businessType: text("business_type").notNull(),
-  email: text("email").notNull().unique(),
-  phone: text("phone").notNull(),
+  companyId: integer("company_id").references(() => companies.id, { onDelete: "cascade" }), // Link to company entity
+  businessName: text("business_name").notNull(), // TODO: Move to companies table
+  businessType: text("business_type").notNull(), // TODO: Move to companies table  
+  email: text("email").notNull().unique(), // TODO: Move to companies table
+  phone: text("phone").notNull(), // TODO: Move to companies table
   agentId: integer("agent_id"),
   processingFee: decimal("processing_fee", { precision: 5, scale: 2 }).default("2.50").notNull(),
   status: text("status").notNull().default("active"), // active, pending, suspended
@@ -52,6 +53,7 @@ export const addresses = pgTable("addresses", {
 export const agents = pgTable("agents", {
   id: serial("id").primaryKey(),
   userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }).unique(),
+  companyId: integer("company_id").references(() => companies.id, { onDelete: "set null" }), // Link to employing company (optional)
   firstName: text("first_name").notNull(),
   lastName: text("last_name").notNull(),
   email: text("email").notNull().unique(),
