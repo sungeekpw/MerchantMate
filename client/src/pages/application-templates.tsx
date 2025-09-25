@@ -87,6 +87,13 @@ export default function ApplicationTemplatesPage() {
   // Fetch application templates
   const { data: templates = [], isLoading: templatesLoading } = useQuery<AcquirerApplicationTemplate[]>({
     queryKey: ['/api/acquirer-application-templates'],
+    queryFn: async () => {
+      const response = await fetch('/api/acquirer-application-templates', {
+        credentials: 'include'
+      });
+      if (!response.ok) throw new Error('Failed to fetch application templates');
+      return response.json();
+    },
     staleTime: 0,
     gcTime: 0
   });
@@ -94,6 +101,13 @@ export default function ApplicationTemplatesPage() {
   // Fetch acquirers for the dropdown
   const { data: acquirers = [], isLoading: acquirersLoading } = useQuery<Acquirer[]>({
     queryKey: ['/api/acquirers'],
+    queryFn: async () => {
+      const response = await fetch('/api/acquirers', {
+        credentials: 'include'
+      });
+      if (!response.ok) throw new Error('Failed to fetch acquirers');
+      return response.json();
+    },
     staleTime: 0,
     gcTime: 0
   });
