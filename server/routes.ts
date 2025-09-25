@@ -5227,15 +5227,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(500).json({ error: "Database connection not available" });
       }
       
-      const { campaigns, pricingTypes, eq } = await import("@shared/schema");
+      const { campaigns, pricingTypes, acquirers, eq } = await import("@shared/schema");
       
-      // Join campaigns with pricing types to get full pricing type data
+      // Join campaigns with pricing types and acquirers to get full data
       const allCampaigns = await dbToUse
         .select({
           id: campaigns.id,
           name: campaigns.name,
           description: campaigns.description,
-          acquirer: campaigns.acquirer,
+          acquirerId: campaigns.acquirerId,
           currency: campaigns.currency,
           equipment: campaigns.equipment,
           isActive: campaigns.isActive,
@@ -5248,10 +5248,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
             id: pricingTypes.id,
             name: pricingTypes.name,
             description: pricingTypes.description,
+          },
+          acquirer: {
+            id: acquirers.id,
+            name: acquirers.name,
+            displayName: acquirers.displayName,
+            code: acquirers.code,
+            description: acquirers.description,
+            isActive: acquirers.isActive,
           }
         })
         .from(campaigns)
-        .leftJoin(pricingTypes, eq(campaigns.pricingTypeId, pricingTypes.id));
+        .leftJoin(pricingTypes, eq(campaigns.pricingTypeId, pricingTypes.id))
+        .leftJoin(acquirers, eq(campaigns.acquirerId, acquirers.id));
       
       console.log(`Found ${allCampaigns.length} campaigns in ${req.dbEnv} database`);
       res.json(allCampaigns);
@@ -5273,16 +5282,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(500).json({ error: "Database connection not available" });
       }
       
-      const { campaigns, pricingTypes, campaignFeeValues, campaignEquipment, feeItems, feeGroups, equipmentItems } = await import("@shared/schema");
+      const { campaigns, pricingTypes, acquirers, campaignFeeValues, campaignEquipment, feeItems, feeGroups, equipmentItems } = await import("@shared/schema");
       const { eq } = await import("drizzle-orm");
       
-      // Get campaign with pricing type
+      // Get campaign with pricing type and acquirer
       const [campaign] = await dbToUse
         .select({
           id: campaigns.id,
           name: campaigns.name,
           description: campaigns.description,
-          acquirer: campaigns.acquirer,
+          acquirerId: campaigns.acquirerId,
           currency: campaigns.currency,
           equipment: campaigns.equipment,
           isActive: campaigns.isActive,
@@ -5291,6 +5300,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
           createdAt: campaigns.createdAt,
           updatedAt: campaigns.updatedAt,
           pricingTypeId: campaigns.pricingTypeId,
+          acquirer: {
+            id: acquirers.id,
+            name: acquirers.name,
+            displayName: acquirers.displayName,
+            code: acquirers.code,
+            description: acquirers.description,
+            isActive: acquirers.isActive,
+          },
           pricingType: {
             id: pricingTypes.id,
             name: pricingTypes.name,
@@ -5299,6 +5316,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         })
         .from(campaigns)
         .leftJoin(pricingTypes, eq(campaigns.pricingTypeId, pricingTypes.id))
+        .leftJoin(acquirers, eq(campaigns.acquirerId, acquirers.id))
         .where(eq(campaigns.id, campaignId))
         .limit(1);
       

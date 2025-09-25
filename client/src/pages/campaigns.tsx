@@ -25,7 +25,15 @@ interface Campaign {
   id: number;
   name: string;
   description?: string;
-  acquirer: string;
+  acquirerId: number;
+  acquirer: {
+    id: number;
+    name: string;
+    displayName: string;
+    code: string;
+    description?: string;
+    isActive: boolean;
+  };
   pricingType: {
     id: number;
     name: string;
@@ -165,7 +173,7 @@ interface CreatePricingTypeData {
 interface CreateCampaignData {
   name: string;
   description?: string;
-  acquirer: 'Esquire' | 'Merrick' | 'Wells Fargo';
+  acquirerId: number;
   pricingTypeId: number;
   isDefault?: boolean;
   feeValues: {
@@ -396,7 +404,7 @@ export default function CampaignsPage() {
     const matchesSearch = campaign.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          campaign.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          campaign.id.toString().includes(searchQuery);
-    const matchesAcquirer = selectedAcquirer === 'all' || campaign.acquirer === selectedAcquirer;
+    const matchesAcquirer = selectedAcquirer === 'all' || campaign.acquirer?.displayName === selectedAcquirer;
     return matchesSearch && matchesAcquirer;
   });
 
@@ -1389,7 +1397,7 @@ export default function CampaignsPage() {
                 </div>
                 <div>
                   <Label className="text-sm font-medium text-muted-foreground">Acquirer</Label>
-                  <p className="text-lg font-medium">{campaignToEdit.acquirer}</p>
+                  <p className="text-lg font-medium">{campaignToEdit.acquirer?.displayName || '—'}</p>
                 </div>
                 <div>
                   <Label className="text-sm font-medium text-muted-foreground">Pricing Type</Label>
@@ -1692,7 +1700,7 @@ export default function CampaignsPage() {
                           {campaign.description || '—'}
                         </TableCell>
                         <TableCell>{campaign.pricingType?.name || '—'}</TableCell>
-                        <TableCell>{campaign.acquirer}</TableCell>
+                        <TableCell>{campaign.acquirer?.displayName || '—'}</TableCell>
                         <TableCell>
                           <div className="flex gap-2">
                             <Badge variant={campaign.isActive ? "default" : "secondary"}>
