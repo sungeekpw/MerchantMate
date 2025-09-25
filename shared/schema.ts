@@ -368,6 +368,39 @@ export type User = typeof users.$inferSelect;
 export type LoginAttempt = typeof loginAttempts.$inferSelect;
 export type TwoFactorCode = typeof twoFactorCodes.$inferSelect;
 
+// Company and user-company association schemas
+export const insertCompanySchema = createInsertSchema(companies).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertUserCompanyAssociationSchema = createInsertSchema(userCompanyAssociations).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+// Company and association types
+export type Company = typeof companies.$inferSelect;
+export type InsertCompany = z.infer<typeof insertCompanySchema>;
+export type UserCompanyAssociation = typeof userCompanyAssociations.$inferSelect;
+export type InsertUserCompanyAssociation = z.infer<typeof insertUserCompanyAssociationSchema>;
+
+// Extended user types with company information
+export type UserWithCompanies = User & {
+  companies?: (UserCompanyAssociation & {
+    company: Company;
+  })[];
+  primaryCompany?: Company;
+};
+
+export type CompanyWithUsers = Company & {
+  users?: (UserCompanyAssociation & {
+    user: User;
+  })[];
+};
+
 // Widget preferences table
 export const userDashboardPreferences = pgTable("user_dashboard_preferences", {
   id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
