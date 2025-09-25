@@ -28,6 +28,13 @@ export default function AcquirersPage() {
   // Fetch acquirers
   const { data: acquirers = [], isLoading } = useQuery<Acquirer[]>({
     queryKey: ['/api/acquirers'],
+    queryFn: async () => {
+      const response = await fetch('/api/acquirers', {
+        credentials: 'include'
+      });
+      if (!response.ok) throw new Error('Failed to fetch acquirers');
+      return response.json();
+    },
     staleTime: 0,
     gcTime: 0
   });
