@@ -206,6 +206,22 @@ export type MerchantWithLocations = Merchant & {
   agent?: Agent;
 };
 
+// Company relationship types
+export type MerchantWithCompany = Merchant & {
+  company?: Company;
+  agent?: Agent;
+};
+
+export type AgentWithCompany = Agent & {
+  company?: Company;
+};
+
+export type MerchantWithCompanyAndLocations = Merchant & {
+  company?: Company;
+  locations?: LocationWithAddresses[];
+  agent?: Agent;
+};
+
 // User management tables
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().notNull(),
