@@ -34,10 +34,7 @@ export default function AcquirersPage() {
 
   // Create acquirer mutation
   const createMutation = useMutation({
-    mutationFn: (data: InsertAcquirer) => apiRequest('/api/acquirers', {
-      method: 'POST',
-      body: JSON.stringify(data)
-    }),
+    mutationFn: (data: InsertAcquirer) => apiRequest('POST', '/api/acquirers', data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/acquirers'] });
       setIsCreateDialogOpen(false);
@@ -58,10 +55,7 @@ export default function AcquirersPage() {
   // Update acquirer mutation
   const updateMutation = useMutation({
     mutationFn: ({ id, data }: { id: number; data: InsertAcquirer }) => 
-      apiRequest(`/api/acquirers/${id}`, {
-        method: 'PUT',
-        body: JSON.stringify(data)
-      }),
+      apiRequest('PUT', `/api/acquirers/${id}`, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/acquirers'] });
       setIsEditDialogOpen(false);
@@ -120,7 +114,7 @@ export default function AcquirersPage() {
 
   const handleViewDetails = async (acquirer: Acquirer) => {
     try {
-      const detailedAcquirer = await apiRequest(`/api/acquirers/${acquirer.id}`);
+      const detailedAcquirer = await apiRequest('GET', `/api/acquirers/${acquirer.id}`);
       setSelectedAcquirer(detailedAcquirer);
       setIsViewDialogOpen(true);
     } catch (error) {
