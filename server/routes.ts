@@ -6465,45 +6465,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { prospectApplications, merchantProspects, acquirers, acquirerApplicationTemplates } = await import("@shared/schema");
       const { eq } = await import("drizzle-orm");
       
-      // Get prospect applications with related data
-      const applications = await dbToUse.select({
-        id: prospectApplications.id,
-        prospectId: prospectApplications.prospectId,
-        acquirerId: prospectApplications.acquirerId,
-        templateId: prospectApplications.templateId,
-        templateVersion: prospectApplications.templateVersion,
-        status: prospectApplications.status,
-        applicationData: prospectApplications.applicationData,
-        submittedAt: prospectApplications.submittedAt,
-        approvedAt: prospectApplications.approvedAt,
-        rejectedAt: prospectApplications.rejectedAt,
-        rejectionReason: prospectApplications.rejectionReason,
-        generatedPdfPath: prospectApplications.generatedPdfPath,
-        createdAt: prospectApplications.createdAt,
-        updatedAt: prospectApplications.updatedAt,
-        prospect: {
-          id: merchantProspects.id,
-          businessName: merchantProspects.businessName,
-          contactFirstName: merchantProspects.contactFirstName,
-          contactLastName: merchantProspects.contactLastName,
-          status: merchantProspects.status
-        },
-        acquirer: {
-          id: acquirers.id,
-          name: acquirers.name,
-          displayName: acquirers.displayName,
-          code: acquirers.code
-        },
-        template: {
-          id: acquirerApplicationTemplates.id,
-          templateName: acquirerApplicationTemplates.templateName,
-          version: acquirerApplicationTemplates.version
-        }
-      })
+      // Get prospect applications with minimal data to avoid query issues
+      const applications = await dbToUse.select()
       .from(prospectApplications)
-      .leftJoin(merchantProspects, eq(prospectApplications.prospectId, merchantProspects.id))
-      .leftJoin(acquirers, eq(prospectApplications.acquirerId, acquirers.id))
-      .leftJoin(acquirerApplicationTemplates, eq(prospectApplications.templateId, acquirerApplicationTemplates.id))
       .orderBy(prospectApplications.createdAt);
       
       console.log(`Found ${applications.length} prospect applications in ${req.dbEnv} database`);
