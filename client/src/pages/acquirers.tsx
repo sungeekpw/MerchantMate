@@ -26,7 +26,7 @@ export default function AcquirersPage() {
   const { toast } = useToast();
 
   // Fetch acquirers
-  const { data: acquirers, isLoading } = useQuery({
+  const { data: acquirers = [], isLoading } = useQuery<Acquirer[]>({
     queryKey: ['/api/acquirers'],
     staleTime: 0,
     gcTime: 0
@@ -114,7 +114,7 @@ export default function AcquirersPage() {
 
   const handleViewDetails = async (acquirer: Acquirer) => {
     try {
-      const detailedAcquirer = await apiRequest('GET', `/api/acquirers/${acquirer.id}`);
+      const detailedAcquirer = await apiRequest('GET', `/api/acquirers/${acquirer.id}`) as unknown as AcquirerWithTemplates;
       setSelectedAcquirer(detailedAcquirer);
       setIsViewDialogOpen(true);
     } catch (error) {
@@ -216,6 +216,7 @@ export default function AcquirersPage() {
                         <Textarea 
                           placeholder="Brief description of the acquirer's services..." 
                           {...field} 
+                          value={field.value || ''}
                           data-testid="input-acquirer-description"
                         />
                       </FormControl>
@@ -417,7 +418,7 @@ export default function AcquirersPage() {
                   <FormItem>
                     <FormLabel>Description</FormLabel>
                     <FormControl>
-                      <Textarea {...field} data-testid="input-edit-acquirer-description" />
+                      <Textarea {...field} value={field.value || ''} data-testid="input-edit-acquirer-description" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
