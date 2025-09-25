@@ -4,6 +4,7 @@ import crypto from "crypto";
 import { v4 as uuidv4 } from "uuid";
 import sgMail from "@sendgrid/mail";
 import { storage, DatabaseStorage } from "./storage";
+import { emailService } from "./emailService";
 import { users } from "@shared/schema";
 import { eq } from "drizzle-orm";
 import type { Request } from "express";
@@ -618,29 +619,12 @@ export class AuthService {
         passwordResetExpires: resetExpires,
       });
 
-      // Build reset URL with database environment if provided
-      const baseUrl = process.env.APP_URL || "http://localhost:5000";
-      let resetUrl = `${baseUrl}/auth/reset-password?token=${resetToken}`;
-      if (dbEnv && dbEnv !== 'production') {
-        resetUrl += `&db=${dbEnv}`;
-      }
-
-      // Send reset email
-      await this.sendEmail(
-        user.email,
-        "CoreCRM Password Reset",
-        `
-        <h2>Password Reset Request</h2>
-        <p>You requested a password reset for your CoreCRM account.</p>
-        <p>Click the link below to reset your password:</p>
-        <a href="${resetUrl}">
-          Reset Password
-        </a>
-        <p>This link will expire in 1 hour.</p>
-        <p>If you didn't request this reset, please ignore this email.</p>
-        ${dbEnv && dbEnv !== 'production' ? `<p><em>Note: This reset is for the ${dbEnv} database environment.</em></p>` : ''}
-        `
-      );
+      // Send reset email using EmailService
+      await emailService.sendPasswordResetEmail({
+        email: user.email,
+        resetToken: resetToken,
+        dbEnv: dbEnv
+      });
 
       return {
         success: true,
