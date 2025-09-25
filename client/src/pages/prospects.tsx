@@ -22,7 +22,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
-import { Plus, Search, Edit, Trash2, Mail, Calendar, User, Send, Download, ChevronDown, ChevronRight, Users, FileText, ExternalLink } from "lucide-react";
+import { Plus, Search, Edit, Trash2, Mail, Calendar, User, Send, Download, ChevronDown, ChevronRight, Users, FileText, ExternalLink, Play, CheckCircle, XCircle } from "lucide-react";
 import { insertMerchantProspectSchema, type MerchantProspectWithAgent, type Agent, type ProspectApplicationWithDetails, type Acquirer, type AcquirerApplicationTemplate } from "@shared/schema";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
@@ -1097,6 +1097,7 @@ function ApplicationsManagementDialog({
   isCreatingApplication
 }: ApplicationsManagementDialogProps) {
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [selectedAcquirer, setSelectedAcquirer] = useState<number | null>(null);
 
   // Application status badge helper function
@@ -1109,6 +1110,174 @@ function ApplicationsManagementDialog({
       rejected: "bg-red-100 text-red-800",
     };
     return styles[status as keyof typeof styles] || "bg-gray-100 text-gray-800";
+  };
+
+  // Workflow action mutations
+  const startApplicationMutation = useMutation({
+    mutationFn: async (applicationId: number) => {
+      const response = await fetch(`/api/prospect-applications/${applicationId}/start`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" }
+      });
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to start application');
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/prospect-applications"] });
+      toast({
+        title: "Success",
+        description: "Application started successfully",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to start application",
+        variant: "destructive",
+      });
+    }
+  });
+
+  const submitApplicationMutation = useMutation({
+    mutationFn: async (applicationId: number) => {
+      const response = await fetch(`/api/prospect-applications/${applicationId}/submit`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" }
+      });
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to submit application');
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/prospect-applications"] });
+      toast({
+        title: "Success",
+        description: "Application submitted successfully",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to submit application",
+        variant: "destructive",
+      });
+    }
+  });
+
+  const approveApplicationMutation = useMutation({
+    mutationFn: async (applicationId: number) => {
+      const response = await fetch(`/api/prospect-applications/${applicationId}/approve`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" }
+      });
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to approve application');
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/prospect-applications"] });
+      toast({
+        title: "Success",
+        description: "Application approved successfully",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to approve application",
+        variant: "destructive",
+      });
+    }
+  });
+
+  const rejectApplicationMutation = useMutation({
+    mutationFn: async ({ applicationId, rejectionReason }: { applicationId: number; rejectionReason?: string }) => {
+      const response = await fetch(`/api/prospect-applications/${applicationId}/reject`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ rejectionReason })
+      });
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to reject application');
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/prospect-applications"] });
+      toast({
+        title: "Success",
+        description: "Application rejected successfully",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to reject application",
+        variant: "destructive",
+      });
+    }
+  });
+
+  // Get workflow actions for current application status
+  const getWorkflowActions = (application: ProspectApplicationWithDetails) => {
+    const actions = [];
+    
+    switch (application.status) {
+      case 'draft':
+        actions.push({
+          label: 'Start Application',
+          action: () => startApplicationMutation.mutate(application.id),
+          variant: 'outline' as const,
+          icon: 'Play',
+          testId: `button-start-application-${application.id}`
+        });
+        break;
+      
+      case 'in_progress':
+        actions.push({
+          label: 'Submit Application',
+          action: () => submitApplicationMutation.mutate(application.id),
+          variant: 'outline' as const,
+          icon: 'Send',
+          testId: `button-submit-application-${application.id}`
+        });
+        break;
+      
+      case 'submitted':
+        actions.push({
+          label: 'Approve',
+          action: () => approveApplicationMutation.mutate(application.id),
+          variant: 'outline' as const,
+          icon: 'CheckCircle',
+          testId: `button-approve-application-${application.id}`
+        });
+        actions.push({
+          label: 'Reject',
+          action: () => {
+            const reason = prompt('Rejection reason (optional):');
+            rejectApplicationMutation.mutate({ applicationId: application.id, rejectionReason: reason || undefined });
+          },
+          variant: 'outline' as const,
+          icon: 'XCircle',
+          testId: `button-reject-application-${application.id}`
+        });
+        break;
+      
+      case 'approved':
+      case 'rejected':
+        // No actions available for final states
+        break;
+    }
+    
+    return actions;
   };
 
   // Download PDF handler for applications
@@ -1221,21 +1390,32 @@ function ApplicationsManagementDialog({
                           {application.status.charAt(0).toUpperCase() + application.status.slice(1)}
                         </Badge>
                         <div className="flex items-center space-x-1">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => {
-                              // TODO: Open application form editor
-                              toast({
-                                title: "Edit Application",
-                                description: "Application editing will be available soon",
-                              });
-                            }}
-                            title="Edit application"
-                            data-testid={`button-edit-application-${application.id}`}
-                          >
-                            <Edit className="w-4 h-4" />
-                          </Button>
+                          {/* Workflow Action Buttons */}
+                          {getWorkflowActions(application).map((action, index) => {
+                            const IconComponent = action.icon === 'Play' ? Play : 
+                                               action.icon === 'Send' ? Send :
+                                               action.icon === 'CheckCircle' ? CheckCircle :
+                                               action.icon === 'XCircle' ? XCircle : Edit;
+                            
+                            return (
+                              <Button
+                                key={index}
+                                variant={action.variant}
+                                size="sm"
+                                onClick={action.action}
+                                title={action.label}
+                                data-testid={action.testId}
+                                disabled={startApplicationMutation.isPending || 
+                                         submitApplicationMutation.isPending || 
+                                         approveApplicationMutation.isPending || 
+                                         rejectApplicationMutation.isPending}
+                              >
+                                <IconComponent className="w-4 h-4" />
+                              </Button>
+                            );
+                          })}
+                          
+                          {/* PDF Download Button */}
                           {application.generatedPdfPath && (
                             <Button
                               variant="ghost"

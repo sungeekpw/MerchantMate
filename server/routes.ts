@@ -6634,6 +6634,263 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Prospect Application Workflow Endpoints
+  
+  // Start application (draft → in_progress)
+  app.post('/api/prospect-applications/:id/start', dbEnvironmentMiddleware, requireRole(['admin', 'super_admin', 'agent']), async (req: RequestWithDB, res: Response) => {
+    try {
+      const applicationId = parseInt(req.params.id);
+      console.log(`Starting prospect application ${applicationId} - Database environment: ${req.dbEnv}`);
+      
+      const dbToUse = req.dynamicDB;
+      if (!dbToUse) {
+        return res.status(500).json({ error: "Database connection not available" });
+      }
+      
+      const { prospectApplications, merchantProspects, agents } = await import("@shared/schema");
+      const { eq } = await import("drizzle-orm");
+      
+      // Get the application with prospect and agent information to validate ownership
+      const [applicationWithProspect] = await dbToUse.select({
+        application: prospectApplications,
+        prospect: merchantProspects,
+        agent: agents
+      })
+      .from(prospectApplications)
+      .leftJoin(merchantProspects, eq(prospectApplications.prospectId, merchantProspects.id))
+      .leftJoin(agents, eq(merchantProspects.agentId, agents.id))
+      .where(eq(prospectApplications.id, applicationId))
+      .limit(1);
+      
+      if (!applicationWithProspect || !applicationWithProspect.application) {
+        return res.status(404).json({ error: "Prospect application not found" });
+      }
+      
+      const currentApp = applicationWithProspect.application;
+      const prospect = applicationWithProspect.prospect;
+      const assignedAgent = applicationWithProspect.agent;
+      
+      // Check ownership/authorization: agent can only access their own prospects, admins can access all
+      const userRoles = (req.user as any)?.roles || [];
+      const isAdmin = userRoles.some((role: string) => ['admin', 'super_admin'].includes(role));
+      
+      if (!isAdmin) {
+        // For agents, verify this application belongs to a prospect assigned to them
+        const currentUserId = req.user?.id;
+        if (!assignedAgent || assignedAgent.userId !== currentUserId) {
+          console.log(`Access denied: User ${currentUserId} attempted to access application for prospect assigned to agent ${assignedAgent?.userId}`);
+          return res.status(403).json({ error: "Access denied. You can only modify applications for prospects assigned to you." });
+        }
+      }
+      
+      // Validate status transition: only allow draft → in_progress
+      if (currentApp.status !== 'draft') {
+        return res.status(400).json({ 
+          error: `Cannot start application. Current status is '${currentApp.status}', expected 'draft'` 
+        });
+      }
+      
+      // Update status to in_progress
+      const [updatedApplication] = await dbToUse.update(prospectApplications)
+        .set({ 
+          status: 'in_progress', 
+          updatedAt: new Date() 
+        })
+        .where(eq(prospectApplications.id, applicationId))
+        .returning();
+      
+      console.log(`Application ${applicationId} status updated to in_progress`);
+      res.json(updatedApplication);
+      
+    } catch (error) {
+      console.error('Error starting prospect application:', error);
+      res.status(500).json({ error: 'Failed to start application' });
+    }
+  });
+
+  // Submit application (in_progress → submitted)
+  app.post('/api/prospect-applications/:id/submit', dbEnvironmentMiddleware, requireRole(['admin', 'super_admin', 'agent']), async (req: RequestWithDB, res: Response) => {
+    try {
+      const applicationId = parseInt(req.params.id);
+      const { applicationData } = req.body; // Optional updated application data
+      console.log(`Submitting prospect application ${applicationId} - Database environment: ${req.dbEnv}`);
+      
+      const dbToUse = req.dynamicDB;
+      if (!dbToUse) {
+        return res.status(500).json({ error: "Database connection not available" });
+      }
+      
+      const { prospectApplications, merchantProspects, agents } = await import("@shared/schema");
+      const { eq } = await import("drizzle-orm");
+      
+      // Get the application with prospect and agent information to validate ownership
+      const [applicationWithProspect] = await dbToUse.select({
+        application: prospectApplications,
+        prospect: merchantProspects,
+        agent: agents
+      })
+      .from(prospectApplications)
+      .leftJoin(merchantProspects, eq(prospectApplications.prospectId, merchantProspects.id))
+      .leftJoin(agents, eq(merchantProspects.agentId, agents.id))
+      .where(eq(prospectApplications.id, applicationId))
+      .limit(1);
+      
+      if (!applicationWithProspect || !applicationWithProspect.application) {
+        return res.status(404).json({ error: "Prospect application not found" });
+      }
+      
+      const currentApp = applicationWithProspect.application;
+      const prospect = applicationWithProspect.prospect;
+      const assignedAgent = applicationWithProspect.agent;
+      
+      // Check ownership/authorization: agent can only access their own prospects, admins can access all
+      const userRoles = (req.user as any)?.roles || [];
+      const isAdmin = userRoles.some((role: string) => ['admin', 'super_admin'].includes(role));
+      
+      if (!isAdmin) {
+        // For agents, verify this application belongs to a prospect assigned to them
+        const currentUserId = req.user?.id;
+        if (!assignedAgent || assignedAgent.userId !== currentUserId) {
+          console.log(`Access denied: User ${currentUserId} attempted to access application for prospect assigned to agent ${assignedAgent?.userId}`);
+          return res.status(403).json({ error: "Access denied. You can only modify applications for prospects assigned to you." });
+        }
+      }
+      
+      // Validate status transition: only allow in_progress → submitted
+      if (currentApp.status !== 'in_progress') {
+        return res.status(400).json({ 
+          error: `Cannot submit application. Current status is '${currentApp.status}', expected 'in_progress'` 
+        });
+      }
+      
+      // Update application with submission
+      const updateData: any = {
+        status: 'submitted',
+        submittedAt: new Date(),
+        updatedAt: new Date()
+      };
+      
+      // Include application data if provided
+      if (applicationData) {
+        updateData.applicationData = applicationData;
+      }
+      
+      const [updatedApplication] = await dbToUse.update(prospectApplications)
+        .set(updateData)
+        .where(eq(prospectApplications.id, applicationId))
+        .returning();
+      
+      console.log(`Application ${applicationId} status updated to submitted`);
+      res.json(updatedApplication);
+      
+    } catch (error) {
+      console.error('Error submitting prospect application:', error);
+      res.status(500).json({ error: 'Failed to submit application' });
+    }
+  });
+
+  // Approve application (submitted → approved)
+  app.post('/api/prospect-applications/:id/approve', dbEnvironmentMiddleware, requireRole(['admin', 'super_admin']), async (req: RequestWithDB, res: Response) => {
+    try {
+      const applicationId = parseInt(req.params.id);
+      console.log(`Approving prospect application ${applicationId} - Database environment: ${req.dbEnv}`);
+      
+      const dbToUse = req.dynamicDB;
+      if (!dbToUse) {
+        return res.status(500).json({ error: "Database connection not available" });
+      }
+      
+      const { prospectApplications } = await import("@shared/schema");
+      const { eq } = await import("drizzle-orm");
+      
+      // Get the current application to validate status - admin-only endpoint, no ownership check needed
+      const [currentApp] = await dbToUse.select()
+        .from(prospectApplications)
+        .where(eq(prospectApplications.id, applicationId))
+        .limit(1);
+      
+      if (!currentApp) {
+        return res.status(404).json({ error: "Prospect application not found" });
+      }
+      
+      // Validate status transition: only allow submitted → approved
+      if (currentApp.status !== 'submitted') {
+        return res.status(400).json({ 
+          error: `Cannot approve application. Current status is '${currentApp.status}', expected 'submitted'` 
+        });
+      }
+      
+      // Update status to approved
+      const [updatedApplication] = await dbToUse.update(prospectApplications)
+        .set({ 
+          status: 'approved',
+          approvedAt: new Date(),
+          updatedAt: new Date()
+        })
+        .where(eq(prospectApplications.id, applicationId))
+        .returning();
+      
+      console.log(`Application ${applicationId} status updated to approved`);
+      res.json(updatedApplication);
+      
+    } catch (error) {
+      console.error('Error approving prospect application:', error);
+      res.status(500).json({ error: 'Failed to approve application' });
+    }
+  });
+
+  // Reject application (submitted → rejected)
+  app.post('/api/prospect-applications/:id/reject', dbEnvironmentMiddleware, requireRole(['admin', 'super_admin']), async (req: RequestWithDB, res: Response) => {
+    try {
+      const applicationId = parseInt(req.params.id);
+      const { rejectionReason } = req.body;
+      console.log(`Rejecting prospect application ${applicationId} - Database environment: ${req.dbEnv}`);
+      
+      const dbToUse = req.dynamicDB;
+      if (!dbToUse) {
+        return res.status(500).json({ error: "Database connection not available" });
+      }
+      
+      const { prospectApplications } = await import("@shared/schema");
+      const { eq } = await import("drizzle-orm");
+      
+      // Get the current application to validate status - admin-only endpoint, no ownership check needed
+      const [currentApp] = await dbToUse.select()
+        .from(prospectApplications)
+        .where(eq(prospectApplications.id, applicationId))
+        .limit(1);
+      
+      if (!currentApp) {
+        return res.status(404).json({ error: "Prospect application not found" });
+      }
+      
+      // Validate status transition: only allow submitted → rejected
+      if (currentApp.status !== 'submitted') {
+        return res.status(400).json({ 
+          error: `Cannot reject application. Current status is '${currentApp.status}', expected 'submitted'` 
+        });
+      }
+      
+      // Update status to rejected
+      const [updatedApplication] = await dbToUse.update(prospectApplications)
+        .set({ 
+          status: 'rejected',
+          rejectedAt: new Date(),
+          rejectionReason: rejectionReason || null,
+          updatedAt: new Date()
+        })
+        .where(eq(prospectApplications.id, applicationId))
+        .returning();
+      
+      console.log(`Application ${applicationId} status updated to rejected`);
+      res.json(updatedApplication);
+      
+    } catch (error) {
+      console.error('Error rejecting prospect application:', error);
+      res.status(500).json({ error: 'Failed to reject application' });
+    }
+  });
+
   // Fee Items API endpoints
   app.get('/api/fee-items', dbEnvironmentMiddleware, requireRole(['admin', 'super_admin']), async (req: RequestWithDB, res: Response) => {
     try {
