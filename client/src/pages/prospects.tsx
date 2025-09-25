@@ -1502,7 +1502,7 @@ function ApplicationsManagementDialog({
                             value={acquirer.id.toString()}
                             disabled={hasApplication}
                           >
-                            {acquirer.displayName} {hasApplication && "(Already has application)"}
+                            {acquirer.displayName || acquirer.name} {hasApplication && "(Already has application)"}
                           </SelectItem>
                         );
                       })}
