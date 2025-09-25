@@ -42,6 +42,7 @@ import Campaigns from "@/pages/campaigns";
 import CampaignView from "@/pages/campaign-view";
 import Equipment from "@/pages/equipment";
 import Acquirers from "@/pages/acquirers";
+import ApplicationTemplates from "@/pages/application-templates";
 import FormDemo from "@/pages/form-demo";
 import EmailManagement from "@/pages/email-management";
 import ApiDocumentation from "@/pages/api-documentation";
@@ -162,6 +163,11 @@ function AuthenticatedApp() {
         return {
           title: "Acquirer Management",
           subtitle: "Manage payment processors and their application requirements"
+        };
+      case "/application-templates":
+        return {
+          title: "Application Templates",
+          subtitle: "Manage dynamic form templates for acquirer applications"
         };
       case "/form-demo":
         return {
@@ -537,6 +543,23 @@ function AuthenticatedApp() {
                   />
                   <main className="flex-1 overflow-auto bg-gray-50">
                     <Acquirers />
+                  </main>
+                </>
+              );
+            }}
+          </Route>
+          <Route path="/application-templates">
+            {() => {
+              if (!canAccessAgentManagement(user)) return <NotFound />;
+              const pageInfo = getPageInfo("/application-templates");
+              return (
+                <>
+                  <Header 
+                    title={pageInfo.title} 
+                    onSearch={setGlobalSearch}
+                  />
+                  <main className="flex-1 overflow-auto bg-gray-50">
+                    <ApplicationTemplates />
                   </main>
                 </>
               );
