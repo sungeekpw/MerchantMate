@@ -2,7 +2,7 @@ import type { Express, Request as ExpressRequest, Response } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuthRoutes } from "./authRoutes";
-import { insertMerchantSchema, insertAgentSchema, insertTransactionSchema, insertLocationSchema, insertAddressSchema, insertPdfFormSchema, insertApiKeySchema } from "@shared/schema";
+import { insertMerchantSchema, insertAgentSchema, insertTransactionSchema, insertLocationSchema, insertAddressSchema, insertPdfFormSchema, insertApiKeySchema, insertAcquirerSchema, insertAcquirerApplicationTemplateSchema, insertProspectApplicationSchema } from "@shared/schema";
 import { authenticateApiKey, requireApiPermission, logApiRequest, generateApiKey } from "./apiAuth";
 import { setupAuth, isAuthenticated, requireRole, requirePermission } from "./replitAuth";
 import { auditService } from "./auditService";
@@ -6145,6 +6145,494 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Duplicate fee groups endpoints removed - using the correct ones with dbEnvironmentMiddleware
+
+  // Acquirer Management API endpoints
+  
+  // Acquirers
+  app.get('/api/acquirers', dbEnvironmentMiddleware, requireRole(['admin', 'super_admin']), async (req: RequestWithDB, res: Response) => {
+    try {
+      console.log(`Fetching acquirers - Database environment: ${req.dbEnv}`);
+      
+      // Use the dynamic database connection
+      const dbToUse = req.dynamicDB;
+      if (!dbToUse) {
+        return res.status(500).json({ error: "Database connection not available" });
+      }
+      
+      const { acquirers } = await import("@shared/schema");
+      
+      const allAcquirers = await dbToUse.select().from(acquirers).orderBy(acquirers.name);
+      
+      console.log(`Found ${allAcquirers.length} acquirers in ${req.dbEnv} database`);
+      res.json(allAcquirers);
+    } catch (error) {
+      console.error('Error fetching acquirers:', error);
+      res.status(500).json({ error: 'Failed to fetch acquirers' });
+    }
+  });
+
+  app.post('/api/acquirers', dbEnvironmentMiddleware, requireRole(['admin', 'super_admin']), async (req: RequestWithDB, res: Response) => {
+    try {
+      console.log(`Creating acquirer - Database environment: ${req.dbEnv}`);
+      
+      // Use the dynamic database connection
+      const dbToUse = req.dynamicDB;
+      if (!dbToUse) {
+        return res.status(500).json({ error: "Database connection not available" });
+      }
+      
+      // Validate request body
+      const validated = insertAcquirerSchema.parse(req.body);
+      
+      const { acquirers } = await import("@shared/schema");
+      
+      const [newAcquirer] = await dbToUse.insert(acquirers).values(validated).returning();
+      
+      console.log(`Created acquirer: ${newAcquirer.name} (${newAcquirer.code})`);
+      res.status(201).json(newAcquirer);
+    } catch (error) {
+      console.error('Error creating acquirer:', error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: 'Invalid input data', details: error.errors });
+      }
+      res.status(500).json({ error: 'Failed to create acquirer' });
+    }
+  });
+
+  app.get('/api/acquirers/:id', dbEnvironmentMiddleware, requireRole(['admin', 'super_admin']), async (req: RequestWithDB, res: Response) => {
+    try {
+      const acquirerId = parseInt(req.params.id);
+      console.log(`Fetching acquirer ${acquirerId} - Database environment: ${req.dbEnv}`);
+      
+      // Use the dynamic database connection
+      const dbToUse = req.dynamicDB;
+      if (!dbToUse) {
+        return res.status(500).json({ error: "Database connection not available" });
+      }
+      
+      const { acquirers, acquirerApplicationTemplates } = await import("@shared/schema");
+      const { eq } = await import("drizzle-orm");
+      
+      // Get acquirer with its application templates
+      const [acquirer] = await dbToUse.select().from(acquirers).where(eq(acquirers.id, acquirerId)).limit(1);
+      
+      if (!acquirer) {
+        return res.status(404).json({ error: "Acquirer not found" });
+      }
+      
+      // Get application templates for this acquirer
+      const templates = await dbToUse.select()
+        .from(acquirerApplicationTemplates)
+        .where(eq(acquirerApplicationTemplates.acquirerId, acquirerId))
+        .orderBy(acquirerApplicationTemplates.templateName);
+      
+      console.log(`Found acquirer with ${templates.length} templates`);
+      res.json({ ...acquirer, templates });
+    } catch (error) {
+      console.error('Error fetching acquirer:', error);
+      res.status(500).json({ error: 'Failed to fetch acquirer' });
+    }
+  });
+
+  app.put('/api/acquirers/:id', dbEnvironmentMiddleware, requireRole(['admin', 'super_admin']), async (req: RequestWithDB, res: Response) => {
+    try {
+      const acquirerId = parseInt(req.params.id);
+      console.log(`Updating acquirer ${acquirerId} - Database environment: ${req.dbEnv}`);
+      
+      // Use the dynamic database connection
+      const dbToUse = req.dynamicDB;
+      if (!dbToUse) {
+        return res.status(500).json({ error: "Database connection not available" });
+      }
+      
+      // Validate request body (excluding id)
+      const updateData = insertAcquirerSchema.parse(req.body);
+      
+      const { acquirers } = await import("@shared/schema");
+      const { eq } = await import("drizzle-orm");
+      
+      const [updatedAcquirer] = await dbToUse.update(acquirers)
+        .set({ ...updateData, updatedAt: new Date() })
+        .where(eq(acquirers.id, acquirerId))
+        .returning();
+      
+      if (!updatedAcquirer) {
+        return res.status(404).json({ error: "Acquirer not found" });
+      }
+      
+      console.log(`Updated acquirer: ${updatedAcquirer.name} (${updatedAcquirer.code})`);
+      res.json(updatedAcquirer);
+    } catch (error) {
+      console.error('Error updating acquirer:', error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: 'Invalid input data', details: error.errors });
+      }
+      res.status(500).json({ error: 'Failed to update acquirer' });
+    }
+  });
+
+  // Acquirer Application Templates
+  app.get('/api/acquirer-application-templates', dbEnvironmentMiddleware, requireRole(['admin', 'super_admin']), async (req: RequestWithDB, res: Response) => {
+    try {
+      console.log(`Fetching acquirer application templates - Database environment: ${req.dbEnv}`);
+      
+      // Use the dynamic database connection
+      const dbToUse = req.dynamicDB;
+      if (!dbToUse) {
+        return res.status(500).json({ error: "Database connection not available" });
+      }
+      
+      const { acquirerApplicationTemplates, acquirers } = await import("@shared/schema");
+      const { eq } = await import("drizzle-orm");
+      
+      // Get templates with acquirer information
+      const templates = await dbToUse.select({
+        id: acquirerApplicationTemplates.id,
+        acquirerId: acquirerApplicationTemplates.acquirerId,
+        templateName: acquirerApplicationTemplates.templateName,
+        version: acquirerApplicationTemplates.version,
+        isActive: acquirerApplicationTemplates.isActive,
+        fieldConfiguration: acquirerApplicationTemplates.fieldConfiguration,
+        pdfMappingConfiguration: acquirerApplicationTemplates.pdfMappingConfiguration,
+        requiredFields: acquirerApplicationTemplates.requiredFields,
+        conditionalFields: acquirerApplicationTemplates.conditionalFields,
+        createdAt: acquirerApplicationTemplates.createdAt,
+        updatedAt: acquirerApplicationTemplates.updatedAt,
+        acquirer: {
+          id: acquirers.id,
+          name: acquirers.name,
+          displayName: acquirers.displayName,
+          code: acquirers.code
+        }
+      })
+      .from(acquirerApplicationTemplates)
+      .leftJoin(acquirers, eq(acquirerApplicationTemplates.acquirerId, acquirers.id))
+      .orderBy(acquirers.name, acquirerApplicationTemplates.templateName);
+      
+      console.log(`Found ${templates.length} acquirer application templates in ${req.dbEnv} database`);
+      res.json(templates);
+    } catch (error) {
+      console.error('Error fetching acquirer application templates:', error);
+      res.status(500).json({ error: 'Failed to fetch acquirer application templates' });
+    }
+  });
+
+  app.post('/api/acquirer-application-templates', dbEnvironmentMiddleware, requireRole(['admin', 'super_admin']), async (req: RequestWithDB, res: Response) => {
+    try {
+      console.log(`Creating acquirer application template - Database environment: ${req.dbEnv}`);
+      
+      // Use the dynamic database connection
+      const dbToUse = req.dynamicDB;
+      if (!dbToUse) {
+        return res.status(500).json({ error: "Database connection not available" });
+      }
+      
+      // Validate request body
+      const validated = insertAcquirerApplicationTemplateSchema.parse(req.body);
+      
+      const { acquirerApplicationTemplates } = await import("@shared/schema");
+      
+      const [newTemplate] = await dbToUse.insert(acquirerApplicationTemplates).values(validated).returning();
+      
+      console.log(`Created acquirer application template: ${newTemplate.templateName} v${newTemplate.version}`);
+      res.status(201).json(newTemplate);
+    } catch (error) {
+      console.error('Error creating acquirer application template:', error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: 'Invalid input data', details: error.errors });
+      }
+      res.status(500).json({ error: 'Failed to create acquirer application template' });
+    }
+  });
+
+  app.get('/api/acquirer-application-templates/:id', dbEnvironmentMiddleware, requireRole(['admin', 'super_admin']), async (req: RequestWithDB, res: Response) => {
+    try {
+      const templateId = parseInt(req.params.id);
+      console.log(`Fetching acquirer application template ${templateId} - Database environment: ${req.dbEnv}`);
+      
+      // Use the dynamic database connection
+      const dbToUse = req.dynamicDB;
+      if (!dbToUse) {
+        return res.status(500).json({ error: "Database connection not available" });
+      }
+      
+      const { acquirerApplicationTemplates, acquirers } = await import("@shared/schema");
+      const { eq } = await import("drizzle-orm");
+      
+      // Get template with acquirer information
+      const [template] = await dbToUse.select({
+        id: acquirerApplicationTemplates.id,
+        acquirerId: acquirerApplicationTemplates.acquirerId,
+        templateName: acquirerApplicationTemplates.templateName,
+        version: acquirerApplicationTemplates.version,
+        isActive: acquirerApplicationTemplates.isActive,
+        fieldConfiguration: acquirerApplicationTemplates.fieldConfiguration,
+        pdfMappingConfiguration: acquirerApplicationTemplates.pdfMappingConfiguration,
+        requiredFields: acquirerApplicationTemplates.requiredFields,
+        conditionalFields: acquirerApplicationTemplates.conditionalFields,
+        createdAt: acquirerApplicationTemplates.createdAt,
+        updatedAt: acquirerApplicationTemplates.updatedAt,
+        acquirer: {
+          id: acquirers.id,
+          name: acquirers.name,
+          displayName: acquirers.displayName,
+          code: acquirers.code
+        }
+      })
+      .from(acquirerApplicationTemplates)
+      .leftJoin(acquirers, eq(acquirerApplicationTemplates.acquirerId, acquirers.id))
+      .where(eq(acquirerApplicationTemplates.id, templateId))
+      .limit(1);
+      
+      if (!template) {
+        return res.status(404).json({ error: "Acquirer application template not found" });
+      }
+      
+      console.log(`Found acquirer application template: ${template.templateName} v${template.version}`);
+      res.json(template);
+    } catch (error) {
+      console.error('Error fetching acquirer application template:', error);
+      res.status(500).json({ error: 'Failed to fetch acquirer application template' });
+    }
+  });
+
+  app.put('/api/acquirer-application-templates/:id', dbEnvironmentMiddleware, requireRole(['admin', 'super_admin']), async (req: RequestWithDB, res: Response) => {
+    try {
+      const templateId = parseInt(req.params.id);
+      console.log(`Updating acquirer application template ${templateId} - Database environment: ${req.dbEnv}`);
+      
+      // Use the dynamic database connection
+      const dbToUse = req.dynamicDB;
+      if (!dbToUse) {
+        return res.status(500).json({ error: "Database connection not available" });
+      }
+      
+      // Validate request body (excluding id)
+      const updateData = insertAcquirerApplicationTemplateSchema.parse(req.body);
+      
+      const { acquirerApplicationTemplates } = await import("@shared/schema");
+      const { eq } = await import("drizzle-orm");
+      
+      const [updatedTemplate] = await dbToUse.update(acquirerApplicationTemplates)
+        .set({ ...updateData, updatedAt: new Date() })
+        .where(eq(acquirerApplicationTemplates.id, templateId))
+        .returning();
+      
+      if (!updatedTemplate) {
+        return res.status(404).json({ error: "Acquirer application template not found" });
+      }
+      
+      console.log(`Updated acquirer application template: ${updatedTemplate.templateName} v${updatedTemplate.version}`);
+      res.json(updatedTemplate);
+    } catch (error) {
+      console.error('Error updating acquirer application template:', error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: 'Invalid input data', details: error.errors });
+      }
+      res.status(500).json({ error: 'Failed to update acquirer application template' });
+    }
+  });
+
+  // Prospect Applications
+  app.get('/api/prospect-applications', dbEnvironmentMiddleware, requireRole(['admin', 'super_admin', 'agent']), async (req: RequestWithDB, res: Response) => {
+    try {
+      console.log(`Fetching prospect applications - Database environment: ${req.dbEnv}`);
+      
+      // Use the dynamic database connection
+      const dbToUse = req.dynamicDB;
+      if (!dbToUse) {
+        return res.status(500).json({ error: "Database connection not available" });
+      }
+      
+      const { prospectApplications, merchantProspects, acquirers, acquirerApplicationTemplates } = await import("@shared/schema");
+      const { eq } = await import("drizzle-orm");
+      
+      // Get prospect applications with related data
+      const applications = await dbToUse.select({
+        id: prospectApplications.id,
+        prospectId: prospectApplications.prospectId,
+        acquirerId: prospectApplications.acquirerId,
+        templateId: prospectApplications.templateId,
+        templateVersion: prospectApplications.templateVersion,
+        status: prospectApplications.status,
+        applicationData: prospectApplications.applicationData,
+        submittedAt: prospectApplications.submittedAt,
+        approvedAt: prospectApplications.approvedAt,
+        rejectedAt: prospectApplications.rejectedAt,
+        rejectionReason: prospectApplications.rejectionReason,
+        generatedPdfPath: prospectApplications.generatedPdfPath,
+        createdAt: prospectApplications.createdAt,
+        updatedAt: prospectApplications.updatedAt,
+        prospect: {
+          id: merchantProspects.id,
+          businessName: merchantProspects.businessName,
+          contactFirstName: merchantProspects.contactFirstName,
+          contactLastName: merchantProspects.contactLastName,
+          status: merchantProspects.status
+        },
+        acquirer: {
+          id: acquirers.id,
+          name: acquirers.name,
+          displayName: acquirers.displayName,
+          code: acquirers.code
+        },
+        template: {
+          id: acquirerApplicationTemplates.id,
+          templateName: acquirerApplicationTemplates.templateName,
+          version: acquirerApplicationTemplates.version
+        }
+      })
+      .from(prospectApplications)
+      .leftJoin(merchantProspects, eq(prospectApplications.prospectId, merchantProspects.id))
+      .leftJoin(acquirers, eq(prospectApplications.acquirerId, acquirers.id))
+      .leftJoin(acquirerApplicationTemplates, eq(prospectApplications.templateId, acquirerApplicationTemplates.id))
+      .orderBy(prospectApplications.createdAt);
+      
+      console.log(`Found ${applications.length} prospect applications in ${req.dbEnv} database`);
+      res.json(applications);
+    } catch (error) {
+      console.error('Error fetching prospect applications:', error);
+      res.status(500).json({ error: 'Failed to fetch prospect applications' });
+    }
+  });
+
+  app.post('/api/prospect-applications', dbEnvironmentMiddleware, requireRole(['admin', 'super_admin', 'agent']), async (req: RequestWithDB, res: Response) => {
+    try {
+      console.log(`Creating prospect application - Database environment: ${req.dbEnv}`);
+      
+      // Use the dynamic database connection
+      const dbToUse = req.dynamicDB;
+      if (!dbToUse) {
+        return res.status(500).json({ error: "Database connection not available" });
+      }
+      
+      // Validate request body
+      const validated = insertProspectApplicationSchema.parse(req.body);
+      
+      const { prospectApplications } = await import("@shared/schema");
+      
+      const [newApplication] = await dbToUse.insert(prospectApplications).values(validated).returning();
+      
+      console.log(`Created prospect application for prospect ${newApplication.prospectId}`);
+      res.status(201).json(newApplication);
+    } catch (error) {
+      console.error('Error creating prospect application:', error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: 'Invalid input data', details: error.errors });
+      }
+      res.status(500).json({ error: 'Failed to create prospect application' });
+    }
+  });
+
+  app.get('/api/prospect-applications/:id', dbEnvironmentMiddleware, requireRole(['admin', 'super_admin', 'agent']), async (req: RequestWithDB, res: Response) => {
+    try {
+      const applicationId = parseInt(req.params.id);
+      console.log(`Fetching prospect application ${applicationId} - Database environment: ${req.dbEnv}`);
+      
+      // Use the dynamic database connection
+      const dbToUse = req.dynamicDB;
+      if (!dbToUse) {
+        return res.status(500).json({ error: "Database connection not available" });
+      }
+      
+      const { prospectApplications, merchantProspects, acquirers, acquirerApplicationTemplates } = await import("@shared/schema");
+      const { eq } = await import("drizzle-orm");
+      
+      // Get prospect application with full related data
+      const [application] = await dbToUse.select({
+        id: prospectApplications.id,
+        prospectId: prospectApplications.prospectId,
+        acquirerId: prospectApplications.acquirerId,
+        templateId: prospectApplications.templateId,
+        templateVersion: prospectApplications.templateVersion,
+        status: prospectApplications.status,
+        applicationData: prospectApplications.applicationData,
+        submittedAt: prospectApplications.submittedAt,
+        approvedAt: prospectApplications.approvedAt,
+        rejectedAt: prospectApplications.rejectedAt,
+        rejectionReason: prospectApplications.rejectionReason,
+        generatedPdfPath: prospectApplications.generatedPdfPath,
+        createdAt: prospectApplications.createdAt,
+        updatedAt: prospectApplications.updatedAt,
+        prospect: {
+          id: merchantProspects.id,
+          businessName: merchantProspects.businessName,
+          contactFirstName: merchantProspects.contactFirstName,
+          contactLastName: merchantProspects.contactLastName,
+          contactEmail: merchantProspects.contactEmail,
+          contactPhone: merchantProspects.contactPhone,
+          status: merchantProspects.status
+        },
+        acquirer: {
+          id: acquirers.id,
+          name: acquirers.name,
+          displayName: acquirers.displayName,
+          code: acquirers.code
+        },
+        template: {
+          id: acquirerApplicationTemplates.id,
+          templateName: acquirerApplicationTemplates.templateName,
+          version: acquirerApplicationTemplates.version,
+          fieldConfiguration: acquirerApplicationTemplates.fieldConfiguration,
+          requiredFields: acquirerApplicationTemplates.requiredFields,
+          conditionalFields: acquirerApplicationTemplates.conditionalFields
+        }
+      })
+      .from(prospectApplications)
+      .leftJoin(merchantProspects, eq(prospectApplications.prospectId, merchantProspects.id))
+      .leftJoin(acquirers, eq(prospectApplications.acquirerId, acquirers.id))
+      .leftJoin(acquirerApplicationTemplates, eq(prospectApplications.templateId, acquirerApplicationTemplates.id))
+      .where(eq(prospectApplications.id, applicationId))
+      .limit(1);
+      
+      if (!application) {
+        return res.status(404).json({ error: "Prospect application not found" });
+      }
+      
+      console.log(`Found prospect application: ${application.id} for prospect ${application.prospect?.businessName}`);
+      res.json(application);
+    } catch (error) {
+      console.error('Error fetching prospect application:', error);
+      res.status(500).json({ error: 'Failed to fetch prospect application' });
+    }
+  });
+
+  app.put('/api/prospect-applications/:id', dbEnvironmentMiddleware, requireRole(['admin', 'super_admin', 'agent']), async (req: RequestWithDB, res: Response) => {
+    try {
+      const applicationId = parseInt(req.params.id);
+      console.log(`Updating prospect application ${applicationId} - Database environment: ${req.dbEnv}`);
+      
+      // Use the dynamic database connection
+      const dbToUse = req.dynamicDB;
+      if (!dbToUse) {
+        return res.status(500).json({ error: "Database connection not available" });
+      }
+      
+      // Validate request body (excluding id)
+      const updateData = insertProspectApplicationSchema.parse(req.body);
+      
+      const { prospectApplications } = await import("@shared/schema");
+      const { eq } = await import("drizzle-orm");
+      
+      const [updatedApplication] = await dbToUse.update(prospectApplications)
+        .set({ ...updateData, updatedAt: new Date() })
+        .where(eq(prospectApplications.id, applicationId))
+        .returning();
+      
+      if (!updatedApplication) {
+        return res.status(404).json({ error: "Prospect application not found" });
+      }
+      
+      console.log(`Updated prospect application: ${updatedApplication.id}`);
+      res.json(updatedApplication);
+    } catch (error) {
+      console.error('Error updating prospect application:', error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: 'Invalid input data', details: error.errors });
+      }
+      res.status(500).json({ error: 'Failed to update prospect application' });
+    }
+  });
 
   // Fee Items API endpoints
   app.get('/api/fee-items', dbEnvironmentMiddleware, requireRole(['admin', 'super_admin']), async (req: RequestWithDB, res: Response) => {

@@ -708,6 +708,55 @@ export const equipmentItems = pgTable("equipment_items", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
+// Acquirers table - payment processors that require different application forms
+export const acquirers = pgTable("acquirers", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull().unique(), // "Wells Fargo", "Merrick Bank", "Esquire Bank"
+  displayName: text("display_name").notNull(), // User-friendly display name
+  code: text("code").notNull().unique(), // Short code for internal use: "WF", "MB", "EB"
+  description: text("description"),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// Acquirer Application Templates - store dynamic form configurations for each acquirer
+export const acquirerApplicationTemplates = pgTable("acquirer_application_templates", {
+  id: serial("id").primaryKey(),
+  acquirerId: integer("acquirer_id").notNull().references(() => acquirers.id, { onDelete: "cascade" }),
+  templateName: text("template_name").notNull(), // "Standard Application", "Expedited Application"
+  version: text("version").notNull().default("1.0"), // Template versioning
+  isActive: boolean("is_active").notNull().default(true),
+  fieldConfiguration: jsonb("field_configuration").notNull(), // JSON defining form fields, validation, sections
+  pdfMappingConfiguration: jsonb("pdf_mapping_configuration"), // JSON mapping form fields to PDF positions
+  requiredFields: text("required_fields").array().notNull().default(sql`ARRAY[]::text[]`), // Array of required field names
+  conditionalFields: jsonb("conditional_fields"), // JSON defining field visibility conditions
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => ({
+  uniqueAcquirerTemplate: unique().on(table.acquirerId, table.templateName, table.version),
+}));
+
+// Prospect Applications - store acquirer-specific application data
+export const prospectApplications = pgTable("prospect_applications", {
+  id: serial("id").primaryKey(),
+  prospectId: integer("prospect_id").notNull().references(() => merchantProspects.id, { onDelete: "cascade" }),
+  acquirerId: integer("acquirer_id").notNull().references(() => acquirers.id),
+  templateId: integer("template_id").notNull().references(() => acquirerApplicationTemplates.id),
+  templateVersion: text("template_version").notNull(), // Track which template version was used
+  status: text("status").notNull().default("draft"), // draft, in_progress, submitted, approved, rejected
+  applicationData: jsonb("application_data").notNull().default('{}'), // Dynamic form data based on template
+  submittedAt: timestamp("submitted_at"),
+  approvedAt: timestamp("approved_at"),
+  rejectedAt: timestamp("rejected_at"),
+  rejectionReason: text("rejection_reason"),
+  generatedPdfPath: text("generated_pdf_path"), // Path to generated application PDF
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => ({
+  uniqueProspectAcquirer: unique().on(table.prospectId, table.acquirerId),
+}));
+
 // Campaign Equipment junction table - links campaigns to multiple equipment items
 export const campaignEquipment = pgTable("campaign_equipment", {
   id: serial("id").primaryKey(),
@@ -726,7 +775,8 @@ export const campaigns = pgTable("campaigns", {
   name: text("name").notNull(), // Campaign name (not required to be unique)
   description: text("description"),
   pricingTypeId: integer("pricing_type_id").references(() => pricingTypes.id),
-  acquirer: text("acquirer").notNull(), // "Esquire", "Merrick", etc.
+  acquirerId: integer("acquirer_id").notNull().references(() => acquirers.id), // Reference to acquirers table
+  acquirer: text("acquirer"), // Deprecated - kept for backward compatibility, use acquirerId instead
   currency: text("currency").notNull().default("USD"),
   equipment: text("equipment"), // Deprecated - use campaignEquipment junction table instead
   isActive: boolean("is_active").notNull().default(true),
@@ -824,6 +874,25 @@ export const insertCampaignEquipmentSchema = createInsertSchema(campaignEquipmen
   createdAt: true,
 });
 
+// Acquirer management insert schemas
+export const insertAcquirerSchema = createInsertSchema(acquirers).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertAcquirerApplicationTemplateSchema = createInsertSchema(acquirerApplicationTemplates).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertProspectApplicationSchema = createInsertSchema(prospectApplications).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 // Equipment management types
 export type EquipmentItem = typeof equipmentItems.$inferSelect;
 export type InsertEquipmentItem = z.infer<typeof insertEquipmentItemSchema>;
@@ -849,6 +918,29 @@ export type CampaignFeeValue = typeof campaignFeeValues.$inferSelect;
 export type InsertCampaignFeeValue = z.infer<typeof insertCampaignFeeValueSchema>;
 export type CampaignAssignment = typeof campaignAssignments.$inferSelect;
 export type InsertCampaignAssignment = z.infer<typeof insertCampaignAssignmentSchema>;
+
+// Acquirer management types
+export type Acquirer = typeof acquirers.$inferSelect;
+export type InsertAcquirer = z.infer<typeof insertAcquirerSchema>;
+export type AcquirerApplicationTemplate = typeof acquirerApplicationTemplates.$inferSelect;
+export type InsertAcquirerApplicationTemplate = z.infer<typeof insertAcquirerApplicationTemplateSchema>;
+export type ProspectApplication = typeof prospectApplications.$inferSelect;
+export type InsertProspectApplication = z.infer<typeof insertProspectApplicationSchema>;
+
+// Extended types for acquirer management
+export type AcquirerWithTemplates = Acquirer & {
+  templates: AcquirerApplicationTemplate[];
+};
+
+export type CampaignWithAcquirer = Campaign & {
+  acquirer: Acquirer;
+};
+
+export type ProspectApplicationWithDetails = ProspectApplication & {
+  prospect: MerchantProspect;
+  acquirer: Acquirer;
+  template: AcquirerApplicationTemplate;
+};
 
 // Extended types for campaign management with hierarchical structure
 export type FeeItemWithGroup = FeeItem & {
