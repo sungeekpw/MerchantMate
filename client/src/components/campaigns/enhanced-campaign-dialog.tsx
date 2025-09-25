@@ -62,7 +62,15 @@ interface Campaign {
   id: number;
   name: string;
   description?: string;
-  acquirer: string;
+  acquirerId: number;
+  acquirer: {
+    id: number;
+    name: string;
+    displayName: string;
+    code: string;
+    description?: string;
+    isActive: boolean;
+  };
   pricingType: {
     id: number;
     name: string;
@@ -94,7 +102,7 @@ export function EnhancedCampaignDialog({
   const [formData, setFormData] = useState({
     name: '',
     description: '',
-    acquirer: '',
+    acquirerId: null as number | null,
     equipment: '',
     currency: 'USD',
     pricingTypeId: null as number | null,
@@ -113,6 +121,18 @@ export function EnhancedCampaignDialog({
         credentials: 'include'
       });
       if (!response.ok) throw new Error('Failed to fetch pricing types');
+      return response.json();
+    },
+  });
+
+  // Get acquirers for dropdown
+  const { data: acquirers = [], isLoading: acquirersLoading } = useQuery({
+    queryKey: ['/api/acquirers'],
+    queryFn: async () => {
+      const response = await fetch('/api/acquirers', {
+        credentials: 'include'
+      });
+      if (!response.ok) throw new Error('Failed to fetch acquirers');
       return response.json();
     },
   });
@@ -219,7 +239,7 @@ export function EnhancedCampaignDialog({
     setFormData({
       name: '',
       description: '',
-      acquirer: '',
+      acquirerId: null,
       equipment: '',
       currency: 'USD',
       pricingTypeId: null,
@@ -265,7 +285,7 @@ export function EnhancedCampaignDialog({
       newErrors.pricingType = 'Pricing type is required';
     }
     
-    if (!formData.acquirer) {
+    if (!formData.acquirerId) {
       newErrors.acquirer = 'Acquirer is required';
     }
 
@@ -305,7 +325,7 @@ export function EnhancedCampaignDialog({
       setFormData({
         name: editCampaignData.name,
         description: editCampaignData.description || '',
-        acquirer: editCampaignData.acquirer,
+        acquirerId: editCampaignData.acquirer?.id || editCampaignData.acquirerId || null,
         equipment: '',
         currency: 'USD',
         pricingTypeId: editCampaignData.pricingType?.id || null,
@@ -414,6 +434,25 @@ export function EnhancedCampaignDialog({
                   </p>
                 </div>
                 
+                <div>
+                  <Label htmlFor="acquirer">Acquirer *</Label>
+                  <Select value={formData.acquirerId?.toString() || ''} onValueChange={(value) => setFormData(prev => ({ ...prev, acquirerId: parseInt(value) }))}>
+                    <SelectTrigger className={errors.acquirer ? 'border-destructive' : ''}>
+                      <SelectValue placeholder="Select acquirer" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {acquirers.map((acquirer) => (
+                        <SelectItem key={acquirer.id} value={acquirer.id.toString()}>
+                          {acquirer.displayName}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {errors.acquirer && (
+                    <p className="text-sm text-destructive mt-1">{errors.acquirer}</p>
+                  )}
+                </div>
+
                 <div>
                   <Label htmlFor="pricingType">Pricing Type *</Label>
                   <Select value={formData.pricingTypeId?.toString() || ''} onValueChange={handlePricingTypeChange}>
