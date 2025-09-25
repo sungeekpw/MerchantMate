@@ -117,7 +117,7 @@ export default function CampaignView() {
             </div>
             <div>
               <label className="text-sm font-medium text-muted-foreground">Acquirer</label>
-              <p data-testid="text-campaign-acquirer">{campaign.acquirer}</p>
+              <p data-testid="text-campaign-acquirer">{campaign.acquirer?.displayName || campaign.acquirer?.name || 'N/A'}</p>
             </div>
             <div>
               <label className="text-sm font-medium text-muted-foreground">Currency</label>
