@@ -1226,6 +1226,34 @@ function ApplicationsManagementDialog({
     }
   });
 
+  const generatePdfMutation = useMutation({
+    mutationFn: async (applicationId: number) => {
+      const response = await fetch(`/api/prospect-applications/${applicationId}/generate-pdf`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" }
+      });
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to generate PDF');
+      }
+      return response.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/prospect-applications"] });
+      toast({
+        title: "Success",
+        description: "PDF generated successfully",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to generate PDF",
+        variant: "destructive",
+      });
+    }
+  });
+
   // Get workflow actions for current application status
   const getWorkflowActions = (application: ProspectApplicationWithDetails) => {
     const actions = [];
@@ -1408,14 +1436,29 @@ function ApplicationsManagementDialog({
                                 disabled={startApplicationMutation.isPending || 
                                          submitApplicationMutation.isPending || 
                                          approveApplicationMutation.isPending || 
-                                         rejectApplicationMutation.isPending}
+                                         rejectApplicationMutation.isPending ||
+                                         generatePdfMutation.isPending}
                               >
                                 <IconComponent className="w-4 h-4" />
                               </Button>
                             );
                           })}
                           
-                          {/* PDF Download Button */}
+                          {/* PDF Generation Button - Show for applications without PDF */}
+                          {!application.generatedPdfPath && application.status !== 'draft' && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => generatePdfMutation.mutate(application.id)}
+                              title="Generate PDF"
+                              data-testid={`button-generate-pdf-${application.id}`}
+                              disabled={generatePdfMutation.isPending}
+                            >
+                              <FileText className="w-4 h-4" />
+                            </Button>
+                          )}
+                          
+                          {/* PDF Download Button - Show for applications with PDF */}
                           {application.generatedPdfPath && (
                             <Button
                               variant="ghost"

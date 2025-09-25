@@ -7805,6 +7805,192 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ============================================================================
+  // PDF GENERATION API ENDPOINTS
+  // ============================================================================
+  
+  // Generate PDF for a prospect application
+  app.post('/api/prospect-applications/:id/generate-pdf', dbEnvironmentMiddleware, requireRole(['admin', 'super_admin', 'agent']), async (req: RequestWithDB, res: Response) => {
+    try {
+      const applicationId = parseInt(req.params.id);
+      console.log(`Generating PDF for prospect application ${applicationId} - Database environment: ${req.dbEnv}`);
+      
+      const dbToUse = req.dynamicDB;
+      if (!dbToUse) {
+        return res.status(500).json({ error: "Database connection not available" });
+      }
+      
+      const { prospectApplications, merchantProspects, agents, acquirers, acquirerApplicationTemplates } = await import("@shared/schema");
+      const { eq } = await import("drizzle-orm");
+      
+      // Get the complete application data with all relationships
+      const [applicationData] = await dbToUse.select({
+        application: prospectApplications,
+        prospect: merchantProspects,
+        agent: agents,
+        acquirer: acquirers,
+        template: acquirerApplicationTemplates
+      })
+      .from(prospectApplications)
+      .leftJoin(merchantProspects, eq(prospectApplications.prospectId, merchantProspects.id))
+      .leftJoin(agents, eq(merchantProspects.agentId, agents.id))
+      .leftJoin(acquirers, eq(prospectApplications.acquirerId, acquirers.id))
+      .leftJoin(acquirerApplicationTemplates, eq(prospectApplications.templateId, acquirerApplicationTemplates.id))
+      .where(eq(prospectApplications.id, applicationId))
+      .limit(1);
+      
+      if (!applicationData || !applicationData.application) {
+        return res.status(404).json({ error: "Prospect application not found" });
+      }
+      
+      const { application, prospect, agent, acquirer, template } = applicationData;
+      
+      // Check ownership/authorization (same as workflow endpoints)
+      const userRoles = (req.user as any)?.roles || [];
+      const isAdmin = userRoles.some((role: string) => ['admin', 'super_admin'].includes(role));
+      
+      if (!isAdmin) {
+        const currentUserId = req.user?.id;
+        if (!agent || agent.userId !== currentUserId) {
+          console.log(`Access denied: User ${currentUserId} attempted to generate PDF for prospect assigned to agent ${agent?.userId}`);
+          return res.status(403).json({ error: "Access denied. You can only generate PDFs for prospects assigned to you." });
+        }
+      }
+      
+      if (!acquirer || !template) {
+        return res.status(400).json({ error: "Missing acquirer or template information" });
+      }
+      
+      // Generate the PDF using the dynamic PDF generator
+      const { DynamicPDFGenerator } = await import("./dynamicPdfGenerator");
+      const pdfGenerator = new DynamicPDFGenerator();
+      
+      const prospectWithAgent = {
+        ...prospect!,
+        agent: agent
+      };
+      
+      const pdfBuffer = await pdfGenerator.generateApplicationPDF(
+        application,
+        template,
+        prospectWithAgent,
+        acquirer
+      );
+      
+      // Generate filename and save path
+      const filename = `${acquirer.name.replace(/[^a-zA-Z0-9]/g, '_')}_${prospect!.firstName}_${prospect!.lastName}_Application.pdf`;
+      const relativePath = `pdfs/${applicationId}_${Date.now()}.pdf`;
+      const fullPath = `public/${relativePath}`;
+      
+      // Ensure the pdfs directory exists
+      const fs = await import("fs");
+      const path = await import("path");
+      const pdfDir = path.dirname(fullPath);
+      if (!fs.existsSync(pdfDir)) {
+        fs.mkdirSync(pdfDir, { recursive: true });
+      }
+      
+      // Save the PDF file
+      fs.writeFileSync(fullPath, pdfBuffer);
+      
+      // Update the application record with the generated PDF path
+      await dbToUse.update(prospectApplications)
+        .set({ 
+          generatedPdfPath: relativePath,
+          updatedAt: new Date()
+        })
+        .where(eq(prospectApplications.id, applicationId));
+      
+      console.log(`PDF generated successfully for application ${applicationId}: ${relativePath}`);
+      
+      res.json({
+        success: true,
+        filename,
+        pdfPath: relativePath,
+        downloadUrl: `/api/prospect-applications/${applicationId}/download-pdf`
+      });
+      
+    } catch (error) {
+      console.error('PDF generation error:', error);
+      res.status(500).json({ error: 'Failed to generate PDF' });
+    }
+  });
+
+  // Download PDF for a prospect application
+  app.get('/api/prospect-applications/:id/download-pdf', dbEnvironmentMiddleware, requireRole(['admin', 'super_admin', 'agent']), async (req: RequestWithDB, res: Response) => {
+    try {
+      const applicationId = parseInt(req.params.id);
+      console.log(`Downloading PDF for prospect application ${applicationId} - Database environment: ${req.dbEnv}`);
+      
+      const dbToUse = req.dynamicDB;
+      if (!dbToUse) {
+        return res.status(500).json({ error: "Database connection not available" });
+      }
+      
+      const { prospectApplications, merchantProspects, agents, acquirers } = await import("@shared/schema");
+      const { eq } = await import("drizzle-orm");
+      
+      // Get the application with prospect and agent information for ownership check
+      const [applicationData] = await dbToUse.select({
+        application: prospectApplications,
+        prospect: merchantProspects,
+        agent: agents,
+        acquirer: acquirers
+      })
+      .from(prospectApplications)
+      .leftJoin(merchantProspects, eq(prospectApplications.prospectId, merchantProspects.id))
+      .leftJoin(agents, eq(merchantProspects.agentId, agents.id))
+      .leftJoin(acquirers, eq(prospectApplications.acquirerId, acquirers.id))
+      .where(eq(prospectApplications.id, applicationId))
+      .limit(1);
+      
+      if (!applicationData || !applicationData.application) {
+        return res.status(404).json({ error: "Prospect application not found" });
+      }
+      
+      const { application, prospect, agent, acquirer } = applicationData;
+      
+      // Check ownership/authorization
+      const userRoles = (req.user as any)?.roles || [];
+      const isAdmin = userRoles.some((role: string) => ['admin', 'super_admin'].includes(role));
+      
+      if (!isAdmin) {
+        const currentUserId = req.user?.id;
+        if (!agent || agent.userId !== currentUserId) {
+          console.log(`Access denied: User ${currentUserId} attempted to download PDF for prospect assigned to agent ${agent?.userId}`);
+          return res.status(403).json({ error: "Access denied. You can only download PDFs for prospects assigned to you." });
+        }
+      }
+      
+      // Check if PDF exists
+      if (!application.generatedPdfPath) {
+        return res.status(404).json({ error: "PDF not generated yet. Please generate the PDF first." });
+      }
+      
+      const path = await import("path");
+      const fs = await import("fs");
+      const fullPath = path.join(process.cwd(), 'public', application.generatedPdfPath);
+      
+      if (!fs.existsSync(fullPath)) {
+        return res.status(404).json({ error: "PDF file not found. Please regenerate the PDF." });
+      }
+      
+      // Generate download filename
+      const filename = `${acquirer?.name.replace(/[^a-zA-Z0-9]/g, '_') || 'Application'}_${prospect!.firstName}_${prospect!.lastName}_Application.pdf`;
+      
+      // Send the file
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+      res.sendFile(fullPath);
+      
+      console.log(`PDF downloaded successfully for application ${applicationId}`);
+      
+    } catch (error) {
+      console.error('PDF download error:', error);
+      res.status(500).json({ error: 'Failed to download PDF' });
+    }
+  });
+
 
   const httpServer = createServer(app);
   return httpServer;
