@@ -1702,7 +1702,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       let prospects;
       
-      if (user.role === 'agent') {
+      // Get user roles (handle both single role and roles array)
+      const userRoles = user.roles || (user.role ? [user.role] : []);
+      
+      if (userRoles.includes('agent')) {
         // Agents can only see their assigned prospects
         let agent = await storage.getAgentByEmail(user.email);
         
@@ -1722,7 +1725,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         } else {
           prospects = await storage.getMerchantProspectsByAgent(agent.id);
         }
-      } else if (['admin', 'corporate', 'super_admin'].includes(user.role)) {
+      } else if (userRoles.some(role => ['admin', 'corporate', 'super_admin'].includes(role))) {
         // Admins can see all prospects
         if (search) {
           prospects = await storage.searchMerchantProspects(search as string);
