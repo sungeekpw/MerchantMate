@@ -215,7 +215,7 @@ export const users = pgTable("users", {
   phone: varchar("phone").notNull(), // Required phone number
   profileImageUrl: varchar("profile_image_url"),
   communicationPreference: text("communication_preference").notNull().default("email"), // email or sms
-  roles: text("roles").array().notNull().default("{merchant}"), // Array of roles: merchant, agent, admin, corporate, super_admin
+  roles: text("roles").array().notNull().default(sql`ARRAY['merchant']`), // Array of roles: merchant, agent, admin, corporate, super_admin
   status: text("status").notNull().default("active"), // active, suspended, inactive
   permissions: jsonb("permissions").default("{}"),
   lastLoginAt: timestamp("last_login_at"),
@@ -230,6 +230,48 @@ export const users = pgTable("users", {
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
+
+// Companies/Organizations table for business entity management
+export const companies = pgTable("companies", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  businessType: text("business_type"), // corporation, llc, partnership, sole_proprietorship, non_profit
+  email: text("email"),
+  phone: text("phone"),
+  website: text("website"),
+  taxId: varchar("tax_id"), // EIN or Tax ID number
+  address: jsonb("address"), // Store address as JSON object
+  industry: text("industry"),
+  description: text("description"),
+  logoUrl: text("logo_url"),
+  status: text("status").notNull().default("active"), // active, inactive, suspended
+  settings: jsonb("settings").default("{}"), // Company-specific settings
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// Junction table for user-company relationships (many-to-many)
+export const userCompanyAssociations = pgTable("user_company_associations", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  companyId: integer("company_id").notNull().references(() => companies.id, { onDelete: "cascade" }),
+  companyRole: text("company_role").notNull(), // owner, admin, employee, contractor, etc.
+  permissions: jsonb("permissions").default("{}"), // Role-specific permissions within the company
+  title: text("title"), // Job title within the company
+  department: text("department"),
+  isActive: boolean("is_active").notNull().default(true),
+  isPrimary: boolean("is_primary").notNull().default(false), // Is this the user's primary company?
+  startDate: timestamp("start_date"),
+  endDate: timestamp("end_date"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [
+  // Ensure unique user-company combinations
+  unique("unique_user_company").on(table.userId, table.companyId),
+  // Index for faster lookups
+  index("user_company_user_idx").on(table.userId),
+  index("user_company_company_idx").on(table.companyId),
+]);
 
 // Login attempts table for security tracking
 export const loginAttempts = pgTable("login_attempts", {
