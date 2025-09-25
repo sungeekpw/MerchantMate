@@ -55,6 +55,9 @@ export default function Prospects() {
   const { toast } = useToast();
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  
+  // Get user roles for permission checking
+  const userRoles = user?.roles || [];
 
   const { data: prospects = [], isLoading } = useQuery({
     queryKey: ["/api/prospects", searchQuery],
@@ -149,7 +152,7 @@ export default function Prospects() {
 
   // Group prospects by agent for admin users
   const agentProspectSummaries: AgentProspectSummary[] = (() => {
-    if (user?.role !== 'super_admin' && user?.role !== 'admin' && user?.role !== 'corporate') {
+    if (!userRoles.some(role => ['super_admin', 'admin', 'corporate'].includes(role))) {
       return [];
     }
 
@@ -297,7 +300,7 @@ export default function Prospects() {
           </div>
 
           {/* Agent-based hierarchical view for admin users */}
-          {(user?.role === 'super_admin' || user?.role === 'admin' || user?.role === 'corporate') ? (
+          {userRoles.some(role => ['super_admin', 'admin', 'corporate'].includes(role)) ? (
             <div className="space-y-4">
               {isLoading ? (
                 Array.from({ length: 3 }).map((_, i) => (
@@ -647,7 +650,8 @@ function ProspectModal({ isOpen, onClose, prospect }: ProspectModalProps) {
   const { user } = useAuth();
 
   // Agent role detection and display logic
-  const isAgent = user?.role === 'agent';
+  const userRoles = user?.roles || [];
+  const isAgent = userRoles.includes('agent');
   const agentDefaultId = isAgent ? 2 : 1; // Use agent ID 2 for Mike Chen
   const agentDisplayValue = isAgent && user ? `${user.firstName} ${user.lastName} (${user.email})` : '';
 
@@ -922,31 +926,6 @@ function ProspectModal({ isOpen, onClose, prospect }: ProspectModalProps) {
               )}
             />
 
-            <FormField
-              control={form.control}
-              name="status"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Status</FormLabel>
-                  <Select value={field.value} onValueChange={field.onChange}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select status" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <SelectItem value="pending">Pending</SelectItem>
-                      <SelectItem value="contacted">Contacted</SelectItem>
-                      <SelectItem value="in_progress">In Progress</SelectItem>
-                      <SelectItem value="applied">Applied</SelectItem>
-                      <SelectItem value="approved">Approved</SelectItem>
-                      <SelectItem value="rejected">Rejected</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
 
             <FormField
               control={form.control}
