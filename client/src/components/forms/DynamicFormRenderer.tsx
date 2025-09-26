@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
 import { AlertCircle, Eye, EyeOff } from 'lucide-react';
+import { MCCAutocompleteInput } from './MCCAutocompleteInput';
 
 // Types for field configuration
 interface FieldConfig {
@@ -306,7 +307,20 @@ export default function DynamicFormRenderer({
               )}
             </FormLabel>
             <FormControl>
-              {field.type === 'select' ? (
+              {field.id === 'businessDescription' ? (
+                <MCCAutocompleteInput
+                  value={formField.value || ''}
+                  onChange={formField.onChange}
+                  placeholder={field.placeholder || `Enter ${field.label.toLowerCase()}`}
+                  dataTestId={testId}
+                  onMCCSelect={(mccCode) => {
+                    // Store the selected MCC code in the form data for later use
+                    const currentData = form.getValues();
+                    form.setValue('selectedMCC', mccCode.mcc);
+                    form.setValue('selectedMCCDescription', mccCode.description);
+                  }}
+                />
+              ) : field.type === 'select' ? (
                 <Select
                   onValueChange={formField.onChange}
                   value={formField.value || ''}
