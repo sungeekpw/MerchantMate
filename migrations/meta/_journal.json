@@ -29,6 +29,13 @@
       "when": 1758859022647,
       "tag": "0002_1_create_multi_acquirer_tables",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1758862622647,
+      "tag": "0006_fix_remaining_schema_differences",
+      "breakpoints": true
     }
   ]
 }
