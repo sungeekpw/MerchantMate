@@ -8003,6 +8003,66 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // MCC (Merchant Category Code) API endpoints
+  app.get('/api/mcc/search', async (req: RequestWithDB, res) => {
+    try {
+      const { q } = req.query;
+      if (!q || typeof q !== 'string') {
+        return res.status(400).json({ message: 'Query parameter q is required' });
+      }
+
+      const mcc = await import('mcc');
+      const query = q.toLowerCase().trim();
+      
+      // Get all MCC codes and search through descriptions
+      const allMCCs = mcc.all || [];
+      const suggestions = allMCCs
+        .filter((code: any) => {
+          const description = (code.edited_description || code.description || '').toLowerCase();
+          const combined = (code.combined_description || '').toLowerCase();
+          return description.includes(query) || combined.includes(query);
+        })
+        .slice(0, 10) // Limit to 10 suggestions
+        .map((code: any) => ({
+          mcc: code.mcc,
+          description: code.edited_description || code.description,
+          category: code.combined_description,
+          irs_description: code.irs_description
+        }));
+
+      res.json({ suggestions });
+    } catch (error) {
+      console.error('MCC search error:', error);
+      res.status(500).json({ message: 'Failed to search MCC codes' });
+    }
+  });
+
+  // Get specific MCC code details
+  app.get('/api/mcc/:code', async (req: RequestWithDB, res) => {
+    try {
+      const { code } = req.params;
+      if (!code) {
+        return res.status(400).json({ message: 'MCC code is required' });
+      }
+
+      const mcc = await import('mcc');
+      const mccData = mcc.get(code);
+      
+      if (!mccData) {
+        return res.status(404).json({ message: 'MCC code not found' });
+      }
+
+      res.json({
+        mcc: mccData.mcc,
+        description: mccData.edited_description || mccData.description,
+        category: mccData.combined_description,
+        irs_description: mccData.irs_description
+      });
+    } catch (error) {
+      console.error('MCC lookup error:', error);
+      res.status(500).json({ message: 'Failed to lookup MCC code' });
+    }
+  });
 
   const httpServer = createServer(app);
   return httpServer;
