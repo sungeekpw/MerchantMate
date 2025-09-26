@@ -1858,7 +1858,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/prospects/:id/resend-invitation", requireRole(['agent', 'admin', 'corporate', 'super_admin']), async (req, res) => {
+  app.post("/api/prospects/:id/resend-invitation", requireRole(['agent', 'admin', 'corporate', 'super_admin']), async (req: RequestWithDB, res) => {
     try {
       const { id } = req.params;
       const { emailService } = await import("./emailService");
@@ -1900,6 +1900,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         email: prospect.email,
         validationToken,
         agentName: `${agent.firstName} ${agent.lastName}`,
+        dbEnv: req.dbEnv,
       });
       
       if (emailSent) {
