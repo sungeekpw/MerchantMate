@@ -759,9 +759,11 @@ function EditTemplateDialog({
       templateName: template.templateName,
       version: template.version,
       isActive: template.isActive,
-      fieldConfiguration: template.fieldConfiguration,
-      requiredFields: template.requiredFields,
-      conditionalFields: template.conditionalFields
+      fieldConfiguration: template.fieldConfiguration || {
+        sections: []
+      },
+      requiredFields: template.requiredFields || [],
+      conditionalFields: template.conditionalFields || {}
     }
   });
 
@@ -884,10 +886,19 @@ function EditTemplateDialog({
                 disabled={isLoading}
                 data-testid="button-submit-edit"
                 onClick={(e) => {
-                  console.log('Update Template button clicked', e);
-                  console.log('Form state:', form.formState);
-                  console.log('Form errors:', form.formState.errors);
-                  console.log('Form values:', form.getValues());
+                  console.log('Update Template button clicked');
+                  alert('Button clicked! Check console for details.');
+                  const formValues = form.getValues();
+                  const formErrors = form.formState.errors;
+                  console.log('Form values:', formValues);
+                  console.log('Form errors:', formErrors);
+                  console.log('Form is valid:', form.formState.isValid);
+                  
+                  // Check if there are any validation errors
+                  if (Object.keys(formErrors).length > 0) {
+                    console.error('Form validation errors:', formErrors);
+                    alert('Form has validation errors! Check console.');
+                  }
                 }}
               >
                 {isLoading ? 'Updating...' : 'Update Template'}
@@ -1031,7 +1042,7 @@ function FieldConfigurationDialog({
 
   const removeSection = (index: number) => {
     if (confirm('Are you sure you want to remove this section and all its fields?')) {
-      const newSections = sections.filter((_, i) => i !== index);
+      const newSections = sections.filter((_: any, i: number) => i !== index);
       setSections(newSections);
     }
   };
