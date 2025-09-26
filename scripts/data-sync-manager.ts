@@ -218,6 +218,16 @@ class DataSyncManager {
         await pool.query('BEGIN');
       }
       
+      // Clear existing data if requested (in reverse dependency order)
+      if (options.clearFirst && !options.dryRun) {
+        console.log(`  🗑️ Clearing existing data (reverse dependency order)...`);
+        const reverseTables = [...tablesToImport].reverse();
+        for (const tableConfig of reverseTables) {
+          await pool.query(`DELETE FROM ${tableConfig.name}`);
+          console.log(`     ✅ Cleared ${tableConfig.name}`);
+        }
+      }
+      
       for (const tableConfig of tablesToImport) {
         const tableData = exportData.tables[tableConfig.name];
         if (!tableData) {
@@ -228,16 +238,17 @@ class DataSyncManager {
         console.log(`  📊 Importing ${tableConfig.name} (${tableData.count} rows)...`);
         
         if (!options.dryRun) {
-          // Clear existing data if requested
-          if (options.clearFirst) {
-            await pool.query(`DELETE FROM ${tableConfig.name}`);
-            console.log(`     🗑️ Cleared existing data`);
-          }
           
           // Import data
           for (const row of tableData.data) {
             const columns = Object.keys(row);
-            const values = Object.values(row);
+            const values = Object.values(row).map((value, index) => {
+              // Handle JSON/JSONB columns - convert objects/arrays to JSON strings
+              if (value !== null && typeof value === 'object') {
+                return JSON.stringify(value);
+              }
+              return value;
+            });
             const placeholders = values.map((_, i) => `$${i + 1}`).join(', ');
             
             if (tableConfig.preserveIds) {
@@ -459,7 +470,9 @@ async function main() {
   }
 }
 
-if (require.main === module) {
+// Run main function when script is executed directly
+const isMainModule = import.meta.url === `file://${process.argv[1]}`;
+if (isMainModule) {
   main();
 }
 
