@@ -36,6 +36,13 @@
       "when": 1758862622647,
       "tag": "0006_fix_remaining_schema_differences",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1758860562749,
+      "tag": "0005_add_merchants_notes_column",
+      "breakpoints": true
     }
   ]
 }
