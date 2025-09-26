@@ -181,7 +181,6 @@ export default function ApplicationTemplatesPage() {
   // Update template mutation
   const updateTemplateMutation = useMutation({
     mutationFn: async ({ id, data }: { id: number; data: TemplateFormData }) => {
-      console.log('updateTemplateMutation called with:', { id, data });
       const response = await fetch(`/api/acquirer-application-templates/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -768,13 +767,12 @@ function EditTemplateDialog({
   });
 
   const handleSubmit = (data: TemplateFormData) => {
-    console.log('EditTemplateDialog handleSubmit called with:', data);
     onSubmit(data);
   };
 
-  // Debug form errors
-  const formErrors = form.formState.errors;
-  console.log('EditTemplateDialog form errors:', formErrors);
+  const handleInvalidSubmit = (errors: any) => {
+    console.error('Form validation failed:', errors);
+  };
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -787,7 +785,7 @@ function EditTemplateDialog({
         </DialogHeader>
 
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
+          <form onSubmit={form.handleSubmit(handleSubmit, handleInvalidSubmit)} className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <FormField
                 control={form.control}
@@ -885,21 +883,6 @@ function EditTemplateDialog({
                 type="submit" 
                 disabled={isLoading}
                 data-testid="button-submit-edit"
-                onClick={(e) => {
-                  console.log('Update Template button clicked');
-                  alert('Button clicked! Check console for details.');
-                  const formValues = form.getValues();
-                  const formErrors = form.formState.errors;
-                  console.log('Form values:', formValues);
-                  console.log('Form errors:', formErrors);
-                  console.log('Form is valid:', form.formState.isValid);
-                  
-                  // Check if there are any validation errors
-                  if (Object.keys(formErrors).length > 0) {
-                    console.error('Form validation errors:', formErrors);
-                    alert('Form has validation errors! Check console.');
-                  }
-                }}
               >
                 {isLoading ? 'Updating...' : 'Update Template'}
               </Button>
