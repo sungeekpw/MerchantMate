@@ -114,12 +114,44 @@ export default function ApplicationTemplatesPage() {
 
   // Create template mutation
   const createTemplateMutation = useMutation({
-    mutationFn: async (data: TemplateFormData) => {
-      const response = await fetch('/api/acquirer-application-templates', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
-      });
+    mutationFn: async (data: TemplateFormData & { pdfFile?: File }) => {
+      let response;
+      
+      if (data.pdfFile) {
+        // Use FormData for PDF upload
+        const formData = new FormData();
+        formData.append('pdf', data.pdfFile);
+        formData.append('templateData', JSON.stringify({
+          acquirerId: data.acquirerId,
+          templateName: data.templateName,
+          version: data.version,
+          isActive: data.isActive,
+          fieldConfiguration: data.fieldConfiguration,
+          requiredFields: data.requiredFields,
+          conditionalFields: data.conditionalFields
+        }));
+        
+        response = await fetch('/api/acquirer-application-templates/upload', {
+          method: 'POST',
+          body: formData,
+          credentials: 'include'
+        });
+      } else {
+        // Regular JSON request for templates without PDF
+        response = await fetch('/api/acquirer-application-templates', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            acquirerId: data.acquirerId,
+            templateName: data.templateName,
+            version: data.version,
+            isActive: data.isActive,
+            fieldConfiguration: data.fieldConfiguration,
+            requiredFields: data.requiredFields,
+            conditionalFields: data.conditionalFields
+          })
+        });
+      }
       
       if (!response.ok) {
         const error = await response.json().catch(() => ({ error: 'Failed to create template' }));
@@ -415,9 +447,12 @@ function CreateTemplateDialog({
   isOpen: boolean;
   onClose: () => void;
   acquirers: Acquirer[];
-  onSubmit: (data: TemplateFormData) => void;
+  onSubmit: (data: TemplateFormData & { pdfFile?: File }) => void;
   isLoading: boolean;
 }) {
+  const [selectedPdfFile, setSelectedPdfFile] = useState<File | null>(null);
+  const { toast } = useToast();
+
   const form = useForm<TemplateFormData>({
     resolver: zodResolver(templateFormSchema),
     defaultValues: {
@@ -454,8 +489,36 @@ function CreateTemplateDialog({
     }
   });
 
+  const handlePdfFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      if (file.type !== 'application/pdf') {
+        toast({
+          title: 'Invalid File Type',
+          description: 'Please select a PDF file.',
+          variant: 'destructive'
+        });
+        return;
+      }
+      if (file.size > 10 * 1024 * 1024) { // 10MB limit
+        toast({
+          title: 'File Too Large',
+          description: 'PDF file must be less than 10MB.',
+          variant: 'destructive'
+        });
+        return;
+      }
+      setSelectedPdfFile(file);
+      // Auto-populate template name from filename if empty
+      if (!form.getValues('templateName')) {
+        const nameWithoutExtension = file.name.replace(/\.pdf$/i, '');
+        form.setValue('templateName', nameWithoutExtension);
+      }
+    }
+  };
+
   const handleSubmit = (data: TemplateFormData) => {
-    onSubmit(data);
+    onSubmit({ ...data, pdfFile: selectedPdfFile || undefined });
   };
 
   return (
@@ -557,6 +620,34 @@ function CreateTemplateDialog({
                   </FormItem>
                 )}
               />
+            </div>
+
+            {/* PDF Upload Section */}
+            <div className="space-y-4">
+              <div className="border rounded-lg p-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <Upload className="h-5 w-5" />
+                  <h3 className="font-medium">PDF Template Upload (Optional)</h3>
+                </div>
+                <p className="text-sm text-muted-foreground mb-3">
+                  Upload a PDF form to automatically generate field configuration. If no PDF is uploaded, a basic template will be created.
+                </p>
+                <div className="space-y-3">
+                  <Input
+                    type="file"
+                    accept=".pdf"
+                    onChange={handlePdfFileSelect}
+                    data-testid="input-pdf-file"
+                    className="file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-primary-foreground hover:file:bg-primary/90"
+                  />
+                  {selectedPdfFile && (
+                    <div className="flex items-center gap-2 text-sm text-green-600">
+                      <CheckCircle className="h-4 w-4" />
+                      Selected: {selectedPdfFile.name} ({(selectedPdfFile.size / 1024 / 1024).toFixed(2)} MB)
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
 
             <div className="flex justify-end gap-2">
