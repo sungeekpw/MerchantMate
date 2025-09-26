@@ -113,6 +113,20 @@ export default function ApplicationTemplatesPage() {
     gcTime: 0
   });
 
+  // Fetch application counts per template
+  const { data: applicationCounts = {} } = useQuery<Record<number, number>>({
+    queryKey: ['/api/acquirer-application-templates/application-counts'],
+    queryFn: async () => {
+      const response = await fetch('/api/acquirer-application-templates/application-counts', {
+        credentials: 'include'
+      });
+      if (!response.ok) throw new Error('Failed to fetch application counts');
+      return response.json();
+    },
+    staleTime: 30000, // Cache for 30 seconds
+    gcTime: 300000 // Keep in cache for 5 minutes
+  });
+
   // Create template mutation
   const createTemplateMutation = useMutation({
     mutationFn: async (data: TemplateFormData & { pdfFile?: File }) => {
@@ -228,6 +242,7 @@ export default function ApplicationTemplatesPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/acquirer-application-templates'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/acquirer-application-templates/application-counts'] });
       toast({
         title: 'Success',
         description: 'Application template deleted successfully'
@@ -374,6 +389,14 @@ export default function ApplicationTemplatesPage() {
               <div className="space-y-2 text-sm text-muted-foreground">
                 <div>Fields: {template.fieldConfiguration?.sections?.reduce((total: number, section: any) => total + section.fields.length, 0) || 0}</div>
                 <div>Required: {template.requiredFields.length}</div>
+                <div className="flex items-center gap-2">
+                  <span>Applications: {applicationCounts[template.id] || 0}</span>
+                  {(applicationCounts[template.id] || 0) > 0 && (
+                    <Badge variant="outline" className="text-xs">
+                      In Use
+                    </Badge>
+                  )}
+                </div>
                 <div>Created: {new Date(template.createdAt).toLocaleDateString()}</div>
               </div>
               
@@ -411,12 +434,24 @@ export default function ApplicationTemplatesPage() {
                     variant="ghost"
                     size="sm"
                     onClick={() => {
+                      const applicationCount = applicationCounts[template.id] || 0;
+                      if (applicationCount > 0) {
+                        toast({
+                          title: 'Cannot Delete Template',
+                          description: `This template has ${applicationCount} application${applicationCount > 1 ? 's' : ''} and cannot be deleted. You must first remove all applications using this template.`,
+                          variant: 'destructive'
+                        });
+                        return;
+                      }
                       if (confirm(`Are you sure you want to delete the template "${template.templateName}"? This action cannot be undone.`)) {
                         deleteTemplateMutation.mutate(template.id);
                       }
                     }}
                     data-testid={`button-delete-template-${template.id}`}
-                    className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                    className={`${(applicationCounts[template.id] || 0) > 0 
+                      ? 'text-gray-400 hover:text-gray-500 hover:bg-gray-50 cursor-not-allowed' 
+                      : 'text-red-600 hover:text-red-700 hover:bg-red-50'}`}
+                    disabled={(applicationCounts[template.id] || 0) > 0}
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>
