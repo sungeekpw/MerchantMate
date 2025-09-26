@@ -82,6 +82,7 @@ export default function ApplicationTemplatesPage() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isViewOpen, setIsViewOpen] = useState(false);
+  const [isFieldConfigOpen, setIsFieldConfigOpen] = useState(false);
   const { toast } = useToast();
 
   // Fetch application templates
@@ -256,6 +257,11 @@ export default function ApplicationTemplatesPage() {
     setIsViewOpen(true);
   };
 
+  const openFieldConfigDialog = (template: AcquirerApplicationTemplate) => {
+    setSelectedTemplate(template);
+    setIsFieldConfigOpen(true);
+  };
+
   const duplicateTemplate = async (template: AcquirerApplicationTemplate) => {
     const duplicateData: TemplateFormData = {
       acquirerId: template.acquirerId,
@@ -375,7 +381,7 @@ export default function ApplicationTemplatesPage() {
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => openEditDialog(template)}
+                    onClick={() => openFieldConfigDialog(template)}
                     data-testid={`button-settings-template-${template.id}`}
                   >
                     <Settings className="h-4 w-4" />
