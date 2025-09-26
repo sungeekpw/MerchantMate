@@ -11,13 +11,37 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Progress } from "@/components/ui/progress";
 import TestingDashboard from "@/components/TestingDashboard";
-import { Trash2, RefreshCw, Database, CheckCircle, X, Server, Shield, ShieldCheck, TestTube, Settings, Play, Pause, BarChart3, FileText, AlertCircle, Clock, Copy, Terminal } from "lucide-react";
+import { Trash2, RefreshCw, Database, CheckCircle, X, Server, Shield, ShieldCheck, TestTube, Settings, Play, Pause, BarChart3, FileText, AlertCircle, Clock, Copy, Terminal, ArrowLeftRight, Download, Upload, Eye, List } from "lucide-react";
 
 interface ResetResult {
   success: boolean;
   cleared: string[];
   counts: Record<string, number>;
   message?: string;
+}
+
+interface DataSyncComparison {
+  table: string;
+  status: 'identical' | 'different';
+  env1Count: number;
+  env2Count: number;
+  difference: number;
+}
+
+interface DataSyncResult {
+  success: boolean;
+  exportName?: string;
+  tables?: number;
+  totalRows?: number;
+  sourceEnvironment?: string;
+  targetEnvironment?: string;
+  importedTables?: Array<{ table: string; rows: number }>;
+  dryRun?: boolean;
+  comparisons?: DataSyncComparison[];
+  env1?: string;
+  env2?: string;
+  output?: string;
+  error?: string;
 }
 
 export default function TestingUtilities() {
@@ -32,6 +56,15 @@ export default function TestingUtilities() {
   const [showAuditModal, setShowAuditModal] = useState(false);
   const [showComparisonModal, setShowComparisonModal] = useState(false);
   const [schemaData, setSchemaData] = useState<any>(null);
+  
+  // Data Sync State
+  const [dataSyncResult, setDataSyncResult] = useState<DataSyncResult | null>(null);
+  const [showDataSyncModal, setShowDataSyncModal] = useState(false);
+  const [selectedSource, setSelectedSource] = useState<string>('development');
+  const [selectedTarget, setSelectedTarget] = useState<string>('test');
+  const [selectedExport, setSelectedExport] = useState<string>('');
+  const [dryRun, setDryRun] = useState(true);
+  const [clearFirst, setClearFirst] = useState(false);
 
   // Helper function to copy text to clipboard
   const copyToClipboard = async (text: string) => {
@@ -117,7 +150,71 @@ export default function TestingUtilities() {
     },
   });
 
+  // Data Sync Queries and Mutations
+  
+  // Get available exports
+  const { data: availableExports, refetch: refetchExports } = useQuery({
+    queryKey: ["/api/testing/data-sync/exports"],
+    queryFn: async () => {
+      const response = await fetch("/api/testing/data-sync/exports", {
+        credentials: "include",
+      });
+      if (!response.ok) throw new Error("Failed to fetch exports");
+      return response.json();
+    },
+  });
 
+  // Compare environments mutation
+  const compareEnvironmentsMutation = useMutation({
+    mutationFn: async ({ env1, env2 }: { env1: string; env2: string }) => {
+      const response = await fetch(`/api/testing/data-sync/compare/${env1}/${env2}`, {
+        credentials: "include",
+      });
+      if (!response.ok) throw new Error("Failed to compare environments");
+      return response.json();
+    },
+    onSuccess: (data) => {
+      setDataSyncResult(data);
+      setShowDataSyncModal(true);
+    },
+  });
+
+  // Export data mutation
+  const exportDataMutation = useMutation({
+    mutationFn: async ({ env, tables }: { env: string; tables?: string[] }) => {
+      const response = await fetch(`/api/testing/data-sync/export/${env}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ tables }),
+      });
+      if (!response.ok) throw new Error("Failed to export data");
+      return response.json();
+    },
+    onSuccess: (data) => {
+      setDataSyncResult(data);
+      setShowDataSyncModal(true);
+      refetchExports();
+    },
+  });
+
+  // Import data mutation
+  const importDataMutation = useMutation({
+    mutationFn: async ({ env, exportName, dryRun, clearFirst }: { env: string; exportName: string; dryRun: boolean; clearFirst: boolean }) => {
+      const response = await fetch(`/api/testing/data-sync/import/${env}/${exportName}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ dryRun, clearFirst }),
+      });
+      if (!response.ok) throw new Error("Failed to import data");
+      return response.json();
+    },
+    onSuccess: (data) => {
+      setDataSyncResult(data);
+      setShowDataSyncModal(true);
+    },
+  });
 
   const handleOptionChange = (option: string, checked: boolean) => {
     setSelectedOptions(prev => ({
@@ -459,6 +556,221 @@ Check console for full details.`);
           </CardContent>
         </Card>
       </div>
+
+      {/* Data Sync Manager */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <ArrowLeftRight className="h-5 w-5" />
+            Lookup Data Synchronization
+          </CardTitle>
+          <CardDescription>
+            Synchronize lookup table data (fee groups, equipment, email templates) between environments.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Tabs defaultValue="compare" className="space-y-4">
+            <TabsList className="grid w-full grid-cols-4">
+              <TabsTrigger value="compare" className="flex items-center gap-2">
+                <Eye className="h-4 w-4" />
+                Compare
+              </TabsTrigger>
+              <TabsTrigger value="export" className="flex items-center gap-2">
+                <Download className="h-4 w-4" />
+                Export
+              </TabsTrigger>
+              <TabsTrigger value="import" className="flex items-center gap-2">
+                <Upload className="h-4 w-4" />
+                Import
+              </TabsTrigger>
+              <TabsTrigger value="exports" className="flex items-center gap-2">
+                <List className="h-4 w-4" />
+                Exports
+              </TabsTrigger>
+            </TabsList>
+
+            {/* Compare Tab */}
+            <TabsContent value="compare" className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-medium">Source Environment</label>
+                  <Select value={selectedSource} onValueChange={setSelectedSource}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="production">Production</SelectItem>
+                      <SelectItem value="development">Development</SelectItem>
+                      <SelectItem value="test">Test</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <label className="text-sm font-medium">Target Environment</label>
+                  <Select value={selectedTarget} onValueChange={setSelectedTarget}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="production">Production</SelectItem>
+                      <SelectItem value="development">Development</SelectItem>
+                      <SelectItem value="test">Test</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <Button
+                onClick={() => compareEnvironmentsMutation.mutate({ env1: selectedSource, env2: selectedTarget })}
+                disabled={compareEnvironmentsMutation.isPending}
+                className="w-full"
+              >
+                {compareEnvironmentsMutation.isPending ? (
+                  <>
+                    <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                    Comparing...
+                  </>
+                ) : (
+                  <>
+                    <Eye className="mr-2 h-4 w-4" />
+                    Compare Data
+                  </>
+                )}
+              </Button>
+            </TabsContent>
+
+            {/* Export Tab */}
+            <TabsContent value="export" className="space-y-4">
+              <div>
+                <label className="text-sm font-medium">Source Environment</label>
+                <Select value={selectedSource} onValueChange={setSelectedSource}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="production">Production</SelectItem>
+                    <SelectItem value="development">Development</SelectItem>
+                    <SelectItem value="test">Test</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <Button
+                onClick={() => exportDataMutation.mutate({ env: selectedSource })}
+                disabled={exportDataMutation.isPending}
+                className="w-full"
+              >
+                {exportDataMutation.isPending ? (
+                  <>
+                    <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                    Exporting...
+                  </>
+                ) : (
+                  <>
+                    <Download className="mr-2 h-4 w-4" />
+                    Export Data
+                  </>
+                )}
+              </Button>
+            </TabsContent>
+
+            {/* Import Tab */}
+            <TabsContent value="import" className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-medium">Target Environment</label>
+                  <Select value={selectedTarget} onValueChange={setSelectedTarget}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="production">Production</SelectItem>
+                      <SelectItem value="development">Development</SelectItem>
+                      <SelectItem value="test">Test</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <label className="text-sm font-medium">Export to Import</label>
+                  <Select value={selectedExport} onValueChange={setSelectedExport}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select export..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {availableExports?.exports?.map((exportName: string) => (
+                        <SelectItem key={exportName} value={exportName}>
+                          {exportName}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              
+              <div className="space-y-3">
+                <div className="flex items-center space-x-2">
+                  <Checkbox id="dry-run" checked={dryRun} onCheckedChange={(checked) => setDryRun(checked as boolean)} />
+                  <label htmlFor="dry-run" className="text-sm font-medium">
+                    Dry Run (Preview changes only)
+                  </label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Checkbox id="clear-first" checked={clearFirst} onCheckedChange={(checked) => setClearFirst(checked as boolean)} />
+                  <label htmlFor="clear-first" className="text-sm font-medium">
+                    Clear existing data first
+                  </label>
+                </div>
+              </div>
+
+              <Button
+                onClick={() => importDataMutation.mutate({ 
+                  env: selectedTarget, 
+                  exportName: selectedExport, 
+                  dryRun, 
+                  clearFirst 
+                })}
+                disabled={importDataMutation.isPending || !selectedExport}
+                className="w-full"
+              >
+                {importDataMutation.isPending ? (
+                  <>
+                    <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                    {dryRun ? 'Previewing...' : 'Importing...'}
+                  </>
+                ) : (
+                  <>
+                    <Upload className="mr-2 h-4 w-4" />
+                    {dryRun ? 'Preview Import' : 'Import Data'}
+                  </>
+                )}
+              </Button>
+            </TabsContent>
+
+            {/* Exports List Tab */}
+            <TabsContent value="exports" className="space-y-4">
+              <div className="space-y-2">
+                <h4 className="font-medium">Available Exports</h4>
+                {availableExports?.exports?.length ? (
+                  <div className="grid gap-2">
+                    {availableExports.exports.map((exportName: string) => (
+                      <div key={exportName} className="flex items-center justify-between p-3 border rounded-lg">
+                        <span className="font-mono text-sm">{exportName}</span>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setSelectedExport(exportName)}
+                        >
+                          Select
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">No exports available</p>
+                )}
+              </div>
+            </TabsContent>
+          </Tabs>
+        </CardContent>
+      </Card>
 
       {/* Result Display */}
       {lastResult && (
@@ -898,6 +1210,107 @@ Check console for full details.`);
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Data Sync Results Modal */}
+      <Dialog open={showDataSyncModal} onOpenChange={setShowDataSyncModal}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <ArrowLeftRight className="h-5 w-5" />
+              Data Sync Results
+            </DialogTitle>
+            <DialogDescription>
+              Results from your data synchronization operation.
+            </DialogDescription>
+          </DialogHeader>
+          
+          {dataSyncResult && (
+            <div className="space-y-4">
+              {/* Operation Summary */}
+              <div className="p-4 bg-muted/50 rounded-lg">
+                <div className="flex items-center justify-between">
+                  <p className="font-medium">
+                    {dataSyncResult.success ? '✅ Operation Successful' : '❌ Operation Failed'}
+                  </p>
+                  {dataSyncResult.dryRun && (
+                    <Badge variant="outline">Dry Run</Badge>
+                  )}
+                </div>
+                {dataSyncResult.error && (
+                  <p className="text-sm text-red-600 mt-2">{dataSyncResult.error}</p>
+                )}
+              </div>
+
+              {/* Export Results */}
+              {dataSyncResult.exportName && (
+                <div>
+                  <h4 className="font-medium mb-2">Export Details</h4>
+                  <div className="space-y-2 text-sm">
+                    <p><strong>Export Name:</strong> {dataSyncResult.exportName}</p>
+                    <p><strong>Source:</strong> {dataSyncResult.sourceEnvironment}</p>
+                    <p><strong>Tables:</strong> {dataSyncResult.tables}</p>
+                    <p><strong>Total Rows:</strong> {dataSyncResult.totalRows}</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Import Results */}
+              {dataSyncResult.importedTables && (
+                <div>
+                  <h4 className="font-medium mb-2">Import Details</h4>
+                  <div className="space-y-2 text-sm">
+                    <p><strong>Target:</strong> {dataSyncResult.targetEnvironment}</p>
+                    <p><strong>Total Rows:</strong> {dataSyncResult.totalRows}</p>
+                    {dataSyncResult.importedTables.length > 0 && (
+                      <div>
+                        <p className="font-medium mt-2">Imported Tables:</p>
+                        <div className="grid gap-2 mt-1">
+                          {dataSyncResult.importedTables.map((table) => (
+                            <div key={table.table} className="flex justify-between items-center p-2 bg-green-50 dark:bg-green-900/20 rounded">
+                              <span>{table.table}</span>
+                              <Badge variant="outline">{table.rows} rows</Badge>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Comparison Results */}
+              {dataSyncResult.comparisons && (
+                <div>
+                  <h4 className="font-medium mb-2">Environment Comparison</h4>
+                  <div className="space-y-2 text-sm">
+                    <p><strong>Comparing:</strong> {dataSyncResult.env1} vs {dataSyncResult.env2}</p>
+                    <div className="grid gap-2 mt-2">
+                      {dataSyncResult.comparisons.map((comp) => (
+                        <div key={comp.table} className="flex justify-between items-center p-2 border rounded">
+                          <span>{comp.table}</span>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs">{comp.env1Count} | {comp.env2Count}</span>
+                            <Badge variant={comp.status === 'identical' ? 'secondary' : 'destructive'}>
+                              {comp.status === 'identical' ? 'Identical' : `Diff: ${comp.difference}`}
+                            </Badge>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex justify-end">
+                <Button onClick={() => setShowDataSyncModal(false)}>
+                  Close
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
         </TabsContent>
       </Tabs>
     </div>
