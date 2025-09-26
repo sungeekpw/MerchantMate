@@ -3777,7 +3777,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           passwordHash,
           firstName: validationResult.data.firstName,
           lastName: validationResult.data.lastName,
-          role: 'agent' as const,
+          roles: ['agent'] as const,
           status: 'active' as const,
           emailVerified: true,
         };
@@ -3797,7 +3797,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             id: user.id,
             username: user.username,
             email: user.email,
-            role: user.role,
+            roles: user.roles,
             temporaryPassword // Include for admin to share with agent
           },
           company: companyId ? { id: companyId, name: companyName } : undefined
