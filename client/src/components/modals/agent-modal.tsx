@@ -83,7 +83,7 @@ export function AgentModal({ isOpen, onClose, agent }: AgentModalProps) {
       phone: agent?.phone || "",
       territory: agent?.territory || "",
       commissionRate: agent?.commissionRate || "5.00",
-      status: agent?.status || "active",
+      status: (agent?.status as "active" | "inactive") || "active",
       // Company defaults
       createCompany: false,
       companyName: "",
@@ -157,9 +157,12 @@ export function AgentModal({ isOpen, onClose, agent }: AgentModalProps) {
 
   const onSubmit = (data: AgentFormData) => {
     if (agent) {
-      updateMutation.mutate(data);
+      // For updates, only send agent data
+      const { createCompany, companyName, companyBusinessType, companyEmail, companyPhone, companyWebsite, companyTaxId, companyIndustry, companyDescription, companyAddress, ...agentData } = data;
+      updateMutation.mutate(agentData);
     } else {
-      createMutation.mutate(data);
+      // For creation, send both agent and company data
+      createMutation.mutate(data as any);
     }
   };
 
