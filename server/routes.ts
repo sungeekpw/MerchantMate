@@ -6591,6 +6591,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get application counts per template
+  app.get('/api/acquirer-application-templates/application-counts', dbEnvironmentMiddleware, requireRole(['admin', 'super_admin']), async (req: RequestWithDB, res: Response) => {
+    try {
+      console.log(`Fetching application counts per template - Database environment: ${req.dbEnv}`);
+      
+      // Use the dynamic database connection
+      const dbToUse = req.dynamicDB;
+      if (!dbToUse) {
+        return res.status(500).json({ error: "Database connection not available" });
+      }
+      
+      const { prospectApplications } = await import("@shared/schema");
+      const { count, sql } = await import("drizzle-orm");
+      
+      // Get application counts grouped by templateId
+      const applicationCounts = await dbToUse
+        .select({
+          templateId: prospectApplications.templateId,
+          applicationCount: count()
+        })
+        .from(prospectApplications)
+        .groupBy(prospectApplications.templateId);
+      
+      // Convert to a map for easy lookup
+      const countsMap = applicationCounts.reduce((acc, item) => {
+        acc[item.templateId] = item.applicationCount;
+        return acc;
+      }, {} as Record<number, number>);
+      
+      console.log(`Found application counts for ${applicationCounts.length} templates`);
+      res.json(countsMap);
+    } catch (error) {
+      console.error('Error fetching application counts:', error);
+      res.status(500).json({ error: 'Failed to fetch application counts' });
+    }
+  });
+
   // Prospect Applications
   app.get('/api/prospect-applications', dbEnvironmentMiddleware, requireRole(['admin', 'super_admin', 'agent']), async (req: RequestWithDB, res: Response) => {
     try {
