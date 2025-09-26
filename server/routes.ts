@@ -6483,6 +6483,113 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // PDF Upload for Application Templates
+  app.post('/api/acquirer-application-templates/upload', dbEnvironmentMiddleware, requireRole(['admin', 'super_admin']), upload.single('pdf'), async (req: any, res: Response) => {
+    try {
+      console.log(`Creating application template from PDF upload - Database environment: ${req.dbEnv}`);
+      
+      if (!req.file) {
+        return res.status(400).json({ error: "No PDF file uploaded" });
+      }
+
+      if (!req.body.templateData) {
+        return res.status(400).json({ error: "Template data is required" });
+      }
+
+      // Use the dynamic database connection
+      const dbToUse = req.dynamicDB;
+      if (!dbToUse) {
+        return res.status(500).json({ error: "Database connection not available" });
+      }
+
+      // Parse template data from JSON
+      const templateData = JSON.parse(req.body.templateData);
+      
+      // Validate template data
+      const { insertAcquirerApplicationTemplateSchema } = await import("@shared/schema");
+      const validatedData = insertAcquirerApplicationTemplateSchema.parse(templateData);
+
+      const { originalname } = req.file;
+      const buffer = req.file.buffer;
+      
+      // Parse the PDF to extract form structure
+      const parseResult = await pdfFormParser.parsePDF(buffer);
+      
+      // Convert PDF fields to template field configuration
+      const fieldConfiguration = {
+        sections: parseResult.sections.map(section => ({
+          id: section.id,
+          title: section.title,
+          description: section.description || '',
+          fields: section.fields.map(field => ({
+            id: field.id,
+            type: field.type,
+            label: field.label,
+            required: field.required || false,
+            placeholder: field.placeholder || '',
+            description: field.description || '',
+            options: field.options || undefined,
+            pattern: field.pattern || undefined,
+            min: field.min || undefined,
+            max: field.max || undefined,
+            sensitive: field.sensitive || false
+          }))
+        }))
+      };
+
+      // Extract required fields from parsed PDF
+      const requiredFields = parseResult.sections
+        .flatMap(section => section.fields)
+        .filter(field => field.required)
+        .map(field => field.id);
+
+      // Create PDF mapping configuration
+      const pdfMappingConfiguration = {
+        originalFileName: originalname,
+        uploadedAt: new Date().toISOString(),
+        totalFields: parseResult.totalFields,
+        sectionsMapping: parseResult.sections.map(section => ({
+          sectionId: section.id,
+          fieldMappings: section.fields.map(field => ({
+            fieldId: field.id,
+            pdfFieldName: field.id,
+            extractionMethod: 'auto'
+          }))
+        }))
+      };
+
+      // Create the application template with PDF-derived configuration
+      const { acquirerApplicationTemplates } = await import("@shared/schema");
+      
+      const templateToCreate = {
+        ...validatedData,
+        fieldConfiguration,
+        pdfMappingConfiguration,
+        requiredFields,
+        conditionalFields: validatedData.conditionalFields || {}
+      };
+
+      const [newTemplate] = await dbToUse.insert(acquirerApplicationTemplates)
+        .values(templateToCreate)
+        .returning();
+
+      console.log(`Created application template from PDF: ${newTemplate.templateName} v${newTemplate.version} with ${parseResult.totalFields} fields`);
+      
+      res.status(201).json({
+        template: newTemplate,
+        derivedFields: parseResult.sections,
+        totalFields: parseResult.totalFields,
+        message: `Successfully created template with ${parseResult.totalFields} fields derived from PDF`
+      });
+    } catch (error: any) {
+      console.error('Error creating application template from PDF:', error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: 'Invalid template data', details: error.errors });
+      }
+      res.status(500).json({ error: 'Failed to create application template from PDF', details: error?.message || 'Unknown error' });
+    }
+  });
+
   // Prospect Applications
   app.get('/api/prospect-applications', dbEnvironmentMiddleware, requireRole(['admin', 'super_admin', 'agent']), async (req: RequestWithDB, res: Response) => {
     try {
