@@ -375,6 +375,7 @@ export default function ApplicationTemplatesPage() {
                   <Button
                     variant="ghost"
                     size="sm"
+                    onClick={() => openEditDialog(template)}
                     data-testid={`button-settings-template-${template.id}`}
                   >
                     <Settings className="h-4 w-4" />
