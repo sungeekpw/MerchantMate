@@ -19,6 +19,7 @@ interface ProspectEmailData {
   email: string;
   validationToken: string;
   agentName: string;
+  dbEnv?: string;
 }
 
 interface SignatureRequestData {
@@ -83,7 +84,10 @@ export class EmailService {
 
   async sendProspectValidationEmail(data: ProspectEmailData): Promise<boolean> {
     try {
-      const validationUrl = `${this.getBaseUrl()}/prospect-validation?token=${data.validationToken}`;
+      let validationUrl = `${this.getBaseUrl()}/prospect-validation?token=${data.validationToken}`;
+      if (data.dbEnv && data.dbEnv !== 'production') {
+        validationUrl += `&db=${data.dbEnv}`;
+      }
       
       const htmlContent = `
         <!DOCTYPE html>
