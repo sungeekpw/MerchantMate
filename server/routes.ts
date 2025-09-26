@@ -1783,9 +1783,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Fetch agent information for email
       const agent = await storage.getAgent(prospect.agentId);
+      console.log(`Email debug - Agent found:`, agent ? `${agent.firstName} ${agent.lastName}` : 'No agent');
+      console.log(`Email debug - Validation token:`, prospect.validationToken ? 'Present' : 'Missing');
       
       // Send validation email if agent information is available
       if (agent && prospect.validationToken) {
+        console.log(`Attempting to send validation email to: ${prospect.email}`);
         const emailSent = await emailService.sendProspectValidationEmail({
           firstName: prospect.firstName,
           lastName: prospect.lastName,
@@ -1795,10 +1798,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
         
         if (emailSent) {
-          console.log(`Validation email sent to prospect: ${prospect.email}`);
+          console.log(`Validation email sent successfully to prospect: ${prospect.email}`);
         } else {
           console.warn(`Failed to send validation email to prospect: ${prospect.email}`);
         }
+      } else {
+        console.warn(`Email not sent - Missing agent: ${!agent}, Missing token: ${!prospect.validationToken}`);
       }
       
       res.status(201).json(prospect);

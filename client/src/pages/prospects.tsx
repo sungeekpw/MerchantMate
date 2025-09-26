@@ -64,10 +64,14 @@ export default function Prospects() {
   const { data: prospects = [], isLoading } = useQuery({
     queryKey: ["/api/prospects", searchQuery],
     queryFn: async () => {
-      const response = await fetch(`/api/prospects${searchQuery ? `?search=${searchQuery}` : ''}`);
+      const response = await fetch(`/api/prospects${searchQuery ? `?search=${searchQuery}` : ''}`, {
+        credentials: 'include'
+      });
       if (!response.ok) throw new Error('Failed to fetch prospects');
       return response.json() as Promise<MerchantProspectWithAgent[]>;
     },
+    staleTime: 0,
+    gcTime: 0
   });
 
   // Fetch prospect applications for all prospects
@@ -835,6 +839,7 @@ function ProspectModal({ isOpen, onClose, prospect }: ProspectModalProps) {
       const response = await fetch("/api/prospects", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: 'include',
         body: JSON.stringify(data),
       });
       
