@@ -468,7 +468,11 @@ export default function ApplicationTemplatesPage() {
           onClose={() => setIsEditOpen(false)}
           template={selectedTemplate}
           acquirers={acquirers}
-          onSubmit={(data) => updateTemplateMutation.mutate({ id: selectedTemplate.id, data })}
+          onSubmit={(data) => {
+            console.log('Edit dialog onSubmit called with:', data);
+            alert('Calling mutation...');
+            updateTemplateMutation.mutate({ id: selectedTemplate.id, data });
+          }}
           isLoading={updateTemplateMutation.isPending}
         />
       )}
@@ -767,6 +771,8 @@ function EditTemplateDialog({
   });
 
   const handleSubmit = (data: TemplateFormData) => {
+    alert('Form is submitting!');
+    console.log('handleSubmit called with data:', data);
     onSubmit(data);
   };
 
