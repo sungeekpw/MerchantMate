@@ -14,70 +14,35 @@ interface HeaderProps {
 
 export function Header({ title, onSearch }: HeaderProps) {
   const [searchQuery, setSearchQuery] = useState("");
-  const [currentDbParam, setCurrentDbParam] = useState<string | null>(null);
   const { user } = useAuth();
   const queryClient = useQueryClient();
   
-  // Watch for URL changes and database environment changes
+  // Global environment system - listen for environment changes
   useEffect(() => {
-    const updateDbParam = () => {
-      const urlParams = new URLSearchParams(window.location.search);
-      let dbParam = urlParams.get('db');
-      
-      // If no URL parameter, check localStorage for persistent environment
-      if (!dbParam) {
-        const storedEnv = localStorage.getItem('selectedDbEnvironment');
-        if (storedEnv && ['test', 'dev'].includes(storedEnv)) {
-          dbParam = storedEnv;
-        }
-      }
-      
-      if (dbParam !== currentDbParam) {
-        setCurrentDbParam(dbParam);
-        // Invalidate the database environment query to force refetch
-        queryClient.invalidateQueries({ queryKey: ['/api/admin/db-environment'] });
-      }
+    const handleEnvChange = (event: CustomEvent) => {
+      // Invalidate all queries when environment changes globally
+      queryClient.invalidateQueries();
     };
     
-    // Listen for custom database environment change events
-    const handleDbEnvChange = (event: CustomEvent) => {
-      const newEnv = event.detail.environment;
-      const dbParam = newEnv === 'default' ? null : newEnv;
-      setCurrentDbParam(dbParam);
-      // Invalidate the database environment query to force refetch
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/db-environment'] });
-    };
-    
-    // Initial check
-    updateDbParam();
-    
-    // Listen for custom events from Testing Utilities
-    window.addEventListener('dbEnvironmentChanged', handleDbEnvChange as EventListener);
-    
-    // Check URL parameters periodically as backup (reduced frequency)
-    const intervalId = setInterval(updateDbParam, 30000);
+    // Listen for global environment change events
+    window.addEventListener('globalEnvironmentChanged', handleEnvChange as EventListener);
     
     return () => {
-      window.removeEventListener('dbEnvironmentChanged', handleDbEnvChange as EventListener);
-      clearInterval(intervalId);
+      window.removeEventListener('globalEnvironmentChanged', handleEnvChange as EventListener);
     };
-  }, [currentDbParam, queryClient]);
+  }, [queryClient]);
   
-  // Fetch current database environment
+  // Fetch global environment status
   const { data: dbEnvironment } = useQuery({
-    queryKey: ['/api/admin/db-environment'],
+    queryKey: ['/api/environment'],
     queryFn: async () => {
-      const url = currentDbParam 
-        ? `/api/admin/db-environment?db=${currentDbParam}`
-        : '/api/admin/db-environment';
-        
-      const response = await fetch(url, {
+      const response = await fetch('/api/environment', {
         credentials: 'include'
       });
-      if (!response.ok) return { environment: 'production', version: '1.0' };
+      if (!response.ok) return { environment: 'production', globalEnvironment: 'production', isProduction: true };
       return response.json();
     },
-    staleTime: 60000, // Cache for 1 minute
+    staleTime: 30000, // Cache for 30 seconds
     gcTime: 300000, // Keep in cache for 5 minutes
     refetchInterval: false, // Disable automatic refetching
     refetchOnWindowFocus: false, // Disable refetch on window focus

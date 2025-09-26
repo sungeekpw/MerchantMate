@@ -102,14 +102,8 @@ export default function Auth() {
         timezone: getUserTimezone()
       };
       
-      // Build URL with database parameter in non-production environments
+      // Global environment system handles database selection automatically
       let url = "/api/auth/login";
-      if (isNonProduction && data.database) {
-        url += `?db=${data.database}`;
-      } else if (isProduction) {
-        // On production domain, force production database
-        url += `?db=production`;
-      }
       
       const response = await fetch(url, {
         method: "POST",
@@ -223,22 +217,15 @@ export default function Auth() {
     resetPasswordMutation.mutate(data);
   };
 
-  // Check URL for reset token and database environment
+  // Check URL for reset token
   useState(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const token = urlParams.get("token");
-    const dbParam = urlParams.get("db");
     
     if (token) {
       setResetToken(token);
       setActiveTab("reset");
       resetPasswordForm.setValue("token", token);
-      
-      // Set database environment if provided in URL
-      if (dbParam && !isProduction) {
-        setSelectedDatabase(dbParam);
-        loginForm.setValue("database", dbParam);
-      }
     }
   });
 
