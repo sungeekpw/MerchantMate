@@ -16,7 +16,7 @@ import { MCCAutocompleteInput } from './MCCAutocompleteInput';
 // Types for field configuration
 interface FieldConfig {
   id: string;
-  type: 'text' | 'email' | 'tel' | 'url' | 'date' | 'number' | 'select' | 'checkbox' | 'textarea';
+  type: 'text' | 'email' | 'tel' | 'url' | 'date' | 'number' | 'select' | 'checkbox' | 'textarea' | 'mcc-select';
   label: string;
   required?: boolean;
   pattern?: string;
@@ -307,7 +307,7 @@ export default function DynamicFormRenderer({
               )}
             </FormLabel>
             <FormControl>
-              {field.id === 'businessDescription' ? (
+              {(field.id === 'businessDescription' || field.type === 'mcc-select') ? (
                 <MCCAutocompleteInput
                   value={formField.value || ''}
                   onChange={formField.onChange}
