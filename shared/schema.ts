@@ -15,6 +15,7 @@ export const merchants = pgTable("merchants", {
   processingFee: decimal("processing_fee", { precision: 5, scale: 2 }).default("2.50").notNull(),
   status: text("status").notNull().default("active"), // active, pending, suspended
   monthlyVolume: decimal("monthly_volume", { precision: 12, scale: 2 }).default("0").notNull(),
+  notes: text("notes"), // Test column for deployment process validation
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
