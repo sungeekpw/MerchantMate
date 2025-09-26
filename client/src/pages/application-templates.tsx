@@ -58,7 +58,7 @@ const templateFormSchema = z.object({
       description: z.string().optional(),
       fields: z.array(z.object({
         id: z.string(),
-        type: z.enum(['text', 'email', 'tel', 'url', 'date', 'number', 'select', 'checkbox', 'textarea', 'radio', 'currency']),
+        type: z.enum(['text', 'email', 'tel', 'url', 'date', 'number', 'select', 'checkbox', 'textarea', 'radio', 'currency', 'zipcode']),
         label: z.string(),
         required: z.boolean().optional(),
         pattern: z.string().optional(),
@@ -1012,7 +1012,8 @@ function FieldConfigurationDialog({
     { value: 'checkbox', label: 'Checkbox' },
     { value: 'textarea', label: 'Textarea' },
     { value: 'radio', label: 'Radio' },
-    { value: 'currency', label: 'Currency' }
+    { value: 'currency', label: 'Currency' },
+    { value: 'zipcode', label: 'US Zip Code' }
   ];
 
   const addSection = () => {
