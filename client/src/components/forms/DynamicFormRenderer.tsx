@@ -16,7 +16,7 @@ import { MCCAutocompleteInput } from './MCCAutocompleteInput';
 // Types for field configuration
 interface FieldConfig {
   id: string;
-  type: 'text' | 'email' | 'tel' | 'url' | 'date' | 'number' | 'select' | 'checkbox' | 'textarea' | 'mcc-select';
+  type: 'text' | 'email' | 'tel' | 'url' | 'date' | 'number' | 'select' | 'checkbox' | 'textarea' | 'mcc-select' | 'zipcode';
   label: string;
   required?: boolean;
   pattern?: string;
@@ -84,6 +84,12 @@ function createDynamicSchema(configuration: FormConfiguration, requiredFields: s
         case 'url':
           fieldSchema = z.string().url('Please enter a valid URL');
           break;
+        case 'zipcode':
+          fieldSchema = z.string().regex(
+            /^\d{5}(-\d{4})?$/,
+            'Please enter a valid US zip code (12345 or 12345-6789)'
+          );
+          break;
         case 'number':
           let numberSchema = z.coerce.number();
           if (field.min !== undefined) {
@@ -108,7 +114,7 @@ function createDynamicSchema(configuration: FormConfiguration, requiredFields: s
       }
 
       // Apply pattern validation if specified
-      if (field.pattern && field.type !== 'number' && field.type !== 'checkbox') {
+      if (field.pattern && field.type !== 'number' && field.type !== 'checkbox' && field.type !== 'zipcode') {
         fieldSchema = (fieldSchema as z.ZodString).regex(
           new RegExp(field.pattern),
           `Please enter a valid ${field.label.toLowerCase()}`
