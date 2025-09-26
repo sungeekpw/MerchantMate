@@ -13,7 +13,11 @@ import multer from "multer";
 import { pdfFormParser } from "./pdfParser";
 import { emailService } from "./emailService";
 import { v4 as uuidv4 } from "uuid";
+// Legacy import kept for gradual migration
 import { dbEnvironmentMiddleware, adminDbMiddleware, getRequestDB, type RequestWithDB } from "./dbMiddleware";
+// New global environment system
+import { globalEnvironmentMiddleware, adminEnvironmentMiddleware, type RequestWithGlobalDB } from "./globalEnvironmentMiddleware";
+import { setupEnvironmentRoutes } from "./environmentRoutes";
 import { getDynamicDatabase } from "./db";
 import { users, agents, merchants, agentMerchants } from "@shared/schema";
 import crypto from "crypto";
@@ -859,6 +863,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Setup authentication routes AFTER session middleware
   setupAuthRoutes(app);
+  
+  // Setup new global environment routes
+  setupEnvironmentRoutes(app);
 
 
 
