@@ -58,7 +58,7 @@ const templateFormSchema = z.object({
       description: z.string().optional(),
       fields: z.array(z.object({
         id: z.string(),
-        type: z.enum(['text', 'email', 'tel', 'url', 'date', 'number', 'select', 'checkbox', 'textarea']),
+        type: z.enum(['text', 'email', 'tel', 'url', 'date', 'number', 'select', 'checkbox', 'textarea', 'radio', 'currency']),
         label: z.string(),
         required: z.boolean().optional(),
         pattern: z.string().optional(),
@@ -468,11 +468,7 @@ export default function ApplicationTemplatesPage() {
           onClose={() => setIsEditOpen(false)}
           template={selectedTemplate}
           acquirers={acquirers}
-          onSubmit={(data) => {
-            console.log('Edit dialog onSubmit called with:', data);
-            alert('Calling mutation...');
-            updateTemplateMutation.mutate({ id: selectedTemplate.id, data });
-          }}
+          onSubmit={(data) => updateTemplateMutation.mutate({ id: selectedTemplate.id, data })}
           isLoading={updateTemplateMutation.isPending}
         />
       )}
@@ -771,14 +767,11 @@ function EditTemplateDialog({
   });
 
   const handleSubmit = (data: TemplateFormData) => {
-    alert('Form is submitting!');
-    console.log('handleSubmit called with data:', data);
     onSubmit(data);
   };
 
   const handleInvalidSubmit = (errors: any) => {
     console.error('Form validation failed:', errors);
-    alert(`Form validation failed! Errors: ${JSON.stringify(errors, null, 2)}`);
   };
 
   return (
@@ -1017,7 +1010,9 @@ function FieldConfigurationDialog({
     { value: 'number', label: 'Number' },
     { value: 'select', label: 'Select' },
     { value: 'checkbox', label: 'Checkbox' },
-    { value: 'textarea', label: 'Textarea' }
+    { value: 'textarea', label: 'Textarea' },
+    { value: 'radio', label: 'Radio' },
+    { value: 'currency', label: 'Currency' }
   ];
 
   const addSection = () => {
