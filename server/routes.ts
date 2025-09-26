@@ -3707,11 +3707,58 @@ export async function registerRoutes(app: Express): Promise<Server> {
     // Use database transaction to ensure ACID compliance
     try {
       const result = await dynamicDB.transaction(async (tx) => {
-        // Remove userId from validation since it's auto-generated
-        const { userId, ...agentData } = req.body;
+        // Extract company data from request
+        const { 
+          userId, 
+          companyName, 
+          companyBusinessType, 
+          companyEmail, 
+          companyPhone, 
+          companyWebsite, 
+          companyTaxId, 
+          companyIndustry, 
+          companyDescription, 
+          companyAddress,
+          ...agentData 
+        } = req.body;
+
+        // Validate agent data (remove userId since it's auto-generated)
         const validationResult = insertAgentSchema.omit({ userId: true }).safeParse(agentData);
         if (!validationResult.success) {
           throw new Error(`Invalid agent data: ${validationResult.error.errors.map(e => e.message).join(', ')}`);
+        }
+
+        let companyId = undefined;
+
+        // Create company if company name is provided
+        if (companyName?.trim()) {
+          console.log(`Creating company: ${companyName}`);
+          
+          // Prepare company data
+          const companyData = {
+            name: companyName.trim(),
+            businessType: companyBusinessType || undefined,
+            email: companyEmail?.trim() || undefined,
+            phone: companyPhone?.trim() || undefined,
+            website: companyWebsite?.trim() || undefined,
+            taxId: companyTaxId?.trim() || undefined,
+            industry: companyIndustry?.trim() || undefined,
+            description: companyDescription?.trim() || undefined,
+            address: companyAddress && (
+              companyAddress.street1?.trim() || 
+              companyAddress.city?.trim() || 
+              companyAddress.state?.trim()
+            ) ? companyAddress : undefined,
+            status: 'active' as const,
+          };
+
+          // Import companies table
+          const { companies } = await import("@shared/schema");
+          
+          // Create company
+          const [company] = await tx.insert(companies).values(companyData).returning();
+          companyId = company.id;
+          console.log(`Company created with ID: ${companyId}`);
         }
 
         // Create user account first within transaction
@@ -3737,10 +3784,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         const [user] = await tx.insert(users).values(userData).returning();
         
-        // Create agent linked to user within transaction
+        // Create agent linked to user and company within transaction
         const [agent] = await tx.insert(agents).values({
           ...validationResult.data,
-          userId: user.id
+          userId: user.id,
+          companyId: companyId
         }).returning();
         
         return {
@@ -3751,11 +3799,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
             email: user.email,
             role: user.role,
             temporaryPassword // Include for admin to share with agent
-          }
+          },
+          company: companyId ? { id: companyId, name: companyName } : undefined
         };
       });
       
       console.log(`Agent created in ${req.dbEnv} database:`, result.agent.firstName, result.agent.lastName);
+      if (result.company) {
+        console.log(`Company created: ${result.company.name} (ID: ${result.company.id})`);
+      }
       res.status(201).json(result);
       
     } catch (error) {
