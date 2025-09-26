@@ -82,6 +82,7 @@
     "jest-environment-jsdom": "^30.0.4",
     "jspdf": "^3.0.1",
     "lucide-react": "^0.453.0",
+    "mcc": "^2.2.0",
     "memoizee": "^0.4.17",
     "memorystore": "^1.6.7",
     "multer": "^2.0.1",
