@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useLocation } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -57,6 +58,7 @@ export default function Prospects() {
   const { toast } = useToast();
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const [, setLocation] = useLocation();
   
   // Get user roles for permission checking
   const userRoles = user?.roles || [];
@@ -1130,11 +1132,18 @@ function ApplicationsManagementDialog({
       }
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: (updatedApplication) => {
       queryClient.invalidateQueries({ queryKey: ["/api/prospect-applications"] });
+      
+      // Find the prospect ID from the application to navigate to the form
+      const application = prospectApplications.find(app => app.id === updatedApplication.id);
+      if (application) {
+        setLocation(`/enhanced-pdf-wizard/${application.prospectId}`);
+      }
+      
       toast({
         title: "Success",
-        description: "Application started successfully",
+        description: "Application started successfully - redirecting to form",
       });
     },
     onError: (error: any) => {
