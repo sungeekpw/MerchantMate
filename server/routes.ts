@@ -1875,24 +1875,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Agent not found" });
       }
 
-      // Send validation email
-      if (prospect.validationToken) {
-        const emailSent = await emailService.sendProspectValidationEmail({
-          firstName: prospect.firstName,
-          lastName: prospect.lastName,
-          email: prospect.email,
-          validationToken: prospect.validationToken,
-          agentName: `${agent.firstName} ${agent.lastName}`,
+      // Generate validation token if one doesn't exist
+      let validationToken = prospect.validationToken;
+      if (!validationToken) {
+        const crypto = await import('crypto');
+        validationToken = crypto.randomUUID();
+        
+        // Update prospect with the new validation token
+        const updatedProspect = await storage.updateMerchantProspect(parseInt(id), {
+          validationToken
         });
         
-        if (emailSent) {
-          console.log(`Validation email resent to prospect: ${prospect.email}`);
-          res.json({ success: true, message: "Invitation email sent successfully" });
-        } else {
-          res.status(500).json({ message: "Failed to send invitation email" });
+        if (!updatedProspect) {
+          return res.status(500).json({ message: "Failed to generate validation token" });
         }
+        
+        console.log(`Generated new validation token for prospect: ${prospect.email}`);
+      }
+
+      // Send validation email
+      const emailSent = await emailService.sendProspectValidationEmail({
+        firstName: prospect.firstName,
+        lastName: prospect.lastName,
+        email: prospect.email,
+        validationToken,
+        agentName: `${agent.firstName} ${agent.lastName}`,
+      });
+      
+      if (emailSent) {
+        console.log(`Validation email sent to prospect: ${prospect.email}`);
+        res.json({ success: true, message: "Invitation email sent successfully" });
       } else {
-        res.status(400).json({ message: "No validation token found for this prospect" });
+        res.status(500).json({ message: "Failed to send invitation email" });
       }
     } catch (error) {
       console.error("Error resending invitation:", error);
