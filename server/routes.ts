@@ -6457,8 +6457,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(500).json({ error: "Database connection not available" });
       }
       
-      // Validate request body (excluding id)
-      const updateData = insertAcquirerApplicationTemplateSchema.parse(req.body);
+      // Validate request body - for updates, make fields optional except for the ones being updated
+      const updateSchema = insertAcquirerApplicationTemplateSchema.partial();
+      const updateData = updateSchema.parse(req.body);
       
       const { acquirerApplicationTemplates } = await import("@shared/schema");
       const { eq } = await import("drizzle-orm");
