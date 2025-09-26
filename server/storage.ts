@@ -2036,7 +2036,18 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getAllMerchantProspects() {
-    return await db.select().from(merchantProspects);
+    const result = await db
+      .select({
+        prospect: merchantProspects,
+        agent: agents,
+      })
+      .from(merchantProspects)
+      .leftJoin(agents, eq(merchantProspects.agentId, agents.id));
+
+    return result.map(row => ({
+      ...row.prospect,
+      agent: row.agent || undefined,
+    }));
   }
 
   async getMerchantProspect(id: number) {
