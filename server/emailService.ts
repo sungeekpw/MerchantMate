@@ -30,6 +30,7 @@ interface SignatureRequestData {
   signatureToken: string;
   requesterName: string;
   agentName: string;
+  dbEnv?: string;
 }
 
 interface ApplicationSubmissionData {
@@ -40,6 +41,7 @@ interface ApplicationSubmissionData {
   agentEmail: string;
   submissionDate: string;
   applicationToken: string;
+  dbEnv?: string;
 }
 
 interface PasswordResetEmailData {
@@ -190,7 +192,10 @@ This is an automated message. Please do not reply to this email.
 
   async sendSignatureRequestEmail(data: SignatureRequestData): Promise<boolean> {
     try {
-      const signatureUrl = `${this.getBaseUrl()}/signature-request?token=${data.signatureToken}`;
+      let signatureUrl = `${this.getBaseUrl()}/signature-request?token=${data.signatureToken}`;
+      if (data.dbEnv && data.dbEnv !== 'production') {
+        signatureUrl += `&db=${data.dbEnv}`;
+      }
       
       const htmlContent = `
         <!DOCTYPE html>
@@ -301,7 +306,10 @@ This email was sent to ${data.ownerEmail}
   async sendApplicationSubmissionNotification(data: ApplicationSubmissionData, pdfAttachment?: Buffer): Promise<boolean> {
     try {
       const baseUrl = this.getBaseUrl();
-      const statusUrl = `${baseUrl}/application-status/${data.applicationToken}`;
+      let statusUrl = `${baseUrl}/application-status/${data.applicationToken}`;
+      if (data.dbEnv && data.dbEnv !== 'production') {
+        statusUrl += `?db=${data.dbEnv}`;
+      }
       
       // Email to merchant with PDF attachment
       const merchantMsg = {
