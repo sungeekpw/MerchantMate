@@ -3149,7 +3149,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           agentName: `${agent.firstName} ${agent.lastName}`,
           agentEmail: agent.email,
           submissionDate,
-          applicationToken: prospect.validationToken || 'unknown'
+          applicationToken: prospect.validationToken || 'unknown',
+          dbEnv: (req as any).dbEnv
         }, pdfBuffer);
       } catch (emailError) {
         console.error('Email notification failed:', emailError);
@@ -3252,7 +3253,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ownershipPercentage,
         signatureToken,
         requesterName,
-        agentName
+        agentName,
+        dbEnv: (req as any).dbEnv
       });
 
       if (success) {
