@@ -27,7 +27,7 @@
       "idx": 3,
       "version": "7",
       "when": 1758859022647,
-      "tag": "0003_create_multi_acquirer_tables",
+      "tag": "0002_1_create_multi_acquirer_tables",
       "breakpoints": true
     }
   ]
