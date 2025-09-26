@@ -181,6 +181,7 @@ export default function ApplicationTemplatesPage() {
   // Update template mutation
   const updateTemplateMutation = useMutation({
     mutationFn: async ({ id, data }: { id: number; data: TemplateFormData }) => {
+      console.log('updateTemplateMutation called with:', { id, data });
       const response = await fetch(`/api/acquirer-application-templates/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -765,8 +766,13 @@ function EditTemplateDialog({
   });
 
   const handleSubmit = (data: TemplateFormData) => {
+    console.log('EditTemplateDialog handleSubmit called with:', data);
     onSubmit(data);
   };
+
+  // Debug form errors
+  const formErrors = form.formState.errors;
+  console.log('EditTemplateDialog form errors:', formErrors);
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -877,6 +883,12 @@ function EditTemplateDialog({
                 type="submit" 
                 disabled={isLoading}
                 data-testid="button-submit-edit"
+                onClick={(e) => {
+                  console.log('Update Template button clicked', e);
+                  console.log('Form state:', form.formState);
+                  console.log('Form errors:', form.formState.errors);
+                  console.log('Form values:', form.getValues());
+                }}
               >
                 {isLoading ? 'Updating...' : 'Update Template'}
               </Button>
