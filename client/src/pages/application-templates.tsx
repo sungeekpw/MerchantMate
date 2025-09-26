@@ -778,6 +778,7 @@ function EditTemplateDialog({
 
   const handleInvalidSubmit = (errors: any) => {
     console.error('Form validation failed:', errors);
+    alert(`Form validation failed! Errors: ${JSON.stringify(errors, null, 2)}`);
   };
 
   return (
