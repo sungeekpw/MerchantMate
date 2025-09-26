@@ -53,7 +53,7 @@ const environments: Environment[] = [
 ];
 
 class MigrationManager {
-  private migrationsDir = path.join(process.cwd(), '../migrations');
+  private migrationsDir = path.join(process.cwd(), 'migrations');
   private schemaBackupsDir = path.join(this.migrationsDir, 'schema-backups');
 
   constructor() {
