@@ -3,7 +3,7 @@
 
 export interface EnhancedFormField {
   fieldName: string;
-  fieldType: 'text' | 'number' | 'date' | 'select' | 'checkbox' | 'textarea' | 'phone' | 'email' | 'url' | 'mcc-select';
+  fieldType: 'text' | 'number' | 'date' | 'select' | 'checkbox' | 'textarea' | 'phone' | 'email' | 'url' | 'mcc-select' | 'zipcode';
   fieldLabel: string;
   isRequired: boolean;
   options?: string[];
