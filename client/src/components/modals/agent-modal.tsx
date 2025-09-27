@@ -179,6 +179,7 @@ export function AgentModal({ isOpen, onClose, agent }: AgentModalProps) {
     },
   });
 
+
   const createMutation = useMutation({
     mutationFn: (data: InsertAgent) => agentsApi.create(data),
     onSuccess: (response: any) => {
@@ -651,6 +652,7 @@ export function AgentModal({ isOpen, onClose, agent }: AgentModalProps) {
                 placeholder="Brief description of the company..."
                 className="resize-none"
                 rows={3}
+                {...field}
                 {...field}
                 data-testid="input-companyDescription"
               />
