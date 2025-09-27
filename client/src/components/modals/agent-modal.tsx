@@ -28,12 +28,14 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { agentsApi } from "@/lib/api";
 import type { Agent, InsertAgent } from "@shared/schema";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Textarea } from "@/components/ui/textarea";
-import { ChevronDown } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { ArrowLeft, ArrowRight, User, Building, UserCheck, CheckCircle } from "lucide-react";
 import { useState } from "react";
+import React from "react";
 
 const agentSchema = z.object({
+  // Agent fields
   firstName: z.string().min(1, "First name is required"),
   lastName: z.string().min(1, "Last name is required"),
   email: z.string().email("Invalid email address"),
@@ -41,9 +43,8 @@ const agentSchema = z.object({
   territory: z.string().optional(),
   commissionRate: z.string().default("5.00"),
   status: z.enum(["active", "inactive"]).default("active"),
-  // Company fields
-  createCompany: z.boolean().default(false),
-  companyName: z.string().optional(),
+  // Company fields (required)
+  companyName: z.string().min(1, "Company name is required"),
   companyBusinessType: z.enum(["corporation", "llc", "partnership", "sole_proprietorship", "non_profit"]).optional(),
   companyEmail: z.string().email().optional().or(z.literal("")),
   companyPhone: z.string().optional(),
@@ -59,6 +60,29 @@ const agentSchema = z.object({
     postalCode: z.string().optional(),
     country: z.string().default("US").optional(),
   }).optional(),
+  // User account fields (optional)
+  createUserAccount: z.boolean().default(false),
+  username: z.string().optional(),
+  password: z.string().optional(),
+  confirmPassword: z.string().optional(),
+  communicationPreference: z.enum(["email", "sms"]).default("email").optional(),
+}).refine((data) => {
+  // If creating user account, validate password fields
+  if (data.createUserAccount) {
+    if (!data.password || data.password.length < 8) {
+      return false;
+    }
+    if (data.password !== data.confirmPassword) {
+      return false;
+    }
+    if (!data.username || data.username.length < 3) {
+      return false;
+    }
+  }
+  return true;
+}, {
+  message: "User account fields are required when creating user account",
+  path: ["createUserAccount"],
 });
 
 type AgentFormData = z.infer<typeof agentSchema>;
@@ -69,10 +93,43 @@ interface AgentModalProps {
   agent?: Agent;
 }
 
+// Wizard sections configuration
+const wizardSections = [
+  {
+    id: "agent",
+    name: "Agent Information",
+    description: "Basic agent details and contact information",
+    icon: User,
+    fields: ["firstName", "lastName", "email", "phone", "territory", "commissionRate", "status"]
+  },
+  {
+    id: "company",
+    name: "Company Information",
+    description: "Company details and business information", 
+    icon: Building,
+    fields: ["companyName", "companyBusinessType", "companyEmail", "companyPhone", "companyWebsite", "companyTaxId", "companyIndustry", "companyDescription"]
+  },
+  {
+    id: "address",
+    name: "Company Address",
+    description: "Physical address for the company",
+    icon: Building,
+    fields: ["companyAddress"]
+  },
+  {
+    id: "user",
+    name: "User Account",
+    description: "Optional login credentials for the agent",
+    icon: UserCheck,
+    fields: ["createUserAccount", "username", "password", "confirmPassword", "communicationPreference"]
+  }
+];
+
 export function AgentModal({ isOpen, onClose, agent }: AgentModalProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [isCompanyOpen, setIsCompanyOpen] = useState(false);
+  const [currentStep, setCurrentStep] = useState(0);
+  const [visitedSections, setVisitedSections] = useState<Set<number>>(new Set([0]));
 
   const form = useForm<AgentFormData>({
     resolver: zodResolver(agentSchema),
@@ -84,8 +141,7 @@ export function AgentModal({ isOpen, onClose, agent }: AgentModalProps) {
       territory: agent?.territory || "",
       commissionRate: agent?.commissionRate || "5.00",
       status: (agent?.status as "active" | "inactive") || "active",
-      // Company defaults
-      createCompany: false,
+      // Company defaults (required)
       companyName: "",
       companyBusinessType: undefined,
       companyEmail: "",
@@ -102,6 +158,12 @@ export function AgentModal({ isOpen, onClose, agent }: AgentModalProps) {
         postalCode: "",
         country: "US",
       },
+      // User account defaults
+      createUserAccount: false,
+      username: "",
+      password: "",
+      confirmPassword: "",
+      communicationPreference: "email",
     },
   });
 
@@ -157,392 +219,605 @@ export function AgentModal({ isOpen, onClose, agent }: AgentModalProps) {
 
   const onSubmit = (data: AgentFormData) => {
     if (agent) {
-      // For updates, only send agent data
-      const { createCompany, companyName, companyBusinessType, companyEmail, companyPhone, companyWebsite, companyTaxId, companyIndustry, companyDescription, companyAddress, ...agentData } = data;
+      // For updates, only send agent data (editing not implemented for wizard yet)
+      const { companyName, companyBusinessType, companyEmail, companyPhone, companyWebsite, companyTaxId, companyIndustry, companyDescription, companyAddress, createUserAccount, username, password, confirmPassword, communicationPreference, ...agentData } = data;
       updateMutation.mutate(agentData);
     } else {
-      // For creation, send both agent and company data
+      // For creation, send all data including company and optional user account
       createMutation.mutate(data as any);
     }
   };
 
+  const handleNext = () => {
+    const nextStep = Math.min(wizardSections.length - 1, currentStep + 1);
+    setVisitedSections(prev => {
+      const newVisited = new Set([...prev]);
+      newVisited.add(currentStep);
+      newVisited.add(nextStep);
+      return newVisited;
+    });
+    setCurrentStep(nextStep);
+  };
+
+  const handlePrevious = () => {
+    const prevStep = Math.max(0, currentStep - 1);
+    setVisitedSections(prev => {
+      const newVisited = new Set([...prev]);
+      newVisited.add(currentStep);
+      return newVisited;
+    });
+    setCurrentStep(prevStep);
+  };
+
+  const navigateToSection = (sectionIndex: number) => {
+    setVisitedSections(prev => {
+      const newVisited = new Set([...prev]);
+      newVisited.add(sectionIndex);
+      return newVisited;
+    });
+    setCurrentStep(sectionIndex);
+  };
+
+  const currentSection = wizardSections[currentStep];
+  const isLastStep = currentStep === wizardSections.length - 1;
+  const createUserAccount = form.watch("createUserAccount");
   const isPending = createMutation.isPending || updateMutation.isPending;
+
+  // Function to render form sections based on current step
+  const renderAgentSection = () => (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <FormField
+        control={form.control}
+        name="firstName"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>First Name *</FormLabel>
+            <FormControl>
+              <Input placeholder="Enter first name" {...field} data-testid="input-firstName" />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+      <FormField
+        control={form.control}
+        name="lastName"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>Last Name *</FormLabel>
+            <FormControl>
+              <Input placeholder="Enter last name" {...field} data-testid="input-lastName" />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+      <FormField
+        control={form.control}
+        name="email"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>Email Address *</FormLabel>
+            <FormControl>
+              <Input type="email" placeholder="agent@example.com" {...field} data-testid="input-email" />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+      <FormField
+        control={form.control}
+        name="phone"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>Phone Number *</FormLabel>
+            <FormControl>
+              <Input placeholder="+1 (555) 000-0000" {...field} data-testid="input-phone" />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+      <FormField
+        control={form.control}
+        name="territory"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>Territory</FormLabel>
+            <FormControl>
+              <Input placeholder="e.g., North Region" {...field} data-testid="input-territory" />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+      <FormField
+        control={form.control}
+        name="commissionRate"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>Commission Rate (%)</FormLabel>
+            <FormControl>
+              <Input type="number" step="0.01" placeholder="5.00" {...field} data-testid="input-commissionRate" />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+      <FormField
+        control={form.control}
+        name="status"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>Status</FormLabel>
+            <Select onValueChange={field.onChange} defaultValue={field.value}>
+              <FormControl>
+                <SelectTrigger data-testid="select-status">
+                  <SelectValue placeholder="Select status" />
+                </SelectTrigger>
+              </FormControl>
+              <SelectContent>
+                <SelectItem value="active">Active</SelectItem>
+                <SelectItem value="inactive">Inactive</SelectItem>
+              </SelectContent>
+            </Select>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+    </div>
+  );
+
+  const renderCompanySection = () => (
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <FormField
+          control={form.control}
+          name="companyName"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Company Name *</FormLabel>
+              <FormControl>
+                <Input placeholder="Enter company name" {...field} data-testid="input-companyName" />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="companyBusinessType"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Business Type</FormLabel>
+              <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <FormControl>
+                  <SelectTrigger data-testid="select-companyBusinessType">
+                    <SelectValue placeholder="Select business type" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  <SelectItem value="corporation">Corporation</SelectItem>
+                  <SelectItem value="llc">LLC</SelectItem>
+                  <SelectItem value="partnership">Partnership</SelectItem>
+                  <SelectItem value="sole_proprietorship">Sole Proprietorship</SelectItem>
+                  <SelectItem value="non_profit">Non-Profit</SelectItem>
+                </SelectContent>
+              </Select>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="companyEmail"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Company Email</FormLabel>
+              <FormControl>
+                <Input type="email" placeholder="info@company.com" {...field} data-testid="input-companyEmail" />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="companyPhone"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Company Phone</FormLabel>
+              <FormControl>
+                <Input placeholder="+1 (555) 000-0000" {...field} data-testid="input-companyPhone" />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="companyWebsite"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Company Website</FormLabel>
+              <FormControl>
+                <Input placeholder="https://company.com" {...field} data-testid="input-companyWebsite" />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="companyTaxId"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Tax ID (EIN)</FormLabel>
+              <FormControl>
+                <Input placeholder="12-3456789" {...field} data-testid="input-companyTaxId" />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="companyIndustry"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Industry</FormLabel>
+              <FormControl>
+                <Input placeholder="e.g., Technology, Finance" {...field} data-testid="input-companyIndustry" />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+      </div>
+      <FormField
+        control={form.control}
+        name="companyDescription"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>Company Description</FormLabel>
+            <FormControl>
+              <Textarea 
+                placeholder="Brief description of the company..."
+                className="resize-none"
+                rows={3}
+                {...field}
+                data-testid="input-companyDescription"
+              />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+    </div>
+  );
+
+  const renderAddressSection = () => (
+    <div className="space-y-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <FormField
+          control={form.control}
+          name="companyAddress.street1"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Street Address</FormLabel>
+              <FormControl>
+                <Input placeholder="123 Main St" {...field} data-testid="input-street1" />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="companyAddress.street2"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Apt/Suite (Optional)</FormLabel>
+              <FormControl>
+                <Input placeholder="Suite 100" {...field} data-testid="input-street2" />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="companyAddress.city"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>City</FormLabel>
+              <FormControl>
+                <Input placeholder="New York" {...field} data-testid="input-city" />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="companyAddress.state"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>State</FormLabel>
+              <FormControl>
+                <Input placeholder="NY" {...field} data-testid="input-state" />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="companyAddress.postalCode"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Postal Code</FormLabel>
+              <FormControl>
+                <Input placeholder="10001" {...field} data-testid="input-postalCode" />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="companyAddress.country"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Country</FormLabel>
+              <FormControl>
+                <Input placeholder="US" {...field} data-testid="input-country" />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+      </div>
+    </div>
+  );
+
+  const renderUserAccountSection = () => (
+    <div className="space-y-6">
+      <FormField
+        control={form.control}
+        name="createUserAccount"
+        render={({ field }) => (
+          <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+            <FormControl>
+              <Checkbox
+                checked={field.value}
+                onCheckedChange={field.onChange}
+                data-testid="checkbox-createUserAccount"
+              />
+            </FormControl>
+            <div className="space-y-1 leading-none">
+              <FormLabel>
+                Add User Account
+              </FormLabel>
+              <p className="text-sm text-muted-foreground">
+                Create login credentials for this agent to access the system
+              </p>
+            </div>
+          </FormItem>
+        )}
+      />
+      
+      {createUserAccount && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t">
+          <FormField
+            control={form.control}
+            name="username"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Username *</FormLabel>
+                <FormControl>
+                  <Input placeholder="Enter username" {...field} data-testid="input-username" />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="communicationPreference"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Communication Preference</FormLabel>
+                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <FormControl>
+                    <SelectTrigger data-testid="select-communicationPreference">
+                      <SelectValue placeholder="Select preference" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value="email">Email</SelectItem>
+                    <SelectItem value="sms">SMS</SelectItem>
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="password"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Password *</FormLabel>
+                <FormControl>
+                  <Input type="password" placeholder="Enter password" {...field} data-testid="input-password" />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="confirmPassword"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Confirm Password *</FormLabel>
+                <FormControl>
+                  <Input type="password" placeholder="Confirm password" {...field} data-testid="input-confirmPassword" />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
+      )}
+    </div>
+  );
+
+  const renderCurrentSection = () => {
+    switch (currentSection.id) {
+      case "agent":
+        return renderAgentSection();
+      case "company":
+        return renderCompanySection();
+      case "address":
+        return renderAddressSection();
+      case "user":
+        return renderUserAccountSection();
+      default:
+        return null;
+    }
+  };
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-2xl max-h-[90vh] flex flex-col">
+      <DialogContent className="sm:max-w-6xl max-h-[90vh] flex flex-col">
         <DialogHeader className="flex-shrink-0">
           <DialogTitle>
             {agent ? "Edit Agent" : "Add New Agent"}
           </DialogTitle>
-          {!agent && (
-            <p className="text-sm text-muted-foreground">
-              A user account with login credentials will be automatically created for this agent.
-            </p>
-          )}
+          <p className="text-sm text-muted-foreground">
+            Complete each section to create a new agent with company information
+          </p>
         </DialogHeader>
 
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col h-full">
-            <div className="flex-1 overflow-y-scroll space-y-6 pr-2 modal-scroll" style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgb(203 213 225) transparent' }}>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <FormField
-                control={form.control}
-                name="firstName"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>First Name *</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Enter first name" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+          <form onSubmit={form.handleSubmit(onSubmit)} className="flex-1 flex flex-col overflow-hidden">
+            <div className="flex-1 grid grid-cols-1 lg:grid-cols-4 gap-6 overflow-hidden">
+              {/* Section Navigation */}
+              <div className="lg:col-span-1">
+                <div className="bg-gray-50 rounded-lg p-4 h-full">
+                  <h3 className="text-sm font-semibold text-gray-900 mb-4">Sections</h3>
+                  <nav className="space-y-2">
+                    {wizardSections.map((section, index) => {
+                      const IconComponent = section.icon;
+                      const isActive = currentStep === index;
+                      const isCompleted = visitedSections.has(index) && index < currentStep;
+                      
+                      return (
+                        <button
+                          key={index}
+                          type="button"
+                          onClick={() => navigateToSection(index)}
+                          className={`w-full text-left p-3 rounded-lg transition-all ${
+                            isActive
+                              ? 'bg-blue-100 border-blue-200 text-blue-800'
+                              : isCompleted
+                              ? 'bg-green-50 border-green-200 text-green-800'
+                              : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'
+                          } border`}
+                          data-testid={`section-${section.id}`}
+                        >
+                          <div className="flex items-center space-x-3">
+                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+                              isActive 
+                                ? 'bg-blue-200' 
+                                : isCompleted 
+                                ? 'bg-green-200' 
+                                : 'bg-gray-200'
+                            }`}>
+                              {isCompleted ? (
+                                <CheckCircle className="w-4 h-4 text-green-700" />
+                              ) : (
+                                <IconComponent className={`w-4 h-4 ${
+                                  isActive ? 'text-blue-700' : 'text-gray-600'
+                                }`} />
+                              )}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="font-medium text-xs">{section.name}</div>
+                              <div className="text-xs opacity-70 truncate">{section.description}</div>
+                            </div>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </nav>
+                </div>
+              </div>
 
-              <FormField
-                control={form.control}
-                name="lastName"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Last Name *</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Enter last name" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="email"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Email Address *</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="email"
-                        placeholder="agent@example.com"
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="phone"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Phone Number *</FormLabel>
-                    <FormControl>
-                      <Input placeholder="+1 (555) 000-0000" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="territory"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Territory</FormLabel>
-                    <FormControl>
-                      <Input placeholder="e.g., North Region" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="commissionRate"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Commission Rate (%)</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        step="0.01"
-                        placeholder="5.00"
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="status"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Status</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select status" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="active">Active</SelectItem>
-                        <SelectItem value="inactive">Inactive</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-
-            {/* Company Creation Section */}
-            {!agent && (
-              <div className="border-t pt-6">
-                <Collapsible open={isCompanyOpen} onOpenChange={setIsCompanyOpen}>
-                  <CollapsibleTrigger className="flex items-center space-x-2 text-sm font-medium hover:text-primary">
-                    <ChevronDown className={`h-4 w-4 transition-transform ${isCompanyOpen ? 'transform rotate-180' : ''}`} />
-                    <span>Create Company for Agent (Optional)</span>
-                  </CollapsibleTrigger>
-                  <CollapsibleContent className="space-y-6 pt-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <FormField
-                        control={form.control}
-                        name="companyName"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Company Name</FormLabel>
-                            <FormControl>
-                              <Input placeholder="Enter company name" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={form.control}
-                        name="companyBusinessType"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Business Type</FormLabel>
-                            <Select onValueChange={field.onChange} defaultValue={field.value}>
-                              <FormControl>
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Select business type" />
-                                </SelectTrigger>
-                              </FormControl>
-                              <SelectContent>
-                                <SelectItem value="corporation">Corporation</SelectItem>
-                                <SelectItem value="llc">LLC</SelectItem>
-                                <SelectItem value="partnership">Partnership</SelectItem>
-                                <SelectItem value="sole_proprietorship">Sole Proprietorship</SelectItem>
-                                <SelectItem value="non_profit">Non-Profit</SelectItem>
-                              </SelectContent>
-                            </Select>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={form.control}
-                        name="companyEmail"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Company Email</FormLabel>
-                            <FormControl>
-                              <Input type="email" placeholder="info@company.com" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={form.control}
-                        name="companyPhone"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Company Phone</FormLabel>
-                            <FormControl>
-                              <Input placeholder="+1 (555) 000-0000" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={form.control}
-                        name="companyWebsite"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Company Website</FormLabel>
-                            <FormControl>
-                              <Input placeholder="https://company.com" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={form.control}
-                        name="companyTaxId"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Tax ID (EIN)</FormLabel>
-                            <FormControl>
-                              <Input placeholder="12-3456789" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={form.control}
-                        name="companyIndustry"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Industry</FormLabel>
-                            <FormControl>
-                              <Input placeholder="e.g., Technology, Finance" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-
-                    <FormField
-                      control={form.control}
-                      name="companyDescription"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Company Description</FormLabel>
-                          <FormControl>
-                            <Textarea 
-                              placeholder="Brief description of the company..."
-                              className="resize-none"
-                              rows={3}
-                              {...field} 
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    {/* Company Address Fields */}
-                    <div className="space-y-4">
-                      <h4 className="text-sm font-medium">Company Address (Optional)</h4>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <FormField
-                          control={form.control}
-                          name="companyAddress.street1"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Street Address</FormLabel>
-                              <FormControl>
-                                <Input placeholder="123 Main St" {...field} />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-
-                        <FormField
-                          control={form.control}
-                          name="companyAddress.street2"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Apt/Suite (Optional)</FormLabel>
-                              <FormControl>
-                                <Input placeholder="Suite 100" {...field} />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-
-                        <FormField
-                          control={form.control}
-                          name="companyAddress.city"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>City</FormLabel>
-                              <FormControl>
-                                <Input placeholder="New York" {...field} />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-
-                        <FormField
-                          control={form.control}
-                          name="companyAddress.state"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>State</FormLabel>
-                              <FormControl>
-                                <Input placeholder="NY" {...field} />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-
-                        <FormField
-                          control={form.control}
-                          name="companyAddress.postalCode"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Postal Code</FormLabel>
-                              <FormControl>
-                                <Input placeholder="10001" {...field} />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-
-                        <FormField
-                          control={form.control}
-                          name="companyAddress.country"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Country</FormLabel>
-                              <FormControl>
-                                <Input placeholder="US" {...field} />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
+              {/* Form Content */}
+              <div className="lg:col-span-3">
+                <div className="bg-white rounded-lg border h-full flex flex-col">
+                  {/* Section Header */}
+                  <div className="bg-gradient-to-r from-blue-50 to-blue-100 px-6 py-4 border-b border-blue-200">
+                    <div className="flex items-center space-x-4">
+                      <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center shadow-sm">
+                        {React.createElement(currentSection.icon, {
+                          className: "w-5 h-5 text-blue-600"
+                        })}
+                      </div>
+                      <div>
+                        <h2 className="text-lg font-bold text-blue-900">{currentSection.name}</h2>
+                        <p className="text-blue-700 text-sm">{currentSection.description}</p>
                       </div>
                     </div>
-                  </CollapsibleContent>
-                </Collapsible>
-              </div>
-            )}
-            </div>
+                  </div>
 
-            <div className="flex-shrink-0 flex items-center justify-end space-x-4 pt-6 border-t">
-              <Button type="button" variant="outline" onClick={onClose}>
-                Cancel
-              </Button>
-              <Button type="submit" disabled={isPending}>
-                {isPending ? "Saving..." : agent ? "Update Agent" : "Create Agent"}
-              </Button>
+                  {/* Form Fields */}
+                  <div className="flex-1 p-6 overflow-y-auto">
+                    {renderCurrentSection()}
+                  </div>
+
+                  {/* Navigation Buttons */}
+                  <div className="flex items-center justify-between px-6 py-4 border-t border-gray-200">
+                    <div>
+                      {currentStep > 0 && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={handlePrevious}
+                          className="flex items-center space-x-2"
+                          data-testid="button-previous"
+                        >
+                          <ArrowLeft className="w-4 h-4" />
+                          <span>Previous</span>
+                        </Button>
+                      )}
+                    </div>
+                    <div className="flex items-center space-x-4">
+                      <Button type="button" variant="outline" onClick={onClose} data-testid="button-cancel">
+                        Cancel
+                      </Button>
+                      {isLastStep ? (
+                        <Button type="submit" disabled={isPending} data-testid="button-submit">
+                          {isPending ? "Creating..." : agent ? "Update Agent" : "Create Agent"}
+                        </Button>
+                      ) : (
+                        <Button
+                          type="button"
+                          onClick={handleNext}
+                          className="flex items-center space-x-2"
+                          data-testid="button-next"
+                        >
+                          <span>Next</span>
+                          <ArrowRight className="w-4 h-4" />
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </form>
         </Form>
