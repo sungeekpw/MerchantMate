@@ -3734,7 +3734,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (companyName?.trim()) {
           console.log(`Creating company: ${companyName}`);
           
-          // Prepare company data
+          // Prepare company data (without address - we'll handle that separately)
           const companyData = {
             name: companyName.trim(),
             businessType: companyBusinessType || undefined,
@@ -3744,21 +3744,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
             taxId: companyTaxId?.trim() || undefined,
             industry: companyIndustry?.trim() || undefined,
             description: companyDescription?.trim() || undefined,
-            address: companyAddress && (
-              companyAddress.street1?.trim() || 
-              companyAddress.city?.trim() || 
-              companyAddress.state?.trim()
-            ) ? companyAddress : undefined,
             status: 'active' as const,
           };
 
-          // Import companies table
-          const { companies } = await import("@shared/schema");
+          // Import tables
+          const { companies, addresses, companyAddresses } = await import("@shared/schema");
           
           // Create company
           const [company] = await tx.insert(companies).values(companyData).returning();
           companyId = company.id;
           console.log(`Company created with ID: ${companyId}`);
+          
+          // Create address if provided
+          if (companyAddress && (
+            companyAddress.street1?.trim() || 
+            companyAddress.city?.trim() || 
+            companyAddress.state?.trim()
+          )) {
+            console.log(`Creating address for company: ${companyName}`);
+            
+            // Prepare address data
+            const addressData = {
+              street1: companyAddress.street1?.trim() || '',
+              street2: companyAddress.street2?.trim() || undefined,
+              city: companyAddress.city?.trim() || '',
+              state: companyAddress.state?.trim() || '',
+              postalCode: companyAddress.postalCode?.trim() || companyAddress.zipCode?.trim() || '',
+              country: companyAddress.country?.trim() || 'US',
+              type: 'primary' as const,
+            };
+            
+            // Create address
+            const [address] = await tx.insert(addresses).values(addressData).returning();
+            console.log(`Address created with ID: ${address.id}`);
+            
+            // Link company to address
+            await tx.insert(companyAddresses).values({
+              companyId: companyId,
+              addressId: address.id,
+              type: 'primary'
+            });
+            console.log(`Company ${companyId} linked to address ${address.id}`);
+          }
         }
 
         // Create user account first within transaction
