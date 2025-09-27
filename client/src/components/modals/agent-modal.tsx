@@ -30,8 +30,8 @@ import { agentsApi } from "@/lib/api";
 import type { Agent, InsertAgent } from "@shared/schema";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
-import { ArrowLeft, ArrowRight, User, Building, UserCheck, CheckCircle } from "lucide-react";
-import { useState } from "react";
+import { ArrowLeft, ArrowRight, User, Building, UserCheck, CheckCircle, MapPin, Loader2 } from "lucide-react";
+import { useState, useRef, useEffect } from "react";
 import React from "react";
 
 const agentSchema = z.object({
@@ -130,6 +130,18 @@ export function AgentModal({ isOpen, onClose, agent }: AgentModalProps) {
   const queryClient = useQueryClient();
   const [currentStep, setCurrentStep] = useState(0);
   const [visitedSections, setVisitedSections] = useState<Set<number>>(new Set([0]));
+  
+  // Address autocomplete state
+  const [addressSuggestions, setAddressSuggestions] = useState<any[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
+  const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState(-1);
+  const [addressFieldsLocked, setAddressFieldsLocked] = useState(false);
+  const [addressValidationStatus, setAddressValidationStatus] = useState<'idle' | 'valid' | 'invalid'>('idle');
+  
+  // Refs for address autocomplete
+  const addressInputRef = useRef<HTMLInputElement>(null);
+  const suggestionsRef = useRef<HTMLDivElement>(null);
 
   const form = useForm<AgentFormData>({
     resolver: zodResolver(agentSchema),
@@ -216,6 +228,160 @@ export function AgentModal({ isOpen, onClose, agent }: AgentModalProps) {
       });
     },
   });
+
+  // Fetch address suggestions using Google Places Autocomplete API
+  const fetchAddressSuggestions = async (input: string) => {
+    if (input.length < 4) {
+      setAddressSuggestions([]);
+      setShowSuggestions(false);
+      setSelectedSuggestionIndex(-1);
+      return;
+    }
+
+    setIsLoadingSuggestions(true);
+    
+    try {
+      const response = await fetch('/api/address-autocomplete', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ input }),
+      });
+      
+      if (response.ok) {
+        const result = await response.json();
+        setAddressSuggestions(result.suggestions || []);
+        setShowSuggestions(true);
+        setSelectedSuggestionIndex(-1);
+      } else {
+        console.error('Address suggestions API error:', response.status);
+      }
+    } catch (error) {
+      console.error('Address suggestions network error:', error);
+    } finally {
+      setIsLoadingSuggestions(false);
+    }
+  };
+
+  // Validate selected address using Google Geocoding API
+  const validateAndSelectAddress = async (suggestion: any) => {
+    try {
+      const response = await fetch('/api/validate-address', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ address: suggestion.description }),
+      });
+      
+      if (response.ok) {
+        const result = await response.json();
+        
+        if (result.isValid) {
+          setAddressValidationStatus('valid');
+          
+          // Update form with validated address data
+          const currentAddress = form.getValues("companyAddress") || {};
+          const updatedAddress = {
+            ...currentAddress,
+            street1: result.streetAddress || suggestion.description.split(',')[0].trim(),
+            city: result.city || '',
+            state: result.state || '',
+            postalCode: result.zipCode || '',
+            country: 'US'
+          };
+          
+          form.setValue("companyAddress", updatedAddress);
+          
+          // Lock the address fields after successful selection
+          setAddressFieldsLocked(true);
+          
+          // Clear suggestions
+          setShowSuggestions(false);
+          setAddressSuggestions([]);
+        } else {
+          setAddressValidationStatus('invalid');
+        }
+      }
+    } catch (error) {
+      console.error('Address validation error:', error);
+      setAddressValidationStatus('invalid');
+    }
+  };
+
+  // Handle address input changes
+  const handleAddressChange = (value: string) => {
+    // If user starts typing in a locked address field, unlock it for new selection
+    if (addressFieldsLocked && value !== form.getValues("companyAddress.street1")) {
+      setAddressFieldsLocked(false);
+      setAddressValidationStatus('idle');
+    }
+    
+    if (value && value.length >= 4) {
+      fetchAddressSuggestions(value);
+    } else {
+      setShowSuggestions(false);
+      setAddressSuggestions([]);
+      setSelectedSuggestionIndex(-1);
+      
+      // Clear dependent fields when address is cleared
+      if (value.length === 0 && !addressFieldsLocked) {
+        const currentAddress = form.getValues("companyAddress") || {};
+        form.setValue("companyAddress", {
+          ...currentAddress,
+          city: '',
+          state: '',
+          postalCode: ''
+        });
+      }
+    }
+  };
+
+  // Handle keyboard navigation in suggestions
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (!showSuggestions || addressSuggestions.length === 0) return;
+
+    switch (e.key) {
+      case 'ArrowDown':
+        e.preventDefault();
+        setSelectedSuggestionIndex(prev => 
+          prev < addressSuggestions.length - 1 ? prev + 1 : prev
+        );
+        break;
+      case 'ArrowUp':
+        e.preventDefault();
+        setSelectedSuggestionIndex(prev => prev > 0 ? prev - 1 : -1);
+        break;
+      case 'Enter':
+        e.preventDefault();
+        if (selectedSuggestionIndex >= 0) {
+          validateAndSelectAddress(addressSuggestions[selectedSuggestionIndex]);
+        }
+        break;
+      case 'Escape':
+        setShowSuggestions(false);
+        setSelectedSuggestionIndex(-1);
+        break;
+    }
+  };
+
+  // Close suggestions when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        suggestionsRef.current &&
+        !suggestionsRef.current.contains(event.target as Node) &&
+        addressInputRef.current &&
+        !addressInputRef.current.contains(event.target as Node)
+      ) {
+        setShowSuggestions(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const onSubmit = (data: AgentFormData) => {
     if (agent) {
@@ -503,11 +669,84 @@ export function AgentModal({ isOpen, onClose, agent }: AgentModalProps) {
           control={form.control}
           name="companyAddress.street1"
           render={({ field }) => (
-            <FormItem>
+            <FormItem className="relative">
               <FormLabel>Street Address</FormLabel>
               <FormControl>
-                <Input placeholder="123 Main St" {...field} data-testid="input-street1" />
+                <div className="relative">
+                  <Input
+                    placeholder="Start typing an address..."
+                    {...field}
+                    ref={addressInputRef}
+                    data-testid="input-street1"
+                    onChange={(e) => {
+                      field.onChange(e);
+                      handleAddressChange(e.target.value);
+                    }}
+                    onKeyDown={handleKeyDown}
+                    disabled={addressFieldsLocked}
+                    className={`pr-8 ${
+                      addressValidationStatus === 'valid'
+                        ? 'border-green-500 bg-green-50'
+                        : addressValidationStatus === 'invalid'
+                        ? 'border-red-500'
+                        : ''
+                    }`}
+                  />
+                  {isLoadingSuggestions && (
+                    <Loader2 className="absolute right-2 top-1/2 transform -translate-y-1/2 h-4 w-4 animate-spin text-gray-400" />
+                  )}
+                  {addressValidationStatus === 'valid' && (
+                    <CheckCircle className="absolute right-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-green-500" />
+                  )}
+                  {addressValidationStatus === 'invalid' && (
+                    <div className="absolute right-2 top-1/2 transform -translate-y-1/2 h-4 w-4 bg-red-500 rounded-full" />
+                  )}
+                </div>
               </FormControl>
+              
+              {/* Address suggestions dropdown */}
+              {showSuggestions && addressSuggestions.length > 0 && (
+                <div
+                  ref={suggestionsRef}
+                  className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-auto"
+                >
+                  {addressSuggestions.map((suggestion, index) => (
+                    <div
+                      key={suggestion.place_id}
+                      className={`px-4 py-2 cursor-pointer hover:bg-gray-50 ${
+                        index === selectedSuggestionIndex ? 'bg-blue-50' : ''
+                      }`}
+                      onClick={() => validateAndSelectAddress(suggestion)}
+                    >
+                      <div className="flex items-center space-x-2">
+                        <MapPin className="h-4 w-4 text-gray-400" />
+                        <span className="text-sm">{suggestion.description}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              
+              {addressFieldsLocked && (
+                <p className="text-xs text-gray-500 mt-1">
+                  🔒 Address validated and locked. 
+                  <button 
+                    type="button"
+                    onClick={() => {
+                      setAddressFieldsLocked(false);
+                      setAddressValidationStatus('idle');
+                    }}
+                    className="text-blue-600 hover:text-blue-800 underline ml-1"
+                  >
+                    Edit Address
+                  </button>
+                </p>
+              )}
+              
+              {addressValidationStatus === 'invalid' && (
+                <p className="text-xs text-red-600 mt-1">⚠ Please enter a valid address</p>
+              )}
+              
               <FormMessage />
             </FormItem>
           )}
@@ -532,8 +771,29 @@ export function AgentModal({ isOpen, onClose, agent }: AgentModalProps) {
             <FormItem>
               <FormLabel>City</FormLabel>
               <FormControl>
-                <Input placeholder="New York" {...field} data-testid="input-city" />
+                <Input 
+                  placeholder="New York" 
+                  {...field} 
+                  data-testid="input-city"
+                  disabled={addressFieldsLocked}
+                  className={addressFieldsLocked ? 'bg-gray-50' : ''}
+                />
               </FormControl>
+              {addressFieldsLocked && (
+                <p className="text-xs text-gray-500 mt-1">
+                  🔒 Field locked after address selection. 
+                  <button 
+                    type="button"
+                    onClick={() => {
+                      setAddressFieldsLocked(false);
+                      setAddressValidationStatus('idle');
+                    }}
+                    className="text-blue-600 hover:text-blue-800 underline ml-1"
+                  >
+                    Edit Address
+                  </button>
+                </p>
+              )}
               <FormMessage />
             </FormItem>
           )}
@@ -545,8 +805,29 @@ export function AgentModal({ isOpen, onClose, agent }: AgentModalProps) {
             <FormItem>
               <FormLabel>State</FormLabel>
               <FormControl>
-                <Input placeholder="NY" {...field} data-testid="input-state" />
+                <Input 
+                  placeholder="NY" 
+                  {...field} 
+                  data-testid="input-state"
+                  disabled={addressFieldsLocked}
+                  className={addressFieldsLocked ? 'bg-gray-50' : ''}
+                />
               </FormControl>
+              {addressFieldsLocked && (
+                <p className="text-xs text-gray-500 mt-1">
+                  🔒 Field locked after address selection. 
+                  <button 
+                    type="button"
+                    onClick={() => {
+                      setAddressFieldsLocked(false);
+                      setAddressValidationStatus('idle');
+                    }}
+                    className="text-blue-600 hover:text-blue-800 underline ml-1"
+                  >
+                    Edit Address
+                  </button>
+                </p>
+              )}
               <FormMessage />
             </FormItem>
           )}
@@ -558,8 +839,29 @@ export function AgentModal({ isOpen, onClose, agent }: AgentModalProps) {
             <FormItem>
               <FormLabel>Postal Code</FormLabel>
               <FormControl>
-                <Input placeholder="10001" {...field} data-testid="input-postalCode" />
+                <Input 
+                  placeholder="10001" 
+                  {...field} 
+                  data-testid="input-postalCode"
+                  disabled={addressFieldsLocked}
+                  className={addressFieldsLocked ? 'bg-gray-50' : ''}
+                />
               </FormControl>
+              {addressFieldsLocked && (
+                <p className="text-xs text-gray-500 mt-1">
+                  🔒 Field locked after address selection. 
+                  <button 
+                    type="button"
+                    onClick={() => {
+                      setAddressFieldsLocked(false);
+                      setAddressValidationStatus('idle');
+                    }}
+                    className="text-blue-600 hover:text-blue-800 underline ml-1"
+                  >
+                    Edit Address
+                  </button>
+                </p>
+              )}
               <FormMessage />
             </FormItem>
           )}
