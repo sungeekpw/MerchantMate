@@ -153,7 +153,7 @@ function CreateUserForm({ onSuccess, onCancel }: { onSuccess: () => void; onCanc
               <FormItem>
                 <FormLabel>First Name</FormLabel>
                 <FormControl>
-                  <Input placeholder="Enter first name" {...field} />
+                  <Input placeholder="Enter first name" name={field.name} value={field.value || ""} onChange={field.onChange} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -166,7 +166,7 @@ function CreateUserForm({ onSuccess, onCancel }: { onSuccess: () => void; onCanc
               <FormItem>
                 <FormLabel>Last Name</FormLabel>
                 <FormControl>
-                  <Input placeholder="Enter last name" {...field} />
+                  <Input placeholder="Enter last name" name={field.name} value={field.value || ""} onChange={field.onChange} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -181,7 +181,7 @@ function CreateUserForm({ onSuccess, onCancel }: { onSuccess: () => void; onCanc
             <FormItem>
               <FormLabel>Email</FormLabel>
               <FormControl>
-                <Input type="email" placeholder="Enter email address" {...field} />
+                <Input type="email" placeholder="Enter email address" name={field.name} value={field.value || ""} onChange={field.onChange} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -195,7 +195,7 @@ function CreateUserForm({ onSuccess, onCancel }: { onSuccess: () => void; onCanc
             <FormItem>
               <FormLabel>Username</FormLabel>
               <FormControl>
-                <Input placeholder="Enter username" {...field} />
+                <Input placeholder="Enter username" name={field.name} value={field.value || ""} onChange={field.onChange} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -209,7 +209,7 @@ function CreateUserForm({ onSuccess, onCancel }: { onSuccess: () => void; onCanc
             <FormItem>
               <FormLabel>Phone Number *</FormLabel>
               <FormControl>
-                <Input type="tel" placeholder="Enter phone number (e.g., +1-555-123-4567)" {...field} />
+                <Input type="tel" placeholder="Enter phone number (e.g., +1-555-123-4567)" name={field.name} value={field.value || ""} onChange={field.onChange} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -266,7 +266,7 @@ function CreateUserForm({ onSuccess, onCancel }: { onSuccess: () => void; onCanc
               <FormItem>
                 <FormLabel>Password</FormLabel>
                 <FormControl>
-                  <Input type="password" placeholder="Enter password" {...field} />
+                  <Input type="password" placeholder="Enter password" name={field.name} value={field.value || ""} onChange={field.onChange} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -280,7 +280,7 @@ function CreateUserForm({ onSuccess, onCancel }: { onSuccess: () => void; onCanc
               <FormItem>
                 <FormLabel>Confirm Password</FormLabel>
                 <FormControl>
-                  <Input type="password" placeholder="Confirm password" {...field} />
+                  <Input type="password" placeholder="Confirm password" name={field.name} value={field.value || ""} onChange={field.onChange} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -757,7 +757,7 @@ export default function UsersPage() {
                     <FormItem>
                       <FormLabel>First Name</FormLabel>
                       <FormControl>
-                        <Input {...field} />
+                        <Input name={field.name} value={field.value || ""} onChange={field.onChange} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -770,7 +770,7 @@ export default function UsersPage() {
                     <FormItem>
                       <FormLabel>Last Name</FormLabel>
                       <FormControl>
-                        <Input {...field} />
+                        <Input name={field.name} value={field.value || ""} onChange={field.onChange} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -785,7 +785,7 @@ export default function UsersPage() {
                   <FormItem>
                     <FormLabel>Email</FormLabel>
                     <FormControl>
-                      <Input type="email" {...field} />
+                      <Input type="email" name={field.name} value={field.value || ""} onChange={field.onChange} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -799,7 +799,7 @@ export default function UsersPage() {
                   <FormItem>
                     <FormLabel>Username</FormLabel>
                     <FormControl>
-                      <Input {...field} />
+                      <Input name={field.name} value={field.value || ""} onChange={field.onChange} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
