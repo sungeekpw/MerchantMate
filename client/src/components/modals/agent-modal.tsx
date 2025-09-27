@@ -397,7 +397,7 @@ export function AgentModal({ isOpen, onClose, agent }: AgentModalProps) {
   const handleNext = () => {
     const nextStep = Math.min(wizardSections.length - 1, currentStep + 1);
     setVisitedSections(prev => {
-      const newVisited = new Set([...prev]);
+      const newVisited = new Set(Array.from(prev));
       newVisited.add(currentStep);
       newVisited.add(nextStep);
       return newVisited;
@@ -408,7 +408,7 @@ export function AgentModal({ isOpen, onClose, agent }: AgentModalProps) {
   const handlePrevious = () => {
     const prevStep = Math.max(0, currentStep - 1);
     setVisitedSections(prev => {
-      const newVisited = new Set([...prev]);
+      const newVisited = new Set(Array.from(prev));
       newVisited.add(currentStep);
       return newVisited;
     });
@@ -417,7 +417,7 @@ export function AgentModal({ isOpen, onClose, agent }: AgentModalProps) {
 
   const navigateToSection = (sectionIndex: number) => {
     setVisitedSections(prev => {
-      const newVisited = new Set([...prev]);
+      const newVisited = new Set(Array.from(prev));
       newVisited.add(sectionIndex);
       return newVisited;
     });
