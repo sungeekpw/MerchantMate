@@ -441,7 +441,7 @@ export function AgentModal({ isOpen, onClose, agent }: AgentModalProps) {
           <FormItem>
             <FormLabel>First Name *</FormLabel>
             <FormControl>
-              <Input placeholder="Enter first name" {...field} data-testid="input-firstName" />
+              <Input placeholder="Enter first name" name={field.name} value={field.value || ""} onChange={field.onChange} data-testid="input-firstName" />
             </FormControl>
             <FormMessage />
           </FormItem>
@@ -454,7 +454,7 @@ export function AgentModal({ isOpen, onClose, agent }: AgentModalProps) {
           <FormItem>
             <FormLabel>Last Name *</FormLabel>
             <FormControl>
-              <Input placeholder="Enter last name" {...field} data-testid="input-lastName" />
+              <Input placeholder="Enter last name" name={field.name} value={field.value || ""} onChange={field.onChange} data-testid="input-lastName" />
             </FormControl>
             <FormMessage />
           </FormItem>
@@ -467,7 +467,7 @@ export function AgentModal({ isOpen, onClose, agent }: AgentModalProps) {
           <FormItem>
             <FormLabel>Email Address *</FormLabel>
             <FormControl>
-              <Input type="email" placeholder="agent@example.com" {...field} data-testid="input-email" />
+              <Input type="email" placeholder="agent@example.com" name={field.name} value={field.value || ""} onChange={field.onChange} data-testid="input-email" />
             </FormControl>
             <FormMessage />
           </FormItem>
@@ -480,7 +480,7 @@ export function AgentModal({ isOpen, onClose, agent }: AgentModalProps) {
           <FormItem>
             <FormLabel>Phone Number *</FormLabel>
             <FormControl>
-              <Input placeholder="+1 (555) 000-0000" {...field} data-testid="input-phone" />
+              <Input placeholder="+1 (555) 000-0000" name={field.name} value={field.value || ""} onChange={field.onChange} data-testid="input-phone" />
             </FormControl>
             <FormMessage />
           </FormItem>
@@ -493,7 +493,7 @@ export function AgentModal({ isOpen, onClose, agent }: AgentModalProps) {
           <FormItem>
             <FormLabel>Territory</FormLabel>
             <FormControl>
-              <Input placeholder="e.g., North Region" {...field} data-testid="input-territory" />
+              <Input placeholder="e.g., North Region" name={field.name} value={field.value || ""} onChange={field.onChange} data-testid="input-territory" />
             </FormControl>
             <FormMessage />
           </FormItem>
@@ -506,7 +506,7 @@ export function AgentModal({ isOpen, onClose, agent }: AgentModalProps) {
           <FormItem>
             <FormLabel>Commission Rate (%)</FormLabel>
             <FormControl>
-              <Input type="number" step="0.01" placeholder="5.00" {...field} data-testid="input-commissionRate" />
+              <Input type="number" step="0.01" placeholder="5.00" name={field.name} value={field.value || ""} onChange={field.onChange} data-testid="input-commissionRate" />
             </FormControl>
             <FormMessage />
           </FormItem>
@@ -546,7 +546,7 @@ export function AgentModal({ isOpen, onClose, agent }: AgentModalProps) {
             <FormItem>
               <FormLabel>Company Name *</FormLabel>
               <FormControl>
-                <Input placeholder="Enter company name" {...field} data-testid="input-companyName" />
+                <Input placeholder="Enter company name" name={field.name} value={field.value || ""} onChange={field.onChange} data-testid="input-companyName" />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -583,7 +583,7 @@ export function AgentModal({ isOpen, onClose, agent }: AgentModalProps) {
             <FormItem>
               <FormLabel>Company Email</FormLabel>
               <FormControl>
-                <Input type="email" placeholder="info@company.com" {...field} data-testid="input-companyEmail" />
+                <Input type="email" placeholder="info@company.com" name={field.name} value={field.value || ""} onChange={field.onChange} data-testid="input-companyEmail" />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -596,7 +596,7 @@ export function AgentModal({ isOpen, onClose, agent }: AgentModalProps) {
             <FormItem>
               <FormLabel>Company Phone</FormLabel>
               <FormControl>
-                <Input placeholder="+1 (555) 000-0000" {...field} data-testid="input-companyPhone" />
+                <Input placeholder="+1 (555) 000-0000" name={field.name} value={field.value || ""} onChange={field.onChange} data-testid="input-companyPhone" />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -609,7 +609,7 @@ export function AgentModal({ isOpen, onClose, agent }: AgentModalProps) {
             <FormItem>
               <FormLabel>Company Website</FormLabel>
               <FormControl>
-                <Input placeholder="https://company.com" {...field} data-testid="input-companyWebsite" />
+                <Input placeholder="https://company.com" name={field.name} value={field.value || ""} onChange={field.onChange} data-testid="input-companyWebsite" />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -622,7 +622,7 @@ export function AgentModal({ isOpen, onClose, agent }: AgentModalProps) {
             <FormItem>
               <FormLabel>Tax ID (EIN)</FormLabel>
               <FormControl>
-                <Input placeholder="12-3456789" {...field} data-testid="input-companyTaxId" />
+                <Input placeholder="12-3456789" name={field.name} value={field.value || ""} onChange={field.onChange} data-testid="input-companyTaxId" />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -635,7 +635,7 @@ export function AgentModal({ isOpen, onClose, agent }: AgentModalProps) {
             <FormItem>
               <FormLabel>Industry</FormLabel>
               <FormControl>
-                <Input placeholder="e.g., Technology, Finance" {...field} data-testid="input-companyIndustry" />
+                <Input placeholder="e.g., Technology, Finance" name={field.name} value={field.value || ""} onChange={field.onChange} data-testid="input-companyIndustry" />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -928,7 +928,7 @@ export function AgentModal({ isOpen, onClose, agent }: AgentModalProps) {
               <FormItem>
                 <FormLabel>Username *</FormLabel>
                 <FormControl>
-                  <Input placeholder="Enter username" {...field} data-testid="input-username" />
+                  <Input placeholder="Enter username" name={field.name} value={field.value || ""} onChange={field.onChange} data-testid="input-username" />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -962,7 +962,7 @@ export function AgentModal({ isOpen, onClose, agent }: AgentModalProps) {
               <FormItem>
                 <FormLabel>Password *</FormLabel>
                 <FormControl>
-                  <Input type="password" placeholder="Enter password" {...field} data-testid="input-password" />
+                  <Input type="password" placeholder="Enter password" name={field.name} value={field.value || ""} onChange={field.onChange} data-testid="input-password" />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -975,7 +975,7 @@ export function AgentModal({ isOpen, onClose, agent }: AgentModalProps) {
               <FormItem>
                 <FormLabel>Confirm Password *</FormLabel>
                 <FormControl>
-                  <Input type="password" placeholder="Confirm password" {...field} data-testid="input-confirmPassword" />
+                  <Input type="password" placeholder="Confirm password" name={field.name} value={field.value || ""} onChange={field.onChange} data-testid="input-confirmPassword" />
                 </FormControl>
                 <FormMessage />
               </FormItem>
