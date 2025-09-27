@@ -3765,6 +3765,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             
             // Prepare address data
             const addressData = {
+              locationId: null, // Company addresses are not linked to locations
               street1: companyAddress.street1?.trim() || '',
               street2: companyAddress.street2?.trim() || undefined,
               city: companyAddress.city?.trim() || '',
