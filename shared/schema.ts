@@ -34,7 +34,7 @@ export const locations = pgTable("locations", {
 
 export const addresses = pgTable("addresses", {
   id: serial("id").primaryKey(),
-  locationId: integer("location_id").notNull().references(() => locations.id, { onDelete: "cascade" }),
+  locationId: integer("location_id").references(() => locations.id, { onDelete: "cascade" }), // Made nullable for company addresses
   type: text("type").notNull().default("primary"), // primary, billing, shipping, mailing
   street1: text("street1").notNull(),
   street2: text("street2"),
@@ -50,6 +50,21 @@ export const addresses = pgTable("addresses", {
   timezone: text("timezone"), // e.g., "America/New_York"
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
+
+// Junction table for company-address relationships
+export const companyAddresses = pgTable("company_addresses", {
+  id: serial("id").primaryKey(),
+  companyId: integer("company_id").notNull().references(() => companies.id, { onDelete: "cascade" }),
+  addressId: integer("address_id").notNull().references(() => addresses.id, { onDelete: "cascade" }),
+  type: text("type").notNull().default("primary"), // primary, billing, shipping, mailing
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  // Ensure unique company-address-type combinations
+  unique("unique_company_address_type").on(table.companyId, table.addressId, table.type),
+  // Index for faster lookups
+  index("company_addresses_company_idx").on(table.companyId),
+  index("company_addresses_address_idx").on(table.addressId),
+]);
 
 export const agents = pgTable("agents", {
   id: serial("id").primaryKey(),
@@ -171,6 +186,11 @@ export const insertAddressSchema = createInsertSchema(addresses).omit({
   geocodedAt: true,
 });
 
+export const insertCompanyAddressSchema = createInsertSchema(companyAddresses).omit({
+  id: true,
+  createdAt: true,
+});
+
 export type InsertMerchant = z.infer<typeof insertMerchantSchema>;
 export type Merchant = typeof merchants.$inferSelect;
 
@@ -188,6 +208,9 @@ export type Location = typeof locations.$inferSelect;
 
 export type InsertAddress = z.infer<typeof insertAddressSchema>;
 export type Address = typeof addresses.$inferSelect;
+
+export type InsertCompanyAddress = z.infer<typeof insertCompanyAddressSchema>;
+export type CompanyAddress = typeof companyAddresses.$inferSelect;
 
 // Extended types for API responses
 export type MerchantWithAgent = Merchant & {
