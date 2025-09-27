@@ -180,6 +180,7 @@ export function AgentModal({ isOpen, onClose, agent }: AgentModalProps) {
   });
 
 
+
   const createMutation = useMutation({
     mutationFn: (data: InsertAgent) => agentsApi.create(data),
     onSuccess: (response: any) => {
@@ -652,7 +653,9 @@ export function AgentModal({ isOpen, onClose, agent }: AgentModalProps) {
                 placeholder="Brief description of the company..."
                 className="resize-none"
                 rows={3}
-                {...field}
+                name={field.name}
+                value={field.value || ""}
+                onChange={field.onChange}
                 data-testid="input-companyDescription"
               />
             </FormControl>
@@ -676,7 +679,7 @@ export function AgentModal({ isOpen, onClose, agent }: AgentModalProps) {
                 <div className="relative">
                   <Input
                     placeholder="Start typing an address..."
-                    {...field}
+                    value={field.value || ""}
                     ref={addressInputRef}
                     data-testid="input-street1"
                     onChange={(e) => {
@@ -759,7 +762,7 @@ export function AgentModal({ isOpen, onClose, agent }: AgentModalProps) {
             <FormItem>
               <FormLabel>Apt/Suite (Optional)</FormLabel>
               <FormControl>
-                <Input placeholder="Suite 100" {...field} data-testid="input-street2" />
+                <Input placeholder="Suite 100" name={field.name} value={field.value || ""} onChange={field.onChange} data-testid="input-street2" />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -774,7 +777,9 @@ export function AgentModal({ isOpen, onClose, agent }: AgentModalProps) {
               <FormControl>
                 <Input 
                   placeholder="New York" 
-                  {...field} 
+                  name={field.name}
+                  value={field.value || ""}
+                  onChange={field.onChange}
                   data-testid="input-city"
                   disabled={addressFieldsLocked}
                   className={addressFieldsLocked ? 'bg-gray-50' : ''}
@@ -808,7 +813,9 @@ export function AgentModal({ isOpen, onClose, agent }: AgentModalProps) {
               <FormControl>
                 <Input 
                   placeholder="NY" 
-                  {...field} 
+                  name={field.name}
+                  value={field.value || ""}
+                  onChange={field.onChange}
                   data-testid="input-state"
                   disabled={addressFieldsLocked}
                   className={addressFieldsLocked ? 'bg-gray-50' : ''}
@@ -842,7 +849,9 @@ export function AgentModal({ isOpen, onClose, agent }: AgentModalProps) {
               <FormControl>
                 <Input 
                   placeholder="10001" 
-                  {...field} 
+                  name={field.name}
+                  value={field.value || ""}
+                  onChange={field.onChange}
                   data-testid="input-postalCode"
                   disabled={addressFieldsLocked}
                   className={addressFieldsLocked ? 'bg-gray-50' : ''}
@@ -874,7 +883,7 @@ export function AgentModal({ isOpen, onClose, agent }: AgentModalProps) {
             <FormItem>
               <FormLabel>Country</FormLabel>
               <FormControl>
-                <Input placeholder="US" {...field} data-testid="input-country" />
+                <Input placeholder="US" name={field.name} value={field.value || ""} onChange={field.onChange} data-testid="input-country" />
               </FormControl>
               <FormMessage />
             </FormItem>
