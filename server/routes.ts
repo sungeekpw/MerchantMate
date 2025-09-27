@@ -3869,6 +3869,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Use database transaction to ensure ACID compliance
       const result = await dynamicDB.transaction(async (tx) => {
+        let companyToDelete = null;
+        
+        // Check if agent belongs to a company and if it's the only agent for that company
+        if (existingAgent.companyId) {
+          // Count how many agents belong to this company
+          const { companies, companyAddresses } = await import("@shared/schema");
+          const [companyAgentCount] = await tx
+            .select({ count: sql<number>`count(*)` })
+            .from(agents)
+            .where(eq(agents.companyId, existingAgent.companyId));
+          
+          console.log(`Company ${existingAgent.companyId} has ${companyAgentCount.count} agents`);
+          
+          // If this is the only agent for the company, mark it for deletion
+          if (companyAgentCount.count === 1) {
+            companyToDelete = existingAgent.companyId;
+            console.log(`Will delete company ${companyToDelete} as it has no other agents`);
+          }
+        }
+        
         // Delete agent record first
         const agentDeleteResult = await tx.delete(agents).where(eq(agents.id, agentId));
         
@@ -3876,6 +3896,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (existingAgent.userId) {
           await tx.delete(users).where(eq(users.id, existingAgent.userId));
           console.log(`Deleted user account for agent ${agentId}: ${existingAgent.userId}`);
+        }
+        
+        // Delete company and its addresses if it has no other agents
+        if (companyToDelete) {
+          const { companies, companyAddresses, addresses } = await import("@shared/schema");
+          
+          // Get company addresses to delete them too
+          const companyAddressRecords = await tx
+            .select({ addressId: companyAddresses.addressId })
+            .from(companyAddresses)
+            .where(eq(companyAddresses.companyId, companyToDelete));
+          
+          // Delete company-address links
+          await tx.delete(companyAddresses).where(eq(companyAddresses.companyId, companyToDelete));
+          console.log(`Deleted company-address links for company ${companyToDelete}`);
+          
+          // Delete the addresses (they're only used by this company)
+          for (const addressRecord of companyAddressRecords) {
+            await tx.delete(addresses).where(eq(addresses.id, addressRecord.addressId));
+            console.log(`Deleted address ${addressRecord.addressId}`);
+          }
+          
+          // Delete the company
+          await tx.delete(companies).where(eq(companies.id, companyToDelete));
+          console.log(`Deleted company ${companyToDelete}`);
         }
         
         return agentDeleteResult.rowCount || 0;
