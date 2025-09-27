@@ -653,7 +653,6 @@ export function AgentModal({ isOpen, onClose, agent }: AgentModalProps) {
                 className="resize-none"
                 rows={3}
                 {...field}
-                {...field}
                 data-testid="input-companyDescription"
               />
             </FormControl>
