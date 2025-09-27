@@ -3707,7 +3707,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     // Use database transaction to ensure ACID compliance
     try {
       const result = await dynamicDB.transaction(async (tx) => {
-        // Extract company data from request
+        // Extract company data and user account option from request
         const { 
           userId, 
           companyName, 
@@ -3719,6 +3719,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
           companyIndustry, 
           companyDescription, 
           companyAddress,
+          createUserAccount,
+          username,
+          password,
+          confirmPassword,
+          communicationPreference,
           ...agentData 
         } = req.body;
 
@@ -3789,28 +3794,69 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
         }
 
-        // Create user account first within transaction
-        const username = await generateUsername(validationResult.data.firstName, validationResult.data.lastName, validationResult.data.email, tx);
-        const temporaryPassword = generateTemporaryPassword();
+        let user = null;
+        let userInfo = null;
         
-        // Hash the temporary password
-        const bcrypt = await import('bcrypt');
-        const passwordHash = await bcrypt.hash(temporaryPassword, 10);
-        
-        // Create user account within transaction
-        const userData = {
-          id: crypto.randomUUID(),
-          email: validationResult.data.email,
-          username,
-          passwordHash,
-          firstName: validationResult.data.firstName,
-          lastName: validationResult.data.lastName,
-          roles: ['agent'] as const,
-          status: 'active' as const,
-          emailVerified: true,
-        };
-        
-        const [user] = await tx.insert(users).values(userData).returning();
+        // Create user account if requested
+        if (createUserAccount) {
+          // Validate user creation fields if user account is requested
+          if (!username || username.length < 3) {
+            throw new Error('Username is required and must be at least 3 characters when creating user account');
+          }
+          if (!password || password.length < 8) {
+            throw new Error('Password is required and must be at least 8 characters when creating user account');
+          }
+          if (password !== confirmPassword) {
+            throw new Error('Passwords do not match');
+          }
+          
+          // Hash the password
+          const bcrypt = await import('bcrypt');
+          const passwordHash = await bcrypt.hash(password, 10);
+          
+          // Create user account within transaction
+          const userData = {
+            id: crypto.randomUUID(),
+            email: validationResult.data.email,
+            username: username,
+            passwordHash,
+            firstName: validationResult.data.firstName,
+            lastName: validationResult.data.lastName,
+            roles: ['agent'] as const,
+            status: 'active' as const,
+            emailVerified: true,
+            communicationPreference: communicationPreference || 'email',
+          };
+          
+          const [newUser] = await tx.insert(users).values(userData).returning();
+          user = newUser;
+          
+          userInfo = {
+            id: user.id,
+            username: user.username,
+            email: user.email,
+            roles: user.roles,
+            temporaryPassword: password // The password they set
+          };
+        } else {
+          // For agents without user accounts, we'll need to generate a special agent-only user ID
+          // This maintains the foreign key relationship while indicating no login capability
+          const agentOnlyUserId = crypto.randomUUID();
+          const userData = {
+            id: agentOnlyUserId,
+            email: validationResult.data.email,
+            username: `agent-${validationResult.data.firstName.toLowerCase()}-${validationResult.data.lastName.toLowerCase()}-${Date.now()}`,
+            passwordHash: null, // No password = no login capability
+            firstName: validationResult.data.firstName,
+            lastName: validationResult.data.lastName,
+            roles: ['agent'] as const,
+            status: 'inactive' as const, // Inactive since they can't log in
+            emailVerified: false,
+          };
+          
+          const [newUser] = await tx.insert(users).values(userData).returning();
+          user = newUser;
+        }
         
         // Create agent linked to user and company within transaction
         const [agent] = await tx.insert(agents).values({
@@ -3821,13 +3867,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         return {
           agent,
-          user: {
-            id: user.id,
-            username: user.username,
-            email: user.email,
-            roles: user.roles,
-            temporaryPassword // Include for admin to share with agent
-          },
+          user: userInfo, // Only return user info if account was created
           company: companyId ? { id: companyId, name: companyName } : undefined
         };
       });
