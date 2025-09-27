@@ -3768,9 +3768,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           )) {
             console.log(`Creating address for company: ${companyName}`);
             
-            // Prepare address data
+            // Prepare address data - remove locationId field entirely instead of setting it to null
             const addressData = {
-              locationId: null, // Company addresses are not linked to locations
               street1: companyAddress.street1?.trim() || '',
               street2: companyAddress.street2?.trim() || undefined,
               city: companyAddress.city?.trim() || '',
@@ -3779,6 +3778,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
               country: companyAddress.country?.trim() || 'US',
               type: 'primary' as const,
             };
+            
+            console.log('Address data being inserted:', addressData);
             
             // Create address
             const [address] = await tx.insert(addresses).values(addressData).returning();
@@ -3842,11 +3843,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // For agents without user accounts, we'll need to generate a special agent-only user ID
           // This maintains the foreign key relationship while indicating no login capability
           const agentOnlyUserId = crypto.randomUUID();
+          const bcrypt = await import('bcrypt');
+          // Generate a random hash that can't be used for login (since they don't know the original password)
+          const randomPasswordHash = await bcrypt.hash(crypto.randomUUID(), 10);
+          
           const userData = {
             id: agentOnlyUserId,
             email: validationResult.data.email,
             username: `agent-${validationResult.data.firstName.toLowerCase()}-${validationResult.data.lastName.toLowerCase()}-${Date.now()}`,
-            passwordHash: null, // No password = no login capability
+            passwordHash: randomPasswordHash, // Random hash - can't be used for login
             firstName: validationResult.data.firstName,
             lastName: validationResult.data.lastName,
             roles: ['agent'] as const,
