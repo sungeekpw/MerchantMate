@@ -283,18 +283,12 @@ export function AgentModal({ isOpen, onClose, agent }: AgentModalProps) {
         if (result.isValid) {
           setAddressValidationStatus('valid');
           
-          // Update form with validated address data
-          const currentAddress = form.getValues("companyAddress") || {};
-          const updatedAddress = {
-            ...currentAddress,
-            street1: result.streetAddress || suggestion.description.split(',')[0].trim(),
-            city: result.city || '',
-            state: result.state || '',
-            postalCode: result.zipCode || '',
-            country: 'US'
-          };
-          
-          form.setValue("companyAddress", updatedAddress);
+          // Update form with validated address data - set each field individually
+          form.setValue("companyAddress.street1", result.streetAddress || suggestion.description.split(',')[0].trim());
+          form.setValue("companyAddress.city", result.city || '');
+          form.setValue("companyAddress.state", result.state || '');
+          form.setValue("companyAddress.postalCode", result.zipCode || '');
+          form.setValue("companyAddress.country", 'US');
           
           // Lock the address fields after successful selection
           setAddressFieldsLocked(true);
@@ -327,15 +321,11 @@ export function AgentModal({ isOpen, onClose, agent }: AgentModalProps) {
       setAddressSuggestions([]);
       setSelectedSuggestionIndex(-1);
       
-      // Clear dependent fields when address is cleared
+      // Clear dependent fields when address is cleared - set each field individually
       if (value.length === 0 && !addressFieldsLocked) {
-        const currentAddress = form.getValues("companyAddress") || {};
-        form.setValue("companyAddress", {
-          ...currentAddress,
-          city: '',
-          state: '',
-          postalCode: ''
-        });
+        form.setValue("companyAddress.city", '');
+        form.setValue("companyAddress.state", '');
+        form.setValue("companyAddress.postalCode", '');
       }
     }
   };
