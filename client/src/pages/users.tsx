@@ -64,7 +64,7 @@ const createUserSchema = z.object({
   password: z.string().min(8, "Password must be at least 8 characters"),
   confirmPassword: z.string(),
   phone: z.string().min(10, "Phone number must be at least 10 digits").regex(/^\+?[\d\s\-\(\)]+$/, "Invalid phone number format"),
-  communicationPreference: z.enum(["email", "sms"]).default("email"),
+  communicationPreference: z.enum(["email", "sms", "both"]).default("email"),
   roles: z.array(z.enum(["merchant", "agent", "admin", "corporate", "super_admin"])).min(1, "At least one role is required"),
 }).refine((data) => data.password === data.confirmPassword, {
   message: "Passwords don't match",
@@ -77,6 +77,7 @@ const updateUserSchema = z.object({
   lastName: z.string().min(1, "Last name is required"),
   email: z.string().email("Invalid email address"),
   username: z.string().min(3, "Username must be at least 3 characters"),
+  communicationPreference: z.enum(["email", "sms", "both"]),
   roles: z.array(z.enum(["merchant", "agent", "admin", "corporate", "super_admin"])).min(1, "At least one role is required"),
   status: z.enum(["active", "suspended", "inactive"]),
 });
@@ -361,6 +362,7 @@ export default function UsersPage() {
       lastName: "",
       email: "",
       username: "",
+      communicationPreference: "email" as const,
       roles: ["merchant"],
       status: "active",
     },
@@ -806,6 +808,29 @@ export default function UsersPage() {
                 )}
               />
 
+              <FormField
+                control={updateUserForm.control}
+                name="communicationPreference"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Communication Preference</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select preference" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="email">Email Only</SelectItem>
+                        <SelectItem value="sms">SMS Only</SelectItem>
+                        <SelectItem value="both">Both Email & SMS</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
               <div className="grid grid-cols-2 gap-4">
                 <FormField
                   control={updateUserForm.control}
@@ -899,6 +924,7 @@ export default function UsersPage() {
       lastName: user.lastName || "",
       email: user.email,
       username: user.username,
+      communicationPreference: (user.communicationPreference || "email") as any,
       roles: user.roles || ["merchant"],
       status: user.status as any,
     });
