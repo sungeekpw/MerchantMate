@@ -3923,6 +3923,127 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Update agent
+  app.put("/api/agents/:id", dbEnvironmentMiddleware, requireRole(['admin', 'corporate', 'super_admin']), async (req: RequestWithDB, res) => {
+    const dynamicDB = getRequestDB(req);
+    const agentId = parseInt(req.params.id);
+    console.log(`Updating agent ${agentId} - Database environment: ${req.dbEnv}`);
+    
+    try {
+      // Check if agent exists
+      const [existingAgent] = await dynamicDB.select().from(agents).where(eq(agents.id, agentId));
+      if (!existingAgent) {
+        return res.status(404).json({ message: "Agent not found" });
+      }
+
+      const result = await dynamicDB.transaction(async (tx) => {
+        // Extract data from request
+        const { 
+          companyName, 
+          companyBusinessType, 
+          companyEmail, 
+          companyPhone, 
+          companyWebsite, 
+          companyTaxId, 
+          companyIndustry, 
+          companyDescription, 
+          companyAddress,
+          createUserAccount,
+          username,
+          password,
+          confirmPassword,
+          communicationPreference,
+          ...agentData 
+        } = req.body;
+
+        // Validate agent data
+        const validationResult = insertAgentSchema.omit({ userId: true }).partial().safeParse(agentData);
+        if (!validationResult.success) {
+          throw new Error(`Invalid agent data: ${validationResult.error.errors.map(e => e.message).join(', ')}`);
+        }
+
+        // Update agent basic info
+        const [updatedAgent] = await tx
+          .update(agents)
+          .set(validationResult.data)
+          .where(eq(agents.id, agentId))
+          .returning();
+
+        // Handle user account creation if requested
+        let userInfo = null;
+        if (createUserAccount) {
+          // Check if agent already has a user account
+          const [existingUser] = await tx.select().from(users).where(eq(users.id, existingAgent.userId));
+          
+          // Check if the existing user is actually a login-enabled account
+          const hasActiveAccount = existingUser && existingUser.status === 'active';
+          
+          if (hasActiveAccount) {
+            throw new Error('Agent already has an active user account');
+          }
+          
+          // Validate user creation fields
+          if (!username || username.length < 3) {
+            throw new Error('Username is required and must be at least 3 characters when creating user account');
+          }
+          if (!password || password.length < 8) {
+            throw new Error('Password is required and must be at least 8 characters when creating user account');
+          }
+          if (password !== confirmPassword) {
+            throw new Error('Passwords do not match');
+          }
+          
+          // Hash the password
+          const bcrypt = await import('bcrypt');
+          const passwordHash = await bcrypt.hash(password, 10);
+          
+          // Update the existing user to be active
+          const [activatedUser] = await tx
+            .update(users)
+            .set({
+              username: username,
+              passwordHash: passwordHash,
+              status: 'active' as const,
+              emailVerified: true,
+              communicationPreference: communicationPreference || 'email',
+              roles: ['agent'] as const,
+            })
+            .where(eq(users.id, existingAgent.userId))
+            .returning();
+          
+          userInfo = {
+            id: activatedUser.id,
+            username: activatedUser.username,
+            email: activatedUser.email,
+            roles: activatedUser.roles,
+            temporaryPassword: password
+          };
+        }
+
+        return {
+          agent: updatedAgent,
+          user: userInfo
+        };
+      });
+      
+      console.log(`Agent ${agentId} updated successfully in ${req.dbEnv} database`);
+      res.status(200).json(result);
+      
+    } catch (error) {
+      console.error("Error updating agent:", error);
+      
+      if (error.message?.includes('Invalid agent data')) {
+        res.status(400).json({ message: error.message });
+      } else if (error.message?.includes('already has an active user account')) {
+        res.status(409).json({ message: error.message });
+      } else if (error.message?.includes('Username') || error.message?.includes('Password')) {
+        res.status(400).json({ message: error.message });
+      } else {
+        res.status(500).json({ message: "Failed to update agent" });
+      }
+    }
+  });
+
   // Delete agent
   app.delete("/api/agents/:id", dbEnvironmentMiddleware, requireRole(['admin', 'super_admin']), async (req: RequestWithDB, res) => {
     try {
