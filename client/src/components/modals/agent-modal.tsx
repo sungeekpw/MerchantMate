@@ -66,23 +66,39 @@ const agentSchema = z.object({
   password: z.string().optional(),
   confirmPassword: z.string().optional(),
   communicationPreference: z.enum(["email", "sms"]).default("email").optional(),
-}).refine((data) => {
-  // If creating user account, validate password fields
+}).superRefine((data, ctx) => {
+  // If creating user account, validate password fields with specific error messages
   if (data.createUserAccount) {
-    if (!data.password || data.password.length < 8) {
-      return false;
-    }
-    if (data.password !== data.confirmPassword) {
-      return false;
-    }
     if (!data.username || data.username.length < 3) {
-      return false;
+      ctx.addIssue({
+        code: z.ZodIssueCode.too_small,
+        minimum: 3,
+        type: "string",
+        inclusive: true,
+        message: "Username must be at least 3 characters",
+        path: ["username"],
+      });
+    }
+    
+    if (!data.password || data.password.length < 8) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.too_small,
+        minimum: 8,
+        type: "string",
+        inclusive: true,
+        message: "Password must be at least 8 characters",
+        path: ["password"],
+      });
+    }
+    
+    if (data.password !== data.confirmPassword) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Passwords do not match",
+        path: ["confirmPassword"],
+      });
     }
   }
-  return true;
-}, {
-  message: "User account fields are required when creating user account",
-  path: ["createUserAccount"],
 });
 
 type AgentFormData = z.infer<typeof agentSchema>;
@@ -332,6 +348,17 @@ export function AgentModal({ isOpen, onClose, agent }: AgentModalProps) {
 
   // Handle keyboard navigation in suggestions
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    // Always prevent Enter from submitting the form in address input
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      // If suggestions are visible and one is selected, use it
+      if (showSuggestions && addressSuggestions.length > 0 && selectedSuggestionIndex >= 0) {
+        validateAndSelectAddress(addressSuggestions[selectedSuggestionIndex]);
+      }
+      return;
+    }
+
+    // Handle other keys only when suggestions are visible
     if (!showSuggestions || addressSuggestions.length === 0) return;
 
     switch (e.key) {
@@ -344,12 +371,6 @@ export function AgentModal({ isOpen, onClose, agent }: AgentModalProps) {
       case 'ArrowUp':
         e.preventDefault();
         setSelectedSuggestionIndex(prev => prev > 0 ? prev - 1 : -1);
-        break;
-      case 'Enter':
-        e.preventDefault();
-        if (selectedSuggestionIndex >= 0) {
-          validateAndSelectAddress(addressSuggestions[selectedSuggestionIndex]);
-        }
         break;
       case 'Escape':
         setShowSuggestions(false);
