@@ -520,9 +520,10 @@ export function AgentModal({ isOpen, onClose, agent }: AgentModalProps) {
 
   const onSubmit = (data: AgentFormData) => {
     if (agent) {
-      // For updates, only send agent data (editing not implemented for wizard yet)
-      const { companyName, companyBusinessType, companyEmail, companyPhone, companyWebsite, companyTaxId, companyIndustry, companyDescription, companyAddress, createUserAccount, username, password, confirmPassword, communicationPreference, ...agentData } = data;
-      updateMutation.mutate(agentData);
+      // For updates, send agent data and user account creation fields
+      // Note: Company/address updates not yet supported, only user account creation
+      const { companyName, companyBusinessType, companyEmail, companyPhone, companyWebsite, companyTaxId, companyIndustry, companyDescription, companyAddress, ...agentAndUserData } = data;
+      updateMutation.mutate(agentAndUserData as any);
     } else {
       // For creation, send all data including company and optional user account
       createMutation.mutate(data as any);
