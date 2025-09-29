@@ -1046,8 +1046,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       res.json({ message: "User account deleted successfully" });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error deleting user:", error);
+      
+      // Check if error is due to foreign key constraint (agent or merchant exists)
+      if (error.code === '23503' || error.message?.includes('foreign key constraint')) {
+        return res.status(409).json({ 
+          message: "Cannot delete user: User has associated agent or merchant records. Please delete or reassign those records first, or deactivate the user instead." 
+        });
+      }
+      
       res.status(500).json({ message: "Failed to delete user account" });
     }
   });

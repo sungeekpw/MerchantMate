@@ -5,7 +5,7 @@ import { z } from "zod";
 
 export const merchants = pgTable("merchants", {
   id: serial("id").primaryKey(),
-  userId: varchar("user_id").references(() => users.id, { onDelete: "cascade" }).unique(),
+  userId: varchar("user_id").references(() => users.id, { onDelete: "restrict" }).unique(),
   companyId: integer("company_id").references(() => companies.id, { onDelete: "cascade" }), // Link to company entity
   businessName: text("business_name").notNull(), // TODO: Move to companies table
   businessType: text("business_type").notNull(), // TODO: Move to companies table  
@@ -68,7 +68,7 @@ export const companyAddresses = pgTable("company_addresses", {
 
 export const agents = pgTable("agents", {
   id: serial("id").primaryKey(),
-  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }).unique(),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "restrict" }).unique(),
   companyId: integer("company_id").references(() => companies.id, { onDelete: "set null" }), // Link to employing company (optional)
   firstName: text("first_name").notNull(),
   lastName: text("last_name").notNull(),
