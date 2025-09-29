@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, timestamp, decimal, varchar, jsonb, index, unique, real, numeric } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, decimal, varchar, jsonb, index, unique, uniqueIndex, real, numeric } from "drizzle-orm/pg-core";
 import { sql, eq } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
@@ -1189,6 +1189,151 @@ export type EmailActivity = typeof emailActivity.$inferSelect;
 export type InsertEmailActivity = z.infer<typeof insertEmailActivitySchema>;
 export type EmailTrigger = typeof emailTriggers.$inferSelect;
 export type InsertEmailTrigger = z.infer<typeof insertEmailTriggerSchema>;
+
+// Generic Trigger/Action Catalog System
+// Trigger Catalog - Central registry of all system events that can trigger actions
+export const triggerCatalog = pgTable('trigger_catalog', {
+  id: serial('id').primaryKey(),
+  triggerKey: varchar('trigger_key', { length: 100 }).notNull().unique(), // user_registered, application_submitted, etc.
+  name: varchar('name', { length: 200 }).notNull(),
+  description: text('description'),
+  category: varchar('category', { length: 50 }).notNull(), // user, application, merchant, agent, system
+  contextSchema: jsonb('context_schema'), // JSON schema defining expected context data
+  isActive: boolean('is_active').default(true),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+});
+
+// Action Templates - Generic templates for all action types (email, sms, webhook, notification)
+export const actionTemplates = pgTable('action_templates', {
+  id: serial('id').primaryKey(),
+  name: varchar('name', { length: 200 }).notNull(),
+  description: text('description'),
+  actionType: varchar('action_type', { length: 50 }).notNull(), // email, sms, webhook, notification, slack, teams
+  category: varchar('category', { length: 50 }).notNull(), // authentication, application, notification, alert
+  config: jsonb('config').notNull(), // Type-specific configuration (subject, body, url, headers, etc.)
+  variables: jsonb('variables'), // Available variables for template
+  isActive: boolean('is_active').default(true),
+  version: integer('version').default(1),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+}, (table) => ({
+  actionTypeIdx: index("action_templates_action_type_idx").on(table.actionType),
+  categoryIdx: index("action_templates_category_idx").on(table.category),
+  nameIdx: index("action_templates_name_idx").on(table.name),
+}));
+
+// Trigger Actions - Junction table linking triggers to actions with execution rules
+export const triggerActions = pgTable('trigger_actions', {
+  id: serial('id').primaryKey(),
+  triggerId: integer('trigger_id').references(() => triggerCatalog.id, { onDelete: 'cascade' }).notNull(),
+  actionTemplateId: integer('action_template_id').references(() => actionTemplates.id, { onDelete: 'cascade' }).notNull(),
+  sequenceOrder: integer('sequence_order').default(1), // Execution order for chained actions
+  conditions: jsonb('conditions'), // Conditional logic for action execution
+  requiresEmailPreference: boolean('requires_email_preference').default(false), // Check user.communicationPreference includes 'email'
+  requiresSmsPreference: boolean('requires_sms_preference').default(false), // Check user.communicationPreference includes 'sms'
+  delaySeconds: integer('delay_seconds').default(0), // Delay before execution
+  retryOnFailure: boolean('retry_on_failure').default(true),
+  maxRetries: integer('max_retries').default(3),
+  isActive: boolean('is_active').default(true),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+}, (table) => ({
+  triggerIdIdx: index("trigger_actions_trigger_id_idx").on(table.triggerId),
+  actionTemplateIdIdx: index("trigger_actions_action_template_id_idx").on(table.actionTemplateId),
+  sequenceOrderIdx: index("trigger_actions_sequence_order_idx").on(table.sequenceOrder),
+  triggerSequenceUniqueIdx: uniqueIndex("trigger_actions_trigger_sequence_idx").on(table.triggerId, table.sequenceOrder).where(sql`is_active = true`),
+}));
+
+// Action Activity - Audit log for all action executions
+export const actionActivity = pgTable('action_activity', {
+  id: serial('id').primaryKey(),
+  triggerActionId: integer('trigger_action_id').references(() => triggerActions.id),
+  triggerId: integer('trigger_id').references(() => triggerCatalog.id),
+  actionTemplateId: integer('action_template_id').references(() => actionTemplates.id),
+  actionType: varchar('action_type', { length: 50 }).notNull(),
+  recipient: varchar('recipient', { length: 255 }).notNull(), // Email, phone, webhook URL, user ID
+  recipientName: varchar('recipient_name', { length: 255 }),
+  status: varchar('status', { length: 20 }).notNull(), // pending, sent, failed, delivered, bounced, opened, clicked
+  statusMessage: text('status_message'),
+  triggerSource: varchar('trigger_source', { length: 100 }), // api, manual, scheduled, workflow
+  triggeredBy: varchar('triggered_by', { length: 255 }), // User ID or system
+  contextData: jsonb('context_data'), // Context data passed to the action
+  responseData: jsonb('response_data'), // Response from action execution (API response, delivery receipt, etc.)
+  executedAt: timestamp('executed_at').defaultNow(),
+  deliveredAt: timestamp('delivered_at'),
+  failedAt: timestamp('failed_at'),
+  retryCount: integer('retry_count').default(0),
+}, (table) => ({
+  triggerActionIdIdx: index("action_activity_trigger_action_id_idx").on(table.triggerActionId),
+  actionTypeIdx: index("action_activity_action_type_idx").on(table.actionType),
+  recipientIdx: index("action_activity_recipient_idx").on(table.recipient),
+  statusIdx: index("action_activity_status_idx").on(table.status),
+  executedAtIdx: index("action_activity_executed_at_idx").on(table.executedAt),
+}));
+
+// Trigger/Action Catalog Zod schemas and types
+export const insertTriggerCatalogSchema = createInsertSchema(triggerCatalog);
+export const insertActionTemplateSchema = createInsertSchema(actionTemplates);
+export const insertTriggerActionSchema = createInsertSchema(triggerActions);
+export const insertActionActivitySchema = createInsertSchema(actionActivity);
+
+export type TriggerCatalog = typeof triggerCatalog.$inferSelect;
+export type InsertTriggerCatalog = z.infer<typeof insertTriggerCatalogSchema>;
+export type ActionTemplate = typeof actionTemplates.$inferSelect;
+export type InsertActionTemplate = z.infer<typeof insertActionTemplateSchema>;
+export type TriggerAction = typeof triggerActions.$inferSelect;
+export type InsertTriggerAction = z.infer<typeof insertTriggerActionSchema>;
+export type ActionActivity = typeof actionActivity.$inferSelect;
+export type InsertActionActivity = z.infer<typeof insertActionActivitySchema>;
+
+// Action Configuration Types (for type-safe config field)
+export const emailActionConfigSchema = z.object({
+  subject: z.string(),
+  htmlContent: z.string(),
+  textContent: z.string().optional(),
+  fromEmail: z.string().email().optional(),
+  fromName: z.string().optional(),
+  replyTo: z.string().email().optional(),
+});
+
+export const smsActionConfigSchema = z.object({
+  message: z.string().max(1600), // SMS character limit
+  from: z.string().optional(), // Sender ID or phone number
+});
+
+export const webhookActionConfigSchema = z.object({
+  url: z.string().url(),
+  method: z.enum(['GET', 'POST', 'PUT', 'PATCH', 'DELETE']),
+  headers: z.record(z.string()).optional(),
+  body: z.any().optional(),
+  authentication: z.object({
+    type: z.enum(['none', 'bearer', 'basic', 'api_key']),
+    credentials: z.record(z.string()).optional(),
+  }).optional(),
+});
+
+export const notificationActionConfigSchema = z.object({
+  title: z.string(),
+  message: z.string(),
+  type: z.enum(['info', 'success', 'warning', 'error']),
+  link: z.string().optional(),
+  icon: z.string().optional(),
+});
+
+export const slackActionConfigSchema = z.object({
+  channel: z.string(),
+  message: z.string(),
+  username: z.string().optional(),
+  iconEmoji: z.string().optional(),
+  blocks: z.any().optional(), // Slack Block Kit JSON
+});
+
+export type EmailActionConfig = z.infer<typeof emailActionConfigSchema>;
+export type SmsActionConfig = z.infer<typeof smsActionConfigSchema>;
+export type WebhookActionConfig = z.infer<typeof webhookActionConfigSchema>;
+export type NotificationActionConfig = z.infer<typeof notificationActionConfigSchema>;
+export type SlackActionConfig = z.infer<typeof slackActionConfigSchema>;
 
 // Export Drizzle utilities
 export { sql, eq };
