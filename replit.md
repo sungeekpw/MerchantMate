@@ -42,6 +42,7 @@ Preferred communication style: Simple, everyday language.
 - **Testing Framework**: TDD-style with Jest and React Testing Library for component, page, API, and schema tests, including a visual testing dashboard.
 - **Schema Management**: Comprehensive database schema comparison and synchronization utilities supporting production, development, and test environments, including a bulletproof version-controlled migration system.
 - **Multi-Environment Support**: Complete session-based database environment switching with login screen environment selector, ensuring proper ACID compliance and environment isolation.
+- **Generic Trigger/Action Catalog System**: Extensible event-driven action system supporting multi-channel notifications (email, SMS, webhook, Slack, in-app) with user communication preference enforcement, conditional execution, action chaining, and comprehensive audit logging.
 
 ## External Dependencies
 - **@neondatabase/serverless**: Serverless PostgreSQL connector.
