@@ -396,8 +396,10 @@ export function AgentModal({ isOpen, onClose, agent }: AgentModalProps) {
       
       // Reset form with appropriate values
       if (agent) {
-        // Edit mode - populate with agent data
-        form.reset({
+        // Edit mode - populate with agent data including company and address
+        const agentWithCompany = agent as any; // Agent may include company and address data
+        
+        const formData = {
           firstName: agent.firstName || "",
           lastName: agent.lastName || "",
           email: agent.email || "",
@@ -405,30 +407,62 @@ export function AgentModal({ isOpen, onClose, agent }: AgentModalProps) {
           territory: agent.territory || "",
           commissionRate: agent.commissionRate || "5.00",
           status: (agent.status as "active" | "inactive") || "active",
-          // Company defaults for edit mode
-          companyName: "",
-          companyBusinessType: undefined,
-          companyEmail: "",
-          companyPhone: "",
-          companyWebsite: "",
-          companyTaxId: "",
-          companyIndustry: "",
-          companyDescription: "",
+          // Company data from joined data
+          companyName: agentWithCompany.company?.name || "",
+          companyBusinessType: agentWithCompany.company?.businessType as any || undefined,
+          companyEmail: agentWithCompany.company?.email || "",
+          companyPhone: agentWithCompany.company?.phone || "",
+          companyWebsite: agentWithCompany.company?.website || "",
+          companyTaxId: agentWithCompany.company?.taxId || "",
+          companyIndustry: agentWithCompany.company?.industry || "",
+          companyDescription: agentWithCompany.company?.description || "",
           companyAddress: {
-            street1: "",
-            street2: "",
-            city: "",
-            state: "",
-            postalCode: "",
-            country: "US",
+            street1: agentWithCompany.address?.street1 || "",
+            street2: agentWithCompany.address?.street2 || "",
+            city: agentWithCompany.address?.city || "",
+            state: agentWithCompany.address?.state || "",
+            postalCode: agentWithCompany.address?.postalCode || "",
+            country: agentWithCompany.address?.country || "US",
           },
-          // User account defaults
+          // User account defaults (don't populate for security)
           createUserAccount: false,
           username: "",
           password: "",
           confirmPassword: "",
           communicationPreference: "email",
-        });
+        };
+        
+        form.reset(formData);
+        
+        // Explicitly set address fields using setValue to ensure they're populated
+        if (agentWithCompany.address) {
+          setTimeout(() => {
+            if (agentWithCompany.address.street1) {
+              form.setValue("companyAddress.street1", agentWithCompany.address.street1);
+            }
+            if (agentWithCompany.address.street2) {
+              form.setValue("companyAddress.street2", agentWithCompany.address.street2);
+            }
+            if (agentWithCompany.address.city) {
+              form.setValue("companyAddress.city", agentWithCompany.address.city);
+            }
+            if (agentWithCompany.address.state) {
+              form.setValue("companyAddress.state", agentWithCompany.address.state);
+            }
+            if (agentWithCompany.address.postalCode) {
+              form.setValue("companyAddress.postalCode", agentWithCompany.address.postalCode);
+            }
+            if (agentWithCompany.address.country) {
+              form.setValue("companyAddress.country", agentWithCompany.address.country);
+            }
+          }, 50);
+        }
+        
+        // If address exists, lock it for editing
+        if (agentWithCompany.address?.street1) {
+          setAddressFieldsLocked(true);
+          setAddressValidationStatus('valid');
+        }
       } else {
         // Add mode - reset to completely clean state
         form.reset({
