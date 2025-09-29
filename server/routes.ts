@@ -19,7 +19,7 @@ import { dbEnvironmentMiddleware, adminDbMiddleware, getRequestDB, type RequestW
 import { globalEnvironmentMiddleware, adminEnvironmentMiddleware, type RequestWithGlobalDB } from "./globalEnvironmentMiddleware";
 import { setupEnvironmentRoutes } from "./environmentRoutes";
 import { getDynamicDatabase } from "./db";
-import { users, agents, merchants, agentMerchants } from "@shared/schema";
+import { users, agents, merchants, agentMerchants, companies, addresses, companyAddresses } from "@shared/schema";
 import crypto from "crypto";
 import { eq, or, ilike, sql, inArray } from "drizzle-orm";
 
@@ -3678,22 +3678,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log(`Agents endpoint - Database environment: ${req.dbEnv}`);
       
-      // Use dynamic database connection directly
+      // Fetch agents with their company and address information
+      let agentRecords;
       if (search) {
-        const searchResults = await dynamicDB.select().from(agents).where(
+        agentRecords = await dynamicDB.select({
+          agent: agents,
+          company: companies,
+          address: addresses
+        })
+        .from(agents)
+        .leftJoin(companies, eq(agents.companyId, companies.id))
+        .leftJoin(companyAddresses, eq(companies.id, companyAddresses.companyId))
+        .leftJoin(addresses, eq(companyAddresses.addressId, addresses.id))
+        .where(
           or(
             ilike(agents.firstName, `%${search}%`),
             ilike(agents.lastName, `%${search}%`),
             ilike(agents.email, `%${search}%`)
           )
         );
-        console.log(`Found ${searchResults.length} agents matching "${search}" in ${req.dbEnv} database`);
-        res.json(searchResults);
       } else {
-        const allAgents = await dynamicDB.select().from(agents);
-        console.log(`Found ${allAgents.length} agents in ${req.dbEnv} database`);
-        res.json(allAgents);
+        agentRecords = await dynamicDB.select({
+          agent: agents,
+          company: companies,
+          address: addresses
+        })
+        .from(agents)
+        .leftJoin(companies, eq(agents.companyId, companies.id))
+        .leftJoin(companyAddresses, eq(companies.id, companyAddresses.companyId))
+        .leftJoin(addresses, eq(companyAddresses.addressId, addresses.id));
       }
+      
+      // Transform results to include company and address data
+      const agentsWithCompanyData = agentRecords.map(record => ({
+        ...record.agent,
+        company: record.company || undefined,
+        address: record.address || undefined
+      }));
+      
+      console.log(`Found ${agentsWithCompanyData.length} agents in ${req.dbEnv} database`);
+      res.json(agentsWithCompanyData);
     } catch (error) {
       console.error("Error fetching agents:", error);
       res.status(500).json({ message: "Failed to fetch agents" });
