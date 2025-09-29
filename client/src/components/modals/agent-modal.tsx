@@ -358,6 +358,94 @@ export function AgentModal({ isOpen, onClose, agent }: AgentModalProps) {
     }
   };
 
+  // Reset form when modal opens or agent changes
+  useEffect(() => {
+    if (isOpen) {
+      // Reset wizard state
+      setCurrentStep(0);
+      setVisitedSections(new Set([0]));
+      
+      // Reset address state
+      setAddressSuggestions([]);
+      setShowSuggestions(false);
+      setIsLoadingSuggestions(false);
+      setSelectedSuggestionIndex(-1);
+      setAddressFieldsLocked(false);
+      setAddressValidationStatus('idle');
+      
+      // Reset form with appropriate values
+      if (agent) {
+        // Edit mode - populate with agent data
+        form.reset({
+          firstName: agent.firstName || "",
+          lastName: agent.lastName || "",
+          email: agent.email || "",
+          phone: agent.phone || "",
+          territory: agent.territory || "",
+          commissionRate: agent.commissionRate || "5.00",
+          status: (agent.status as "active" | "inactive") || "active",
+          // Company defaults for edit mode
+          companyName: "",
+          companyBusinessType: undefined,
+          companyEmail: "",
+          companyPhone: "",
+          companyWebsite: "",
+          companyTaxId: "",
+          companyIndustry: "",
+          companyDescription: "",
+          companyAddress: {
+            street1: "",
+            street2: "",
+            city: "",
+            state: "",
+            postalCode: "",
+            country: "US",
+          },
+          // User account defaults
+          createUserAccount: false,
+          username: "",
+          password: "",
+          confirmPassword: "",
+          communicationPreference: "email",
+        });
+      } else {
+        // Add mode - reset to completely clean state
+        form.reset({
+          firstName: "",
+          lastName: "",
+          email: "",
+          phone: "",
+          territory: "",
+          commissionRate: "5.00",
+          status: "active",
+          // Company defaults
+          companyName: "",
+          companyBusinessType: undefined,
+          companyEmail: "",
+          companyPhone: "",
+          companyWebsite: "",
+          companyTaxId: "",
+          companyIndustry: "",
+          companyDescription: "",
+          companyAddress: {
+            street1: "",
+            street2: "",
+            city: "",
+            state: "",
+            postalCode: "",
+            country: "US",
+          },
+          // User account defaults
+          createUserAccount: false,
+          username: "",
+          password: "",
+          confirmPassword: "",
+          communicationPreference: "email",
+        });
+      }
+    }
+  }, [isOpen, agent, form]);
+
   // Close suggestions when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -979,13 +1067,13 @@ export function AgentModal({ isOpen, onClose, agent }: AgentModalProps) {
   const renderCurrentSection = () => {
     switch (currentSection.id) {
       case "agent":
-        return renderAgentSection();
+        return <div key="agent-section">{renderAgentSection()}</div>;
       case "company":
-        return renderCompanySection();
+        return <div key="company-section">{renderCompanySection()}</div>;
       case "address":
-        return renderAddressSection();
+        return <div key="address-section">{renderAddressSection()}</div>;
       case "user":
-        return renderUserAccountSection();
+        return <div key="user-section">{renderUserAccountSection()}</div>;
       default:
         return null;
     }
