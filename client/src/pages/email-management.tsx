@@ -113,6 +113,8 @@ const EmailManagement: React.FC = () => {
   const [isTemplateDialogOpen, setIsTemplateDialogOpen] = useState(false);
   const [isTriggerDialogOpen, setIsTriggerDialogOpen] = useState(false);
   const [editingTrigger, setEditingTrigger] = useState<EmailTrigger | null>(null);
+  const [selectedTriggerEvent, setSelectedTriggerEvent] = useState('');
+  const [selectedTemplateId, setSelectedTemplateId] = useState('');
   const [activityFilters, setActivityFilters] = useState({
     status: 'all',
     templateId: 'all',
@@ -183,6 +185,14 @@ const EmailManagement: React.FC = () => {
       return response.json();
     }
   });
+
+  // Set form values when editing a trigger
+  React.useEffect(() => {
+    if (editingTrigger) {
+      setSelectedTriggerEvent(editingTrigger.triggerEvent || '');
+      setSelectedTemplateId(editingTrigger.templateId?.toString() || '');
+    }
+  }, [editingTrigger]);
 
   // Create/Update template mutation
   const templateMutation = useMutation({
@@ -323,8 +333,8 @@ const EmailManagement: React.FC = () => {
     const triggerData: Partial<EmailTrigger> = {
       name: formData.get('name') as string,
       description: formData.get('description') as string,
-      triggerEvent: formData.get('triggerEvent') as string,
-      templateId: parseInt(formData.get('templateId') as string),
+      triggerEvent: selectedTriggerEvent,
+      templateId: parseInt(selectedTemplateId),
       conditions: JSON.parse((formData.get('conditions') as string) || '{}'),
       isActive: formData.get('isActive') === 'true'
     };
@@ -755,7 +765,11 @@ const EmailManagement: React.FC = () => {
             </div>
             <Dialog open={isTriggerDialogOpen} onOpenChange={setIsTriggerDialogOpen}>
               <DialogTrigger asChild>
-                <Button onClick={() => setEditingTrigger(null)}>
+                <Button onClick={() => {
+                  setEditingTrigger(null);
+                  setSelectedTriggerEvent('');
+                  setSelectedTemplateId('');
+                }}>
                   <Plus className="h-4 w-4 mr-2" />
                   Create Trigger
                 </Button>
@@ -790,7 +804,10 @@ const EmailManagement: React.FC = () => {
                     </div>
                     <div>
                       <Label htmlFor="trigger-event">Trigger Event</Label>
-                      <Select name="triggerEvent" defaultValue={editingTrigger?.triggerEvent || ''} required>
+                      <Select 
+                        value={selectedTriggerEvent} 
+                        onValueChange={setSelectedTriggerEvent}
+                      >
                         <SelectTrigger>
                           <SelectValue placeholder="Select trigger event" />
                         </SelectTrigger>
@@ -805,7 +822,10 @@ const EmailManagement: React.FC = () => {
                     </div>
                     <div>
                       <Label htmlFor="trigger-template">Email Template</Label>
-                      <Select name="templateId" defaultValue={editingTrigger?.templateId?.toString() || ''} required>
+                      <Select 
+                        value={selectedTemplateId} 
+                        onValueChange={setSelectedTemplateId}
+                      >
                         <SelectTrigger>
                           <SelectValue placeholder="Select email template" />
                         </SelectTrigger>
