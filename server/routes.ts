@@ -3913,6 +3913,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (result.company) {
         console.log(`Company created: ${result.company.name} (ID: ${result.company.id})`);
       }
+      
+      // Fire agent_registered trigger
+      try {
+        const { TriggerService } = await import("./triggerService");
+        const triggerService = new TriggerService();
+        
+        await triggerService.fireTrigger('agent_registered', {
+          agentId: result.agent.id,
+          agentName: `${result.agent.firstName} ${result.agent.lastName}`,
+          firstName: result.agent.firstName,
+          lastName: result.agent.lastName,
+          email: result.agent.email,
+          phone: result.agent.phone,
+          territory: result.agent.territory,
+          companyName: result.company?.name,
+          companyId: result.company?.id,
+          hasUserAccount: !!result.user,
+          username: result.user?.username,
+        }, {
+          userId: result.user?.id,
+          triggerSource: 'agent_creation',
+          dbEnv: req.dbEnv
+        });
+        
+        console.log(`agent_registered trigger fired for agent ${result.agent.id}`);
+      } catch (triggerError) {
+        // Log but don't fail the agent creation
+        console.error('Error firing agent_registered trigger:', triggerError);
+      }
+      
       res.status(201).json(result);
       
     } catch (error) {
@@ -8137,6 +8167,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error deleting email template:", error);
       res.status(500).json({ message: "Failed to delete email template" });
+    }
+  });
+
+  // Get available trigger events
+  app.get("/api/admin/trigger-events", requireRole(['admin', 'super_admin']), async (req, res) => {
+    try {
+      const { TRIGGER_EVENTS } = await import("@shared/schema");
+      res.json(TRIGGER_EVENTS);
+    } catch (error) {
+      console.error("Error fetching trigger events:", error);
+      res.status(500).json({ message: "Failed to fetch trigger events" });
     }
   });
 
