@@ -3792,16 +3792,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
           companyId = company.id;
           console.log(`Company created with ID: ${companyId}`);
           
-          // Create address if provided
+          // Create location and address if provided
           if (companyAddress && (
             companyAddress.street1?.trim() || 
             companyAddress.city?.trim() || 
             companyAddress.state?.trim()
           )) {
-            console.log(`Creating address for company: ${companyName}`);
+            console.log(`Creating location and address for company: ${companyName}`);
             
-            // Prepare address data - remove locationId field entirely instead of setting it to null
+            const { locations } = await import("@shared/schema");
+            
+            // Create location first (linked to company)
+            const locationData = {
+              companyId: companyId,
+              name: companyName, // Use company name as location name
+              type: 'company_office' as const,
+              phone: companyPhone?.trim() || undefined,
+              email: companyEmail?.trim() || undefined,
+              status: 'active' as const,
+            };
+            
+            const [location] = await tx.insert(locations).values(locationData).returning();
+            console.log(`Location created with ID: ${location.id}`);
+            
+            // Prepare address data - link to location
             const addressData = {
+              locationId: location.id, // Link address to location
               street1: companyAddress.street1?.trim() || '',
               street2: companyAddress.street2?.trim() || undefined,
               city: companyAddress.city?.trim() || '',
@@ -3809,15 +3825,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
               postalCode: companyAddress.postalCode?.trim() || companyAddress.zipCode?.trim() || '',
               country: companyAddress.country?.trim() || 'US',
               type: 'primary' as const,
+              latitude: companyAddress.latitude || undefined,
+              longitude: companyAddress.longitude || undefined,
             };
             
             console.log('Address data being inserted:', addressData);
             
             // Create address
             const [address] = await tx.insert(addresses).values(addressData).returning();
-            console.log(`Address created with ID: ${address.id}`);
+            console.log(`Address created with ID: ${address.id} linked to location ${location.id}`);
             
-            // Link company to address
+            // Link company to address (for backward compatibility)
             await tx.insert(companyAddresses).values({
               companyId: companyId,
               addressId: address.id,
