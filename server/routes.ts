@@ -4075,16 +4075,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
           user = newUser;
         }
         
-        // Create agent linked to user and company within transaction
-        const [agent] = await tx.insert(agents).values({
-          firstName: agentValidation.data.firstName,
-          lastName: agentValidation.data.lastName,
-          territory: agentValidation.data.territory,
-          commissionRate: agentValidation.data.commissionRate,
-          status: agentValidation.data.status,
-          userId: user.id,
-          companyId: companyId
-        }).returning();
+        // Create agent - FINAL WORKAROUND: Use explicit column list with sql template
+        // This bypasses Drizzle's internal schema mapping that was adding phantom columns
+        const agentInsertQuery = sql.raw(`
+          INSERT INTO agents (user_id, company_id, first_name, last_name, territory, commission_rate, status)
+          VALUES ('${user.id}', ${companyId}, '${agentValidation.data.firstName.replace(/'/g, "''")}', 
+                  '${agentValidation.data.lastName.replace(/'/g, "''")}', 
+                  ${agentValidation.data.territory ? `'${agentValidation.data.territory.replace(/'/g, "''")}'` : 'NULL'}, 
+                  ${agentValidation.data.commissionRate || '5.00'}, 
+                  '${agentValidation.data.status}')
+          RETURNING *
+        `);
+        const agentResult = await tx.execute(agentInsertQuery);
+        const agent = agentResult.rows[0];
         
         return {
           agent,
@@ -4108,8 +4111,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           agentName: `${result.agent.firstName} ${result.agent.lastName}`,
           firstName: result.agent.firstName,
           lastName: result.agent.lastName,
-          email: result.agent.email,
-          phone: result.agent.phone,
+          email: companyEmail, // Use company email instead
+          phone: companyPhone, // Use company phone instead
           territory: result.agent.territory,
           companyName: result.company?.name,
           companyId: result.company?.id,
