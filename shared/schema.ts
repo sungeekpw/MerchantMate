@@ -36,10 +36,11 @@ export const merchants = pgTable("merchants", {
 
 export const locations = pgTable("locations", {
   id: serial("id").primaryKey(),
-  merchantId: integer("merchant_id").notNull().references(() => merchants.id, { onDelete: "cascade" }),
+  merchantId: integer("merchant_id").references(() => merchants.id, { onDelete: "cascade" }), // Made nullable for company locations
+  companyId: integer("company_id").references(() => companies.id, { onDelete: "cascade" }), // Support company locations
   mid: varchar("mid", { length: 50 }).unique(), // Merchant ID for tracking transactions to locations
   name: text("name").notNull(),
-  type: text("type").notNull().default("store"), // store, warehouse, office, headquarters
+  type: text("type").notNull().default("store"), // store, warehouse, office, headquarters, company_office
   phone: text("phone"),
   email: text("email"),
   status: text("status").notNull().default("active"), // active, inactive, temporarily_closed
