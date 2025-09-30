@@ -111,6 +111,8 @@ const EmailManagement: React.FC = () => {
   const queryClient = useQueryClient();
   const [editingTemplate, setEditingTemplate] = useState<EmailTemplate | null>(null);
   const [isTemplateDialogOpen, setIsTemplateDialogOpen] = useState(false);
+  const [isTriggerDialogOpen, setIsTriggerDialogOpen] = useState(false);
+  const [editingTrigger, setEditingTrigger] = useState<EmailTrigger | null>(null);
   const [activityFilters, setActivityFilters] = useState({
     status: 'all',
     templateId: 'all',
@@ -241,6 +243,46 @@ const EmailManagement: React.FC = () => {
     }
   });
 
+  // Create/Update trigger mutation
+  const triggerMutation = useMutation({
+    mutationFn: async (trigger: Partial<EmailTrigger>) => {
+      const url = trigger.id 
+        ? `/api/admin/email-triggers/${trigger.id}`
+        : '/api/admin/email-triggers';
+      const method = trigger.id ? 'PUT' : 'POST';
+      
+      const response = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(trigger)
+      });
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to save trigger');
+      }
+      
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/email-triggers'] });
+      setIsTriggerDialogOpen(false);
+      setEditingTrigger(null);
+      toast({
+        title: 'Success',
+        description: 'Email trigger saved successfully'
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: 'Error',
+        description: error.message,
+        variant: 'destructive'
+      });
+    }
+  });
+
   const handleTemplateSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
@@ -260,6 +302,26 @@ const EmailManagement: React.FC = () => {
     }
 
     templateMutation.mutate(templateData);
+  };
+
+  const handleTriggerSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+    
+    const triggerData: Partial<EmailTrigger> = {
+      name: formData.get('name') as string,
+      description: formData.get('description') as string,
+      triggerEvent: formData.get('triggerEvent') as string,
+      templateId: parseInt(formData.get('templateId') as string),
+      conditions: JSON.parse((formData.get('conditions') as string) || '{}'),
+      isActive: formData.get('isActive') === 'true'
+    };
+
+    if (editingTrigger) {
+      triggerData.id = editingTrigger.id;
+    }
+
+    triggerMutation.mutate(triggerData);
   };
 
   const getStatusBadge = (status: string) => {
@@ -679,6 +741,105 @@ const EmailManagement: React.FC = () => {
               <h3 className="text-lg font-medium">Email Triggers</h3>
               <p className="text-sm text-gray-600">Automated email triggers based on system events</p>
             </div>
+            <Dialog open={isTriggerDialogOpen} onOpenChange={setIsTriggerDialogOpen}>
+              <DialogTrigger asChild>
+                <Button onClick={() => setEditingTrigger(null)}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Create Trigger
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-2xl">
+                <DialogHeader>
+                  <DialogTitle>{editingTrigger ? 'Edit' : 'Create'} Email Trigger</DialogTitle>
+                  <DialogDescription>
+                    Link an email template to a system event
+                  </DialogDescription>
+                </DialogHeader>
+                <form onSubmit={handleTriggerSubmit}>
+                  <div className="space-y-4">
+                    <div>
+                      <Label htmlFor="trigger-name">Trigger Name</Label>
+                      <Input
+                        id="trigger-name"
+                        name="name"
+                        defaultValue={editingTrigger?.name || ''}
+                        placeholder="Welcome Email Trigger"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="trigger-description">Description</Label>
+                      <Textarea
+                        id="trigger-description"
+                        name="description"
+                        defaultValue={editingTrigger?.description || ''}
+                        placeholder="Sends welcome email when user registers"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="trigger-event">Trigger Event</Label>
+                      <Select name="triggerEvent" defaultValue={editingTrigger?.triggerEvent || ''} required>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select trigger event" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="user_registered">User Registered</SelectItem>
+                          <SelectItem value="application_submitted">Application Submitted</SelectItem>
+                          <SelectItem value="password_reset_requested">Password Reset Requested</SelectItem>
+                          <SelectItem value="account_activated">Account Activated</SelectItem>
+                          <SelectItem value="merchant_approved">Merchant Approved</SelectItem>
+                          <SelectItem value="signature_requested">Signature Requested</SelectItem>
+                          <SelectItem value="prospect_created">Prospect Created</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label htmlFor="trigger-template">Email Template</Label>
+                      <Select name="templateId" defaultValue={editingTrigger?.templateId?.toString() || ''} required>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select email template" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {templates.map((template: EmailTemplate) => (
+                            <SelectItem key={template.id} value={template.id.toString()}>
+                              {template.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label htmlFor="trigger-conditions">Conditions (JSON)</Label>
+                      <Textarea
+                        id="trigger-conditions"
+                        name="conditions"
+                        defaultValue={JSON.stringify(editingTrigger?.conditions || {}, null, 2)}
+                        placeholder='{"user_type": ["merchant", "agent"]}'
+                      />
+                      <p className="text-xs text-gray-500 mt-1">Optional: Add conditions for when this trigger should fire</p>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        id="trigger-active"
+                        name="isActive"
+                        value="true"
+                        defaultChecked={editingTrigger?.isActive !== false}
+                      />
+                      <Label htmlFor="trigger-active">Active</Label>
+                    </div>
+                  </div>
+                  <DialogFooter className="mt-6">
+                    <Button type="button" variant="outline" onClick={() => setIsTriggerDialogOpen(false)}>
+                      Cancel
+                    </Button>
+                    <Button type="submit">
+                      {editingTrigger ? 'Update' : 'Create'} Trigger
+                    </Button>
+                  </DialogFooter>
+                </form>
+              </DialogContent>
+            </Dialog>
           </div>
 
           <Card>
