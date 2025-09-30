@@ -3609,51 +3609,196 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Admin-only routes for merchants
-  app.get("/api/merchants/all", requireRole(['admin', 'corporate', 'super_admin']), async (req, res) => {
+  app.get("/api/merchants/all", dbEnvironmentMiddleware, requireRole(['admin', 'corporate', 'super_admin']), async (req: RequestWithDB, res) => {
     try {
       const { search } = req.query;
+      const dynamicDB = getRequestDB(req);
+      const { merchants, companies, companyAddresses, addresses } = await import("@shared/schema");
       
+      console.log(`Merchants endpoint - Database environment: ${req.dbEnv}`);
+      
+      // Fetch merchants with their user, company and address information
+      const { users } = await import("@shared/schema");
+      let merchantRecords;
       if (search) {
-        const merchants = await storage.searchMerchants(search as string);
-        res.json(merchants);
+        merchantRecords = await dynamicDB.select({
+          merchant: merchants,
+          user: users,
+          company: companies,
+          address: addresses
+        })
+        .from(merchants)
+        .leftJoin(users, eq(merchants.userId, users.id))
+        .leftJoin(companies, eq(merchants.companyId, companies.id))
+        .leftJoin(companyAddresses, eq(companies.id, companyAddresses.companyId))
+        .leftJoin(addresses, eq(companyAddresses.addressId, addresses.id))
+        .where(
+          or(
+            ilike(companies.name, `%${search}%`),
+            ilike(companies.email, `%${search}%`),
+            ilike(companies.phone, `%${search}%`),
+            ilike(users.firstName, `%${search}%`),
+            ilike(users.lastName, `%${search}%`)
+          )
+        );
       } else {
-        const merchants = await storage.getAllMerchants();
-        res.json(merchants);
+        merchantRecords = await dynamicDB.select({
+          merchant: merchants,
+          user: users,
+          company: companies,
+          address: addresses
+        })
+        .from(merchants)
+        .leftJoin(users, eq(merchants.userId, users.id))
+        .leftJoin(companies, eq(merchants.companyId, companies.id))
+        .leftJoin(companyAddresses, eq(companies.id, companyAddresses.companyId))
+        .leftJoin(addresses, eq(companyAddresses.addressId, addresses.id));
       }
+      
+      // Transform results to include user and company data (firstName/lastName from user, business info from company)
+      const merchantsWithCompanyData = merchantRecords.map(record => ({
+        ...record.merchant,
+        // Add user fields for backward compatibility (firstName/lastName from user table)
+        firstName: record.user?.firstName,
+        lastName: record.user?.lastName,
+        // Add company fields for backward compatibility
+        email: record.company?.email,
+        phone: record.company?.phone,
+        businessName: record.company?.name,
+        businessType: record.company?.businessType,
+        company: record.company || undefined,
+        address: record.address || undefined
+      }));
+      
+      console.log(`Found ${merchantsWithCompanyData.length} merchants in ${req.dbEnv} database`);
+      res.json(merchantsWithCompanyData);
     } catch (error) {
       console.error("Error fetching all merchants:", error);
       res.status(500).json({ message: "Failed to fetch all merchants" });
     }
   });
 
-  app.post("/api/merchants", requireRole(['admin', 'corporate', 'super_admin']), async (req, res) => {
+  app.post("/api/merchants", dbEnvironmentMiddleware, requireRole(['admin', 'corporate', 'super_admin']), async (req: RequestWithDB, res) => {
+    const dynamicDB = getRequestDB(req);
+    console.log(`Creating merchant - Database environment: ${req.dbEnv}`);
+    
     try {
-      // Remove userId from validation since it's auto-generated
-      const { userId, ...merchantData } = req.body;
-      const result = insertMerchantSchema.omit({ userId: true }).safeParse(merchantData);
-      if (!result.success) {
-        return res.status(400).json({ message: "Invalid merchant data", errors: result.error.errors });
-      }
+      const result = await dynamicDB.transaction(async (tx) => {
+        // Extract company data from request
+        const { 
+          userId,
+          companyName,
+          companyBusinessType,
+          companyEmail,
+          companyPhone,
+          companyWebsite,
+          companyTaxId,
+          companyIndustry,
+          companyDescription,
+          ...merchantData 
+        } = req.body;
 
-      // Create merchant with automatic user account creation
-      const { merchant, user, temporaryPassword } = await storage.createMerchantWithUser(result.data);
+        // Company creation is REQUIRED for merchants
+        if (!companyName?.trim()) {
+          throw new Error('Company name is required for merchant creation');
+        }
+        if (!companyEmail?.trim()) {
+          throw new Error('Company email is required for merchant creation');
+        }
+
+        console.log(`Creating company: ${companyName}`);
+        
+        // Create company
+        const { companies, users } = await import("@shared/schema");
+        const companyData = {
+          name: companyName.trim(),
+          businessType: companyBusinessType || undefined,
+          email: companyEmail.trim(),
+          phone: companyPhone?.trim() || undefined,
+          website: companyWebsite?.trim() || undefined,
+          taxId: companyTaxId?.trim() || undefined,
+          industry: companyIndustry?.trim() || undefined,
+          description: companyDescription?.trim() || undefined,
+          status: 'active' as const,
+        };
+
+        const [company] = await tx.insert(companies).values(companyData).returning();
+        const companyId = company.id;
+        console.log(`Company created with ID: ${companyId}`);
+
+        // Generate temporary password
+        const tempPassword = `Merch${Math.random().toString(36).slice(-8)}!`;
+        const bcrypt = await import('bcrypt');
+        const passwordHash = await bcrypt.hash(tempPassword, 10);
+
+        // Create user account for merchant
+        const username = merchantData.username || `${merchantData.firstName?.toLowerCase()}.${merchantData.lastName?.toLowerCase()}`;
+        const userData = {
+          id: crypto.randomUUID(),
+          email: companyEmail.trim(),
+          username: username,
+          passwordHash,
+          firstName: merchantData.firstName,
+          lastName: merchantData.lastName,
+          phone: companyPhone?.trim() || '',
+          roles: ['merchant'] as const,
+          status: 'active' as const,
+          emailVerified: false,
+        };
+
+        const [user] = await tx.insert(users).values(userData).returning();
+
+        // Validate merchant-specific data (merchants only have: userId, companyId, agentId, processingFee, status, monthlyVolume, notes)
+        const merchantValidation = insertMerchantSchema.omit({ userId: true, companyId: true }).safeParse({
+          status: merchantData.status || 'active',
+          agentId: merchantData.agentId || null,
+          processingFee: merchantData.processingFee || '2.50',
+          monthlyVolume: merchantData.monthlyVolume || '0',
+          notes: merchantData.notes || null,
+        });
+
+        if (!merchantValidation.success) {
+          throw new Error(`Invalid merchant data: ${merchantValidation.error.errors.map(e => e.message).join(', ')}`);
+        }
+
+        // Create merchant
+        const { merchants } = await import("@shared/schema");
+        const [merchant] = await tx.insert(merchants).values({
+          status: merchantValidation.data.status,
+          agentId: merchantValidation.data.agentId,
+          processingFee: merchantValidation.data.processingFee,
+          monthlyVolume: merchantValidation.data.monthlyVolume,
+          notes: merchantValidation.data.notes,
+          userId: user.id,
+          companyId: companyId
+        }).returning();
+
+        return {
+          merchant,
+          user: {
+            id: user.id,
+            username: user.username,
+            email: user.email,
+            roles: user.roles,
+            temporaryPassword: tempPassword
+          },
+          company: { id: companyId, name: companyName }
+        };
+      });
+
+      console.log(`Merchant created in ${req.dbEnv} database:`, result.merchant.firstName, result.merchant.lastName);
       
       res.status(201).json({
-        merchant,
-        user: {
-          id: user.id,
-          username: user.username,
-          email: user.email,
-          role: user.role,
-          temporaryPassword // Include for admin to share with merchant
-        }
+        merchant: result.merchant,
+        user: result.user,
+        company: result.company
       });
     } catch (error) {
       console.error("Error creating merchant:", error);
       if (error.message?.includes('unique constraint')) {
         res.status(409).json({ message: "Email address already exists" });
       } else {
-        res.status(500).json({ message: "Failed to create merchant" });
+        res.status(500).json({ message: error.message || "Failed to create merchant" });
       }
     }
   });
@@ -3702,7 +3847,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           or(
             ilike(agents.firstName, `%${search}%`),
             ilike(agents.lastName, `%${search}%`),
-            ilike(agents.email, `%${search}%`)
+            ilike(companies.email, `%${search}%`)
           )
         );
       } else {
@@ -3717,9 +3862,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .leftJoin(addresses, eq(companyAddresses.addressId, addresses.id));
       }
       
-      // Transform results to include company and address data
+      // Transform results to include company data (company now holds email/phone)
       const agentsWithCompanyData = agentRecords.map(record => ({
         ...record.agent,
+        // Add company email/phone for backward compatibility
+        email: record.company?.email,
+        phone: record.company?.phone,
         company: record.company || undefined,
         address: record.address || undefined
       }));
@@ -3843,6 +3991,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
             });
             console.log(`Company ${companyId} linked to address ${address.id}`);
           }
+
+        // Validate agent-specific data (firstName, lastName, territory, commissionRate)
+        const agentValidation = insertAgentSchema.omit({ userId: true, companyId: true, createdAt: true }).safeParse({
+          firstName: agentData.firstName,
+          lastName: agentData.lastName,
+          territory: agentData.territory,
+          commissionRate: agentData.commissionRate,
+          status: agentData.status || 'active'
+        });
+
+        if (!agentValidation.success) {
+          throw new Error(`Invalid agent data: ${agentValidation.error.errors.map(e => e.message).join(', ')}`);
         }
 
         let user = null;
@@ -3865,14 +4025,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const bcrypt = await import('bcrypt');
           const passwordHash = await bcrypt.hash(password, 10);
           
-          // Create user account within transaction
+          // Create user account within transaction - use company email
           const userData = {
             id: crypto.randomUUID(),
-            email: validationResult.data.email,
+            email: companyEmail.trim(),
             username: username,
             passwordHash,
-            firstName: validationResult.data.firstName,
-            lastName: validationResult.data.lastName,
+            firstName: agentValidation.data.firstName,
+            lastName: agentValidation.data.lastName,
+            phone: companyPhone?.trim() || '',
             roles: ['agent'] as const,
             status: 'active' as const,
             emailVerified: true,
@@ -3899,11 +4060,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           const userData = {
             id: agentOnlyUserId,
-            email: validationResult.data.email,
-            username: `agent-${validationResult.data.firstName.toLowerCase()}-${validationResult.data.lastName.toLowerCase()}-${Date.now()}`,
+            email: companyEmail.trim(),
+            username: `agent-${agentValidation.data.firstName.toLowerCase()}-${agentValidation.data.lastName.toLowerCase()}-${Date.now()}`,
             passwordHash: randomPasswordHash, // Random hash - can't be used for login
-            firstName: validationResult.data.firstName,
-            lastName: validationResult.data.lastName,
+            firstName: agentValidation.data.firstName,
+            lastName: agentValidation.data.lastName,
+            phone: companyPhone?.trim() || '',
             roles: ['agent'] as const,
             status: 'inactive' as const, // Inactive since they can't log in
             emailVerified: false,
@@ -3915,7 +4077,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         // Create agent linked to user and company within transaction
         const [agent] = await tx.insert(agents).values({
-          ...validationResult.data,
+          firstName: agentValidation.data.firstName,
+          lastName: agentValidation.data.lastName,
+          territory: agentValidation.data.territory,
+          commissionRate: agentValidation.data.commissionRate,
+          status: agentValidation.data.status,
           userId: user.id,
           companyId: companyId
         }).returning();
