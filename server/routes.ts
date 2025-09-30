@@ -3759,38 +3759,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
           ...agentData 
         } = req.body;
 
-        // Validate agent data (remove userId since it's auto-generated)
-        const validationResult = insertAgentSchema.omit({ userId: true }).safeParse(agentData);
-        if (!validationResult.success) {
-          throw new Error(`Invalid agent data: ${validationResult.error.errors.map(e => e.message).join(', ')}`);
+        // Company creation is now REQUIRED for agents
+        if (!companyName?.trim()) {
+          throw new Error('Company name is required for agent creation');
+        }
+        
+        // Email is also required (stored in company)
+        if (!companyEmail?.trim()) {
+          throw new Error('Company email is required for agent creation');
         }
 
-        let companyId = undefined;
+        console.log(`Creating company: ${companyName}`);
+        
+        // Prepare company data
+        const companyData = {
+          name: companyName.trim(),
+          businessType: companyBusinessType || undefined,
+          email: companyEmail.trim(), // Required
+          phone: companyPhone?.trim() || undefined,
+          website: companyWebsite?.trim() || undefined,
+          taxId: companyTaxId?.trim() || undefined,
+          industry: companyIndustry?.trim() || undefined,
+          description: companyDescription?.trim() || undefined,
+          status: 'active' as const,
+        };
 
-        // Create company if company name is provided
-        if (companyName?.trim()) {
-          console.log(`Creating company: ${companyName}`);
-          
-          // Prepare company data (without address - we'll handle that separately)
-          const companyData = {
-            name: companyName.trim(),
-            businessType: companyBusinessType || undefined,
-            email: companyEmail?.trim() || undefined,
-            phone: companyPhone?.trim() || undefined,
-            website: companyWebsite?.trim() || undefined,
-            taxId: companyTaxId?.trim() || undefined,
-            industry: companyIndustry?.trim() || undefined,
-            description: companyDescription?.trim() || undefined,
-            status: 'active' as const,
-          };
-
-          // Import tables
-          const { companies, addresses, companyAddresses } = await import("@shared/schema");
-          
-          // Create company
-          const [company] = await tx.insert(companies).values(companyData).returning();
-          companyId = company.id;
-          console.log(`Company created with ID: ${companyId}`);
+        // Import tables
+        const { companies, addresses, companyAddresses } = await import("@shared/schema");
+        
+        // Create company
+        const [company] = await tx.insert(companies).values(companyData).returning();
+        const companyId = company.id;
+        console.log(`Company created with ID: ${companyId}`);
           
           // Create location and address if provided
           if (companyAddress && (
