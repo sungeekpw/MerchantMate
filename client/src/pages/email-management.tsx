@@ -172,6 +172,18 @@ const EmailManagement: React.FC = () => {
     }
   });
 
+  // Fetch available trigger events
+  const { data: triggerEvents = [] } = useQuery({
+    queryKey: ['/api/admin/trigger-events'],
+    queryFn: async () => {
+      const response = await fetch('/api/admin/trigger-events', {
+        credentials: 'include'
+      });
+      if (!response.ok) throw new Error('Failed to fetch trigger events');
+      return response.json();
+    }
+  });
+
   // Create/Update template mutation
   const templateMutation = useMutation({
     mutationFn: async (template: Partial<EmailTemplate>) => {
@@ -783,13 +795,11 @@ const EmailManagement: React.FC = () => {
                           <SelectValue placeholder="Select trigger event" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="user_registered">User Registered</SelectItem>
-                          <SelectItem value="application_submitted">Application Submitted</SelectItem>
-                          <SelectItem value="password_reset_requested">Password Reset Requested</SelectItem>
-                          <SelectItem value="account_activated">Account Activated</SelectItem>
-                          <SelectItem value="merchant_approved">Merchant Approved</SelectItem>
-                          <SelectItem value="signature_requested">Signature Requested</SelectItem>
-                          <SelectItem value="prospect_created">Prospect Created</SelectItem>
+                          {triggerEvents.map((event: string) => (
+                            <SelectItem key={event} value={event}>
+                              {event.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
+                            </SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                     </div>

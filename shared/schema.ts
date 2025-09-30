@@ -3,6 +3,21 @@ import { sql, eq } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
+// Trigger Events - Single source of truth for all system trigger events
+export const TRIGGER_EVENTS = [
+  'user_registered',
+  'agent_registered',
+  'application_submitted',
+  'password_reset_requested',
+  'account_activated',
+  'merchant_approved',
+  'signature_requested',
+  'prospect_created',
+] as const;
+
+export const triggerEventSchema = z.enum(TRIGGER_EVENTS);
+export type TriggerEvent = z.infer<typeof triggerEventSchema>;
+
 export const merchants = pgTable("merchants", {
   id: serial("id").primaryKey(),
   userId: varchar("user_id").references(() => users.id, { onDelete: "restrict" }).unique(),
@@ -1181,7 +1196,9 @@ export const emailTriggers = pgTable('email_triggers', {
 // Email Management Zod schemas and types
 export const insertEmailTemplateSchema = createInsertSchema(emailTemplates);
 export const insertEmailActivitySchema = createInsertSchema(emailActivity);
-export const insertEmailTriggerSchema = createInsertSchema(emailTriggers);
+export const insertEmailTriggerSchema = createInsertSchema(emailTriggers).extend({
+  triggerEvent: triggerEventSchema, // Enforce valid trigger events
+});
 
 export type EmailTemplate = typeof emailTemplates.$inferSelect;
 export type InsertEmailTemplate = z.infer<typeof insertEmailTemplateSchema>;
