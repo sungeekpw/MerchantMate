@@ -28,10 +28,15 @@ Preferred communication style: Simple, everyday language.
 - **File Storage**: Server filesystem for uploaded PDF forms.
 
 ### Key Features & Design Patterns
+- **Company-Centric Data Architecture**: Companies are the root entity in the system. Agents and merchants must reference a company, eliminating data duplication and ensuring proper cascading operations. Business information (name, email, phone, businessType) is stored at the company level. This architecture enables:
+  - Clean separation of business entities from individual users
+  - Proper foreign key relationships with cascade delete support
+  - Elimination of duplicate contact information across agents/merchants
+  - Support for polymorphic locations (company-level or merchant-specific)
 - **Role-Based Access Control**: Granular permissions for `merchant`, `agent`, `admin`, `corporate`, `super_admin` roles.
 - **Secure Authentication**: Session management, login attempt tracking, 2FA support, and password reset.
-- **Merchant & Agent Management**: Comprehensive profiles, assignment, status tracking, and fee management.
-- **Location Management**: Multiple locations per merchant with geolocation and operating hours.
+- **Merchant & Agent Management**: Comprehensive profiles, assignment, status tracking, and fee management. Agents store only role-specific fields (territory, commissionRate); merchants store only financial fields (processingFee, monthlyVolume). Personal data (firstName, lastName) stored in users table; business data stored in companies table.
+- **Location Management**: Polymorphic locations supporting both merchant-specific and company-level addresses, with geolocation and operating hours.
 - **Transaction Processing**: Tracking, commission calculations, and revenue analytics.
 - **Form Management System**: PDF upload/parsing, dynamic field generation, and public access.
 - **Dashboard System**: Personalized, widget-based dashboards with real-time analytics.
