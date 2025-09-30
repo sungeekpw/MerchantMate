@@ -291,7 +291,7 @@ export const users = pgTable("users", {
 // Companies/Organizations table for business entity management
 export const companies = pgTable("companies", {
   id: serial("id").primaryKey(),
-  name: text("name").notNull(),
+  name: text("name").notNull().unique(), // Company name must be unique
   businessType: text("business_type"), // corporation, llc, partnership, sole_proprietorship, non_profit
   email: text("email"),
   phone: text("phone"),
