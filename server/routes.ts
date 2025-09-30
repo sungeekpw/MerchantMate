@@ -4096,6 +4096,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Agent not found" });
       }
       
+      // Check if agent has any merchants associated (direct link)
+      const directMerchants = await dynamicDB
+        .select({ count: sql<number>`count(*)` })
+        .from(merchants)
+        .where(eq(merchants.agentId, agentId));
+      
+      // Check agent_merchants junction table for many-to-many associations
+      const { agentMerchants, merchantProspects } = await import("@shared/schema");
+      const junctionMerchants = await dynamicDB
+        .select({ count: sql<number>`count(*)` })
+        .from(agentMerchants)
+        .where(eq(agentMerchants.agentId, agentId));
+      
+      // Check merchant_prospects for agent associations
+      const prospects = await dynamicDB
+        .select({ count: sql<number>`count(*)` })
+        .from(merchantProspects)
+        .where(eq(merchantProspects.agentId, agentId));
+      
+      const totalAssociations = (directMerchants[0]?.count || 0) + (junctionMerchants[0]?.count || 0) + (prospects[0]?.count || 0);
+      
+      if (totalAssociations > 0) {
+        const parts = [];
+        if (directMerchants[0]?.count > 0) parts.push(`${directMerchants[0].count} merchant(s)`);
+        if (junctionMerchants[0]?.count > 0) parts.push(`${junctionMerchants[0].count} merchant assignment(s)`);
+        if (prospects[0]?.count > 0) parts.push(`${prospects[0].count} prospect(s)`);
+        
+        return res.status(409).json({ 
+          message: `Cannot delete agent: agent has ${parts.join(', ')}. Please reassign before deleting.` 
+        });
+      }
+      
       // Use database transaction to ensure ACID compliance
       const result = await dynamicDB.transaction(async (tx) => {
         let companyToDelete = null;
