@@ -33,7 +33,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { ArrowLeft, ArrowRight, User, Building, UserCheck, CheckCircle, MapPin, Loader2 } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import React from "react";
-import { formatPhoneNumber } from "@/lib/utils";
+import { formatPhoneNumber, unformatPhoneNumber } from "@/lib/utils";
 
 const agentSchema = z.object({
   // Agent fields
@@ -66,6 +66,24 @@ const agentSchema = z.object({
   password: z.string().optional(),
   confirmPassword: z.string().optional(),
   communicationPreference: z.enum(["email", "sms", "both"]).default("email").optional(),
+}).superRefine((data, ctx) => {
+  // Validate phone number has exactly 10 digits
+  if (data.phone && unformatPhoneNumber(data.phone).length !== 10) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Phone number must be exactly 10 digits",
+      path: ["phone"],
+    });
+  }
+  
+  // Validate company phone if provided
+  if (data.companyPhone && unformatPhoneNumber(data.companyPhone).length !== 10) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Company phone must be exactly 10 digits",
+      path: ["companyPhone"],
+    });
+  }
 }).superRefine((data, ctx) => {
   // In create mode, username starts as empty string (not undefined)
   // In edit mode, username is undefined
