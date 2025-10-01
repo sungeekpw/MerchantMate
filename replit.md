@@ -52,16 +52,30 @@ Preferred communication style: Simple, everyday language.
 ## Known Issues & Workarounds
 
 ### Drizzle ORM Schema Caching Bug
-**Problem**: Drizzle ORM has a critical schema caching issue where it persistently caches old column definitions even after schema migrations. During the company-centric refactor, `email` and `phone` columns were removed from the `agents` table and moved to the `companies` table. However, Drizzle continues attempting to insert these phantom columns, causing constraint violations.
+**Problem**: Drizzle ORM has a critical schema caching issue where it persistently caches old column definitions even after schema migrations. During the company-centric refactor, `email` and `phone` columns were removed from the `agents` table and moved to the `companies` table. However, Drizzle continues attempting to insert/reference these phantom columns, causing constraint violations and failed operations.
 
 **Root Cause**: The caching occurs at multiple levels:
 - Migration snapshot files (`migrations/meta/*.json`)
 - Drizzle's transaction wrapper intercepts even raw SQL queries
 - Cache persists across application restarts, driver changes, and node_modules clearing
+- Affects both data modification (INSERT/UPDATE/DELETE) and queries
 
-**Workaround Implemented**: The `/api/agents` POST endpoint uses a completely independent `pg.Pool` instance (bypassing Drizzle entirely) to perform all database operations within the transaction. The pool uses the environment-specific connection string from `getDatabaseUrl(req.dbEnv)` to maintain proper environment isolation (development/test/production). This ensures the agent creation workflow functions correctly despite Drizzle's caching bug while preserving the multi-environment support architecture.
+**Workaround Implemented**: Both agent creation and deletion endpoints use completely independent `pg.Pool` instances (bypassing Drizzle entirely) to perform all database operations within transactions. The pool uses the environment-specific connection string from `getDatabaseUrl(req.dbEnv)` to maintain proper environment isolation (development/test/production). This ensures the agent workflows function correctly despite Drizzle's caching bug while preserving the multi-environment support architecture.
 
-**Affected Code**: `server/routes.ts` lines ~3886-4200 (agent creation endpoint)
+**Affected Code**: 
+- Agent creation: `server/routes.ts` lines ~3943-4200 (POST /api/agents)
+- Agent deletion: `server/routes.ts` lines ~4444-4610 (DELETE /api/agents/:id)
+
+### Agent Deletion Business Rules
+**Critical Rule**: Agents cannot be deleted if their company has any merchants. This protects the company structure that merchants depend on.
+
+**Deletion Flow**:
+1. Check if agent has direct merchant associations → Block if yes
+2. Check if agent's company has ANY merchants → Block if yes
+3. Check if company has other agents:
+   - If YES: Delete only agent + user account (preserve company)
+   - If NO: Cascade delete agent + user + company + locations + addresses
+4. All deletions occur in a single PostgreSQL transaction for ACID compliance
 
 ## External Dependencies
 - **pg**: Native PostgreSQL driver (used for agent creation workaround).
