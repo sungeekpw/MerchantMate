@@ -34,6 +34,7 @@ import { ArrowLeft, ArrowRight, User, Building, UserCheck, CheckCircle, MapPin, 
 import { useState, useRef, useEffect } from "react";
 import React from "react";
 import { formatPhoneNumber, unformatPhoneNumber, formatEIN, unformatEIN } from "@/lib/utils";
+import { validatePasswordStrength } from "@shared/schema";
 
 const agentSchema = z.object({
   // Agent fields
@@ -109,15 +110,27 @@ const agentSchema = z.object({
       });
     }
     
-    if (!data.password || data.password.length < 8) {
+    if (!data.password || data.password.length < 12) {
       ctx.addIssue({
         code: z.ZodIssueCode.too_small,
-        minimum: 8,
+        minimum: 12,
         type: "string",
         inclusive: true,
-        message: "Password must be at least 8 characters",
+        message: "Password must be at least 12 characters",
         path: ["password"],
       });
+    }
+    
+    // Validate password strength
+    if (data.password) {
+      const validation = validatePasswordStrength(data.password);
+      if (!validation.valid) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character",
+          path: ["password"],
+        });
+      }
     }
     
     if (data.password !== data.confirmPassword) {

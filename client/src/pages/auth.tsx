@@ -16,6 +16,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useLocation } from "wouter";
 import { z } from "zod";
 import { getUserTimezone } from "@/lib/timezone";
+import { validatePasswordStrength } from "@shared/schema";
 
 // Form schemas
 const loginSchema = z.object({
@@ -33,8 +34,14 @@ const forgotPasswordSchema = z.object({
 
 const resetPasswordSchema = z.object({
   token: z.string().min(1, "Reset token required"),
-  password: z.string().min(8, "Password must be at least 8 characters"),
+  password: z.string().min(12, "Password must be at least 12 characters"),
   confirmPassword: z.string(),
+}).refine((data) => {
+  const validation = validatePasswordStrength(data.password);
+  return validation.valid;
+}, {
+  message: "Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character",
+  path: ["password"],
 }).refine((data) => data.password === data.confirmPassword, {
   message: "Passwords don't match",
   path: ["confirmPassword"],

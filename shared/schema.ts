@@ -360,17 +360,49 @@ export const sessions = pgTable(
   (table) => [index("IDX_session_expire").on(table.expire)],
 );
 
+// Password strength validation function
+export const validatePasswordStrength = (password: string): { valid: boolean; errors: string[] } => {
+  const errors: string[] = [];
+  
+  if (password.length < 12) {
+    errors.push("Password must be at least 12 characters");
+  }
+  if (!/[A-Z]/.test(password)) {
+    errors.push("Password must contain at least one uppercase letter");
+  }
+  if (!/[a-z]/.test(password)) {
+    errors.push("Password must contain at least one lowercase letter");
+  }
+  if (!/[0-9]/.test(password)) {
+    errors.push("Password must contain at least one number");
+  }
+  if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) {
+    errors.push("Password must contain at least one special character");
+  }
+  
+  return {
+    valid: errors.length === 0,
+    errors
+  };
+};
+
 // Schema for user registration
 export const registerUserSchema = z.object({
   username: z.string().min(3, "Username must be at least 3 characters"),
   email: z.string().email("Invalid email address"),
-  password: z.string().min(8, "Password must be at least 8 characters"),
+  password: z.string().min(12, "Password must be at least 12 characters"),
   confirmPassword: z.string(),
   firstName: z.string().min(1, "First name required"),
   lastName: z.string().min(1, "Last name required"),
   phone: z.string().min(10, "Phone number must be at least 10 digits").regex(/^\+?[\d\s\-\(\)]+$/, "Invalid phone number format"),
   communicationPreference: z.enum(["email", "sms", "both"]).default("email"),
   roles: z.array(z.enum(["merchant", "agent", "admin", "corporate", "super_admin"])).default(["merchant"]),
+}).refine((data) => {
+  const validation = validatePasswordStrength(data.password);
+  return validation.valid;
+}, {
+  message: "Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character",
+  path: ["password"],
 }).refine((data) => data.password === data.confirmPassword, {
   message: "Passwords don't match",
   path: ["confirmPassword"],
@@ -392,8 +424,14 @@ export const passwordResetRequestSchema = z.object({
 // Schema for password reset
 export const passwordResetSchema = z.object({
   token: z.string().min(1, "Reset token required"),
-  password: z.string().min(8, "Password must be at least 8 characters"),
+  password: z.string().min(12, "Password must be at least 12 characters"),
   confirmPassword: z.string(),
+}).refine((data) => {
+  const validation = validatePasswordStrength(data.password);
+  return validation.valid;
+}, {
+  message: "Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character",
+  path: ["password"],
 }).refine((data) => data.password === data.confirmPassword, {
   message: "Passwords don't match",
   path: ["confirmPassword"],

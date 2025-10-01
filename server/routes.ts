@@ -4056,9 +4056,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
           if (!username || username.length < 3) {
             throw new Error('Username is required and must be at least 3 characters when creating user account');
           }
-          if (!password || password.length < 8) {
-            throw new Error('Password is required and must be at least 8 characters when creating user account');
+          if (!password || password.length < 12) {
+            throw new Error('Password is required and must be at least 12 characters when creating user account');
           }
+          
+          // Validate password strength
+          const { validatePasswordStrength } = await import('../shared/schema.js');
+          const passwordValidation = validatePasswordStrength(password);
+          if (!passwordValidation.valid) {
+            throw new Error(`Password does not meet security requirements: ${passwordValidation.errors.join(', ')}`);
+          }
+          
           if (password !== confirmPassword) {
             throw new Error('Passwords do not match');
           }
@@ -4302,9 +4310,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
           if (!username || username.length < 3) {
             throw new Error('Username is required and must be at least 3 characters when creating user account');
           }
-          if (!password || password.length < 8) {
-            throw new Error('Password is required and must be at least 8 characters when creating user account');
+          if (!password || password.length < 12) {
+            throw new Error('Password is required and must be at least 12 characters when creating user account');
           }
+          
+          // Validate password strength
+          const { validatePasswordStrength } = await import('../shared/schema.js');
+          const passwordValidation = validatePasswordStrength(password);
+          if (!passwordValidation.valid) {
+            throw new Error(`Password does not meet security requirements: ${passwordValidation.errors.join(', ')}`);
+          }
+          
           if (password !== confirmPassword) {
             throw new Error('Passwords do not match');
           }
