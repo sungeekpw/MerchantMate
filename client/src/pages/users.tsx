@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Search, Plus, Settings, Trash2, RotateCcw, Users, Edit2, Key } from "lucide-react";
+import { Search, Plus, Settings, Trash2, RotateCcw, Users, Edit2, Key, Wand2, Copy, Check } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -55,7 +55,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import type { User } from "@shared/schema";
 import { validatePasswordStrength } from "@shared/schema";
-import { formatPhoneNumber, unformatPhoneNumber } from "@/lib/utils";
+import { formatPhoneNumber, unformatPhoneNumber, generatePassword } from "@/lib/utils";
 import { PasswordConfirmationDialog } from "@/components/password-confirmation-dialog";
 
 // User create form schema
@@ -101,6 +101,7 @@ type UpdateUserFormData = z.infer<typeof updateUserSchema>;
 function CreateUserForm({ onSuccess, onCancel }: { onSuccess: () => void; onCancel: () => void }) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [copiedPassword, setCopiedPassword] = useState(false);
 
   const createUserForm = useForm<CreateUserFormData>({
     resolver: zodResolver(createUserSchema),
@@ -116,6 +117,27 @@ function CreateUserForm({ onSuccess, onCancel }: { onSuccess: () => void; onCanc
       roles: ["merchant"],
     },
   });
+
+  const handleGeneratePassword = () => {
+    const newPassword = generatePassword();
+    createUserForm.setValue("password", newPassword);
+    createUserForm.setValue("confirmPassword", newPassword);
+    
+    navigator.clipboard.writeText(newPassword).then(() => {
+      setCopiedPassword(true);
+      setTimeout(() => setCopiedPassword(false), 2000);
+      toast({
+        title: "Password Generated",
+        description: "A strong password has been generated and copied to clipboard.",
+      });
+    }).catch(() => {
+      toast({
+        title: "Password Generated",
+        description: "A strong password has been generated. Please copy it manually from the field.",
+        variant: "default",
+      });
+    });
+  };
 
   const createUserMutation = useMutation({
     mutationFn: async (data: CreateUserFormData) => {
@@ -277,34 +299,57 @@ function CreateUserForm({ onSuccess, onCancel }: { onSuccess: () => void; onCanc
           )}
         />
         
-        <div className="grid grid-cols-2 gap-4">
-          <FormField
-            control={createUserForm.control}
-            name="password"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Password</FormLabel>
-                <FormControl>
-                  <Input type="password" placeholder="Enter password" name={field.name} value={field.value || ""} onChange={field.onChange} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          
-          <FormField
-            control={createUserForm.control}
-            name="confirmPassword"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Confirm Password</FormLabel>
-                <FormControl>
-                  <Input type="password" placeholder="Confirm password" name={field.name} value={field.value || ""} onChange={field.onChange} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <FormLabel>Password</FormLabel>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleGeneratePassword}
+              className="h-7 text-xs"
+              data-testid="button-generate-password"
+            >
+              {copiedPassword ? (
+                <>
+                  <Check className="h-3 w-3 mr-1" />
+                  Copied!
+                </>
+              ) : (
+                <>
+                  <Wand2 className="h-3 w-3 mr-1" />
+                  Generate Password
+                </>
+              )}
+            </Button>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <FormField
+              control={createUserForm.control}
+              name="password"
+              render={({ field }) => (
+                <FormItem>
+                  <FormControl>
+                    <Input type="password" placeholder="Enter password" name={field.name} value={field.value || ""} onChange={field.onChange} data-testid="input-password" />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            
+            <FormField
+              control={createUserForm.control}
+              name="confirmPassword"
+              render={({ field }) => (
+                <FormItem>
+                  <FormControl>
+                    <Input type="password" placeholder="Confirm password" name={field.name} value={field.value || ""} onChange={field.onChange} data-testid="input-confirm-password" />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
         </div>
         
         <FormField
