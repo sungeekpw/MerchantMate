@@ -54,6 +54,7 @@ import { z } from "zod";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import type { User } from "@shared/schema";
+import { validatePasswordStrength } from "@shared/schema";
 import { formatPhoneNumber, unformatPhoneNumber } from "@/lib/utils";
 
 // User create form schema
@@ -62,11 +63,17 @@ const createUserSchema = z.object({
   lastName: z.string().min(1, "Last name is required"),
   email: z.string().email("Invalid email address"),
   username: z.string().min(3, "Username must be at least 3 characters"),
-  password: z.string().min(8, "Password must be at least 8 characters"),
+  password: z.string().min(12, "Password must be at least 12 characters"),
   confirmPassword: z.string(),
   phone: z.string().min(1, "Phone number is required"),
   communicationPreference: z.enum(["email", "sms", "both"]).default("email"),
   roles: z.array(z.enum(["merchant", "agent", "admin", "corporate", "super_admin"])).min(1, "At least one role is required"),
+}).refine((data) => {
+  const validation = validatePasswordStrength(data.password);
+  return validation.valid;
+}, {
+  message: "Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character",
+  path: ["password"],
 }).refine((data) => data.password === data.confirmPassword, {
   message: "Passwords don't match",
   path: ["confirmPassword"],
