@@ -4127,7 +4127,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
             throw new Error(`Password does not meet security requirements: ${passwordValidation.errors.join(', ')}`);
           }
           
-          if (password !== confirmPassword) {
+          // Only check password confirmation if confirmPassword is provided (UI forms)
+          // API calls don't need confirmPassword if password is already known
+          if (confirmPassword && password !== confirmPassword) {
             throw new Error('Passwords do not match');
           }
           
@@ -4381,7 +4383,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
             throw new Error(`Password does not meet security requirements: ${passwordValidation.errors.join(', ')}`);
           }
           
-          if (password !== confirmPassword) {
+          // Only check password confirmation if confirmPassword is provided (UI forms)
+          // API calls don't need confirmPassword if password is already known
+          if (confirmPassword && password !== confirmPassword) {
             throw new Error('Passwords do not match');
           }
           
