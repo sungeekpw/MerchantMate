@@ -54,6 +54,7 @@ import { z } from "zod";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import type { User } from "@shared/schema";
+import { formatPhoneNumber } from "@/lib/utils";
 
 // User create form schema
 const createUserSchema = z.object({
@@ -210,7 +211,13 @@ function CreateUserForm({ onSuccess, onCancel }: { onSuccess: () => void; onCanc
             <FormItem>
               <FormLabel>Phone Number *</FormLabel>
               <FormControl>
-                <Input type="tel" placeholder="Enter phone number (e.g., +1-555-123-4567)" name={field.name} value={field.value || ""} onChange={field.onChange} />
+                <Input 
+                  type="tel" 
+                  placeholder="(555) 555-5555" 
+                  name={field.name} 
+                  value={field.value || ""} 
+                  onChange={(e) => field.onChange(formatPhoneNumber(e.target.value))} 
+                />
               </FormControl>
               <FormMessage />
             </FormItem>
