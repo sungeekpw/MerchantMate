@@ -16,7 +16,6 @@ export interface IStorage {
 
   // Agent operations
   getAgent(id: number): Promise<Agent | undefined>;
-  getAgentByEmail(email: string): Promise<Agent | undefined>;
   getAllAgents(): Promise<Agent[]>;
   createAgent(agent: InsertAgent): Promise<Agent>;
   createAgentWithUser(agentData: Omit<InsertAgent, 'userId'>): Promise<{ agent: Agent; user: User; temporaryPassword: string }>;
@@ -1388,20 +1387,14 @@ export class DatabaseStorage implements IStorage {
     return agent || undefined;
   }
 
-  async getAgentByEmail(email: string): Promise<Agent | undefined> {
-    const [agent] = await db.select().from(agents).where(eq(agents.email, email));
-    return agent || undefined;
-  }
-
   async getAllAgents(): Promise<Agent[]> {
     return await db.select().from(agents);
   }
 
   async createAgent(insertAgent: InsertAgent): Promise<Agent> {
-    const { id, ...agentData } = insertAgent;
     const [agent] = await db
       .insert(agents)
-      .values(agentData)
+      .values(insertAgent)
       .returning();
     return agent;
   }
@@ -1426,13 +1419,29 @@ export class DatabaseStorage implements IStorage {
   }
 
   async searchAgents(query: string): Promise<Agent[]> {
-    const allAgents = await db.select().from(agents);
+    // Join with companies and users to search by email/phone (company-centric architecture)
+    const results = await db
+      .select({ agent: agents, company: companies, user: users })
+      .from(agents)
+      .leftJoin(companies, eq(agents.companyId, companies.id))
+      .leftJoin(users, eq(agents.userId, users.id));
     
-    return allAgents.filter(agent =>
-      `${agent.firstName} ${agent.lastName}`.toLowerCase().includes(query.toLowerCase()) ||
-      agent.email.toLowerCase().includes(query.toLowerCase()) ||
-      (agent.territory && agent.territory.toLowerCase().includes(query.toLowerCase()))
-    );
+    // Filter by name, company email, user email, or territory
+    const queryLower = query.toLowerCase();
+    return results
+      .filter(row => {
+        const agent = row.agent;
+        const company = row.company;
+        const user = row.user;
+        
+        return (
+          `${agent.firstName} ${agent.lastName}`.toLowerCase().includes(queryLower) ||
+          (company?.email && company.email.toLowerCase().includes(queryLower)) ||
+          (user?.email && user.email.toLowerCase().includes(queryLower)) ||
+          (agent.territory && agent.territory.toLowerCase().includes(queryLower))
+        );
+      })
+      .map(row => row.agent);
   }
 
   // Transaction operations
