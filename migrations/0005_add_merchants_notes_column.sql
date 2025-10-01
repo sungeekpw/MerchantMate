@@ -1,1 +1,0 @@
-ALTER TABLE "merchants" ADD COLUMN "notes" text;

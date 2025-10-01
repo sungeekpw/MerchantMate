@@ -3885,19 +3885,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     console.log(`Creating agent - Database environment: ${req.dbEnv}`);
     
     // Use database transaction to ensure ACID compliance
+    // CRITICAL: Create independent pg.Pool to completely bypass Drizzle's schema cache bug
+    const { Pool } = await import('pg');
+    const rawPool = new Pool({ connectionString: process.env.DATABASE_URL });
+    const poolClient = await rawPool.connect();
+    
     try {
-      // Create a brand new pool to bypass ALL caching (including Neon driver metadata cache)
-      const { Pool: NeonPool } = await import('@neondatabase/serverless');
-      const freshPool = new NeonPool({ connectionString: process.env.DEV_DATABASE_URL || process.env.DATABASE_URL!, max: 1 });
-      const client = await freshPool.connect();
+      await poolClient.query('BEGIN');
       
-      try {
-        await client.query('BEGIN');
-        console.log('✅ Transaction BEGIN successful');
-        
       const result = await (async () => {
-        const tx = dynamicDB;
-        console.log('🔧 Starting transaction logic...');
         // Extract company data and user account option from request
         const { 
           userId, 
@@ -3928,7 +3924,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           throw new Error('Company email is required for agent creation');
         }
 
-        console.log(`🔧🔧🔧 MODIFIED CODE: Creating company: ${companyName}`);
+        console.log(`Creating company: ${companyName}`);
         
         // Prepare company data
         const companyData = {
@@ -3943,11 +3939,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
           status: 'active' as const,
         };
 
-        // Import tables
-        const { companies, addresses, companyAddresses } = await import("@shared/schema");
-        
-        // Create company
-        const [company] = await tx.insert(companies).values(companyData).returning();
+        // Create company using raw SQL
+        const companyResult = await poolClient.query(
+          `INSERT INTO companies (name, business_type, email, phone, website, tax_id, industry, description, status)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+           RETURNING *`,
+          [
+            companyData.name,
+            companyData.businessType || null,
+            companyData.email,
+            companyData.phone || null,
+            companyData.website || null,
+            companyData.taxId || null,
+            companyData.industry || null,
+            companyData.description || null,
+            companyData.status
+          ]
+        );
+        const company = companyResult.rows[0];
         const companyId = company.id;
         console.log(`Company created with ID: ${companyId}`);
           
@@ -3959,19 +3968,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
           )) {
             console.log(`Creating location and address for company: ${companyName}`);
             
-            const { locations } = await import("@shared/schema");
-            
-            // Create location first (linked to company)
-            const locationData = {
-              companyId: companyId,
-              name: companyName, // Use company name as location name
-              type: 'company_office' as const,
-              phone: companyPhone?.trim() || undefined,
-              email: companyEmail?.trim() || undefined,
-              status: 'active' as const,
-            };
-            
-            const [location] = await tx.insert(locations).values(locationData).returning();
+            // Create location using raw SQL
+            const locationResult = await poolClient.query(
+              `INSERT INTO locations (company_id, name, type, phone, email, status)
+               VALUES ($1, $2, $3, $4, $5, $6)
+               RETURNING *`,
+              [
+                companyId,
+                companyName,
+                'company_office',
+                companyPhone?.trim() || null,
+                companyEmail?.trim() || null,
+                'active'
+              ]
+            );
+            const location = locationResult.rows[0];
             console.log(`Location created with ID: ${location.id}`);
             
             // Prepare address data - link to location
@@ -3990,16 +4001,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
             
             console.log('Address data being inserted:', addressData);
             
-            // Create address
-            const [address] = await tx.insert(addresses).values(addressData).returning();
+            // Create address using raw SQL
+            const addressResult = await poolClient.query(
+              `INSERT INTO addresses (location_id, street1, street2, city, state, postal_code, country, type, latitude, longitude)
+               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+               RETURNING *`,
+              [
+                location.id,
+                addressData.street1,
+                addressData.street2 || null,
+                addressData.city,
+                addressData.state,
+                addressData.postalCode,
+                addressData.country,
+                addressData.type,
+                addressData.latitude || null,
+                addressData.longitude || null
+              ]
+            );
+            const address = addressResult.rows[0];
             console.log(`Address created with ID: ${address.id} linked to location ${location.id}`);
             
-            // Link company to address (for backward compatibility)
-            await tx.insert(companyAddresses).values({
-              companyId: companyId,
-              addressId: address.id,
-              type: 'primary'
-            });
+            // Link company to address using raw SQL
+            await poolClient.query(
+              `INSERT INTO company_addresses (company_id, address_id, type)
+               VALUES ($1, $2, $3)`,
+              [companyId, address.id, 'primary']
+            );
             console.log(`Company ${companyId} linked to address ${address.id}`);
           }
 
@@ -4051,9 +4079,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
             communicationPreference: communicationPreference || 'email',
           };
           
-          const [newUser] = await tx.insert(users).values(userData).returning();
-          user = newUser;
-          console.log('✅ User created:', user.id);
+          const userResult = await poolClient.query(
+            `INSERT INTO users (id, email, username, password_hash, first_name, last_name, phone, roles, status, email_verified, communication_preference)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+             RETURNING *`,
+            [
+              userData.id,
+              userData.email,
+              userData.username,
+              userData.passwordHash,
+              userData.firstName,
+              userData.lastName,
+              userData.phone,
+              userData.roles,
+              userData.status,
+              userData.emailVerified,
+              userData.communicationPreference
+            ]
+          );
+          user = userResult.rows[0];
           
           userInfo = {
             id: user.id,
@@ -4063,7 +4107,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
             temporaryPassword: password // The password they set
           };
         } else {
-          console.log('⚠️  Creating agent-only user (no login)...');
           // For agents without user accounts, we'll need to generate a special agent-only user ID
           // This maintains the foreign key relationship while indicating no login capability
           const agentOnlyUserId = crypto.randomUUID();
@@ -4084,32 +4127,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
             emailVerified: false,
           };
           
-          const [newUser] = await tx.insert(users).values(userData).returning();
-          user = newUser;
-          console.log('✅ Agent-only user created:', user.id);
+          const userResult = await poolClient.query(
+            `INSERT INTO users (id, email, username, password_hash, first_name, last_name, phone, roles, status, email_verified)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+             RETURNING *`,
+            [
+              userData.id,
+              userData.email,
+              userData.username,
+              userData.passwordHash,
+              userData.firstName,
+              userData.lastName,
+              userData.phone,
+              userData.roles,
+              userData.status,
+              userData.emailVerified
+            ]
+          );
+          user = userResult.rows[0];
         }
         
-        console.log('🔧 About to create agent record...');
-        // Create agent - Use raw PostgreSQL client to bypass Drizzle's schema cache completely
-        const insertValues = [
-          user.id,
-          companyId,
-          agentValidation.data.firstName,
-          agentValidation.data.lastName,
-          agentValidation.data.territory || null,
-          agentValidation.data.commissionRate || '5.00',
-          agentValidation.data.status
-        ];
-        console.log('🔍 Agent INSERT values:', insertValues);
-        
-        const agentInsertResult = await client.query(
+        // WORKAROUND: Use raw pool client for agent INSERT to bypass Drizzle completely
+        // Drizzle has a critical schema cache bug where it adds phantom email/phone columns
+        const agentInsertResult = await poolClient.query(
           `INSERT INTO agents (user_id, company_id, first_name, last_name, territory, commission_rate, status)
            VALUES ($1, $2, $3, $4, $5, $6, $7)
            RETURNING *`,
-          insertValues
+          [
+            user.id,
+            companyId,
+            agentValidation.data.firstName,
+            agentValidation.data.lastName,
+            agentValidation.data.territory || null,
+            agentValidation.data.commissionRate || '5.00',
+            agentValidation.data.status
+          ]
         );
         const agent = agentInsertResult.rows[0];
-        console.log('✅ Agent created via raw client:', agent);
         
         return {
           agent,
@@ -4118,10 +4172,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         };
       })();
       
-      // Commit the transaction
-      await client.query('COMMIT');
-      client.release();
-      await freshPool.end(); // Close the fresh pool
+      await poolClient.query('COMMIT');
+      poolClient.release();
+      await rawPool.end();
       
       console.log(`Agent created in ${req.dbEnv} database:`, result.agent.first_name, result.agent.last_name);
       if (result.company) {
@@ -4159,15 +4212,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       res.status(201).json(result);
       
-      } catch (txError) {
-        // Rollback on any error
-        await client.query('ROLLBACK');
-        client.release();
-        await freshPool.end(); // Close the fresh pool
-        throw txError;
-      }
-      
     } catch (error) {
+      // Rollback transaction on error
+      if (poolClient) {
+        await poolClient.query('ROLLBACK').catch(console.error);
+        poolClient.release();
+      }
+      if (rawPool) {
+        await rawPool.end().catch(console.error);
+      }
       console.error("Error creating agent:", error);
       
       // Handle specific error types properly
