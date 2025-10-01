@@ -4486,97 +4486,112 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
-      // Use database transaction to ensure ACID compliance
-      const result = await dynamicDB.transaction(async (tx) => {
+      // CRITICAL: Use raw pg.Pool to bypass Drizzle's schema cache bug
+      // Same issue as agent creation - Drizzle caches old schema definitions
+      const { Pool } = await import('pg');
+      const { getDatabaseUrl } = await import('./db');
+      const envConnectionString = getDatabaseUrl(req.dbEnv);
+      const rawPool = new Pool({ connectionString: envConnectionString });
+      const poolClient = await rawPool.connect();
+      
+      let result = 0;
+      try {
+        await poolClient.query('BEGIN');
+        
         let companyToDelete = null;
         
         // Check if agent belongs to a company and if it's safe to delete the company
         if (existingAgent.companyId) {
           // Count how many agents belong to this company
-          const { companies, companyAddresses } = await import("@shared/schema");
-          const [companyAgentCount] = await tx
-            .select({ count: sql<number>`count(*)` })
-            .from(agents)
-            .where(eq(agents.companyId, existingAgent.companyId));
+          const agentCountResult = await poolClient.query(
+            'SELECT COUNT(*)::int as count FROM agents WHERE company_id = $1',
+            [existingAgent.companyId]
+          );
+          const companyAgentCount = parseInt(agentCountResult.rows[0].count);
           
           // Count how many merchants belong to this company
-          const [companyMerchantCount] = await tx
-            .select({ count: sql<number>`count(*)` })
-            .from(merchants)
-            .where(eq(merchants.companyId, existingAgent.companyId));
+          const merchantCountResult = await poolClient.query(
+            'SELECT COUNT(*)::int as count FROM merchants WHERE company_id = $1',
+            [existingAgent.companyId]
+          );
+          const companyMerchantCount = parseInt(merchantCountResult.rows[0].count);
           
-          console.log(`Company ${existingAgent.companyId} has ${companyAgentCount.count} agents and ${companyMerchantCount.count} merchants`);
+          console.log(`Company ${existingAgent.companyId} has ${companyAgentCount} agents and ${companyMerchantCount} merchants`);
           
           // Only delete company if it has no merchants and this is the only agent
-          if (companyAgentCount.count === 1 && companyMerchantCount.count === 0) {
+          if (companyAgentCount === 1 && companyMerchantCount === 0) {
             companyToDelete = existingAgent.companyId;
             console.log(`Will delete company ${companyToDelete} as it has no merchants and no other agents`);
-          } else if (companyMerchantCount.count > 0) {
-            console.log(`Keeping company ${existingAgent.companyId} as it has ${companyMerchantCount.count} merchants`);
-          } else if (companyAgentCount.count > 1) {
-            console.log(`Keeping company ${existingAgent.companyId} as it has ${companyAgentCount.count - 1} other agents`);
+          } else if (companyMerchantCount > 0) {
+            console.log(`Keeping company ${existingAgent.companyId} as it has ${companyMerchantCount} merchants`);
+          } else if (companyAgentCount > 1) {
+            console.log(`Keeping company ${existingAgent.companyId} as it has ${companyAgentCount - 1} other agents`);
           }
         }
         
-        // Delete agent record first
-        const agentDeleteResult = await tx.delete(agents).where(eq(agents.id, agentId));
+        // Delete agent record
+        const agentDeleteResult = await poolClient.query(
+          'DELETE FROM agents WHERE id = $1',
+          [agentId]
+        );
+        result = agentDeleteResult.rowCount || 0;
         
         // Delete associated user account if it exists
         if (existingAgent.userId) {
-          await tx.delete(users).where(eq(users.id, existingAgent.userId));
+          await poolClient.query('DELETE FROM users WHERE id = $1', [existingAgent.userId]);
           console.log(`Deleted user account for agent ${agentId}: ${existingAgent.userId}`);
         }
         
         // Delete company and its associated records if it has no merchants or other agents
         if (companyToDelete) {
-          const { companies, companyAddresses, addresses, locations } = await import("@shared/schema");
-          
-          // Get company locations to delete them and their addresses
-          const companyLocations = await tx
-            .select({ id: locations.id })
-            .from(locations)
-            .where(eq(locations.companyId, companyToDelete));
-          
-          // Delete addresses linked to company locations
-          for (const location of companyLocations) {
-            const locationAddresses = await tx
-              .select({ id: addresses.id })
-              .from(addresses)
-              .where(eq(addresses.locationId, location.id));
-            
-            for (const address of locationAddresses) {
-              await tx.delete(addresses).where(eq(addresses.id, address.id));
-              console.log(`Deleted location address ${address.id}`);
-            }
-          }
+          // Delete location addresses
+          const locAddrsResult = await poolClient.query(
+            'DELETE FROM addresses WHERE location_id IN (SELECT id FROM locations WHERE company_id = $1) RETURNING id',
+            [companyToDelete]
+          );
+          console.log(`Deleted ${locAddrsResult.rowCount} location address(es)`);
           
           // Delete locations
-          await tx.delete(locations).where(eq(locations.companyId, companyToDelete));
-          console.log(`Deleted ${companyLocations.length} location(s) for company ${companyToDelete}`);
+          const locsResult = await poolClient.query(
+            'DELETE FROM locations WHERE company_id = $1 RETURNING id',
+            [companyToDelete]
+          );
+          console.log(`Deleted ${locsResult.rowCount} location(s) for company ${companyToDelete}`);
           
-          // Get company addresses to delete them too
-          const companyAddressRecords = await tx
-            .select({ addressId: companyAddresses.addressId })
-            .from(companyAddresses)
-            .where(eq(companyAddresses.companyId, companyToDelete));
+          // Get and delete company-address links
+          const compAddrLinks = await poolClient.query(
+            'SELECT address_id FROM company_addresses WHERE company_id = $1',
+            [companyToDelete]
+          );
           
-          // Delete company-address links
-          await tx.delete(companyAddresses).where(eq(companyAddresses.companyId, companyToDelete));
-          console.log(`Deleted company-address links for company ${companyToDelete}`);
+          await poolClient.query(
+            'DELETE FROM company_addresses WHERE company_id = $1',
+            [companyToDelete]
+          );
+          console.log(`Deleted ${compAddrLinks.rowCount} company-address link(s)`);
           
-          // Delete the company addresses
-          for (const addressRecord of companyAddressRecords) {
-            await tx.delete(addresses).where(eq(addresses.id, addressRecord.addressId));
-            console.log(`Deleted company address ${addressRecord.addressId}`);
+          // Delete company addresses
+          for (const row of compAddrLinks.rows) {
+            await poolClient.query('DELETE FROM addresses WHERE id = $1', [row.address_id]);
           }
+          console.log(`Deleted ${compAddrLinks.rowCount} company address(es)`);
           
           // Delete the company
-          await tx.delete(companies).where(eq(companies.id, companyToDelete));
-          console.log(`Deleted company ${companyToDelete}`);
+          const compResult = await poolClient.query(
+            'DELETE FROM companies WHERE id = $1 RETURNING name',
+            [companyToDelete]
+          );
+          console.log(`Deleted company ${companyToDelete}: ${compResult.rows[0]?.name}`);
         }
         
-        return agentDeleteResult.rowCount || 0;
-      });
+        await poolClient.query('COMMIT');
+      } catch (error) {
+        await poolClient.query('ROLLBACK');
+        throw error;
+      } finally {
+        poolClient.release();
+        await rawPool.end();
+      }
       
       if (result > 0) {
         console.log(`Successfully deleted agent ${agentId} in ${req.dbEnv} database`);
