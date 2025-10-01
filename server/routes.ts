@@ -4500,7 +4500,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         let companyToDelete = null;
         
-        // Check if agent belongs to a company and if it's safe to delete the company
+        // Check if agent belongs to a company and verify deletion safety
         if (existingAgent.companyId) {
           // Count how many agents belong to this company
           const agentCountResult = await poolClient.query(
@@ -4518,12 +4518,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           console.log(`Company ${existingAgent.companyId} has ${companyAgentCount} agents and ${companyMerchantCount} merchants`);
           
-          // Only delete company if it has no merchants and this is the only agent
-          if (companyAgentCount === 1 && companyMerchantCount === 0) {
+          // CRITICAL BUSINESS RULE: Cannot delete agent if company has merchants
+          // Merchants depend on company structure, so we must preserve everything
+          if (companyMerchantCount > 0) {
+            await poolClient.query('ROLLBACK');
+            poolClient.release();
+            await rawPool.end();
+            return res.status(409).json({ 
+              message: `Cannot delete agent: company has ${companyMerchantCount} merchant(s). Please reassign or remove merchants before deleting agent.` 
+            });
+          }
+          
+          // Only cascade delete company if this is the only agent (and no merchants)
+          if (companyAgentCount === 1) {
             companyToDelete = existingAgent.companyId;
             console.log(`Will delete company ${companyToDelete} as it has no merchants and no other agents`);
-          } else if (companyMerchantCount > 0) {
-            console.log(`Keeping company ${existingAgent.companyId} as it has ${companyMerchantCount} merchants`);
           } else if (companyAgentCount > 1) {
             console.log(`Keeping company ${existingAgent.companyId} as it has ${companyAgentCount - 1} other agents`);
           }
