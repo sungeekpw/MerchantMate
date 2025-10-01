@@ -64,3 +64,54 @@ export function formatEIN(value: string): string {
 export function unformatEIN(value: string): string {
   return value.replace(/\D/g, '');
 }
+
+/**
+ * Generates a cryptographically secure random integer
+ * @param max - The upper bound (exclusive)
+ * @returns A random integer between 0 and max-1
+ */
+function getSecureRandomInt(max: number): number {
+  const randomBuffer = new Uint32Array(1);
+  crypto.getRandomValues(randomBuffer);
+  return randomBuffer[0] % max;
+}
+
+/**
+ * Generates a strong random password that meets security requirements
+ * Uses Web Crypto API for cryptographically secure randomness
+ * - 16 characters long
+ * - Contains uppercase, lowercase, numbers, and special characters
+ * @returns A randomly generated strong password
+ */
+export function generatePassword(): string {
+  const uppercase = 'ABCDEFGHJKLMNPQRSTUVWXYZ'; // Removed I, O for clarity
+  const lowercase = 'abcdefghjkmnpqrstuvwxyz'; // Removed i, l, o for clarity
+  const numbers = '23456789'; // Removed 0, 1 for clarity
+  const special = '!@#$%^&*-_+=';
+  
+  // Guarantee at least one of each type using cryptographically secure random
+  const password = [
+    uppercase[getSecureRandomInt(uppercase.length)],
+    uppercase[getSecureRandomInt(uppercase.length)],
+    lowercase[getSecureRandomInt(lowercase.length)],
+    lowercase[getSecureRandomInt(lowercase.length)],
+    numbers[getSecureRandomInt(numbers.length)],
+    numbers[getSecureRandomInt(numbers.length)],
+    special[getSecureRandomInt(special.length)],
+    special[getSecureRandomInt(special.length)],
+  ];
+  
+  // Fill the rest with random characters from all sets
+  const allChars = uppercase + lowercase + numbers + special;
+  for (let i = password.length; i < 16; i++) {
+    password.push(allChars[getSecureRandomInt(allChars.length)]);
+  }
+  
+  // Shuffle the password to avoid predictable patterns
+  for (let i = password.length - 1; i > 0; i--) {
+    const j = getSecureRandomInt(i + 1);
+    [password[i], password[j]] = [password[j], password[i]];
+  }
+  
+  return password.join('');
+}
