@@ -60,15 +60,15 @@ const agentSchema = z.object({
     postalCode: z.string().optional(),
     country: z.string().default("US").optional(),
   }).optional(),
-  // User account fields (optional)
-  createUserAccount: z.boolean().default(false),
+  // User account fields (required for creation, optional for edit)
   username: z.string().optional(),
   password: z.string().optional(),
   confirmPassword: z.string().optional(),
-  communicationPreference: z.enum(["email", "sms"]).default("email").optional(),
+  communicationPreference: z.enum(["email", "sms", "both"]).default("email").optional(),
+  roles: z.array(z.enum(["merchant", "agent", "admin", "corporate", "super_admin"])).optional(),
 }).superRefine((data, ctx) => {
-  // If creating user account, validate password fields with specific error messages
-  if (data.createUserAccount) {
+  // If username is provided (creation mode), validate all user account fields
+  if (data.username || data.password || data.roles?.length) {
     if (!data.username || data.username.length < 3) {
       ctx.addIssue({
         code: z.ZodIssueCode.too_small,
@@ -96,6 +96,17 @@ const agentSchema = z.object({
         code: z.ZodIssueCode.custom,
         message: "Passwords do not match",
         path: ["confirmPassword"],
+      });
+    }
+    
+    if (!data.roles || data.roles.length === 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.too_small,
+        minimum: 1,
+        type: "array",
+        inclusive: true,
+        message: "At least one role is required",
+        path: ["roles"],
       });
     }
   }
@@ -135,9 +146,9 @@ const wizardSections = [
   {
     id: "user",
     name: "User Account",
-    description: "Optional login credentials for the agent",
+    description: "Required login credentials and roles for the agent",
     icon: UserCheck,
-    fields: ["createUserAccount", "username", "password", "confirmPassword", "communicationPreference"]
+    fields: ["username", "password", "confirmPassword", "communicationPreference", "roles"]
   }
 ];
 
@@ -164,8 +175,8 @@ export function AgentModal({ isOpen, onClose, agent }: AgentModalProps) {
     defaultValues: {
       firstName: agent?.firstName || "",
       lastName: agent?.lastName || "",
-      email: agent?.email || "",
-      phone: agent?.phone || "",
+      email: (agent as any)?.email || "",
+      phone: (agent as any)?.phone || "",
       territory: agent?.territory || "",
       commissionRate: agent?.commissionRate || "5.00",
       status: (agent?.status as "active" | "inactive") || "active",
@@ -186,12 +197,12 @@ export function AgentModal({ isOpen, onClose, agent }: AgentModalProps) {
         postalCode: "",
         country: "US",
       },
-      // User account defaults
-      createUserAccount: false,
+      // User account defaults (required)
       username: "",
       password: "",
       confirmPassword: "",
       communicationPreference: "email",
+      roles: ["agent"],
     },
   });
 
@@ -402,8 +413,8 @@ export function AgentModal({ isOpen, onClose, agent }: AgentModalProps) {
         const formData = {
           firstName: agent.firstName || "",
           lastName: agent.lastName || "",
-          email: agent.email || "",
-          phone: agent.phone || "",
+          email: (agent as any).email || "",
+          phone: (agent as any).phone || "",
           territory: agent.territory || "",
           commissionRate: agent.commissionRate || "5.00",
           status: (agent.status as "active" | "inactive") || "active",
@@ -424,12 +435,12 @@ export function AgentModal({ isOpen, onClose, agent }: AgentModalProps) {
             postalCode: agentWithCompany.address?.postalCode || "",
             country: agentWithCompany.address?.country || "US",
           },
-          // User account defaults (don't populate for security)
-          createUserAccount: false,
-          username: "",
-          password: "",
-          confirmPassword: "",
-          communicationPreference: "email",
+          // User account defaults (clear for edit mode - not editable)
+          username: undefined,
+          password: undefined,
+          confirmPassword: undefined,
+          communicationPreference: undefined,
+          roles: undefined,
         };
         
         form.reset(formData);
@@ -490,12 +501,12 @@ export function AgentModal({ isOpen, onClose, agent }: AgentModalProps) {
             postalCode: "",
             country: "US",
           },
-          // User account defaults
-          createUserAccount: false,
+          // User account defaults (required for creation)
           username: "",
           password: "",
           confirmPassword: "",
           communicationPreference: "email",
+          roles: ["agent"] as ("merchant" | "agent" | "admin" | "corporate" | "super_admin")[],
         });
       }
     }
@@ -531,7 +542,7 @@ export function AgentModal({ isOpen, onClose, agent }: AgentModalProps) {
   };
 
   const handleNext = () => {
-    const nextStep = Math.min(wizardSections.length - 1, currentStep + 1);
+    const nextStep = Math.min(availableSections.length - 1, currentStep + 1);
     setVisitedSections(prev => {
       const newVisited = new Set(Array.from(prev));
       newVisited.add(currentStep);
@@ -560,9 +571,13 @@ export function AgentModal({ isOpen, onClose, agent }: AgentModalProps) {
     setCurrentStep(sectionIndex);
   };
 
-  const currentSection = wizardSections[currentStep];
-  const isLastStep = currentStep === wizardSections.length - 1;
-  const createUserAccount = form.watch("createUserAccount");
+  // Filter wizard sections based on mode (hide user account section in edit mode)
+  const availableSections = agent 
+    ? wizardSections.filter(s => s.id !== "user") 
+    : wizardSections;
+  
+  const currentSection = availableSections[currentStep];
+  const isLastStep = currentStep === availableSections.length - 1;
   const isPending = createMutation.isPending || updateMutation.isPending;
 
   // Function to render form sections based on current step
@@ -1029,94 +1044,142 @@ export function AgentModal({ isOpen, onClose, agent }: AgentModalProps) {
 
   const renderUserAccountSection = () => (
     <div className="space-y-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <FormField
+          control={form.control}
+          name="username"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Username *</FormLabel>
+              <FormControl>
+                <Input placeholder="Enter username" name={field.name} value={field.value || ""} onChange={field.onChange} data-testid="input-username" />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="communicationPreference"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Communication Preferences *</FormLabel>
+              <FormControl>
+                <div className="space-y-3">
+                  <div className="text-sm text-gray-600 mb-2">
+                    Choose how to receive notifications:
+                  </div>
+                  <div className="space-y-2">
+                    <label className="flex items-center space-x-2">
+                      <input
+                        type="radio"
+                        name="communicationPreference"
+                        value="email"
+                        checked={field.value === "email"}
+                        onChange={() => field.onChange("email")}
+                        className="rounded"
+                        data-testid="radio-communicationPreference-email"
+                      />
+                      <span className="text-sm">📧 Email notifications</span>
+                    </label>
+                    <label className="flex items-center space-x-2">
+                      <input
+                        type="radio"
+                        name="communicationPreference"
+                        value="sms"
+                        checked={field.value === "sms"}
+                        onChange={() => field.onChange("sms")}
+                        className="rounded"
+                        data-testid="radio-communicationPreference-sms"
+                      />
+                      <span className="text-sm">📱 SMS text messages</span>
+                    </label>
+                    <label className="flex items-center space-x-2">
+                      <input
+                        type="radio"
+                        name="communicationPreference"
+                        value="both"
+                        checked={field.value === "both"}
+                        onChange={() => field.onChange("both")}
+                        className="rounded"
+                        data-testid="radio-communicationPreference-both"
+                      />
+                      <span className="text-sm">📧📱 Both Email and SMS</span>
+                    </label>
+                  </div>
+                </div>
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="password"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Password *</FormLabel>
+              <FormControl>
+                <Input type="password" placeholder="Enter password" name={field.name} value={field.value || ""} onChange={field.onChange} data-testid="input-password" />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="confirmPassword"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Confirm Password *</FormLabel>
+              <FormControl>
+                <Input type="password" placeholder="Confirm password" name={field.name} value={field.value || ""} onChange={field.onChange} data-testid="input-confirmPassword" />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+      </div>
+      
       <FormField
         control={form.control}
-        name="createUserAccount"
+        name="roles"
         render={({ field }) => (
-          <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+          <FormItem>
+            <FormLabel>Roles *</FormLabel>
             <FormControl>
-              <Checkbox
-                checked={field.value}
-                onCheckedChange={field.onChange}
-                data-testid="checkbox-createUserAccount"
-              />
+              <div className="space-y-2">
+                {[
+                  { value: "merchant", label: "Merchant" },
+                  { value: "agent", label: "Agent" },
+                  { value: "admin", label: "Admin" },
+                  { value: "corporate", label: "Corporate" },
+                  { value: "super_admin", label: "Super Admin" },
+                ].map((role) => (
+                  <label key={role.value} className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      checked={field.value?.includes(role.value as any) || false}
+                      onChange={(e) => {
+                        const currentRoles = field.value || [];
+                        if (e.target.checked) {
+                          field.onChange([...currentRoles, role.value as any]);
+                        } else {
+                          field.onChange(currentRoles.filter((r: string) => r !== role.value));
+                        }
+                      }}
+                      className="rounded"
+                      data-testid={`checkbox-role-${role.value}`}
+                    />
+                    <span className="text-sm">{role.label}</span>
+                  </label>
+                ))}
+              </div>
             </FormControl>
-            <div className="space-y-1 leading-none">
-              <FormLabel>
-                Add User Account
-              </FormLabel>
-              <p className="text-sm text-muted-foreground">
-                Create login credentials for this agent to access the system
-              </p>
-            </div>
+            <FormMessage />
           </FormItem>
         )}
       />
-      
-      {createUserAccount && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t">
-          <FormField
-            control={form.control}
-            name="username"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Username *</FormLabel>
-                <FormControl>
-                  <Input placeholder="Enter username" name={field.name} value={field.value || ""} onChange={field.onChange} data-testid="input-username" />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="communicationPreference"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Communication Preference</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value}>
-                  <FormControl>
-                    <SelectTrigger data-testid="select-communicationPreference">
-                      <SelectValue placeholder="Select preference" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    <SelectItem value="email">Email</SelectItem>
-                    <SelectItem value="sms">SMS</SelectItem>
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="password"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Password *</FormLabel>
-                <FormControl>
-                  <Input type="password" placeholder="Enter password" name={field.name} value={field.value || ""} onChange={field.onChange} data-testid="input-password" />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="confirmPassword"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Confirm Password *</FormLabel>
-                <FormControl>
-                  <Input type="password" placeholder="Confirm password" name={field.name} value={field.value || ""} onChange={field.onChange} data-testid="input-confirmPassword" />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
-      )}
     </div>
   );
 
@@ -1155,7 +1218,7 @@ export function AgentModal({ isOpen, onClose, agent }: AgentModalProps) {
                 <div className="bg-gray-50 rounded-lg p-4 h-full">
                   <h3 className="text-sm font-semibold text-gray-900 mb-4">Sections</h3>
                   <nav className="space-y-2">
-                    {wizardSections.map((section, index) => {
+                    {availableSections.map((section, index) => {
                       const IconComponent = section.icon;
                       const isActive = currentStep === index;
                       const isCompleted = visitedSections.has(index) && index < currentStep;
