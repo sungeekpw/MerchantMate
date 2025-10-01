@@ -46,7 +46,7 @@ Preferred communication style: Simple, everyday language.
 - **SOC2 Compliance Features**: Comprehensive audit trail system with logging, security events, and login attempt tracking.
 - **Testing Framework**: TDD-style with Jest and React Testing Library for component, page, API, and schema tests, including a visual testing dashboard.
 - **Schema Management**: Comprehensive database schema comparison and synchronization utilities supporting production, development, and test environments, including a bulletproof version-controlled migration system.
-- **Multi-Environment Support**: Complete session-based database environment switching with login screen environment selector, ensuring proper ACID compliance and environment isolation.
+- **Multi-Environment Support**: Complete session-based database environment switching with login screen environment selector, ensuring proper ACID compliance and environment isolation. Automatic database connection fallback dialog for non-production environments: when the application cannot connect to the requested database environment (e.g., TEST_DATABASE_URL not configured), a dialog appears allowing users to switch to an available environment without manual configuration changes.
 - **Generic Trigger/Action Catalog System**: Extensible event-driven action system supporting multi-channel notifications (email, SMS, webhook, Slack, in-app) with user communication preference enforcement, conditional execution, action chaining, and comprehensive audit logging.
 
 ## Known Issues & Workarounds
