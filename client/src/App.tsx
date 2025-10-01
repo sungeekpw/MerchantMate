@@ -17,6 +17,7 @@ import {
 } from "@/lib/rbac";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Header } from "@/components/layout/header";
+import { DatabaseConnectionDialog } from "@/components/database-connection-dialog";
 import Dashboard from "@/pages/dashboard";
 import Merchants from "@/pages/merchants";
 import Locations from "@/pages/locations";
@@ -698,10 +699,81 @@ function AppContent() {
 }
 
 function App() {
+  const [showDbDialog, setShowDbDialog] = useState(false);
+
+  // Check for database connection issues on mount
+  useEffect(() => {
+    const checkConnection = async () => {
+      try {
+        const response = await fetch('/api/database-connection-status');
+        const data = await response.json();
+        
+        // Show dialog if current environment's database is not configured
+        if (data.success && data.availableEnvironments) {
+          const currentEnv = data.availableEnvironments.find(
+            (env: any) => env.environment === data.currentEnvironment
+          );
+          
+          // Only show if not production and current environment is not available
+          if (data.canSwitch && currentEnv && !currentEnv.available) {
+            setShowDbDialog(true);
+          }
+        }
+      } catch (error) {
+        // Connection check failed - might be expected on first load
+        console.log('Database connection check skipped:', error);
+      }
+    };
+
+    checkConnection();
+  }, []);
+
+  // Add global error handler for database connection errors
+  useEffect(() => {
+    const originalFetch = window.fetch;
+    window.fetch = async (...args) => {
+      try {
+        const response = await originalFetch(...args);
+        
+        // Check for database-related errors in response
+        if (!response.ok && response.status === 500) {
+          const clone = response.clone();
+          try {
+            const data = await clone.json();
+            if (data.message && (
+              data.message.includes('database') ||
+              data.message.includes('connection') ||
+              data.message.includes('schema')
+            )) {
+              setShowDbDialog(true);
+            }
+          } catch (e) {
+            // Not JSON response, ignore
+          }
+        }
+        
+        return response;
+      } catch (error) {
+        throw error;
+      }
+    };
+
+    return () => {
+      window.fetch = originalFetch;
+    };
+  }, []);
+
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <AppContent />
+        <DatabaseConnectionDialog
+          open={showDbDialog}
+          onClose={() => setShowDbDialog(false)}
+          onEnvironmentChange={(env) => {
+            console.log('Environment changed to:', env);
+          }}
+        />
         <Toaster />
       </TooltipProvider>
     </QueryClientProvider>
