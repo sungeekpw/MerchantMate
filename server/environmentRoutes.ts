@@ -8,6 +8,7 @@ import { Express, Response } from 'express';
 import { environmentManager } from './environmentManager';
 import { globalEnvironmentMiddleware, RequestWithGlobalDB } from './globalEnvironmentMiddleware';
 import { isAuthenticated, requireRole } from './replitAuth';
+import { getAvailableEnvironments } from './db';
 
 export function setupEnvironmentRoutes(app: Express) {
   
@@ -84,5 +85,37 @@ export function setupEnvironmentRoutes(app: Express) {
       environment: req.environmentConfig.environment,
       isProduction: req.environmentConfig.isProduction
     });
+  });
+  
+  /**
+   * GET /api/database-connection-status
+   * Check available database environments and their connection status
+   * Used when database connection fails for non-production environments
+   */
+  app.get('/api/database-connection-status', (req: any, res: Response) => {
+    try {
+      const availableEnvs = getAvailableEnvironments();
+      const currentEnv = environmentManager.getGlobalEnvironment();
+      
+      // Filter out URLs from response for security
+      const safeEnvs = availableEnvs.map(env => ({
+        environment: env.environment,
+        available: env.available,
+        isConfigured: !!env.url
+      }));
+      
+      res.json({
+        success: true,
+        currentEnvironment: currentEnv,
+        availableEnvironments: safeEnvs,
+        canSwitch: !req.environmentConfig?.isProduction
+      });
+    } catch (error) {
+      console.error('Error checking database connection status:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to check database connection status'
+      });
+    }
   });
 }

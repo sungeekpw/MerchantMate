@@ -2,16 +2,41 @@ import { Pool } from 'pg';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import * as schema from "@shared/schema";
 
+// Check which database environments are available
+export function getAvailableEnvironments(): { environment: string; url: string | undefined; available: boolean }[] {
+  return [
+    { 
+      environment: 'production', 
+      url: process.env.DATABASE_URL, 
+      available: !!process.env.DATABASE_URL 
+    },
+    { 
+      environment: 'development', 
+      url: process.env.DEV_DATABASE_URL, 
+      available: !!process.env.DEV_DATABASE_URL 
+    },
+    { 
+      environment: 'test', 
+      url: process.env.TEST_DATABASE_URL, 
+      available: !!process.env.TEST_DATABASE_URL 
+    }
+  ];
+}
+
 // Environment-based database URL selection
-export function getDatabaseUrl(environment?: string): string {
+// Returns null if specific environment URL is missing (except production which always returns DATABASE_URL)
+export function getDatabaseUrl(environment?: string): string | null {
   switch (environment) {
     case 'test':
-      return process.env.TEST_DATABASE_URL || process.env.DATABASE_URL!;
+      // For test, return TEST_DATABASE_URL if available, otherwise null (don't fallback)
+      return process.env.TEST_DATABASE_URL || null;
     case 'development':
     case 'dev':  // Handle both 'dev' and 'development'
+      // For development, return DEV_DATABASE_URL if available, otherwise fallback to DATABASE_URL
       return process.env.DEV_DATABASE_URL || process.env.DATABASE_URL!;
     case 'production':
     default:
+      // Production always uses DATABASE_URL
       return process.env.DATABASE_URL!;
   }
 }
