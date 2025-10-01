@@ -998,7 +998,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.patch("/api/users/:id/role", dbEnvironmentMiddleware, requireRole(['super_admin']), async (req: RequestWithDB, res) => {
     try {
       const { id } = req.params;
-      const { role } = req.body;
+      const { role, password } = req.body;
+      
+      // Require password verification for sensitive role changes
+      if (!password) {
+        return res.status(400).json({ message: "Password verification required for role changes" });
+      }
+      
+      // Verify the current user's password
+      const currentUser = await storage.getUser(req.session!.userId!);
+      if (!currentUser) {
+        return res.status(404).json({ message: "Current user not found" });
+      }
+      
+      const { authService } = await import("./auth");
+      const isPasswordValid = await authService.verifyPassword(password, currentUser.passwordHash);
+      if (!isPasswordValid) {
+        return res.status(401).json({ message: "Invalid password" });
+      }
       
       if (!['merchant', 'agent', 'admin', 'corporate', 'super_admin'].includes(role)) {
         return res.status(400).json({ message: "Invalid role" });
@@ -1018,7 +1035,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.patch("/api/users/:id/status", dbEnvironmentMiddleware, requireRole(['admin', 'corporate', 'super_admin']), async (req: RequestWithDB, res) => {
     try {
       const { id } = req.params;
-      const { status } = req.body;
+      const { status, password } = req.body;
+      
+      // Require password verification for status changes
+      if (!password) {
+        return res.status(400).json({ message: "Password verification required for status changes" });
+      }
+      
+      // Verify the current user's password
+      const currentUser = await storage.getUser(req.session!.userId!);
+      if (!currentUser) {
+        return res.status(404).json({ message: "Current user not found" });
+      }
+      
+      const { authService } = await import("./auth");
+      const isPasswordValid = await authService.verifyPassword(password, currentUser.passwordHash);
+      if (!isPasswordValid) {
+        return res.status(401).json({ message: "Invalid password" });
+      }
       
       if (!['active', 'suspended', 'inactive'].includes(status)) {
         return res.status(400).json({ message: "Invalid status" });
