@@ -583,10 +583,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "User not found" });
       }
 
-      // Get agent by user email with fallback for development
-      let agent = await storage.getAgentByEmail(user.email);
+      // Get agent by userId (company-centric architecture)
+      let agent = await storage.getAgentByUserId(userId);
       
-      // If no agent found by email, use fallback for development/testing
+      // If no agent found, use fallback for development/testing
       if (!agent && userId === 'user_agent_1') {
         // For development, fallback to agent ID 2 (Mike Chen)
         agent = await storage.getAgent(2);
@@ -649,10 +649,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "User not found" });
       }
 
-      // Get agent by user email with fallback for development
-      let agent = await storage.getAgentByEmail(user.email);
+      // Get agent by userId (company-centric architecture)
+      let agent = await storage.getAgentByUserId(userId);
       
-      // If no agent found by email, use fallback for development/testing
+      // If no agent found, use fallback for development/testing
       if (!agent && userId === 'user_agent_1') {
         // For development, fallback to agent ID 2 (Mike Chen)
         agent = await storage.getAgent(2);
@@ -1722,9 +1722,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       if (userRoles.includes('agent')) {
         // Agents can only see their assigned prospects
-        let agent = await storage.getAgentByEmail(user.email);
+        let agent = await storage.getAgentByUserId(userId);
         
-        // If no agent found by email, use fallback for development/testing
+        // If no agent found, use fallback for development/testing
         if (!agent && userId === 'user_agent_1') {
           // For development, fallback to agent ID 2 (Mike Chen)
           agent = await storage.getAgent(2);
@@ -1979,9 +1979,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // For agents, check if this prospect is assigned to them
       if (user.role === 'agent') {
-        let agent = await storage.getAgentByEmail(user.email);
+        let agent = await storage.getAgentByUserId(userId);
         
-        // If no agent found by email, use fallback for development/testing
+        // If no agent found, use fallback for development/testing
         if (!agent && userId === 'user_agent_1') {
           // For development, fallback to agent ID 2 (Mike Chen)
           agent = await storage.getAgent(2);
