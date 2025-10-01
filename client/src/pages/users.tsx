@@ -54,7 +54,7 @@ import { z } from "zod";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import type { User } from "@shared/schema";
-import { formatPhoneNumber } from "@/lib/utils";
+import { formatPhoneNumber, unformatPhoneNumber } from "@/lib/utils";
 
 // User create form schema
 const createUserSchema = z.object({
@@ -64,12 +64,15 @@ const createUserSchema = z.object({
   username: z.string().min(3, "Username must be at least 3 characters"),
   password: z.string().min(8, "Password must be at least 8 characters"),
   confirmPassword: z.string(),
-  phone: z.string().min(10, "Phone number must be at least 10 digits").regex(/^\+?[\d\s\-\(\)]+$/, "Invalid phone number format"),
+  phone: z.string().min(1, "Phone number is required"),
   communicationPreference: z.enum(["email", "sms", "both"]).default("email"),
   roles: z.array(z.enum(["merchant", "agent", "admin", "corporate", "super_admin"])).min(1, "At least one role is required"),
 }).refine((data) => data.password === data.confirmPassword, {
   message: "Passwords don't match",
   path: ["confirmPassword"],
+}).refine((data) => unformatPhoneNumber(data.phone).length === 10, {
+  message: "Phone number must be exactly 10 digits",
+  path: ["phone"],
 });
 
 // User update form schema
