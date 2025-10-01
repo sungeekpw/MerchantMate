@@ -33,7 +33,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { ArrowLeft, ArrowRight, User, Building, UserCheck, CheckCircle, MapPin, Loader2 } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import React from "react";
-import { formatPhoneNumber, unformatPhoneNumber } from "@/lib/utils";
+import { formatPhoneNumber, unformatPhoneNumber, formatEIN, unformatEIN } from "@/lib/utils";
 
 const agentSchema = z.object({
   // Agent fields
@@ -82,6 +82,15 @@ const agentSchema = z.object({
       code: z.ZodIssueCode.custom,
       message: "Company phone must be exactly 10 digits",
       path: ["companyPhone"],
+    });
+  }
+  
+  // Validate company tax ID (EIN) if provided - must be exactly 9 digits
+  if (data.companyTaxId && unformatEIN(data.companyTaxId).length !== 9) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Tax ID (EIN) must be exactly 9 digits",
+      path: ["companyTaxId"],
     });
   }
 }).superRefine((data, ctx) => {
@@ -801,7 +810,13 @@ export function AgentModal({ isOpen, onClose, agent }: AgentModalProps) {
             <FormItem>
               <FormLabel>Tax ID (EIN)</FormLabel>
               <FormControl>
-                <Input placeholder="12-3456789" name={field.name} value={field.value || ""} onChange={field.onChange} data-testid="input-companyTaxId" />
+                <Input 
+                  placeholder="12-3456789" 
+                  name={field.name} 
+                  value={field.value || ""} 
+                  onChange={(e) => field.onChange(formatEIN(e.target.value))} 
+                  data-testid="input-companyTaxId" 
+                />
               </FormControl>
               <FormMessage />
             </FormItem>
