@@ -30,10 +30,10 @@ import { agentsApi } from "@/lib/api";
 import type { Agent, InsertAgent } from "@shared/schema";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
-import { ArrowLeft, ArrowRight, User, Building, UserCheck, CheckCircle, MapPin, Loader2 } from "lucide-react";
+import { ArrowLeft, ArrowRight, User, Building, UserCheck, CheckCircle, MapPin, Loader2, Wand2, Check } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import React from "react";
-import { formatPhoneNumber, unformatPhoneNumber, formatEIN, unformatEIN } from "@/lib/utils";
+import { formatPhoneNumber, unformatPhoneNumber, formatEIN, unformatEIN, generatePassword } from "@/lib/utils";
 import { validatePasswordStrength } from "@shared/schema";
 
 const agentSchema = z.object({
@@ -196,6 +196,7 @@ export function AgentModal({ isOpen, onClose, agent }: AgentModalProps) {
   const queryClient = useQueryClient();
   const [currentStep, setCurrentStep] = useState(0);
   const [visitedSections, setVisitedSections] = useState<Set<number>>(new Set([0]));
+  const [copiedPassword, setCopiedPassword] = useState(false);
   
   // Address autocomplete state
   const [addressSuggestions, setAddressSuggestions] = useState<any[]>([]);
@@ -609,6 +610,27 @@ export function AgentModal({ isOpen, onClose, agent }: AgentModalProps) {
       return newVisited;
     });
     setCurrentStep(sectionIndex);
+  };
+
+  const handleGeneratePassword = () => {
+    const newPassword = generatePassword();
+    form.setValue("password", newPassword);
+    form.setValue("confirmPassword", newPassword);
+    
+    navigator.clipboard.writeText(newPassword).then(() => {
+      setCopiedPassword(true);
+      setTimeout(() => setCopiedPassword(false), 2000);
+      toast({
+        title: "Password Generated",
+        description: "A strong password has been generated and copied to clipboard.",
+      });
+    }).catch(() => {
+      toast({
+        title: "Password Generated",
+        description: "A strong password has been generated. Please copy it manually from the field.",
+        variant: "default",
+      });
+    });
   };
 
   // Filter wizard sections based on mode (hide user account section in edit mode)
@@ -1171,32 +1193,57 @@ export function AgentModal({ isOpen, onClose, agent }: AgentModalProps) {
             </FormItem>
           )}
         />
-        <FormField
-          control={form.control}
-          name="password"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Password *</FormLabel>
-              <FormControl>
-                <Input type="password" placeholder="Enter password" name={field.name} value={field.value || ""} onChange={field.onChange} data-testid="input-password" />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="confirmPassword"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Confirm Password *</FormLabel>
-              <FormControl>
-                <Input type="password" placeholder="Confirm password" name={field.name} value={field.value || ""} onChange={field.onChange} data-testid="input-confirmPassword" />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+        <div className="space-y-2 md:col-span-2">
+          <div className="flex items-center justify-between">
+            <FormLabel>Password *</FormLabel>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleGeneratePassword}
+              className="h-7 text-xs"
+              data-testid="button-generate-password-agent"
+            >
+              {copiedPassword ? (
+                <>
+                  <Check className="h-3 w-3 mr-1" />
+                  Copied!
+                </>
+              ) : (
+                <>
+                  <Wand2 className="h-3 w-3 mr-1" />
+                  Generate Password
+                </>
+              )}
+            </Button>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <FormField
+              control={form.control}
+              name="password"
+              render={({ field }) => (
+                <FormItem>
+                  <FormControl>
+                    <Input type="password" placeholder="Enter password" name={field.name} value={field.value || ""} onChange={field.onChange} data-testid="input-password" />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="confirmPassword"
+              render={({ field }) => (
+                <FormItem>
+                  <FormControl>
+                    <Input type="password" placeholder="Confirm password" name={field.name} value={field.value || ""} onChange={field.onChange} data-testid="input-confirmPassword" />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+        </div>
       </div>
     </div>
   );
