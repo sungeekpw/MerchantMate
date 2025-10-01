@@ -59,7 +59,7 @@ Preferred communication style: Simple, everyday language.
 - Drizzle's transaction wrapper intercepts even raw SQL queries
 - Cache persists across application restarts, driver changes, and node_modules clearing
 
-**Workaround Implemented**: The `/api/agents` POST endpoint uses a completely independent `pg.Pool` instance (bypassing Drizzle entirely) to perform all database operations within the transaction. This ensures the agent creation workflow functions correctly despite Drizzle's caching bug.
+**Workaround Implemented**: The `/api/agents` POST endpoint uses a completely independent `pg.Pool` instance (bypassing Drizzle entirely) to perform all database operations within the transaction. The pool uses the environment-specific connection string from `getDatabaseUrl(req.dbEnv)` to maintain proper environment isolation (development/test/production). This ensures the agent creation workflow functions correctly despite Drizzle's caching bug while preserving the multi-environment support architecture.
 
 **Affected Code**: `server/routes.ts` lines ~3886-4200 (agent creation endpoint)
 
