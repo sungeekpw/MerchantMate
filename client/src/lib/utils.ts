@@ -35,3 +35,32 @@ export function formatPhoneNumber(value: string): string {
 export function unformatPhoneNumber(value: string): string {
   return value.replace(/\D/g, '');
 }
+
+/**
+ * Formats an EIN/Tax ID to XX-XXXXXXX format
+ * @param value - Raw EIN input
+ * @returns Formatted EIN string
+ */
+export function formatEIN(value: string): string {
+  // Remove all non-digit characters
+  const digits = value.replace(/\D/g, '');
+  
+  // Limit to 9 digits
+  const limited = digits.slice(0, 9);
+  
+  // Format based on length: XX-XXXXXXX
+  if (limited.length <= 2) {
+    return limited;
+  } else {
+    return `${limited.slice(0, 2)}-${limited.slice(2)}`;
+  }
+}
+
+/**
+ * Strips formatting from EIN to get raw digits
+ * @param value - Formatted EIN
+ * @returns Raw digits only
+ */
+export function unformatEIN(value: string): string {
+  return value.replace(/\D/g, '');
+}
