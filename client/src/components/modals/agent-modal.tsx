@@ -33,6 +33,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { ArrowLeft, ArrowRight, User, Building, UserCheck, CheckCircle, MapPin, Loader2 } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import React from "react";
+import { formatPhoneNumber } from "@/lib/utils";
 
 const agentSchema = z.object({
   // Agent fields
@@ -628,7 +629,13 @@ export function AgentModal({ isOpen, onClose, agent }: AgentModalProps) {
           <FormItem>
             <FormLabel>Phone Number *</FormLabel>
             <FormControl>
-              <Input placeholder="+1 (555) 000-0000" name={field.name} value={field.value || ""} onChange={field.onChange} data-testid="input-phone" />
+              <Input 
+                placeholder="(555) 555-5555" 
+                name={field.name} 
+                value={field.value || ""} 
+                onChange={(e) => field.onChange(formatPhoneNumber(e.target.value))} 
+                data-testid="input-phone" 
+              />
             </FormControl>
             <FormMessage />
           </FormItem>
@@ -744,7 +751,13 @@ export function AgentModal({ isOpen, onClose, agent }: AgentModalProps) {
             <FormItem>
               <FormLabel>Company Phone</FormLabel>
               <FormControl>
-                <Input placeholder="+1 (555) 000-0000" name={field.name} value={field.value || ""} onChange={field.onChange} data-testid="input-companyPhone" />
+                <Input 
+                  placeholder="(555) 555-5555" 
+                  name={field.name} 
+                  value={field.value || ""} 
+                  onChange={(e) => field.onChange(formatPhoneNumber(e.target.value))} 
+                  data-testid="input-companyPhone" 
+                />
               </FormControl>
               <FormMessage />
             </FormItem>
