@@ -47,7 +47,8 @@ export const pool = new Pool({
   connectionTimeoutMillis: 10000,
 });
 
-export const db = drizzle({ client: pool, schema });
+// Force fresh schema reload - clear any cached Drizzle metadata
+export const db = drizzle({ client: pool, schema, logger: false });
 
 // Environment switching for testing utilities
 const connectionPools = new Map<string, Pool>();

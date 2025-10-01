@@ -78,15 +78,16 @@ export const companyAddresses = pgTable("company_addresses", {
   index("company_addresses_address_idx").on(table.addressId),
 ]);
 
+// Company-centric architecture: agents reference companies for email/phone
 export const agents = pgTable("agents", {
   id: serial("id").primaryKey(),
   userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "restrict" }).unique(),
-  companyId: integer("company_id").notNull().references(() => companies.id, { onDelete: "cascade" }), // Every agent must have a company
+  companyId: integer("company_id").notNull().references(() => companies.id, { onDelete: "cascade" }),
   firstName: text("first_name").notNull(),
   lastName: text("last_name").notNull(),
   territory: text("territory"),
   commissionRate: decimal("commission_rate", { precision: 5, scale: 2 }).default("5.00"),
-  status: text("status").notNull().default("active"), // active, inactive
+  status: text("status").notNull().default("active"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
