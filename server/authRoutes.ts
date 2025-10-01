@@ -112,29 +112,43 @@ export function setupAuthRoutes(app: Express) {
   });
 
   // Password verification endpoint for sensitive operations
-  app.post('/api/auth/verify-password', requireAuth, async (req: RequestWithDB, res) => {
+  app.post('/api/auth/verify-password', dbEnvironmentMiddleware, requireAuth, async (req: RequestWithDB, res) => {
     try {
       const { password } = req.body;
+      const userId = req.session.userId!;
+      const dbEnv = req.dbEnv;
+      const ipAddress = req.ip || req.headers['x-forwarded-for'] || 'unknown';
       
       if (!password) {
-        return res.status(400).json({ success: false, message: "Password is required" });
+        return res.status(400).json({ success: false, message: "Verification failed" });
       }
       
-      const user = await storage.getUser(req.session.userId!);
+      // Use dynamic database consistent with session environment
+      const dynamicDB = getRequestDB(req);
+      const user = await dynamicDB
+        .select()
+        .from(await import("@shared/schema").then(m => m.usersTable))
+        .where((await import("drizzle-orm").then(m => m.eq))((await import("@shared/schema").then(m => m.usersTable)).id, userId))
+        .limit(1)
+        .then((rows: any) => rows[0]);
+      
       if (!user) {
-        return res.status(404).json({ success: false, message: "User not found" });
+        console.error(`[Security] Password verification failed: User ${userId} not found in ${dbEnv} environment from IP ${ipAddress}`);
+        return res.status(401).json({ success: false, message: "Verification failed" });
       }
       
       const isValid = await authService.verifyPassword(password, user.passwordHash);
       
       if (isValid) {
+        console.log(`[Security] Password verification successful for user ${userId} (${user.username}) in ${dbEnv} environment from IP ${ipAddress}`);
         res.json({ success: true, message: "Password verified" });
       } else {
-        res.status(401).json({ success: false, message: "Invalid password" });
+        console.warn(`[Security] Password verification failed for user ${userId} (${user.username}) in ${dbEnv} environment from IP ${ipAddress} - Invalid password provided`);
+        res.status(401).json({ success: false, message: "Verification failed" });
       }
     } catch (error) {
       console.error("Password verification error:", error);
-      res.status(500).json({ success: false, message: "Password verification failed" });
+      res.status(500).json({ success: false, message: "Verification failed" });
     }
   });
 
