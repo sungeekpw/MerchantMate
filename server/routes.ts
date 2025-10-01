@@ -3886,7 +3886,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     
     // Use database transaction to ensure ACID compliance
     try {
-      const result = await dynamicDB.transaction(async (tx) => {
+      // Create a brand new pool to bypass ALL caching (including Neon driver metadata cache)
+      const { Pool: NeonPool } = await import('@neondatabase/serverless');
+      const freshPool = new NeonPool({ connectionString: process.env.DEV_DATABASE_URL || process.env.DATABASE_URL!, max: 1 });
+      const client = await freshPool.connect();
+      
+      try {
+        await client.query('BEGIN');
+        console.log('✅ Transaction BEGIN successful');
+        
+      const result = await (async () => {
+        const tx = dynamicDB;
+        console.log('🔧 Starting transaction logic...');
         // Extract company data and user account option from request
         const { 
           userId, 
@@ -3917,7 +3928,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           throw new Error('Company email is required for agent creation');
         }
 
-        console.log(`Creating company: ${companyName}`);
+        console.log(`🔧🔧🔧 MODIFIED CODE: Creating company: ${companyName}`);
         
         // Prepare company data
         const companyData = {
@@ -4042,6 +4053,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           const [newUser] = await tx.insert(users).values(userData).returning();
           user = newUser;
+          console.log('✅ User created:', user.id);
           
           userInfo = {
             id: user.id,
@@ -4051,6 +4063,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             temporaryPassword: password // The password they set
           };
         } else {
+          console.log('⚠️  Creating agent-only user (no login)...');
           // For agents without user accounts, we'll need to generate a special agent-only user ID
           // This maintains the foreign key relationship while indicating no login capability
           const agentOnlyUserId = crypto.randomUUID();
@@ -4073,30 +4086,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           const [newUser] = await tx.insert(users).values(userData).returning();
           user = newUser;
+          console.log('✅ Agent-only user created:', user.id);
         }
         
-        // Create agent - FINAL WORKAROUND: Use explicit column list with sql template
-        // This bypasses Drizzle's internal schema mapping that was adding phantom columns
-        const agentInsertQuery = sql.raw(`
-          INSERT INTO agents (user_id, company_id, first_name, last_name, territory, commission_rate, status)
-          VALUES ('${user.id}', ${companyId}, '${agentValidation.data.firstName.replace(/'/g, "''")}', 
-                  '${agentValidation.data.lastName.replace(/'/g, "''")}', 
-                  ${agentValidation.data.territory ? `'${agentValidation.data.territory.replace(/'/g, "''")}'` : 'NULL'}, 
-                  ${agentValidation.data.commissionRate || '5.00'}, 
-                  '${agentValidation.data.status}')
-          RETURNING *
-        `);
-        const agentResult = await tx.execute(agentInsertQuery);
-        const agent = agentResult.rows[0];
+        console.log('🔧 About to create agent record...');
+        // Create agent - Use raw PostgreSQL client to bypass Drizzle's schema cache completely
+        const insertValues = [
+          user.id,
+          companyId,
+          agentValidation.data.firstName,
+          agentValidation.data.lastName,
+          agentValidation.data.territory || null,
+          agentValidation.data.commissionRate || '5.00',
+          agentValidation.data.status
+        ];
+        console.log('🔍 Agent INSERT values:', insertValues);
+        
+        const agentInsertResult = await client.query(
+          `INSERT INTO agents (user_id, company_id, first_name, last_name, territory, commission_rate, status)
+           VALUES ($1, $2, $3, $4, $5, $6, $7)
+           RETURNING *`,
+          insertValues
+        );
+        const agent = agentInsertResult.rows[0];
+        console.log('✅ Agent created via raw client:', agent);
         
         return {
           agent,
           user: userInfo, // Only return user info if account was created
           company: companyId ? { id: companyId, name: companyName } : undefined
         };
-      });
+      })();
       
-      console.log(`Agent created in ${req.dbEnv} database:`, result.agent.firstName, result.agent.lastName);
+      // Commit the transaction
+      await client.query('COMMIT');
+      client.release();
+      await freshPool.end(); // Close the fresh pool
+      
+      console.log(`Agent created in ${req.dbEnv} database:`, result.agent.first_name, result.agent.last_name);
       if (result.company) {
         console.log(`Company created: ${result.company.name} (ID: ${result.company.id})`);
       }
@@ -4131,6 +4158,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       res.status(201).json(result);
+      
+      } catch (txError) {
+        // Rollback on any error
+        await client.query('ROLLBACK');
+        client.release();
+        await freshPool.end(); // Close the fresh pool
+        throw txError;
+      }
       
     } catch (error) {
       console.error("Error creating agent:", error);
