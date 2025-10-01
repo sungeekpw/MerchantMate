@@ -4187,10 +4187,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Generate a random hash that can't be used for login (since they don't know the original password)
           const randomPasswordHash = await bcrypt.hash(crypto.randomUUID(), 10);
           
+          // Use provided username or generate one
+          const agentUsername = username?.trim() || `agent-${agentValidation.data.firstName.toLowerCase()}-${agentValidation.data.lastName.toLowerCase()}-${Date.now()}`;
+          
           const userData = {
             id: agentOnlyUserId,
             email: companyEmail.trim(),
-            username: `agent-${agentValidation.data.firstName.toLowerCase()}-${agentValidation.data.lastName.toLowerCase()}-${Date.now()}`,
+            username: agentUsername,
             passwordHash: randomPasswordHash, // Random hash - can't be used for login
             firstName: agentValidation.data.firstName,
             lastName: agentValidation.data.lastName,
