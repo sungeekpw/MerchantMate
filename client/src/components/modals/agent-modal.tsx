@@ -65,10 +65,11 @@ const agentSchema = z.object({
   password: z.string().optional(),
   confirmPassword: z.string().optional(),
   communicationPreference: z.enum(["email", "sms", "both"]).default("email").optional(),
-  roles: z.array(z.enum(["merchant", "agent", "admin", "corporate", "super_admin"])).optional(),
 }).superRefine((data, ctx) => {
-  // If username is provided (creation mode), validate all user account fields
-  if (data.username || data.password || data.roles?.length) {
+  // In create mode, username starts as empty string (not undefined)
+  // In edit mode, username is undefined
+  // So if username is defined (even as empty string), we're in create mode and must validate
+  if (data.username !== undefined) {
     if (!data.username || data.username.length < 3) {
       ctx.addIssue({
         code: z.ZodIssueCode.too_small,
@@ -99,14 +100,11 @@ const agentSchema = z.object({
       });
     }
     
-    if (!data.roles || data.roles.length === 0) {
+    if (!data.communicationPreference) {
       ctx.addIssue({
-        code: z.ZodIssueCode.too_small,
-        minimum: 1,
-        type: "array",
-        inclusive: true,
-        message: "At least one role is required",
-        path: ["roles"],
+        code: z.ZodIssueCode.custom,
+        message: "Communication preference is required",
+        path: ["communicationPreference"],
       });
     }
   }
@@ -146,9 +144,9 @@ const wizardSections = [
   {
     id: "user",
     name: "User Account",
-    description: "Required login credentials and roles for the agent",
+    description: "Required login credentials for the agent",
     icon: UserCheck,
-    fields: ["username", "password", "confirmPassword", "communicationPreference", "roles"]
+    fields: ["username", "password", "confirmPassword", "communicationPreference"]
   }
 ];
 
@@ -202,7 +200,6 @@ export function AgentModal({ isOpen, onClose, agent }: AgentModalProps) {
       password: "",
       confirmPassword: "",
       communicationPreference: "email",
-      roles: ["agent"],
     },
   });
 
@@ -440,7 +437,6 @@ export function AgentModal({ isOpen, onClose, agent }: AgentModalProps) {
           password: undefined,
           confirmPassword: undefined,
           communicationPreference: undefined,
-          roles: undefined,
         };
         
         form.reset(formData);
@@ -506,7 +502,6 @@ export function AgentModal({ isOpen, onClose, agent }: AgentModalProps) {
           password: "",
           confirmPassword: "",
           communicationPreference: "email",
-          roles: ["agent"] as ("merchant" | "agent" | "admin" | "corporate" | "super_admin")[],
         });
       }
     }
@@ -536,8 +531,12 @@ export function AgentModal({ isOpen, onClose, agent }: AgentModalProps) {
       const { companyName, companyBusinessType, companyEmail, companyPhone, companyWebsite, companyTaxId, companyIndustry, companyDescription, companyAddress, ...agentAndUserData } = data;
       updateMutation.mutate(agentAndUserData as any);
     } else {
-      // For creation, send all data including company and optional user account
-      createMutation.mutate(data as any);
+      // For creation, send all data including company and user account with agent role
+      const createData = {
+        ...data,
+        roles: ["agent"] as ("merchant" | "agent" | "admin" | "corporate" | "super_admin")[]
+      };
+      createMutation.mutate(createData as any);
     }
   };
 
@@ -1140,46 +1139,6 @@ export function AgentModal({ isOpen, onClose, agent }: AgentModalProps) {
           )}
         />
       </div>
-      
-      <FormField
-        control={form.control}
-        name="roles"
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>Roles *</FormLabel>
-            <FormControl>
-              <div className="space-y-2">
-                {[
-                  { value: "merchant", label: "Merchant" },
-                  { value: "agent", label: "Agent" },
-                  { value: "admin", label: "Admin" },
-                  { value: "corporate", label: "Corporate" },
-                  { value: "super_admin", label: "Super Admin" },
-                ].map((role) => (
-                  <label key={role.value} className="flex items-center space-x-2">
-                    <input
-                      type="checkbox"
-                      checked={field.value?.includes(role.value as any) || false}
-                      onChange={(e) => {
-                        const currentRoles = field.value || [];
-                        if (e.target.checked) {
-                          field.onChange([...currentRoles, role.value as any]);
-                        } else {
-                          field.onChange(currentRoles.filter((r: string) => r !== role.value));
-                        }
-                      }}
-                      className="rounded"
-                      data-testid={`checkbox-role-${role.value}`}
-                    />
-                    <span className="text-sm">{role.label}</span>
-                  </label>
-                ))}
-              </div>
-            </FormControl>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
     </div>
   );
 
