@@ -13,6 +13,7 @@ import { useToast } from "@/hooks/use-toast";
 import { MapPin, Plus, Phone, Mail, DollarSign, TrendingUp } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { insertLocationSchema, insertAddressSchema, type InsertLocation, type InsertAddress, type LocationWithAddresses } from "@shared/schema";
+import { formatPhoneNumber } from "@/lib/utils";
 
 // Revenue metrics component
 function LocationRevenue({ locationId }: { locationId: number }) {
@@ -259,7 +260,11 @@ export default function LocationsPage() {
                           <FormItem>
                             <FormLabel>Phone</FormLabel>
                             <FormControl>
-                              <Input placeholder="555-0123" {...field} value={field.value || ""} />
+                              <Input 
+                                placeholder="(555) 555-5555" 
+                                value={field.value || ""}
+                                onChange={(e) => field.onChange(formatPhoneNumber(e.target.value))}
+                              />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
