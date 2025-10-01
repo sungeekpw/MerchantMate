@@ -1,9 +1,6 @@
-import { Pool, neonConfig } from '@neondatabase/serverless';
-import { drizzle } from 'drizzle-orm/neon-serverless';
-import ws from "ws";
+import { Pool } from 'pg';
+import { drizzle } from 'drizzle-orm/node-postgres';
 import * as schema from "@shared/schema";
-
-neonConfig.webSocketConstructor = ws;
 
 // Environment-based database URL selection
 function getDatabaseUrl(environment?: string): string {
@@ -47,8 +44,7 @@ export const pool = new Pool({
   connectionTimeoutMillis: 10000,
 });
 
-// Force fresh schema reload - clear any cached Drizzle metadata
-export const db = drizzle({ client: pool, schema, logger: false });
+export const db = drizzle(pool, { schema });
 
 // Environment switching for testing utilities
 const connectionPools = new Map<string, Pool>();
@@ -66,7 +62,7 @@ export function getDynamicDatabase(environment: string = 'production') {
   }
   
   const dynamicPool = connectionPools.get(environment)!;
-  return drizzle({ client: dynamicPool, schema });
+  return drizzle(dynamicPool, { schema });
 }
 
 // Extract database environment from request
