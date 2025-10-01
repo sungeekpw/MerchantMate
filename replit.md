@@ -49,8 +49,22 @@ Preferred communication style: Simple, everyday language.
 - **Multi-Environment Support**: Complete session-based database environment switching with login screen environment selector, ensuring proper ACID compliance and environment isolation.
 - **Generic Trigger/Action Catalog System**: Extensible event-driven action system supporting multi-channel notifications (email, SMS, webhook, Slack, in-app) with user communication preference enforcement, conditional execution, action chaining, and comprehensive audit logging.
 
+## Known Issues & Workarounds
+
+### Drizzle ORM Schema Caching Bug
+**Problem**: Drizzle ORM has a critical schema caching issue where it persistently caches old column definitions even after schema migrations. During the company-centric refactor, `email` and `phone` columns were removed from the `agents` table and moved to the `companies` table. However, Drizzle continues attempting to insert these phantom columns, causing constraint violations.
+
+**Root Cause**: The caching occurs at multiple levels:
+- Migration snapshot files (`migrations/meta/*.json`)
+- Drizzle's transaction wrapper intercepts even raw SQL queries
+- Cache persists across application restarts, driver changes, and node_modules clearing
+
+**Workaround Implemented**: The `/api/agents` POST endpoint uses a completely independent `pg.Pool` instance (bypassing Drizzle entirely) to perform all database operations within the transaction. This ensures the agent creation workflow functions correctly despite Drizzle's caching bug.
+
+**Affected Code**: `server/routes.ts` lines ~3886-4200 (agent creation endpoint)
+
 ## External Dependencies
-- **@neondatabase/serverless**: Serverless PostgreSQL connector.
+- **pg**: Native PostgreSQL driver (used for agent creation workaround).
 - **drizzle-orm**: Type-safe ORM for PostgreSQL.
 - **@sendgrid/mail**: SendGrid email API client.
 - **@anthropic-ai/sdk**: AI integration (potential future use).
