@@ -111,6 +111,33 @@ export function setupAuthRoutes(app: Express) {
     }
   });
 
+  // Password verification endpoint for sensitive operations
+  app.post('/api/auth/verify-password', requireAuth, async (req: RequestWithDB, res) => {
+    try {
+      const { password } = req.body;
+      
+      if (!password) {
+        return res.status(400).json({ success: false, message: "Password is required" });
+      }
+      
+      const user = await storage.getUser(req.session.userId!);
+      if (!user) {
+        return res.status(404).json({ success: false, message: "User not found" });
+      }
+      
+      const isValid = await authService.verifyPassword(password, user.passwordHash);
+      
+      if (isValid) {
+        res.json({ success: true, message: "Password verified" });
+      } else {
+        res.status(401).json({ success: false, message: "Invalid password" });
+      }
+    } catch (error) {
+      console.error("Password verification error:", error);
+      res.status(500).json({ success: false, message: "Password verification failed" });
+    }
+  });
+
   // User logout
   app.post('/api/auth/logout', (req: any, res) => {
     console.log(`Logout: clearing session for user ${req.session?.userId}, dbEnv: ${req.session?.dbEnv}`);
