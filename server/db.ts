@@ -3,7 +3,7 @@ import { drizzle } from 'drizzle-orm/node-postgres';
 import * as schema from "@shared/schema";
 
 // Environment-based database URL selection
-function getDatabaseUrl(environment?: string): string {
+export function getDatabaseUrl(environment?: string): string {
   switch (environment) {
     case 'test':
       return process.env.TEST_DATABASE_URL || process.env.DATABASE_URL!;

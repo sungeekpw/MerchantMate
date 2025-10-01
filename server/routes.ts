@@ -3886,8 +3886,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     
     // Use database transaction to ensure ACID compliance
     // CRITICAL: Create independent pg.Pool to completely bypass Drizzle's schema cache bug
+    // while maintaining environment isolation
     const { Pool } = await import('pg');
-    const rawPool = new Pool({ connectionString: process.env.DATABASE_URL });
+    const { getDatabaseUrl } = await import('./db');
+    const envConnectionString = getDatabaseUrl(req.dbEnv);
+    const rawPool = new Pool({ connectionString: envConnectionString });
     const poolClient = await rawPool.connect();
     
     try {
