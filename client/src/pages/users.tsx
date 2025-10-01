@@ -56,6 +56,7 @@ import { apiRequest } from "@/lib/queryClient";
 import type { User } from "@shared/schema";
 import { validatePasswordStrength } from "@shared/schema";
 import { formatPhoneNumber, unformatPhoneNumber } from "@/lib/utils";
+import { PasswordConfirmationDialog } from "@/components/password-confirmation-dialog";
 
 // User create form schema
 const createUserSchema = z.object({
@@ -369,6 +370,8 @@ export default function UsersPage() {
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [passwordConfirmOpen, setPasswordConfirmOpen] = useState(false);
+  const [pendingUpdate, setPendingUpdate] = useState<{ userId: string; updates: UpdateUserFormData } | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -431,7 +434,7 @@ export default function UsersPage() {
   });
 
   const updateUserMutation = useMutation({
-    mutationFn: (data: { userId: string; updates: UpdateUserFormData }) =>
+    mutationFn: (data: { userId: string; updates: UpdateUserFormData & { password?: string } }) =>
       apiRequest("PATCH", `/api/users/${data.userId}`, data.updates),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/users"] });
@@ -441,15 +444,45 @@ export default function UsersPage() {
       });
       setEditDialogOpen(false);
       setEditingUser(null);
+      setPendingUpdate(null);
     },
-    onError: () => {
+    onError: (error: any) => {
+      const message = error.message || "Failed to update user";
       toast({
         title: "Error",
-        description: "Failed to update user",
+        description: message,
         variant: "destructive",
       });
     },
   });
+
+  const handlePasswordVerified = (password: string) => {
+    if (pendingUpdate) {
+      // Include the verified password in the update request
+      updateUserMutation.mutate({
+        ...pendingUpdate,
+        updates: { ...pendingUpdate.updates, password }
+      });
+    }
+  };
+
+  const handleUpdateUser = (updates: UpdateUserFormData) => {
+    if (!editingUser) return;
+
+    // Check if roles or status are being changed
+    const rolesChanged = JSON.stringify(updates.roles) !== JSON.stringify(editingUser.roles);
+    const statusChanged = updates.status !== editingUser.status;
+    const isSensitiveUpdate = rolesChanged || statusChanged;
+
+    if (isSensitiveUpdate) {
+      // Store the update and show password confirmation
+      setPendingUpdate({ userId: editingUser.id, updates });
+      setPasswordConfirmOpen(true);
+    } else {
+      // No sensitive changes, proceed directly
+      updateUserMutation.mutate({ userId: editingUser.id, updates });
+    }
+  };
 
   const deleteUserMutation = useMutation({
     mutationFn: (userId: string) =>
@@ -761,11 +794,7 @@ export default function UsersPage() {
           
           <Form {...updateUserForm}>
             <form
-              onSubmit={updateUserForm.handleSubmit((data) => {
-                if (editingUser) {
-                  updateUserMutation.mutate({ userId: editingUser.id, updates: data });
-                }
-              })}
+              onSubmit={updateUserForm.handleSubmit(handleUpdateUser)}
               className="space-y-4"
             >
               <div className="grid grid-cols-2 gap-4">
@@ -929,6 +958,18 @@ export default function UsersPage() {
           </Form>
         </DialogContent>
       </Dialog>
+
+      {/* Password Confirmation Dialog */}
+      <PasswordConfirmationDialog
+        isOpen={passwordConfirmOpen}
+        onClose={() => {
+          setPasswordConfirmOpen(false);
+          setPendingUpdate(null);
+        }}
+        onConfirm={handlePasswordVerified}
+        title="Confirm Role/Status Change"
+        description="This action requires password verification for security purposes. Changing user roles or status is a sensitive operation. Please enter your password to continue."
+      />
 
     </div>
   );

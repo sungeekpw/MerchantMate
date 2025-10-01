@@ -1104,6 +1104,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log('Update user endpoint - Updates:', updates);
       console.log('Update user endpoint - Database environment:', req.dbEnv);
       
+      // Check if sensitive fields are being updated (roles or status)
+      const isSensitiveUpdate = updates.roles !== undefined || updates.status !== undefined;
+      
+      if (isSensitiveUpdate) {
+        // Require password verification for sensitive updates
+        const { password } = req.body;
+        if (!password) {
+          return res.status(400).json({ message: "Password verification required for role or status changes" });
+        }
+        
+        // Verify the current user's password
+        const currentUser = await storage.getUser(req.session!.userId!);
+        if (!currentUser) {
+          return res.status(404).json({ message: "Current user not found" });
+        }
+        
+        const { authService } = await import("./auth");
+        const isPasswordValid = await authService.verifyPassword(password, currentUser.passwordHash);
+        if (!isPasswordValid) {
+          return res.status(401).json({ message: "Invalid password" });
+        }
+        
+        // Remove password from updates after verification
+        delete updates.password;
+      }
+      
       // Remove sensitive fields that shouldn't be updated via this endpoint
       delete updates.passwordHash;
       delete updates.passwordResetToken;
