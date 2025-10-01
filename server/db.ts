@@ -24,7 +24,8 @@ export function getAvailableEnvironments(): { environment: string; url: string |
 }
 
 // Environment-based database URL selection
-// Returns null if specific environment URL is missing (except production which always returns DATABASE_URL)
+// Returns the URL for the specified environment, or null if not configured
+// For development: Only falls back to production if ALLOW_DEV_PROD_FALLBACK is explicitly set
 export function getDatabaseUrl(environment?: string): string | null {
   switch (environment) {
     case 'test':
@@ -32,8 +33,17 @@ export function getDatabaseUrl(environment?: string): string | null {
       return process.env.TEST_DATABASE_URL || null;
     case 'development':
     case 'dev':  // Handle both 'dev' and 'development'
-      // For development, return DEV_DATABASE_URL if available, otherwise fallback to DATABASE_URL
-      return process.env.DEV_DATABASE_URL || process.env.DATABASE_URL!;
+      // For development, only fallback to production if explicitly allowed
+      if (process.env.DEV_DATABASE_URL) {
+        return process.env.DEV_DATABASE_URL;
+      }
+      // Allow fallback only if explicitly enabled (for backwards compatibility)
+      if (process.env.ALLOW_DEV_PROD_FALLBACK === 'true') {
+        console.warn('⚠️  WARNING: DEV_DATABASE_URL not set, falling back to production database');
+        console.warn('⚠️  Set DEV_DATABASE_URL to avoid using production data in development');
+        return process.env.DATABASE_URL!;
+      }
+      return null;
     case 'production':
     default:
       // Production always uses DATABASE_URL
@@ -77,6 +87,16 @@ const connectionPools = new Map<string, Pool>();
 export function getDynamicDatabase(environment: string = 'production') {
   if (!connectionPools.has(environment)) {
     const url = getDatabaseUrl(environment);
+    
+    // Guard against missing database URL
+    if (!url) {
+      throw new Error(
+        `Database URL not configured for environment: ${environment}. ` +
+        `Please set the appropriate environment variable: ` +
+        `${environment === 'test' ? 'TEST_DATABASE_URL' : environment === 'development' ? 'DEV_DATABASE_URL' : 'DATABASE_URL'}`
+      );
+    }
+    
     const dynamicPool = new Pool({
       connectionString: url,
       max: 3, // Reduced from 5 to prevent connection overload

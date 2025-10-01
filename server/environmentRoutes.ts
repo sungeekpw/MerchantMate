@@ -92,10 +92,11 @@ export function setupEnvironmentRoutes(app: Express) {
    * Check available database environments and their connection status
    * Used when database connection fails for non-production environments
    */
-  app.get('/api/database-connection-status', (req: any, res: Response) => {
+  app.get('/api/database-connection-status', globalEnvironmentMiddleware, (req: any, res: Response) => {
     try {
       const availableEnvs = getAvailableEnvironments();
-      const currentEnv = environmentManager.getGlobalEnvironment();
+      const currentEnv = req.environmentConfig.environment;
+      const isProduction = req.environmentConfig.isProduction;
       
       // Filter out URLs from response for security
       const safeEnvs = availableEnvs.map(env => ({
@@ -108,7 +109,7 @@ export function setupEnvironmentRoutes(app: Express) {
         success: true,
         currentEnvironment: currentEnv,
         availableEnvironments: safeEnvs,
-        canSwitch: !req.environmentConfig?.isProduction
+        canSwitch: !isProduction
       });
     } catch (error) {
       console.error('Error checking database connection status:', error);
