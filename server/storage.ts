@@ -1,4 +1,4 @@
-import { companies, merchants, agents, transactions, users, loginAttempts, twoFactorCodes, userDashboardPreferences, agentMerchants, locations, addresses, pdfForms, pdfFormFields, pdfFormSubmissions, merchantProspects, prospectOwners, prospectSignatures, feeGroups, feeItemGroups, feeItems, pricingTypes, pricingTypeFeeItems, campaigns, campaignFeeValues, campaignAssignments, equipmentItems, campaignEquipment, apiKeys, apiRequestLogs, emailTemplates, emailActivity, emailTriggers, type Merchant, type Agent, type Transaction, type User, type InsertMerchant, type InsertAgent, type InsertTransaction, type UpsertUser, type MerchantWithAgent, type TransactionWithMerchant, type LoginAttempt, type TwoFactorCode, type UserDashboardPreference, type InsertUserDashboardPreference, type AgentMerchant, type InsertAgentMerchant, type Location, type InsertLocation, type Address, type InsertAddress, type LocationWithAddresses, type MerchantWithLocations, type PdfForm, type InsertPdfForm, type PdfFormField, type InsertPdfFormField, type PdfFormSubmission, type InsertPdfFormSubmission, type PdfFormWithFields, type MerchantProspect, type InsertMerchantProspect, type MerchantProspectWithAgent, type ProspectOwner, type InsertProspectOwner, type ProspectSignature, type InsertProspectSignature, type FeeGroup, type InsertFeeGroup, type FeeItemGroup, type InsertFeeItemGroup, type FeeItem, type InsertFeeItem, type PricingType, type InsertPricingType, type PricingTypeFeeItem, type InsertPricingTypeFeeItem, type Campaign, type InsertCampaign, type CampaignFeeValue, type InsertCampaignFeeValue, type CampaignAssignment, type InsertCampaignAssignment, type EquipmentItem, type InsertEquipmentItem, type CampaignEquipment, type InsertCampaignEquipment, type FeeGroupWithItems, type FeeItemGroupWithItems, type FeeGroupWithItemGroups, type PricingTypeWithFeeItems, type CampaignWithDetails, type ApiKey, type InsertApiKey, type ApiRequestLog, type InsertApiRequestLog, type EmailTemplate, type InsertEmailTemplate, type EmailActivity, type InsertEmailActivity, type EmailTrigger, type InsertEmailTrigger } from "@shared/schema";
+import { companies, merchants, agents, transactions, users, loginAttempts, twoFactorCodes, userDashboardPreferences, agentMerchants, locations, addresses, pdfForms, pdfFormFields, pdfFormSubmissions, merchantProspects, prospectOwners, prospectSignatures, feeGroups, feeItemGroups, feeItems, pricingTypes, pricingTypeFeeItems, campaigns, campaignFeeValues, campaignAssignments, equipmentItems, campaignEquipment, apiKeys, apiRequestLogs, emailTemplates, emailActivity, emailTriggers, userAlerts, type Merchant, type Agent, type Transaction, type User, type InsertMerchant, type InsertAgent, type InsertTransaction, type UpsertUser, type MerchantWithAgent, type TransactionWithMerchant, type LoginAttempt, type TwoFactorCode, type UserDashboardPreference, type InsertUserDashboardPreference, type AgentMerchant, type InsertAgentMerchant, type Location, type InsertLocation, type Address, type InsertAddress, type LocationWithAddresses, type MerchantWithLocations, type PdfForm, type InsertPdfForm, type PdfFormField, type InsertPdfFormField, type PdfFormSubmission, type InsertPdfFormSubmission, type PdfFormWithFields, type MerchantProspect, type InsertMerchantProspect, type MerchantProspectWithAgent, type ProspectOwner, type InsertProspectOwner, type ProspectSignature, type InsertProspectSignature, type FeeGroup, type InsertFeeGroup, type FeeItemGroup, type InsertFeeItemGroup, type FeeItem, type InsertFeeItem, type PricingType, type InsertPricingType, type PricingTypeFeeItem, type InsertPricingTypeFeeItem, type Campaign, type InsertCampaign, type CampaignFeeValue, type InsertCampaignFeeValue, type CampaignAssignment, type InsertCampaignAssignment, type EquipmentItem, type InsertEquipmentItem, type CampaignEquipment, type InsertCampaignEquipment, type FeeGroupWithItems, type FeeItemGroupWithItems, type FeeGroupWithItemGroups, type PricingTypeWithFeeItems, type CampaignWithDetails, type ApiKey, type InsertApiKey, type ApiRequestLog, type InsertApiRequestLog, type EmailTemplate, type InsertEmailTemplate, type EmailActivity, type InsertEmailActivity, type EmailTrigger, type InsertEmailTrigger, type UserAlert, type InsertUserAlert } from "@shared/schema";
 import { db } from "./db";
 import { eq, or, and, gte, sql, desc, inArray, like, ilike, not } from "drizzle-orm";
 
@@ -360,6 +360,14 @@ export interface IStorage {
     errorRequests: number;
     averageResponseTime: number;
   }>;
+  
+  // User Alert operations
+  getUserAlerts(userId: string, includeRead?: boolean): Promise<UserAlert[]>;
+  getUnreadAlertCount(userId: string): Promise<number>;
+  markAlertAsRead(alertId: number, userId: string): Promise<UserAlert | undefined>;
+  markAllAlertsAsRead(userId: string): Promise<number>;
+  deleteAlert(alertId: number, userId: string): Promise<boolean>;
+  deleteAllReadAlerts(userId: string): Promise<number>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -2316,6 +2324,87 @@ export class DatabaseStorage implements IStorage {
 
   async getAgentMerchants(agentId: number): Promise<MerchantWithAgent[]> {
     return this.getMerchantsByAgent(agentId);
+  }
+
+  // User Alert operations
+  async getUserAlerts(userId: string, includeRead: boolean = false): Promise<UserAlert[]> {
+    const conditions = includeRead 
+      ? eq(userAlerts.userId, userId)
+      : and(eq(userAlerts.userId, userId), eq(userAlerts.isRead, false));
+    
+    return db
+      .select()
+      .from(userAlerts)
+      .where(conditions)
+      .orderBy(desc(userAlerts.createdAt));
+  }
+
+  async getUnreadAlertCount(userId: string): Promise<number> {
+    const [result] = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(userAlerts)
+      .where(and(
+        eq(userAlerts.userId, userId),
+        eq(userAlerts.isRead, false)
+      ));
+    
+    return result?.count || 0;
+  }
+
+  async markAlertAsRead(alertId: number, userId: string): Promise<UserAlert | undefined> {
+    const [alert] = await db
+      .update(userAlerts)
+      .set({ 
+        isRead: true,
+        readAt: new Date()
+      })
+      .where(and(
+        eq(userAlerts.id, alertId),
+        eq(userAlerts.userId, userId)
+      ))
+      .returning();
+    
+    return alert;
+  }
+
+  async markAllAlertsAsRead(userId: string): Promise<number> {
+    const result = await db
+      .update(userAlerts)
+      .set({ 
+        isRead: true,
+        readAt: new Date()
+      })
+      .where(and(
+        eq(userAlerts.userId, userId),
+        eq(userAlerts.isRead, false)
+      ))
+      .returning();
+    
+    return result.length;
+  }
+
+  async deleteAlert(alertId: number, userId: string): Promise<boolean> {
+    const result = await db
+      .delete(userAlerts)
+      .where(and(
+        eq(userAlerts.id, alertId),
+        eq(userAlerts.userId, userId)
+      ))
+      .returning();
+    
+    return result.length > 0;
+  }
+
+  async deleteAllReadAlerts(userId: string): Promise<number> {
+    const result = await db
+      .delete(userAlerts)
+      .where(and(
+        eq(userAlerts.userId, userId),
+        eq(userAlerts.isRead, true)
+      ))
+      .returning();
+    
+    return result.length;
   }
 }
 
