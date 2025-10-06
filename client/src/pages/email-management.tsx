@@ -437,6 +437,7 @@ const EmailManagement: React.FC = () => {
           <TabsTrigger value="templates">Email Templates</TabsTrigger>
           <TabsTrigger value="activity">Email Activity</TabsTrigger>
           <TabsTrigger value="triggers">Email Triggers</TabsTrigger>
+          <TabsTrigger value="guide">Template Guide</TabsTrigger>
         </TabsList>
 
         {/* Email Templates Tab */}
@@ -920,6 +921,276 @@ const EmailManagement: React.FC = () => {
                   )}
                 </TableBody>
               </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Template Guide Tab */}
+        <TabsContent value="guide" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Email Template Guide</CardTitle>
+              <CardDescription>
+                Learn how to create effective email templates using variables and best practices
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              
+              {/* Variable Syntax Section */}
+              <div className="space-y-3">
+                <h3 className="text-lg font-semibold">Using Variables</h3>
+                <p className="text-sm text-gray-600">
+                  Variables allow you to personalize emails with dynamic content. Use double curly braces to insert variables:
+                </p>
+                <div className="bg-gray-50 dark:bg-gray-900 p-4 rounded-md border">
+                  <code className="text-sm">
+                    Hello {`{{firstName}}`} {`{{lastName}}`},<br/>
+                    Welcome to {`{{companyName}}`}!
+                  </code>
+                </div>
+              </div>
+
+              {/* Available Variables by Trigger Type */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold">Available Variables by Trigger Type</h3>
+                
+                {/* Agent Registered */}
+                <div className="border rounded-lg p-4 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-semibold text-base">agent_registered</h4>
+                    <Badge variant="outline">Agent Events</Badge>
+                  </div>
+                  <p className="text-sm text-gray-600">Fired when a new agent is registered in the system</p>
+                  <div className="bg-gray-50 dark:bg-gray-900 p-3 rounded-md">
+                    <ul className="text-sm space-y-1 font-mono">
+                      <li><span className="text-blue-600">{`{{agentId}}`}</span> - Agent's unique ID</li>
+                      <li><span className="text-blue-600">{`{{agentName}}`}</span> - Full name of the agent</li>
+                      <li><span className="text-blue-600">{`{{firstName}}`}</span> - Agent's first name</li>
+                      <li><span className="text-blue-600">{`{{lastName}}`}</span> - Agent's last name</li>
+                      <li><span className="text-blue-600">{`{{email}}`}</span> - Agent's email address</li>
+                      <li><span className="text-blue-600">{`{{phone}}`}</span> - Agent's phone number</li>
+                      <li><span className="text-blue-600">{`{{territory}}`}</span> - Assigned territory</li>
+                      <li><span className="text-blue-600">{`{{companyName}}`}</span> - Associated company name</li>
+                      <li><span className="text-blue-600">{`{{companyId}}`}</span> - Company's unique ID</li>
+                      <li><span className="text-blue-600">{`{{hasUserAccount}}`}</span> - true/false if user account created</li>
+                      <li><span className="text-blue-600">{`{{username}}`}</span> - Login username (if account created)</li>
+                    </ul>
+                  </div>
+                </div>
+
+                {/* User Registered */}
+                <div className="border rounded-lg p-4 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-semibold text-base">user_registered</h4>
+                    <Badge variant="outline">User Events</Badge>
+                  </div>
+                  <p className="text-sm text-gray-600">Fired when a new user account is created</p>
+                  <div className="bg-gray-50 dark:bg-gray-900 p-3 rounded-md">
+                    <ul className="text-sm space-y-1 font-mono">
+                      <li><span className="text-blue-600">{`{{userId}}`}</span> - User's unique ID</li>
+                      <li><span className="text-blue-600">{`{{username}}`}</span> - Login username</li>
+                      <li><span className="text-blue-600">{`{{email}}`}</span> - User's email address</li>
+                      <li><span className="text-blue-600">{`{{firstName}}`}</span> - User's first name</li>
+                      <li><span className="text-blue-600">{`{{lastName}}`}</span> - User's last name</li>
+                      <li><span className="text-blue-600">{`{{role}}`}</span> - User's assigned role</li>
+                    </ul>
+                  </div>
+                </div>
+
+                {/* Application Submitted */}
+                <div className="border rounded-lg p-4 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-semibold text-base">application_submitted</h4>
+                    <Badge variant="outline">Application Events</Badge>
+                  </div>
+                  <p className="text-sm text-gray-600">Fired when a merchant application is submitted</p>
+                  <div className="bg-gray-50 dark:bg-gray-900 p-3 rounded-md">
+                    <ul className="text-sm space-y-1 font-mono">
+                      <li><span className="text-blue-600">{`{{applicationId}}`}</span> - Application's unique ID</li>
+                      <li><span className="text-blue-600">{`{{merchantName}}`}</span> - Merchant's business name</li>
+                      <li><span className="text-blue-600">{`{{contactName}}`}</span> - Primary contact name</li>
+                      <li><span className="text-blue-600">{`{{contactEmail}}`}</span> - Contact email address</li>
+                      <li><span className="text-blue-600">{`{{businessType}}`}</span> - Type of business</li>
+                      <li><span className="text-blue-600">{`{{submittedDate}}`}</span> - Submission date</li>
+                    </ul>
+                  </div>
+                </div>
+
+                {/* Signature Requested */}
+                <div className="border rounded-lg p-4 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-semibold text-base">signature_requested</h4>
+                    <Badge variant="outline">Document Events</Badge>
+                  </div>
+                  <p className="text-sm text-gray-600">Fired when a digital signature is requested</p>
+                  <div className="bg-gray-50 dark:bg-gray-900 p-3 rounded-md">
+                    <ul className="text-sm space-y-1 font-mono">
+                      <li><span className="text-blue-600">{`{{requestId}}`}</span> - Signature request ID</li>
+                      <li><span className="text-blue-600">{`{{recipientName}}`}</span> - Signer's name</li>
+                      <li><span className="text-blue-600">{`{{recipientEmail}}`}</span> - Signer's email</li>
+                      <li><span className="text-blue-600">{`{{documentName}}`}</span> - Document to be signed</li>
+                      <li><span className="text-blue-600">{`{{signatureUrl}}`}</span> - Link to signature page</li>
+                      <li><span className="text-blue-600">{`{{expiresAt}}`}</span> - Request expiration date</li>
+                    </ul>
+                  </div>
+                </div>
+
+                {/* Password Reset */}
+                <div className="border rounded-lg p-4 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-semibold text-base">password_reset_requested</h4>
+                    <Badge variant="outline">Security Events</Badge>
+                  </div>
+                  <p className="text-sm text-gray-600">Fired when a user requests a password reset</p>
+                  <div className="bg-gray-50 dark:bg-gray-900 p-3 rounded-md">
+                    <ul className="text-sm space-y-1 font-mono">
+                      <li><span className="text-blue-600">{`{{userName}}`}</span> - User's full name</li>
+                      <li><span className="text-blue-600">{`{{email}}`}</span> - User's email address</li>
+                      <li><span className="text-blue-600">{`{{resetLink}}`}</span> - Password reset URL</li>
+                      <li><span className="text-blue-600">{`{{expiresIn}}`}</span> - Link expiration time</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+
+              {/* Best Practices Section */}
+              <div className="space-y-3">
+                <h3 className="text-lg font-semibold">Best Practices</h3>
+                <div className="space-y-2">
+                  <div className="border-l-4 border-blue-500 pl-4 py-2">
+                    <h4 className="font-semibold text-sm mb-1">✅ Use Clear Subject Lines</h4>
+                    <p className="text-sm text-gray-600">
+                      Keep subjects under 50 characters and personalize when possible
+                    </p>
+                    <code className="text-xs bg-gray-50 dark:bg-gray-900 px-2 py-1 rounded mt-1 block">
+                      Welcome to Core CRM, {`{{firstName}}`}!
+                    </code>
+                  </div>
+
+                  <div className="border-l-4 border-green-500 pl-4 py-2">
+                    <h4 className="font-semibold text-sm mb-1">✅ Include Plain Text Version</h4>
+                    <p className="text-sm text-gray-600">
+                      Always provide a text content version for email clients that don't support HTML
+                    </p>
+                  </div>
+
+                  <div className="border-l-4 border-purple-500 pl-4 py-2">
+                    <h4 className="font-semibold text-sm mb-1">✅ Test Your Variables</h4>
+                    <p className="text-sm text-gray-600">
+                      Create a test email first and verify all variables are populated correctly
+                    </p>
+                  </div>
+
+                  <div className="border-l-4 border-orange-500 pl-4 py-2">
+                    <h4 className="font-semibold text-sm mb-1">✅ Use Valid From Address</h4>
+                    <p className="text-sm text-gray-600">
+                      Ensure your "from" email is verified in SendGrid to avoid delivery issues
+                    </p>
+                    <code className="text-xs bg-gray-50 dark:bg-gray-900 px-2 py-1 rounded mt-1 block">
+                      Currently verified: noreply@charrg.com
+                    </code>
+                  </div>
+
+                  <div className="border-l-4 border-red-500 pl-4 py-2">
+                    <h4 className="font-semibold text-sm mb-1">⚠️ Respect Communication Preferences</h4>
+                    <p className="text-sm text-gray-600">
+                      Triggers can check user communication preferences before sending emails
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Example Template Section */}
+              <div className="space-y-3">
+                <h3 className="text-lg font-semibold">Example: Welcome Email Template</h3>
+                <div className="border rounded-lg p-4 space-y-3 bg-gray-50 dark:bg-gray-900">
+                  <div>
+                    <Label className="text-xs font-semibold">Subject Line:</Label>
+                    <code className="block text-sm mt-1">Welcome to Core CRM!</code>
+                  </div>
+                  <div>
+                    <Label className="text-xs font-semibold">HTML Content:</Label>
+                    <pre className="text-xs mt-1 overflow-x-auto p-3 bg-white dark:bg-gray-800 rounded border">
+{`<p>Dear {{firstName}} {{lastName}},</p>
+
+<p>Welcome to Core CRM! Your agent account has been successfully created.</p>
+
+<p><strong>Your Login Details:</strong><br>
+Username: {{username}}</p>
+
+<p><strong>Company Information:</strong><br>
+Company: {{companyName}}<br>
+Territory: {{territory}}</p>
+
+<p>We are excited to have you on our team!</p>
+
+<p>Best regards,<br>
+Core CRM Team</p>`}
+                    </pre>
+                  </div>
+                  <div>
+                    <Label className="text-xs font-semibold">Text Content:</Label>
+                    <pre className="text-xs mt-1 overflow-x-auto p-3 bg-white dark:bg-gray-800 rounded border">
+{`Dear {{firstName}} {{lastName}},
+
+Welcome to Core CRM! Your agent account has been successfully created.
+
+Your Login Details:
+Username: {{username}}
+
+Company Information:
+Company: {{companyName}}
+Territory: {{territory}}
+
+We are excited to have you on our team!
+
+Best regards,
+Core CRM Team`}
+                    </pre>
+                  </div>
+                </div>
+              </div>
+
+              {/* Quick Start Guide */}
+              <div className="space-y-3">
+                <h3 className="text-lg font-semibold">Quick Start: Creating a Template</h3>
+                <ol className="list-decimal list-inside space-y-2 text-sm text-gray-600">
+                  <li>Go to the <strong>Email Templates</strong> tab</li>
+                  <li>Click <strong>New Template</strong> button</li>
+                  <li>Fill in template name, category, and subject line</li>
+                  <li>Write your HTML content using available variables from the guide above</li>
+                  <li>Add a plain text version of your content</li>
+                  <li>Define template variables in JSON format (optional)</li>
+                  <li>Save and activate your template</li>
+                  <li>Go to <strong>Email Triggers</strong> tab to associate it with a system event</li>
+                </ol>
+              </div>
+
+              {/* Troubleshooting Section */}
+              <div className="space-y-3">
+                <h3 className="text-lg font-semibold">Troubleshooting</h3>
+                <div className="space-y-2 text-sm">
+                  <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3">
+                    <h4 className="font-semibold mb-1">❓ Email not sending?</h4>
+                    <ul className="list-disc list-inside space-y-1 text-gray-600">
+                      <li>Check that the template is marked as <strong>Active</strong></li>
+                      <li>Verify the trigger is marked as <strong>Active</strong></li>
+                      <li>Confirm the "from" email is verified in SendGrid</li>
+                      <li>Check user communication preferences allow email</li>
+                      <li>View <strong>Email Activity</strong> tab for delivery status</li>
+                    </ul>
+                  </div>
+                  <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
+                    <h4 className="font-semibold mb-1">❓ Variables not populating?</h4>
+                    <ul className="list-disc list-inside space-y-1 text-gray-600">
+                      <li>Ensure variable names exactly match the available variables list</li>
+                      <li>Check for typos in variable names (case-sensitive)</li>
+                      <li>Verify the trigger event provides that specific variable</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+
             </CardContent>
           </Card>
         </TabsContent>
