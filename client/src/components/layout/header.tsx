@@ -40,9 +40,7 @@ function AlertsButton() {
 
   const markAsReadMutation = useMutation({
     mutationFn: async (alertId: number) => {
-      return apiRequest(`/api/alerts/${alertId}/read`, {
-        method: 'PATCH'
-      });
+      return apiRequest('PATCH', `/api/alerts/${alertId}/read`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/alerts'] });
@@ -52,9 +50,7 @@ function AlertsButton() {
 
   const markAllAsReadMutation = useMutation({
     mutationFn: async () => {
-      return apiRequest('/api/alerts/read-all', {
-        method: 'POST'
-      });
+      return apiRequest('POST', '/api/alerts/read-all');
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/alerts'] });
@@ -64,9 +60,7 @@ function AlertsButton() {
 
   const deleteAlertMutation = useMutation({
     mutationFn: async (alertId: number) => {
-      return apiRequest(`/api/alerts/${alertId}`, {
-        method: 'DELETE'
-      });
+      return apiRequest('DELETE', `/api/alerts/${alertId}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/alerts'] });
