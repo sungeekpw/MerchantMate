@@ -4268,6 +4268,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const triggerService = new TriggerService();
         
         await triggerService.fireTrigger('agent_registered', {
+          triggerEvent: 'agent_registered', // For email template styling
           agentId: result.agent.id,
           agentName: `${result.agent.first_name} ${result.agent.last_name}`,
           firstName: result.agent.first_name,
