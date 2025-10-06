@@ -151,12 +151,15 @@ export interface IStorage {
   getEmailActivity(limit?: number, filters?: { status?: string; templateId?: number; recipientEmail?: string }): Promise<EmailActivity[]>;
   getEmailActivityStats(): Promise<{
     totalSent: number;
+    delivered: number;
     totalOpened: number;
     totalClicked: number;
     totalFailed: number;
+    deliveryRate: number;
     openRate: number;
     clickRate: number;
   }>;
+  updateEmailActivityByWebhook(recipientEmail: string, eventType: string, eventTimestamp: Date, dbClient?: any): Promise<void>;
 
   // Admin operations
   clearAllProspectData(): Promise<void>;
@@ -2013,24 +2016,78 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getEmailActivityStats() {
-    const totalSentResult = await db.execute(sql`SELECT COUNT(*) as count FROM email_activity WHERE status = 'sent'`);
+    const totalSentResult = await db.execute(sql`SELECT COUNT(*) as count FROM email_activity WHERE status IN ('sent', 'opened', 'clicked')`);
+    const deliveredResult = await db.execute(sql`SELECT COUNT(*) as count FROM email_activity WHERE status IN ('sent', 'opened', 'clicked')`);
     const totalOpenedResult = await db.execute(sql`SELECT COUNT(*) as count FROM email_activity WHERE status = 'opened'`);
     const totalClickedResult = await db.execute(sql`SELECT COUNT(*) as count FROM email_activity WHERE status = 'clicked'`);
-    const totalFailedResult = await db.execute(sql`SELECT COUNT(*) as count FROM email_activity WHERE status = 'failed'`);
+    const totalFailedResult = await db.execute(sql`SELECT COUNT(*) as count FROM email_activity WHERE status IN ('failed', 'bounced')`);
     
     const totalSent = Number(totalSentResult.rows[0]?.count || 0);
+    const delivered = Number(deliveredResult.rows[0]?.count || 0);
     const totalOpened = Number(totalOpenedResult.rows[0]?.count || 0);
     const totalClicked = Number(totalClickedResult.rows[0]?.count || 0);
     const totalFailed = Number(totalFailedResult.rows[0]?.count || 0);
     
     return {
       totalSent,
+      delivered,
       totalOpened,
       totalClicked,
       totalFailed,
+      deliveryRate: totalSent > 0 ? Math.round((delivered / totalSent) * 100) : 0,
       openRate: totalSent > 0 ? Math.round((totalOpened / totalSent) * 100) : 0,
       clickRate: totalSent > 0 ? Math.round((totalClicked / totalSent) * 100) : 0
     };
+  }
+
+  async updateEmailActivityByWebhook(recipientEmail: string, eventType: string, eventTimestamp: Date, dbClient?: any) {
+    const dbToUse = dbClient || db;
+    
+    const statusMapping: Record<string, string> = {
+      'delivered': 'sent',
+      'open': 'opened',
+      'bounce': 'bounced',
+      'dropped': 'failed',
+      'deferred': 'sent'
+    };
+
+    const newStatus = statusMapping[eventType];
+    
+    if (!newStatus) {
+      console.log(`Ignoring unsupported SendGrid event type: ${eventType}`);
+      return;
+    }
+
+    console.log(`[Webhook] Searching for email activity with recipient: ${recipientEmail}`);
+    
+    const recentEmail = await dbToUse
+      .select()
+      .from(emailActivity)
+      .where(eq(emailActivity.recipientEmail, recipientEmail))
+      .orderBy(sql`sent_at DESC`)
+      .limit(1);
+
+    console.log(`[Webhook] Query returned ${recentEmail.length} results`);
+
+    if (recentEmail.length === 0) {
+      console.warn(`No email activity found for ${recipientEmail} to update with ${eventType} event`);
+      return;
+    }
+
+    const updateData: any = { status: newStatus };
+
+    if (eventType === 'open') {
+      updateData.openedAt = eventTimestamp;
+    }
+
+    console.log(`[Webhook] Updating email ${recentEmail[0].id} with status: ${newStatus}`);
+
+    await dbToUse
+      .update(emailActivity)
+      .set(updateData)
+      .where(eq(emailActivity.id, recentEmail[0].id));
+
+    console.log(`[Webhook] Successfully updated email ${recentEmail[0].id} for ${recipientEmail} to status: ${newStatus}`);
   }
 
   // Campaign operations - placeholder methods removed (using real implementations above)
