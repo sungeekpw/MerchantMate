@@ -8761,6 +8761,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // ============================================================================
+  // SENDGRID WEBHOOK ENDPOINTS
+  // ============================================================================
+
+  // SendGrid Event Webhook - receives email events (delivered, opened, bounced, etc.)
+  app.post("/api/webhooks/sendgrid", dbEnvironmentMiddleware, async (req: RequestWithDB, res: Response) => {
+    try {
+      const events = req.body;
+      
+      if (!Array.isArray(events)) {
+        return res.status(400).json({ message: "Invalid webhook payload" });
+      }
+
+      console.log(`Received ${events.length} SendGrid webhook events`);
+
+      const dbToUse = req.dynamicDB || getDynamicDatabase('development');
+
+      for (const event of events) {
+        const { email, event: eventType, timestamp } = event;
+        
+        if (!email || !eventType) {
+          console.warn('Skipping event with missing email or eventType:', event);
+          continue;
+        }
+
+        console.log(`Processing ${eventType} event for ${email}`);
+
+        try {
+          await storage.updateEmailActivityByWebhook(
+            email,
+            eventType,
+            timestamp ? new Date(timestamp * 1000) : new Date(),
+            dbToUse
+          );
+        } catch (error) {
+          console.error(`Failed to process ${eventType} event for ${email}:`, error);
+        }
+      }
+
+      res.status(200).json({ success: true, processed: events.length });
+    } catch (error) {
+      console.error("Error processing SendGrid webhook:", error);
+      res.status(500).json({ message: "Failed to process webhook" });
+    }
+  });
+
+  // ============================================================================
   // DASHBOARD API ENDPOINTS
   // ============================================================================
 
