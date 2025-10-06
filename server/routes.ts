@@ -3974,6 +3974,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           password,
           confirmPassword,
           communicationPreference,
+          email: agentEmail, // Agent's individual email
+          phone: agentPhone, // Agent's individual phone
           ...agentData 
         } = req.body;
 
@@ -4113,6 +4115,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Create user account if requested
         if (createUserAccount) {
           // Validate user creation fields if user account is requested
+          if (!agentEmail?.trim()) {
+            throw new Error('Agent email is required when creating user account');
+          }
           if (!username || username.length < 3) {
             throw new Error('Username is required and must be at least 3 characters when creating user account');
           }
@@ -4137,15 +4142,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const bcrypt = await import('bcrypt');
           const passwordHash = await bcrypt.hash(password, 10);
           
-          // Create user account within transaction - use company email
+          // Create user account within transaction - use agent's individual email
           const userData = {
             id: crypto.randomUUID(),
-            email: companyEmail.trim(),
+            email: agentEmail.trim(),
             username: username,
             passwordHash,
             firstName: agentValidation.data.firstName,
             lastName: agentValidation.data.lastName,
-            phone: companyPhone?.trim() || '',
+            phone: agentPhone?.trim() || '',
             roles: ['agent'] as const,
             status: 'active' as const,
             emailVerified: true,
@@ -4192,12 +4197,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           const userData = {
             id: agentOnlyUserId,
-            email: companyEmail.trim(),
+            email: agentEmail?.trim() || companyEmail.trim(), // Use agent email if provided, fallback to company email
             username: agentUsername,
             passwordHash: randomPasswordHash, // Random hash - can't be used for login
             firstName: agentValidation.data.firstName,
             lastName: agentValidation.data.lastName,
-            phone: companyPhone?.trim() || '',
+            phone: agentPhone?.trim() || companyPhone?.trim() || '',
             roles: ['agent'] as const,
             status: 'inactive' as const, // Inactive since they can't log in
             emailVerified: false,
@@ -4267,8 +4272,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           agentName: `${result.agent.first_name} ${result.agent.last_name}`,
           firstName: result.agent.first_name,
           lastName: result.agent.last_name,
-          email: req.body.companyEmail, // Access from req.body
-          phone: req.body.companyPhone, // Access from req.body
+          email: req.body.email, // Use agent's individual email
+          phone: req.body.phone, // Use agent's individual phone
           territory: result.agent.territory,
           companyName: result.company?.name,
           companyId: result.company?.id,
