@@ -8761,6 +8761,117 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // ============================================================================
+  // ACTION TEMPLATE API ENDPOINTS - Admin Only
+  // ============================================================================
+
+  // Get all action templates
+  app.get("/api/admin/action-templates", requireRole(['admin', 'super_admin']), async (req, res) => {
+    try {
+      const templates = await storage.getAllActionTemplates();
+      res.json(templates);
+    } catch (error) {
+      console.error("Error fetching action templates:", error);
+      res.status(500).json({ message: "Failed to fetch action templates" });
+    }
+  });
+
+  // Get action templates by type
+  app.get("/api/admin/action-templates/type/:actionType", requireRole(['admin', 'super_admin']), async (req, res) => {
+    try {
+      const templates = await storage.getActionTemplatesByType(req.params.actionType);
+      res.json(templates);
+    } catch (error) {
+      console.error("Error fetching action templates by type:", error);
+      res.status(500).json({ message: "Failed to fetch action templates" });
+    }
+  });
+
+  // Get single action template
+  app.get("/api/admin/action-templates/:id", requireRole(['admin', 'super_admin']), async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const template = await storage.getActionTemplate(id);
+      
+      if (!template) {
+        return res.status(404).json({ message: "Action template not found" });
+      }
+      
+      res.json(template);
+    } catch (error) {
+      console.error("Error fetching action template:", error);
+      res.status(500).json({ message: "Failed to fetch action template" });
+    }
+  });
+
+  // Create action template
+  app.post("/api/admin/action-templates", requireRole(['admin', 'super_admin']), async (req, res) => {
+    try {
+      const { insertActionTemplateSchema } = await import("@shared/schema");
+      const result = insertActionTemplateSchema.safeParse(req.body);
+      
+      if (!result.success) {
+        return res.status(400).json({ 
+          message: "Invalid action template data", 
+          errors: result.error.errors 
+        });
+      }
+
+      const template = await storage.createActionTemplate(result.data);
+      res.status(201).json(template);
+    } catch (error) {
+      console.error("Error creating action template:", error);
+      if (error.code === '23505') { // Unique constraint violation
+        return res.status(400).json({ message: "Action template name already exists" });
+      }
+      res.status(500).json({ message: "Failed to create action template" });
+    }
+  });
+
+  // Update action template
+  app.put("/api/admin/action-templates/:id", requireRole(['admin', 'super_admin']), async (req, res) => {
+    try {
+      const { insertActionTemplateSchema } = await import("@shared/schema");
+      const id = parseInt(req.params.id);
+      const result = insertActionTemplateSchema.partial().safeParse(req.body);
+      
+      if (!result.success) {
+        return res.status(400).json({ 
+          message: "Invalid action template data", 
+          errors: result.error.errors 
+        });
+      }
+
+      const template = await storage.updateActionTemplate(id, result.data);
+      
+      if (!template) {
+        return res.status(404).json({ message: "Action template not found" });
+      }
+      
+      res.json(template);
+    } catch (error) {
+      console.error("Error updating action template:", error);
+      res.status(500).json({ message: "Failed to update action template" });
+    }
+  });
+
+  // Delete action template
+  app.delete("/api/admin/action-templates/:id", requireRole(['admin', 'super_admin']), async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const success = await storage.deleteActionTemplate(id);
+      
+      if (!success) {
+        return res.status(404).json({ message: "Action template not found" });
+      }
+      
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting action template:", error);
+      res.status(500).json({ message: "Failed to delete action template" });
+    }
+  });
+
+  // ============================================================================
   // SENDGRID WEBHOOK ENDPOINTS
   // ============================================================================
 
