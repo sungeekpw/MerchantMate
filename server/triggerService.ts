@@ -17,6 +17,7 @@ import {
 } from '@shared/schema';
 import { eq, and } from 'drizzle-orm';
 import { EmailService } from './emailService';
+import { wrapEmailTemplate } from './emailTemplateWrapper';
 
 // Base Action Executor Interface
 export interface IActionExecutor {
@@ -54,10 +55,15 @@ export class EmailExecutor implements IActionExecutor {
       
       // Replace variables in template
       const subject = this.replaceVariables(config.subject, context);
-      const htmlContent = this.replaceVariables(config.htmlContent, context);
+      let htmlContent = this.replaceVariables(config.htmlContent, context);
       const textContent = config.textContent 
         ? this.replaceVariables(config.textContent, context) 
         : undefined;
+
+      // Wrap content in professional template if not already wrapped
+      if (!htmlContent.includes('max-width: 600px')) {
+        htmlContent = this.wrapEmailContent(htmlContent, subject, context);
+      }
 
       // Send email using existing EmailService
       const success = await this.sendEmail({
@@ -83,6 +89,32 @@ export class EmailExecutor implements IActionExecutor {
         statusMessage: error instanceof Error ? error.message : 'Unknown error',
       };
     }
+  }
+
+  private wrapEmailContent(content: string, subject: string, context: Record<string, any>): string {
+    // Determine recipient name from context
+    const recipientName = context.firstName && context.lastName 
+      ? `${context.firstName} ${context.lastName}`
+      : context.firstName || context.recipientName || undefined;
+
+    // Determine header gradient based on trigger type
+    const triggerEvent = context.triggerEvent || '';
+    let headerGradient = 'linear-gradient(135deg, #059669 0%, #10b981 100%)'; // Default green
+    
+    if (triggerEvent.includes('agent') || triggerEvent.includes('notification')) {
+      headerGradient = 'linear-gradient(135deg, #7c3aed 0%, #a855f7 100%)'; // Purple for agent/notifications
+    } else if (triggerEvent.includes('security') || triggerEvent.includes('password') || triggerEvent.includes('login')) {
+      headerGradient = 'linear-gradient(135deg, #1e40af 0%, #3b82f6 100%)'; // Blue for security
+    } else if (triggerEvent.includes('alert') || triggerEvent.includes('warning')) {
+      headerGradient = 'linear-gradient(135deg, #dc2626 0%, #ef4444 100%)'; // Red for alerts
+    }
+
+    return wrapEmailTemplate({
+      headerTitle: subject,
+      headerGradient,
+      recipientName,
+      content,
+    });
   }
 
   private async sendEmail(params: {
