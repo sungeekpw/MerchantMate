@@ -5,6 +5,7 @@ import {
   triggerActions, 
   actionActivity,
   users,
+  userAlerts,
   type TriggerCatalog,
   type ActionTemplate,
   type TriggerAction,
@@ -275,17 +276,33 @@ export class NotificationExecutor implements IActionExecutor {
       
       const title = this.replaceVariables(config.title, context);
       const message = this.replaceVariables(config.message, context);
+      const link = config.link ? this.replaceVariables(config.link, context) : undefined;
 
-      // TODO: Store in-app notification in database
-      console.log(`Notification for ${recipient}: ${title} - ${message}`);
+      // Create alert in database
+      const [alert] = await db.insert(userAlerts).values({
+        userId: recipient, // recipient should be user ID for notifications
+        title,
+        message,
+        type: config.type,
+        link: link || null,
+        icon: config.icon || null,
+        isRead: false,
+        metadata: context,
+      }).returning();
 
       return {
         success: true,
         status: 'sent',
-        statusMessage: 'Notification created',
-        responseData: { title, message, type: config.type },
+        statusMessage: 'Alert created successfully',
+        responseData: { 
+          alertId: alert.id,
+          title, 
+          message, 
+          type: config.type 
+        },
       };
     } catch (error) {
+      console.error('Notification executor error:', error);
       return {
         success: false,
         status: 'failed',
