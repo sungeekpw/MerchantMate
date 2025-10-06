@@ -48,6 +48,7 @@ import FormDemo from "@/pages/form-demo";
 import EmailManagement from "@/pages/email-management";
 import ApiDocumentation from "@/pages/api-documentation";
 import TestingUtilities from "@/pages/testing-utilities";
+import AlertsPage from "@/pages/AlertsPage";
 import NotFound from "@/pages/not-found";
 import Landing from "@/pages/landing";
 import Auth from "@/pages/auth";
@@ -179,6 +180,11 @@ function AuthenticatedApp() {
         return {
           title: "API Documentation",
           subtitle: "Comprehensive API reference for external integrations"
+        };
+      case "/alerts":
+        return {
+          title: "Notifications",
+          subtitle: "Manage your alerts and notifications"
         };
       default:
         return {
@@ -614,6 +620,22 @@ function AuthenticatedApp() {
                     <div className="container mx-auto p-6">
                       <TestingUtilities />
                     </div>
+                  </main>
+                </>
+              );
+            }}
+          </Route>
+          <Route path="/alerts">
+            {() => {
+              const pageInfo = getPageInfo("/alerts");
+              return (
+                <>
+                  <Header 
+                    title={pageInfo.title} 
+                    onSearch={setGlobalSearch}
+                  />
+                  <main className="flex-1 overflow-auto bg-gray-50">
+                    <AlertsPage />
                   </main>
                 </>
               );
