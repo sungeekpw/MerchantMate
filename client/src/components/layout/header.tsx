@@ -1,44 +1,232 @@
-import { Search, Bell, Clock, MapPin, Database, AlertTriangle } from "lucide-react";
+import { Search, Bell, Clock, MapPin, Database, AlertTriangle, Check, Trash2, Mail, ExternalLink } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { formatDateInUserTimezone, getTimezoneAbbreviation } from "@/lib/timezone";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Separator } from "@/components/ui/separator";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { Link } from "wouter";
+
+interface Alert {
+  id: number;
+  userId: string;
+  message: string;
+  type: 'info' | 'warning' | 'error' | 'success';
+  isRead: boolean;
+  createdAt: string;
+  readAt?: string | null;
+  actionUrl?: string | null;
+  actionActivityId?: number | null;
+}
 
 function AlertsButton() {
+  const [open, setOpen] = useState(false);
+  const { user } = useAuth();
+
   const { data: alertCount } = useQuery<{ count: number }>({
     queryKey: ['/api/alerts/count'],
     refetchInterval: 30000, // Refetch every 30 seconds
   });
 
+  const { data: alertsData, isLoading } = useQuery<{ alerts: Alert[] }>({
+    queryKey: ['/api/alerts'],
+    enabled: open, // Only fetch when dropdown is open
+  });
+
+  const markAsReadMutation = useMutation({
+    mutationFn: async (alertId: number) => {
+      return apiRequest(`/api/alerts/${alertId}/read`, {
+        method: 'PATCH'
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/alerts'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/alerts/count'] });
+    }
+  });
+
+  const markAllAsReadMutation = useMutation({
+    mutationFn: async () => {
+      return apiRequest('/api/alerts/read-all', {
+        method: 'POST'
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/alerts'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/alerts/count'] });
+    }
+  });
+
+  const deleteAlertMutation = useMutation({
+    mutationFn: async (alertId: number) => {
+      return apiRequest(`/api/alerts/${alertId}`, {
+        method: 'DELETE'
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/alerts'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/alerts/count'] });
+    }
+  });
+
   const unreadCount = alertCount?.count || 0;
   const hasUnread = unreadCount > 0;
+  const alerts = alertsData?.alerts || [];
+
+  const getAlertTypeStyles = (type: Alert['type']) => {
+    switch (type) {
+      case 'error':
+        return 'bg-red-50 border-red-200 text-red-900';
+      case 'warning':
+        return 'bg-yellow-50 border-yellow-200 text-yellow-900';
+      case 'success':
+        return 'bg-green-50 border-green-200 text-green-900';
+      default:
+        return 'bg-blue-50 border-blue-200 text-blue-900';
+    }
+  };
+
+  const handleAlertClick = (alert: Alert) => {
+    if (!alert.isRead) {
+      markAsReadMutation.mutate(alert.id);
+    }
+  };
+
+  const formatAlertDate = (dateStr: string) => {
+    const timezone = user?.timezone || undefined;
+    return formatDateInUserTimezone(dateStr, "MMM dd, yyyy 'at' hh:mm a", timezone);
+  };
 
   return (
-    <Button 
-      variant="ghost" 
-      size="icon" 
-      className="relative"
-      data-testid="button-alerts"
-    >
-      <Bell 
-        className="w-5 h-5" 
-        style={{ 
-          stroke: hasUnread ? '#dc2626' : '#10b981', // Red if unread, green if all read
-          strokeWidth: hasUnread ? 2.5 : 2
-        }} 
-      />
-      {hasUnread && (
-        <Badge 
-          className="absolute -top-1 -right-1 h-5 min-w-5 flex items-center justify-center px-1 bg-red-500 text-white text-xs"
-          data-testid="badge-alert-count"
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button 
+          variant="ghost" 
+          size="icon" 
+          className="relative"
+          data-testid="button-alerts"
         >
-          {unreadCount}
-        </Badge>
-      )}
-    </Button>
+          <Bell 
+            className="w-5 h-5" 
+            style={{ 
+              stroke: hasUnread ? '#dc2626' : '#10b981', // Red if unread, green if all read
+              strokeWidth: hasUnread ? 2.5 : 2
+            }} 
+          />
+          {hasUnread && (
+            <Badge 
+              className="absolute -top-1 -right-1 h-5 min-w-5 flex items-center justify-center px-1 bg-red-500 text-white text-xs"
+              data-testid="badge-alert-count"
+            >
+              {unreadCount}
+            </Badge>
+          )}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-96 p-0" align="end" data-testid="popover-alerts">
+        <div className="flex items-center justify-between p-4 border-b">
+          <h3 className="font-semibold text-sm">Notifications</h3>
+          {hasUnread && (
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={() => markAllAsReadMutation.mutate()}
+              disabled={markAllAsReadMutation.isPending}
+              data-testid="button-mark-all-read"
+            >
+              <Check className="w-4 h-4 mr-1" />
+              Mark all read
+            </Button>
+          )}
+        </div>
+        
+        <ScrollArea className="h-96">
+          {isLoading ? (
+            <div className="p-4 text-center text-sm text-gray-500">Loading alerts...</div>
+          ) : alerts.length === 0 ? (
+            <div className="p-8 text-center">
+              <Mail className="w-12 h-12 mx-auto mb-2 text-gray-300" />
+              <p className="text-sm text-gray-500">No notifications</p>
+            </div>
+          ) : (
+            <div className="divide-y">
+              {alerts.map((alert) => (
+                <div
+                  key={alert.id}
+                  className={`p-4 ${!alert.isRead ? 'bg-gray-50' : ''} hover:bg-gray-100 transition-colors cursor-pointer`}
+                  onClick={() => handleAlertClick(alert)}
+                  data-testid={`alert-item-${alert.id}`}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1">
+                      <div className={`inline-block px-2 py-1 rounded text-xs font-medium mb-2 ${getAlertTypeStyles(alert.type)}`}>
+                        {alert.type.toUpperCase()}
+                      </div>
+                      <p className="text-sm mb-2">{alert.message}</p>
+                      <p className="text-xs text-gray-500">
+                        {formatAlertDate(alert.createdAt)}
+                      </p>
+                      {alert.actionUrl && (
+                        <Link href={alert.actionUrl}>
+                          <Button 
+                            variant="link" 
+                            size="sm" 
+                            className="p-0 h-auto mt-2 text-blue-600"
+                            onClick={(e) => e.stopPropagation()}
+                            data-testid={`button-alert-action-${alert.id}`}
+                          >
+                            <ExternalLink className="w-3 h-3 mr-1" />
+                            View details
+                          </Button>
+                        </Link>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-1">
+                      {!alert.isRead && (
+                        <div className="w-2 h-2 bg-blue-600 rounded-full" data-testid={`badge-unread-${alert.id}`}></div>
+                      )}
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          deleteAlertMutation.mutate(alert.id);
+                        }}
+                        disabled={deleteAlertMutation.isPending}
+                        data-testid={`button-delete-alert-${alert.id}`}
+                      >
+                        <Trash2 className="w-4 h-4 text-gray-500" />
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </ScrollArea>
+
+        <Separator />
+        
+        <div className="p-2">
+          <Link href="/alerts">
+            <Button 
+              variant="ghost" 
+              className="w-full justify-center text-sm" 
+              onClick={() => setOpen(false)}
+              data-testid="button-view-all-alerts"
+            >
+              View all notifications
+            </Button>
+          </Link>
+        </div>
+      </PopoverContent>
+    </Popover>
   );
 }
 
