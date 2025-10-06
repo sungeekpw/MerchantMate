@@ -1,4 +1,4 @@
-import { companies, merchants, agents, transactions, users, loginAttempts, twoFactorCodes, userDashboardPreferences, agentMerchants, locations, addresses, pdfForms, pdfFormFields, pdfFormSubmissions, merchantProspects, prospectOwners, prospectSignatures, feeGroups, feeItemGroups, feeItems, pricingTypes, pricingTypeFeeItems, campaigns, campaignFeeValues, campaignAssignments, equipmentItems, campaignEquipment, apiKeys, apiRequestLogs, emailTemplates, emailActivity, emailTriggers, userAlerts, type Merchant, type Agent, type Transaction, type User, type InsertMerchant, type InsertAgent, type InsertTransaction, type UpsertUser, type MerchantWithAgent, type TransactionWithMerchant, type LoginAttempt, type TwoFactorCode, type UserDashboardPreference, type InsertUserDashboardPreference, type AgentMerchant, type InsertAgentMerchant, type Location, type InsertLocation, type Address, type InsertAddress, type LocationWithAddresses, type MerchantWithLocations, type PdfForm, type InsertPdfForm, type PdfFormField, type InsertPdfFormField, type PdfFormSubmission, type InsertPdfFormSubmission, type PdfFormWithFields, type MerchantProspect, type InsertMerchantProspect, type MerchantProspectWithAgent, type ProspectOwner, type InsertProspectOwner, type ProspectSignature, type InsertProspectSignature, type FeeGroup, type InsertFeeGroup, type FeeItemGroup, type InsertFeeItemGroup, type FeeItem, type InsertFeeItem, type PricingType, type InsertPricingType, type PricingTypeFeeItem, type InsertPricingTypeFeeItem, type Campaign, type InsertCampaign, type CampaignFeeValue, type InsertCampaignFeeValue, type CampaignAssignment, type InsertCampaignAssignment, type EquipmentItem, type InsertEquipmentItem, type CampaignEquipment, type InsertCampaignEquipment, type FeeGroupWithItems, type FeeItemGroupWithItems, type FeeGroupWithItemGroups, type PricingTypeWithFeeItems, type CampaignWithDetails, type ApiKey, type InsertApiKey, type ApiRequestLog, type InsertApiRequestLog, type EmailTemplate, type InsertEmailTemplate, type EmailActivity, type InsertEmailActivity, type EmailTrigger, type InsertEmailTrigger, type UserAlert, type InsertUserAlert } from "@shared/schema";
+import { companies, merchants, agents, transactions, users, loginAttempts, twoFactorCodes, userDashboardPreferences, agentMerchants, locations, addresses, pdfForms, pdfFormFields, pdfFormSubmissions, merchantProspects, prospectOwners, prospectSignatures, feeGroups, feeItemGroups, feeItems, pricingTypes, pricingTypeFeeItems, campaigns, campaignFeeValues, campaignAssignments, equipmentItems, campaignEquipment, apiKeys, apiRequestLogs, emailTemplates, emailActivity, emailTriggers, actionTemplates, userAlerts, type Merchant, type Agent, type Transaction, type User, type InsertMerchant, type InsertAgent, type InsertTransaction, type UpsertUser, type MerchantWithAgent, type TransactionWithMerchant, type LoginAttempt, type TwoFactorCode, type UserDashboardPreference, type InsertUserDashboardPreference, type AgentMerchant, type InsertAgentMerchant, type Location, type InsertLocation, type Address, type InsertAddress, type LocationWithAddresses, type MerchantWithLocations, type PdfForm, type InsertPdfForm, type PdfFormField, type InsertPdfFormField, type PdfFormSubmission, type InsertPdfFormSubmission, type PdfFormWithFields, type MerchantProspect, type InsertMerchantProspect, type MerchantProspectWithAgent, type ProspectOwner, type InsertProspectOwner, type ProspectSignature, type InsertProspectSignature, type FeeGroup, type InsertFeeGroup, type FeeItemGroup, type InsertFeeItemGroup, type FeeItem, type InsertFeeItem, type PricingType, type InsertPricingType, type PricingTypeFeeItem, type InsertPricingTypeFeeItem, type Campaign, type InsertCampaign, type CampaignFeeValue, type InsertCampaignFeeValue, type CampaignAssignment, type InsertCampaignAssignment, type EquipmentItem, type InsertEquipmentItem, type CampaignEquipment, type InsertCampaignEquipment, type FeeGroupWithItems, type FeeItemGroupWithItems, type FeeGroupWithItemGroups, type PricingTypeWithFeeItems, type CampaignWithDetails, type ApiKey, type InsertApiKey, type ApiRequestLog, type InsertApiRequestLog, type EmailTemplate, type InsertEmailTemplate, type EmailActivity, type InsertEmailActivity, type EmailTrigger, type InsertEmailTrigger, type ActionTemplate, type InsertActionTemplate, type UserAlert, type InsertUserAlert } from "@shared/schema";
 import { db } from "./db";
 import { eq, or, and, gte, sql, desc, inArray, like, ilike, not } from "drizzle-orm";
 
@@ -361,6 +361,14 @@ export interface IStorage {
     averageResponseTime: number;
   }>;
   
+  // Action Template operations
+  getAllActionTemplates(): Promise<ActionTemplate[]>;
+  getActionTemplatesByType(actionType: string): Promise<ActionTemplate[]>;
+  getActionTemplate(id: number): Promise<ActionTemplate | undefined>;
+  createActionTemplate(template: InsertActionTemplate): Promise<ActionTemplate>;
+  updateActionTemplate(id: number, updates: Partial<InsertActionTemplate>): Promise<ActionTemplate | undefined>;
+  deleteActionTemplate(id: number): Promise<boolean>;
+
   // User Alert operations
   getUserAlerts(userId: string, includeRead?: boolean): Promise<UserAlert[]>;
   getUnreadAlertCount(userId: string): Promise<number>;
@@ -2324,6 +2332,43 @@ export class DatabaseStorage implements IStorage {
 
   async getAgentMerchants(agentId: number): Promise<MerchantWithAgent[]> {
     return this.getMerchantsByAgent(agentId);
+  }
+
+  // Action Template operations
+  async getAllActionTemplates(): Promise<ActionTemplate[]> {
+    return db.select().from(actionTemplates).orderBy(desc(actionTemplates.createdAt));
+  }
+
+  async getActionTemplatesByType(actionType: string): Promise<ActionTemplate[]> {
+    return db
+      .select()
+      .from(actionTemplates)
+      .where(eq(actionTemplates.actionType, actionType))
+      .orderBy(desc(actionTemplates.createdAt));
+  }
+
+  async getActionTemplate(id: number): Promise<ActionTemplate | undefined> {
+    const [template] = await db.select().from(actionTemplates).where(eq(actionTemplates.id, id));
+    return template;
+  }
+
+  async createActionTemplate(template: InsertActionTemplate): Promise<ActionTemplate> {
+    const [newTemplate] = await db.insert(actionTemplates).values(template).returning();
+    return newTemplate;
+  }
+
+  async updateActionTemplate(id: number, updates: Partial<InsertActionTemplate>): Promise<ActionTemplate | undefined> {
+    const [updatedTemplate] = await db
+      .update(actionTemplates)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(actionTemplates.id, id))
+      .returning();
+    return updatedTemplate;
+  }
+
+  async deleteActionTemplate(id: number): Promise<boolean> {
+    const result = await db.delete(actionTemplates).where(eq(actionTemplates.id, id)).returning();
+    return result.length > 0;
   }
 
   // User Alert operations
