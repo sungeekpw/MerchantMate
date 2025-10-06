@@ -1,17 +1,25 @@
 #!/usr/bin/env tsx
 
 /**
- * Production Schema Deployment Tool
+ * Schema Deployment Tool
  * 
- * Safely deploys schema changes from test to production by:
- * 1. Comparing test and production schemas
+ * Safely deploys schema changes between any two environments by:
+ * 1. Comparing source and target schemas
  * 2. Generating ALTER TABLE statements for differences
  * 3. Optionally applying changes with safety checks
  * 
  * Usage:
- *   tsx scripts/deploy-schema-to-production.ts compare    # Compare schemas only
- *   tsx scripts/deploy-schema-to-production.ts generate   # Generate SQL file
- *   tsx scripts/deploy-schema-to-production.ts apply      # Apply to production (with confirmation)
+ *   tsx scripts/deploy-schema-to-production.ts compare <source> <target>
+ *   tsx scripts/deploy-schema-to-production.ts generate <source> <target>
+ *   tsx scripts/deploy-schema-to-production.ts apply <target>
+ * 
+ * Environments: development, test, production
+ * 
+ * Examples:
+ *   tsx scripts/deploy-schema-to-production.ts compare test production
+ *   tsx scripts/deploy-schema-to-production.ts compare development test
+ *   tsx scripts/deploy-schema-to-production.ts generate test production
+ *   tsx scripts/deploy-schema-to-production.ts apply production
  */
 
 import { Pool, neonConfig } from '@neondatabase/serverless';
@@ -22,6 +30,8 @@ import { execSync } from 'child_process';
 
 neonConfig.webSocketConstructor = ws;
 
+type Environment = 'development' | 'test' | 'production';
+
 interface ColumnDifference {
   table: string;
   column: string;
@@ -30,7 +40,7 @@ interface ColumnDifference {
   columnDefault: string | null;
 }
 
-class ProductionDeployer {
+class SchemaDeployer {
   private deploymentsDir = path.join(process.cwd(), 'deployments');
 
   constructor() {
@@ -39,15 +49,23 @@ class ProductionDeployer {
     }
   }
 
-  private async getSchemaColumns(environment: 'test' | 'production') {
-    const url = environment === 'test' 
-      ? process.env.TEST_DATABASE_URL 
-      : process.env.DATABASE_URL;
+  private getConnectionString(environment: Environment): string {
+    const envMap = {
+      development: process.env.DEV_DATABASE_URL,
+      test: process.env.TEST_DATABASE_URL,
+      production: process.env.DATABASE_URL
+    };
 
+    const url = envMap[environment];
     if (!url) {
-      throw new Error(`${environment.toUpperCase()}_DATABASE_URL not configured`);
+      throw new Error(`${environment.toUpperCase()} database URL not configured`);
     }
 
+    return url;
+  }
+
+  private async getSchemaColumns(environment: Environment) {
+    const url = this.getConnectionString(environment);
     const pool = new Pool({ connectionString: url });
 
     try {
@@ -69,22 +87,22 @@ class ProductionDeployer {
     }
   }
 
-  private findMissingColumns(testCols: any[], prodCols: any[]): ColumnDifference[] {
+  private findMissingColumns(sourceCols: any[], targetCols: any[]): ColumnDifference[] {
     const missing: ColumnDifference[] = [];
 
-    for (const testCol of testCols) {
-      const prodCol = prodCols.find(p => 
-        p.table_name === testCol.table_name && 
-        p.column_name === testCol.column_name
+    for (const sourceCol of sourceCols) {
+      const targetCol = targetCols.find(p => 
+        p.table_name === sourceCol.table_name && 
+        p.column_name === sourceCol.column_name
       );
 
-      if (!prodCol) {
+      if (!targetCol) {
         missing.push({
-          table: testCol.table_name,
-          column: testCol.column_name,
-          dataType: testCol.data_type,
-          isNullable: testCol.is_nullable,
-          columnDefault: testCol.column_default
+          table: sourceCol.table_name,
+          column: sourceCol.column_name,
+          dataType: sourceCol.data_type,
+          isNullable: sourceCol.is_nullable,
+          columnDefault: sourceCol.column_default
         });
       }
     }
@@ -124,25 +142,25 @@ class ProductionDeployer {
     return sqlStatements.join('\n\n');
   }
 
-  async compareSchemas(): Promise<void> {
-    console.log('🔍 Comparing Test and Production Schemas\n');
+  async compareSchemas(source: Environment, target: Environment): Promise<void> {
+    console.log(`🔍 Comparing ${source.toUpperCase()} → ${target.toUpperCase()} Schemas\n`);
     console.log('=' .repeat(60));
 
-    const testCols = await this.getSchemaColumns('test');
-    const prodCols = await this.getSchemaColumns('production');
+    const sourceCols = await this.getSchemaColumns(source);
+    const targetCols = await this.getSchemaColumns(target);
 
-    const missingInProd = this.findMissingColumns(testCols, prodCols);
-    const extraInProd = this.findMissingColumns(prodCols, testCols);
+    const missingInTarget = this.findMissingColumns(sourceCols, targetCols);
+    const extraInTarget = this.findMissingColumns(targetCols, sourceCols);
 
-    console.log(`\nTest columns: ${testCols.length}`);
-    console.log(`Production columns: ${prodCols.length}`);
-    console.log(`Missing in production: ${missingInProd.length}`);
-    console.log(`Extra in production: ${extraInProd.length}\n`);
+    console.log(`\n${source} columns: ${sourceCols.length}`);
+    console.log(`${target} columns: ${targetCols.length}`);
+    console.log(`Missing in ${target}: ${missingInTarget.length}`);
+    console.log(`Extra in ${target}: ${extraInTarget.length}\n`);
 
-    if (missingInProd.length > 0) {
-      console.log('❌ Columns in Test but NOT in Production:');
+    if (missingInTarget.length > 0) {
+      console.log(`❌ Columns in ${source.toUpperCase()} but NOT in ${target.toUpperCase()}:`);
       const byTable = new Map<string, number>();
-      for (const diff of missingInProd) {
+      for (const diff of missingInTarget) {
         byTable.set(diff.table, (byTable.get(diff.table) || 0) + 1);
       }
       for (const [table, count] of byTable) {
@@ -150,10 +168,10 @@ class ProductionDeployer {
       }
     }
 
-    if (extraInProd.length > 0) {
-      console.log('\n⚠️  Columns in Production but NOT in Test:');
+    if (extraInTarget.length > 0) {
+      console.log(`\n⚠️  Columns in ${target.toUpperCase()} but NOT in ${source.toUpperCase()}:`);
       const byTable = new Map<string, number>();
-      for (const diff of extraInProd) {
+      for (const diff of extraInTarget) {
         byTable.set(diff.table, (byTable.get(diff.table) || 0) + 1);
       }
       for (const [table, count] of byTable) {
@@ -161,39 +179,39 @@ class ProductionDeployer {
       }
     }
 
-    if (missingInProd.length === 0 && extraInProd.length === 0) {
-      console.log('✅ Test and Production schemas are synchronized!');
+    if (missingInTarget.length === 0 && extraInTarget.length === 0) {
+      console.log(`✅ ${source.toUpperCase()} and ${target.toUpperCase()} schemas are synchronized!`);
     } else {
-      console.log('\n💡 Run "generate" command to create deployment SQL');
+      console.log(`\n💡 Run "generate ${source} ${target}" to create deployment SQL`);
     }
   }
 
-  async generateDeploymentSQL(): Promise<string> {
-    console.log('📝 Generating Deployment SQL\n');
+  async generateDeploymentSQL(source: Environment, target: Environment): Promise<string> {
+    console.log(`📝 Generating Deployment SQL: ${source.toUpperCase()} → ${target.toUpperCase()}\n`);
 
-    const testCols = await this.getSchemaColumns('test');
-    const prodCols = await this.getSchemaColumns('production');
+    const sourceCols = await this.getSchemaColumns(source);
+    const targetCols = await this.getSchemaColumns(target);
 
-    const missingInProd = this.findMissingColumns(testCols, prodCols);
+    const missingInTarget = this.findMissingColumns(sourceCols, targetCols);
 
-    if (missingInProd.length === 0) {
-      console.log('✅ No schema differences found. Production is up to date!');
+    if (missingInTarget.length === 0) {
+      console.log(`✅ No schema differences found. ${target.toUpperCase()} is up to date!`);
       return '';
     }
 
-    const sql = this.generateAlterTableSQL(missingInProd);
+    const sql = this.generateAlterTableSQL(missingInTarget);
     
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-    const filename = `deploy-to-production-${timestamp}.sql`;
+    const filename = `deploy-${source}-to-${target}-${timestamp}.sql`;
     const filepath = path.join(this.deploymentsDir, filename);
 
-    const header = `-- Production Deployment SQL
+    const header = `-- Schema Deployment SQL
 -- Generated: ${new Date().toISOString()}
--- Source: Test Database
--- Target: Production Database
--- Total Changes: ${missingInProd.length} columns across ${new Set(missingInProd.map(d => d.table)).size} tables
+-- Source: ${source.toUpperCase()} Database
+-- Target: ${target.toUpperCase()} Database
+-- Total Changes: ${missingInTarget.length} columns across ${new Set(missingInTarget.map(d => d.table)).size} tables
 --
--- REVIEW THIS FILE CAREFULLY BEFORE APPLYING TO PRODUCTION
+-- REVIEW THIS FILE CAREFULLY BEFORE APPLYING
 -- ============================================================
 
 `;
@@ -202,25 +220,25 @@ class ProductionDeployer {
 
     console.log(`✅ Deployment SQL generated: ${filename}`);
     console.log(`   Location: ${filepath}`);
-    console.log(`   Changes: ${missingInProd.length} columns`);
+    console.log(`   Changes: ${missingInTarget.length} columns`);
     console.log(`\nNext steps:`);
     console.log(`  1. Review the SQL file: cat ${filepath}`);
-    console.log(`  2. Apply to production: tsx scripts/deploy-schema-to-production.ts apply`);
+    console.log(`  2. Apply to ${target}: tsx scripts/deploy-schema-to-production.ts apply ${target}`);
 
     return filepath;
   }
 
-  async applyToProduction(): Promise<void> {
-    console.log('🚀 Deploying Schema Changes to Production\n');
+  async applyToEnvironment(target: Environment): Promise<void> {
+    console.log(`🚀 Deploying Schema Changes to ${target.toUpperCase()}\n`);
 
-    // Find most recent deployment file
+    // Find most recent deployment file for this target
     const files = fs.readdirSync(this.deploymentsDir)
-      .filter(f => f.startsWith('deploy-to-production-') && f.endsWith('.sql'))
+      .filter(f => f.includes(`-to-${target}-`) && f.endsWith('.sql'))
       .sort()
       .reverse();
 
     if (files.length === 0) {
-      console.log('❌ No deployment SQL file found. Run "generate" command first.');
+      console.log(`❌ No deployment SQL file found for ${target}. Run "generate" command first.`);
       return;
     }
 
@@ -243,20 +261,19 @@ class ProductionDeployer {
       .filter(line => !line.trim().startsWith('--') && line.trim().length > 0)
       .join('\n');
 
-    console.log('\n⚠️  PRODUCTION DEPLOYMENT');
-    console.log('This will modify the PRODUCTION database.');
+    console.log(`\n⚠️  ${target.toUpperCase()} DEPLOYMENT`);
+    console.log(`This will modify the ${target.toUpperCase()} database.`);
     console.log(`File: ${deploymentFile}\n`);
 
     // Execute using the safe wrapper
     try {
-      const command = `tsx scripts/execute-sql.ts --env production --force-production --sql "${cleanSQL.replace(/"/g, '\\"')}"`;
+      const forceFlag = target === 'production' ? ' --force-production' : '';
+      const command = `tsx scripts/execute-sql.ts --env ${target}${forceFlag} --sql "${cleanSQL.replace(/"/g, '\\"')}"`;
       
       console.log('🔄 Executing via safe wrapper...\n');
       execSync(command, { stdio: 'inherit' });
       
-      console.log('\n✅ Production deployment completed successfully!');
-      console.log('\n📊 Verify deployment:');
-      console.log('   tsx scripts/deploy-schema-to-production.ts compare');
+      console.log(`\n✅ ${target.toUpperCase()} deployment completed successfully!`);
       
     } catch (error) {
       console.error('\n❌ Deployment failed:', error);
@@ -266,35 +283,73 @@ class ProductionDeployer {
 }
 
 async function main() {
-  const command = process.argv[2] || 'compare';
-  const deployer = new ProductionDeployer();
+  const command = process.argv[2];
+  const source = process.argv[3] as Environment;
+  const target = process.argv[4] as Environment;
+  
+  const deployer = new SchemaDeployer();
+
+  const validEnvs = ['development', 'test', 'production'];
 
   try {
     switch (command) {
       case 'compare':
-        await deployer.compareSchemas();
+        if (!source || !target) {
+          console.log('❌ Usage: compare <source> <target>');
+          console.log('   Example: compare test production');
+          process.exit(1);
+        }
+        if (!validEnvs.includes(source) || !validEnvs.includes(target)) {
+          console.log('❌ Invalid environment. Use: development, test, or production');
+          process.exit(1);
+        }
+        await deployer.compareSchemas(source, target);
         break;
 
       case 'generate':
-        await deployer.generateDeploymentSQL();
+        if (!source || !target) {
+          console.log('❌ Usage: generate <source> <target>');
+          console.log('   Example: generate test production');
+          process.exit(1);
+        }
+        if (!validEnvs.includes(source) || !validEnvs.includes(target)) {
+          console.log('❌ Invalid environment. Use: development, test, or production');
+          process.exit(1);
+        }
+        await deployer.generateDeploymentSQL(source, target);
         break;
 
       case 'apply':
-        await deployer.applyToProduction();
+        const targetEnv = source as Environment; // source is actually the target when only one arg
+        if (!targetEnv) {
+          console.log('❌ Usage: apply <target>');
+          console.log('   Example: apply production');
+          process.exit(1);
+        }
+        if (!validEnvs.includes(targetEnv)) {
+          console.log('❌ Invalid environment. Use: development, test, or production');
+          process.exit(1);
+        }
+        await deployer.applyToEnvironment(targetEnv);
         break;
 
       default:
-        console.log('Production Schema Deployment Tool');
+        console.log('Schema Deployment Tool');
         console.log('=' .repeat(60));
         console.log('\nCommands:');
-        console.log('  compare  - Compare test and production schemas');
-        console.log('  generate - Generate deployment SQL file');
-        console.log('  apply    - Apply generated SQL to production');
-        console.log('\nWorkflow:');
-        console.log('  1. tsx scripts/deploy-schema-to-production.ts compare');
-        console.log('  2. tsx scripts/deploy-schema-to-production.ts generate');
-        console.log('  3. Review the generated SQL file');
-        console.log('  4. tsx scripts/deploy-schema-to-production.ts apply');
+        console.log('  compare <source> <target>  - Compare two database schemas');
+        console.log('  generate <source> <target> - Generate deployment SQL file');
+        console.log('  apply <target>             - Apply most recent SQL to target');
+        console.log('\nEnvironments: development, test, production');
+        console.log('\nCommon Workflows:');
+        console.log('\n  Development → Test:');
+        console.log('    tsx scripts/deploy-schema-to-production.ts compare development test');
+        console.log('    tsx scripts/deploy-schema-to-production.ts generate development test');
+        console.log('    tsx scripts/deploy-schema-to-production.ts apply test');
+        console.log('\n  Test → Production:');
+        console.log('    tsx scripts/deploy-schema-to-production.ts compare test production');
+        console.log('    tsx scripts/deploy-schema-to-production.ts generate test production');
+        console.log('    tsx scripts/deploy-schema-to-production.ts apply production');
         break;
     }
   } catch (error) {
@@ -307,4 +362,4 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   main();
 }
 
-export { ProductionDeployer };
+export { SchemaDeployer };
