@@ -1386,11 +1386,9 @@ export const webhookActionConfigSchema = z.object({
 });
 
 export const notificationActionConfigSchema = z.object({
-  title: z.string(),
   message: z.string(),
-  type: z.enum(['info', 'success', 'warning', 'error']),
-  link: z.string().optional(),
-  icon: z.string().optional(),
+  type: z.enum(['info', 'success', 'warning', 'error']).default('info'),
+  actionUrl: z.string().optional(),
 });
 
 export const slackActionConfigSchema = z.object({
