@@ -4264,11 +4264,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         await triggerService.fireTrigger('agent_registered', {
           agentId: result.agent.id,
-          agentName: `${result.agent.firstName} ${result.agent.lastName}`,
-          firstName: result.agent.firstName,
-          lastName: result.agent.lastName,
-          email: companyEmail, // Use company email instead
-          phone: companyPhone, // Use company phone instead
+          agentName: `${result.agent.first_name} ${result.agent.last_name}`,
+          firstName: result.agent.first_name,
+          lastName: result.agent.last_name,
+          email: req.body.companyEmail, // Access from req.body
+          phone: req.body.companyPhone, // Access from req.body
           territory: result.agent.territory,
           companyName: result.company?.name,
           companyId: result.company?.id,
