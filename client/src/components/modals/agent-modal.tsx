@@ -566,6 +566,31 @@ export function AgentModal({ isOpen, onClose, agent }: AgentModalProps) {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  // Check if a section is completed (all required fields filled and valid)
+  const isSectionCompleted = (sectionIndex: number): boolean => {
+    const section = availableSections[sectionIndex];
+    const formValues = form.getValues();
+    const formErrors = form.formState.errors;
+    
+    // Check each field in the section
+    for (const fieldName of section.fields) {
+      const fieldValue = formValues[fieldName as keyof AgentFormData];
+      const fieldError = formErrors[fieldName as keyof AgentFormData];
+      
+      // Required fields that must be filled
+      const requiredFields = ["firstName", "lastName", "email", "companyName", "companyEmail", "username", "password", "confirmPassword", "communicationPreference"];
+      
+      if (requiredFields.includes(fieldName)) {
+        // Check if field has error or is empty
+        if (fieldError || !fieldValue || (typeof fieldValue === 'string' && fieldValue.trim() === '')) {
+          return false;
+        }
+      }
+    }
+    
+    return true;
+  };
+
   const onSubmit = (data: AgentFormData) => {
     if (agent) {
       // For updates, send agent data and user account creation fields
@@ -1288,7 +1313,7 @@ export function AgentModal({ isOpen, onClose, agent }: AgentModalProps) {
                     {availableSections.map((section, index) => {
                       const IconComponent = section.icon;
                       const isActive = currentStep === index;
-                      const isCompleted = visitedSections.has(index) && index < currentStep;
+                      const isCompleted = visitedSections.has(index) && isSectionCompleted(index);
                       
                       return (
                         <button
