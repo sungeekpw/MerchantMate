@@ -274,20 +274,16 @@ export class NotificationExecutor implements IActionExecutor {
     try {
       const config = notificationActionConfigSchema.parse(template.config);
       
-      const title = this.replaceVariables(config.title, context);
       const message = this.replaceVariables(config.message, context);
-      const link = config.link ? this.replaceVariables(config.link, context) : undefined;
+      const actionUrl = config.actionUrl ? this.replaceVariables(config.actionUrl, context) : undefined;
 
       // Create alert in database
       const [alert] = await db.insert(userAlerts).values({
         userId: recipient, // recipient should be user ID for notifications
-        title,
         message,
         type: config.type,
-        link: link || null,
-        icon: config.icon || null,
+        actionUrl: actionUrl || null,
         isRead: false,
-        metadata: context,
       }).returning();
 
       return {
@@ -296,7 +292,6 @@ export class NotificationExecutor implements IActionExecutor {
         statusMessage: 'Alert created successfully',
         responseData: { 
           alertId: alert.id,
-          title, 
           message, 
           type: config.type 
         },
