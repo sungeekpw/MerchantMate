@@ -77,6 +77,122 @@ Preferred communication style: Simple, everyday language.
    - If NO: Cascade delete agent + user + company + locations + addresses
 4. All deletions occur in a single PostgreSQL transaction for ACID compliance
 
+## Database Safety & Environment Management
+
+### CRITICAL: Production Database Protection
+**This section documents mandatory safeguards to prevent accidental production database modifications. Failure to follow these rules has resulted in three production incidents.**
+
+### Multi-Environment Architecture
+The application supports three database environments:
+- **Development** (`DEV_DATABASE_URL`): Primary working environment for all development and testing
+- **Test** (`TEST_DATABASE_URL`): Isolated testing environment (optional)
+- **Production** (`DATABASE_URL`): Live production data - **STRICTLY PROTECTED**
+
+### Database Modification Rules
+
+#### ✅ ALLOWED Methods for Database Changes
+1. **Application Code Changes**:
+   - Modify `shared/schema.ts` to update the data model
+   - Run `npm run db:push` to sync schema (or `npm run db:push --force` for data-loss warnings)
+   - Backend routes automatically respect `req.dbEnv` for proper environment routing
+
+2. **Safe SQL Execution**:
+   - **ALWAYS use**: `tsx scripts/execute-sql.ts --env development --sql "..."`
+   - The wrapper script enforces environment selection and prevents production accidents
+   - Examples:
+     ```bash
+     # Development (safe, recommended)
+     tsx scripts/execute-sql.ts --env development --sql "INSERT INTO trigger_catalog..."
+     tsx scripts/execute-sql.ts --env development --file scripts/seed-data.sql
+     
+     # Test environment (safe)
+     tsx scripts/execute-sql.ts --env test --sql "SELECT * FROM users"
+     
+     # Production (requires explicit force flag)
+     tsx scripts/execute-sql.ts --env production --force-production --sql "..."
+     ```
+
+#### ❌ FORBIDDEN Methods (Causes Production Incidents)
+1. **NEVER use `execute_sql_tool` directly**:
+   - This Replit tool **ALWAYS connects to DATABASE_URL (production)**
+   - It does not respect application environment settings
+   - It has caused three production incidents by ignoring `req.dbEnv`
+   - **Exception**: Only for emergency production-only queries with explicit approval
+
+2. **NEVER assume environment context**:
+   - Application session management (req.dbEnv) does NOT affect execute_sql_tool
+   - Always explicitly specify environment in all database operations
+   - Verify which database you're connected to before executing changes
+
+### Database Safety Checklist
+Before executing ANY database modification:
+
+- [ ] **Environment Verification**: Confirm you're targeting the correct database
+- [ ] **Tool Selection**: Use `scripts/execute-sql.ts` wrapper, NOT execute_sql_tool
+- [ ] **Environment Flag**: Explicitly specify `--env development` or `--env test`
+- [ ] **Production Protection**: Production changes require `--force-production` flag AND peer approval
+- [ ] **Dry Run**: Use `--dry-run` flag to preview query before execution
+- [ ] **Transaction Safety**: Wrapper automatically uses transactions with rollback on error
+- [ ] **Backup Verification**: Ensure production has recent backups before any prod changes
+- [ ] **Change Control**: Document all production changes in audit log
+
+### Incident Response & Recovery
+If production database is accidentally modified:
+
+1. **Immediate Action**:
+   - Stop further changes immediately
+   - Document what was changed (tables, records, timestamps)
+   - Notify team and assess impact
+
+2. **Data Recovery**:
+   - Use `scripts/fix-trigger-production-leak.ts` as template for fix scripts
+   - Export data from production, import to development, clean production
+   - Run in transactions with proper error handling
+   - Verify with SELECT queries before and after
+
+3. **Root Cause Analysis**:
+   - Identify which tool was used (execute_sql_tool vs wrapper script)
+   - Review what led to the environment confusion
+   - Update this documentation with lessons learned
+
+### Development Workflow
+Standard workflow for database changes:
+
+1. **Schema Changes**:
+   ```bash
+   # Edit shared/schema.ts
+   npm run db:push
+   # Application automatically uses development database via session
+   ```
+
+2. **Data Seeding/Queries**:
+   ```bash
+   # Use wrapper script with explicit environment
+   tsx scripts/execute-sql.ts --env development --sql "INSERT INTO..."
+   ```
+
+3. **Testing**:
+   ```bash
+   # Test in isolation
+   tsx scripts/execute-sql.ts --env test --file scripts/test-data.sql
+   ```
+
+4. **Production Deployment**:
+   - Changes deployed via schema migrations only
+   - Manual SQL requires change control approval
+   - Always use `--force-production` flag to confirm intent
+   - Document in audit trail
+
+### Why This Matters
+Database environment separation is critical for:
+- **Data Integrity**: Preventing production data corruption
+- **Development Safety**: Allowing safe experimentation without risk
+- **Compliance**: Meeting SOC2 audit requirements for change control
+- **Recovery**: Enabling rollback without affecting production
+- **Testing**: Validating changes before production deployment
+
+**Three production incidents have occurred from bypassing these safeguards. These rules are mandatory.**
+
 ## External Dependencies
 - **pg**: Native PostgreSQL driver (used for agent creation workaround).
 - **drizzle-orm**: Type-safe ORM for PostgreSQL.
