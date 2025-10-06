@@ -1323,11 +1323,33 @@ export const actionActivity = pgTable('action_activity', {
   executedAtIdx: index("action_activity_executed_at_idx").on(table.executedAt),
 }));
 
+// User Alerts - In-app notifications/alerts for users
+export const userAlerts = pgTable('user_alerts', {
+  id: serial('id').primaryKey(),
+  userId: varchar('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  title: varchar('title', { length: 255 }).notNull(),
+  message: text('message').notNull(),
+  type: varchar('type', { length: 20 }).notNull().default('info'), // info, success, warning, error
+  link: text('link'), // Optional link to related resource
+  icon: varchar('icon', { length: 50 }), // Optional icon name from lucide-react
+  isRead: boolean('is_read').notNull().default(false),
+  readAt: timestamp('read_at'),
+  actionActivityId: integer('action_activity_id').references(() => actionActivity.id, { onDelete: 'cascade' }), // Link to trigger action that created this alert
+  metadata: jsonb('metadata'), // Additional data for the alert
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (table) => ({
+  userIdIdx: index("user_alerts_user_id_idx").on(table.userId),
+  isReadIdx: index("user_alerts_is_read_idx").on(table.isRead),
+  createdAtIdx: index("user_alerts_created_at_idx").on(table.createdAt),
+  userReadIdx: index("user_alerts_user_read_idx").on(table.userId, table.isRead),
+}));
+
 // Trigger/Action Catalog Zod schemas and types
 export const insertTriggerCatalogSchema = createInsertSchema(triggerCatalog);
 export const insertActionTemplateSchema = createInsertSchema(actionTemplates);
 export const insertTriggerActionSchema = createInsertSchema(triggerActions);
 export const insertActionActivitySchema = createInsertSchema(actionActivity);
+export const insertUserAlertSchema = createInsertSchema(userAlerts).omit({ id: true, createdAt: true });
 
 export type TriggerCatalog = typeof triggerCatalog.$inferSelect;
 export type InsertTriggerCatalog = z.infer<typeof insertTriggerCatalogSchema>;
@@ -1337,6 +1359,8 @@ export type TriggerAction = typeof triggerActions.$inferSelect;
 export type InsertTriggerAction = z.infer<typeof insertTriggerActionSchema>;
 export type ActionActivity = typeof actionActivity.$inferSelect;
 export type InsertActionActivity = z.infer<typeof insertActionActivitySchema>;
+export type UserAlert = typeof userAlerts.$inferSelect;
+export type InsertUserAlert = z.infer<typeof insertUserAlertSchema>;
 
 // Action Configuration Types (for type-safe config field)
 export const emailActionConfigSchema = z.object({
