@@ -1327,15 +1327,12 @@ export const actionActivity = pgTable('action_activity', {
 export const userAlerts = pgTable('user_alerts', {
   id: serial('id').primaryKey(),
   userId: varchar('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
-  title: varchar('title', { length: 255 }).notNull(),
   message: text('message').notNull(),
   type: varchar('type', { length: 20 }).notNull().default('info'), // info, success, warning, error
-  link: text('link'), // Optional link to related resource
-  icon: varchar('icon', { length: 50 }), // Optional icon name from lucide-react
   isRead: boolean('is_read').notNull().default(false),
   readAt: timestamp('read_at'),
+  actionUrl: text('action_url'), // Optional URL to related resource
   actionActivityId: integer('action_activity_id').references(() => actionActivity.id, { onDelete: 'cascade' }), // Link to trigger action that created this alert
-  metadata: jsonb('metadata'), // Additional data for the alert
   createdAt: timestamp('created_at').defaultNow().notNull(),
 }, (table) => ({
   userIdIdx: index("user_alerts_user_id_idx").on(table.userId),
