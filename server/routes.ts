@@ -9077,6 +9077,122 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // User Alerts API routes
+  app.get('/api/alerts', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.id;
+      if (!userId) {
+        return res.status(401).json({ error: 'Not authenticated' });
+      }
+
+      const includeRead = req.query.includeRead === 'true';
+      const alerts = await storage.getUserAlerts(userId, includeRead);
+      
+      res.json({ alerts });
+    } catch (error) {
+      console.error('Get alerts error:', error);
+      res.status(500).json({ error: 'Failed to fetch alerts' });
+    }
+  });
+
+  app.get('/api/alerts/count', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.id;
+      if (!userId) {
+        return res.status(401).json({ error: 'Not authenticated' });
+      }
+
+      const count = await storage.getUnreadAlertCount(userId);
+      
+      res.json({ count });
+    } catch (error) {
+      console.error('Get alert count error:', error);
+      res.status(500).json({ error: 'Failed to fetch alert count' });
+    }
+  });
+
+  app.patch('/api/alerts/:alertId/read', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.id;
+      if (!userId) {
+        return res.status(401).json({ error: 'Not authenticated' });
+      }
+
+      const alertId = parseInt(req.params.alertId);
+      if (isNaN(alertId)) {
+        return res.status(400).json({ error: 'Invalid alert ID' });
+      }
+
+      const alert = await storage.markAlertAsRead(alertId, userId);
+      
+      if (!alert) {
+        return res.status(404).json({ error: 'Alert not found' });
+      }
+
+      res.json({ alert });
+    } catch (error) {
+      console.error('Mark alert read error:', error);
+      res.status(500).json({ error: 'Failed to mark alert as read' });
+    }
+  });
+
+  app.post('/api/alerts/read-all', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.id;
+      if (!userId) {
+        return res.status(401).json({ error: 'Not authenticated' });
+      }
+
+      const count = await storage.markAllAlertsAsRead(userId);
+      
+      res.json({ count, message: `${count} alerts marked as read` });
+    } catch (error) {
+      console.error('Mark all alerts read error:', error);
+      res.status(500).json({ error: 'Failed to mark alerts as read' });
+    }
+  });
+
+  app.delete('/api/alerts/:alertId', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.id;
+      if (!userId) {
+        return res.status(401).json({ error: 'Not authenticated' });
+      }
+
+      const alertId = parseInt(req.params.alertId);
+      if (isNaN(alertId)) {
+        return res.status(400).json({ error: 'Invalid alert ID' });
+      }
+
+      const success = await storage.deleteAlert(alertId, userId);
+      
+      if (!success) {
+        return res.status(404).json({ error: 'Alert not found' });
+      }
+
+      res.json({ success: true, message: 'Alert deleted' });
+    } catch (error) {
+      console.error('Delete alert error:', error);
+      res.status(500).json({ error: 'Failed to delete alert' });
+    }
+  });
+
+  app.delete('/api/alerts/read/all', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.id;
+      if (!userId) {
+        return res.status(401).json({ error: 'Not authenticated' });
+      }
+
+      const count = await storage.deleteAllReadAlerts(userId);
+      
+      res.json({ count, message: `${count} read alerts deleted` });
+    } catch (error) {
+      console.error('Delete read alerts error:', error);
+      res.status(500).json({ error: 'Failed to delete read alerts' });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
