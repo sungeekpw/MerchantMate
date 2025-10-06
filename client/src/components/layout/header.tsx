@@ -7,6 +7,41 @@ import { useAuth } from "@/hooks/useAuth";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { formatDateInUserTimezone, getTimezoneAbbreviation } from "@/lib/timezone";
 
+function AlertsButton() {
+  const { data: alertCount } = useQuery<{ count: number }>({
+    queryKey: ['/api/alerts/count'],
+    refetchInterval: 30000, // Refetch every 30 seconds
+  });
+
+  const unreadCount = alertCount?.count || 0;
+  const hasUnread = unreadCount > 0;
+
+  return (
+    <Button 
+      variant="ghost" 
+      size="icon" 
+      className="relative"
+      data-testid="button-alerts"
+    >
+      <Bell 
+        className="w-5 h-5" 
+        style={{ 
+          stroke: hasUnread ? '#dc2626' : '#10b981', // Red if unread, green if all read
+          strokeWidth: hasUnread ? 2.5 : 2
+        }} 
+      />
+      {hasUnread && (
+        <Badge 
+          className="absolute -top-1 -right-1 h-5 min-w-5 flex items-center justify-center px-1 bg-red-500 text-white text-xs"
+          data-testid="badge-alert-count"
+        >
+          {unreadCount}
+        </Badge>
+      )}
+    </Button>
+  );
+}
+
 interface HeaderProps {
   title: string;
   onSearch?: (query: string) => void;
@@ -149,10 +184,7 @@ export function Header({ title, onSearch }: HeaderProps) {
           </div>
 
           {/* Notifications */}
-          <Button variant="ghost" size="icon" className="relative">
-            <Bell className="w-5 h-5" />
-            <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full"></span>
-          </Button>
+          <AlertsButton />
         </div>
       </div>
     </header>
