@@ -19,7 +19,7 @@ Preferred communication style: Simple, everyday language.
 - **Framework**: Express.js with TypeScript.
 - **Database**: PostgreSQL with Drizzle ORM, deployed on Neon serverless.
 - **Authentication**: Session-based authentication with `express-session` and PostgreSQL session store.
-- **Email Service**: SendGrid for transactional emails.
+- **Email Service**: SendGrid for transactional emails with webhook integration for open rate and delivery tracking.
 - **File Handling**: Multer for PDF form uploads.
 
 ### Data Storage Solutions
@@ -192,6 +192,72 @@ Database environment separation is critical for:
 - **Testing**: Validating changes before production deployment
 
 **Three production incidents have occurred from bypassing these safeguards. These rules are mandatory.**
+
+## SendGrid Email Integration
+
+### Email Activity Tracking
+The system tracks email delivery and open rates through SendGrid webhook integration:
+
+**Tracked Metrics**:
+- Total emails sent
+- Delivery rate (successfully delivered emails)
+- Open rate (emails opened by recipients)
+- Failed/bounced emails
+
+**Database Schema**:
+Email activity is logged in the `email_activity` table with the following key fields:
+- `recipientEmail`: The email address that received the email
+- `templateId`: Reference to the email template used
+- `status`: Current status ('sent', 'opened', 'failed', 'bounced')
+- `sentAt`: Timestamp when email was sent
+- `openedAt`: Timestamp when email was opened (null if not opened)
+
+### SendGrid Webhook Setup
+
+To enable real-time email tracking, configure SendGrid Event Webhook in your SendGrid account:
+
+1. **Log into SendGrid Dashboard**
+   - Navigate to Settings → Mail Settings → Event Webhook
+
+2. **Configure Webhook URL**
+   - Webhook URL: `https://your-replit-app-url.replit.app/api/webhooks/sendgrid`
+   - For development: Use your Replit dev URL
+
+3. **Select Events to Track**
+   - ✅ Delivered (tracks successful delivery)
+   - ✅ Opened (tracks when recipient opens email)
+   - ✅ Bounced (tracks failed deliveries)
+   - ✅ Dropped (tracks emails rejected by SendGrid)
+   - ❌ Clicked (not needed - click tracking is disabled)
+
+4. **Security Settings**
+   - HTTP Post URL: Enter your webhook endpoint
+   - Event Webhook Status: Enable
+   - Authorization Method: None (consider adding signature verification for production)
+
+5. **Testing**
+   - Send test emails through the Email Management page
+   - SendGrid will POST events to your webhook as they occur
+   - Check Email Management dashboard for updated statistics
+
+**Webhook Endpoint**: `/api/webhooks/sendgrid`
+- Accepts POST requests from SendGrid
+- Processes email events in batches
+- Updates `email_activity` table in real-time
+- Logs all webhook activity for debugging
+
+**Event Processing**:
+The webhook automatically updates email records when receiving:
+- `delivered` → Updates status to 'sent'
+- `open` → Updates status to 'opened' and records openedAt timestamp
+- `bounce` → Updates status to 'bounced'
+- `dropped` → Updates status to 'failed'
+
+**Troubleshooting**:
+- Webhook logs are visible in application console output
+- Each event logs: recipient email, event type, and processing result
+- Check SendGrid's Event Webhook logs for delivery issues
+- Verify your webhook URL is publicly accessible
 
 ## External Dependencies
 - **pg**: Native PostgreSQL driver (used for agent creation workaround).
