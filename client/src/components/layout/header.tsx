@@ -28,15 +28,23 @@ function AlertsButton() {
   const [open, setOpen] = useState(false);
   const { user } = useAuth();
 
-  const { data: alertCount, error: countError, isLoading: countLoading } = useQuery<{ count: number }>({
+  const { data: alertCount } = useQuery<{ count: number }>({
     queryKey: ['/api/alerts/count'],
+    queryFn: async () => {
+      const res = await fetch('/api/alerts/count', { credentials: 'include' });
+      if (!res.ok) throw new Error('Failed to fetch alert count');
+      return res.json();
+    },
     refetchInterval: 30000, // Refetch every 30 seconds
   });
 
-  console.log('AlertsButton render:', { user: !!user, alertCount, countError, countLoading });
-
   const { data: alertsData, isLoading } = useQuery<{ alerts: Alert[] }>({
     queryKey: ['/api/alerts'],
+    queryFn: async () => {
+      const res = await fetch('/api/alerts', { credentials: 'include' });
+      if (!res.ok) throw new Error('Failed to fetch alerts');
+      return res.json();
+    },
     enabled: open, // Only fetch when dropdown is open
   });
 
