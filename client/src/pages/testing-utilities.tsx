@@ -11,7 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Progress } from "@/components/ui/progress";
 import TestingDashboard from "@/components/TestingDashboard";
-import { Trash2, RefreshCw, Database, CheckCircle, X, Server, Shield, ShieldCheck, TestTube, Settings, Play, Pause, BarChart3, FileText, AlertCircle, Clock, Copy, Terminal, ArrowLeftRight, Download, Upload, Eye, List } from "lucide-react";
+import { Trash2, RefreshCw, Database, CheckCircle, X, Server, Shield, ShieldCheck, TestTube, Settings, Play, Pause, BarChart3, FileText, AlertCircle, Clock, Copy, Terminal, ArrowLeftRight, Download, Upload, Eye, List, Bell } from "lucide-react";
 
 interface ResetResult {
   success: boolean;
@@ -119,6 +119,22 @@ export default function TestingUtilities() {
       queryClient.invalidateQueries({ queryKey: ["/api/prospects"] });
       queryClient.invalidateQueries({ queryKey: ["/api/campaigns"] });
       queryClient.invalidateQueries({ queryKey: ["/api/agent"] });
+    },
+  });
+
+  // Test alerts mutation
+  const testAlertsMutation = useMutation({
+    mutationFn: async () => {
+      const response = await fetch('/api/alerts/test', {
+        method: 'POST',
+        credentials: 'include',
+      });
+      if (!response.ok) throw new Error('Failed to create test alerts');
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/alerts'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/alerts/count'] });
     },
   });
 
@@ -551,6 +567,26 @@ Check console for full details.`);
               >
                 <Database className="mr-2 h-4 w-4" />
                 Reset Campaign Assignments
+              </Button>
+
+              <Button
+                variant="outline"
+                onClick={() => testAlertsMutation.mutate()}
+                disabled={testAlertsMutation.isPending}
+                className="w-full"
+                data-testid="button-test-alerts"
+              >
+                {testAlertsMutation.isPending ? (
+                  <>
+                    <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                    Creating Alerts...
+                  </>
+                ) : (
+                  <>
+                    <Bell className="mr-2 h-4 w-4" />
+                    Create Test Alerts
+                  </>
+                )}
               </Button>
             </div>
           </CardContent>

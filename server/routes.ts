@@ -9304,6 +9304,55 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.post('/api/alerts/test', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.id;
+      if (!userId) {
+        return res.status(401).json({ error: 'Not authenticated' });
+      }
+
+      const testAlerts = [
+        {
+          userId,
+          message: 'This is a test info alert. Everything is working as expected!',
+          type: 'info' as const,
+          actionUrl: '/alerts',
+        },
+        {
+          userId,
+          message: 'This is a test warning alert. Please review this important information.',
+          type: 'warning' as const,
+          actionUrl: null,
+        },
+        {
+          userId,
+          message: 'This is a test error alert. Something went wrong but has been resolved.',
+          type: 'error' as const,
+          actionUrl: null,
+        },
+        {
+          userId,
+          message: 'This is a test success alert. Your action was completed successfully!',
+          type: 'success' as const,
+          actionUrl: null,
+        },
+      ];
+
+      const createdAlerts = await Promise.all(
+        testAlerts.map(alert => storage.createUserAlert(alert))
+      );
+
+      res.json({ 
+        success: true, 
+        message: `${createdAlerts.length} test alerts created`,
+        alerts: createdAlerts
+      });
+    } catch (error) {
+      console.error('Create test alerts error:', error);
+      res.status(500).json({ error: 'Failed to create test alerts' });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
