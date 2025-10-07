@@ -368,6 +368,8 @@ export interface IStorage {
   createActionTemplate(template: InsertActionTemplate): Promise<ActionTemplate>;
   updateActionTemplate(id: number, updates: Partial<InsertActionTemplate>): Promise<ActionTemplate | undefined>;
   deleteActionTemplate(id: number): Promise<boolean>;
+  getActionTemplateUsage(templateId: number): Promise<Array<{ triggerId: number; triggerName: string; triggerKey: string; isActive: boolean }>>;
+  getAllActionTemplateUsage(): Promise<Record<number, Array<{ triggerId: number; triggerName: string; triggerKey: string; isActive: boolean }>>>;
 
   // User Alert operations
   getUserAlerts(userId: string, includeRead?: boolean): Promise<UserAlert[]>;
@@ -2384,6 +2386,52 @@ export class DatabaseStorage implements IStorage {
   async deleteActionTemplate(id: number): Promise<boolean> {
     const result = await db.delete(actionTemplates).where(eq(actionTemplates.id, id)).returning();
     return result.length > 0;
+  }
+
+  async getActionTemplateUsage(templateId: number): Promise<Array<{ triggerId: number; triggerName: string; triggerKey: string; isActive: boolean }>> {
+    const result = await db
+      .select({
+        triggerId: triggerCatalog.id,
+        triggerName: triggerCatalog.name,
+        triggerKey: triggerCatalog.triggerKey,
+        isActive: triggerCatalog.isActive
+      })
+      .from(triggerActions)
+      .innerJoin(triggerCatalog, eq(triggerActions.triggerCatalogId, triggerCatalog.id))
+      .where(eq(triggerActions.actionTemplateId, templateId))
+      .orderBy(triggerCatalog.name);
+    
+    return result;
+  }
+
+  async getAllActionTemplateUsage(): Promise<Record<number, Array<{ triggerId: number; triggerName: string; triggerKey: string; isActive: boolean }>>> {
+    const result = await db
+      .select({
+        templateId: triggerActions.actionTemplateId,
+        triggerId: triggerCatalog.id,
+        triggerName: triggerCatalog.name,
+        triggerKey: triggerCatalog.triggerKey,
+        isActive: triggerCatalog.isActive
+      })
+      .from(triggerActions)
+      .innerJoin(triggerCatalog, eq(triggerActions.triggerCatalogId, triggerCatalog.id))
+      .orderBy(triggerCatalog.name);
+    
+    const usageMap: Record<number, Array<{ triggerId: number; triggerName: string; triggerKey: string; isActive: boolean }>> = {};
+    
+    for (const row of result) {
+      if (!usageMap[row.templateId]) {
+        usageMap[row.templateId] = [];
+      }
+      usageMap[row.templateId].push({
+        triggerId: row.triggerId,
+        triggerName: row.triggerName,
+        triggerKey: row.triggerKey,
+        isActive: row.isActive
+      });
+    }
+    
+    return usageMap;
   }
 
   // User Alert operations
