@@ -1209,6 +1209,7 @@ const EmailManagement: React.FC = () => {
       <Tabs defaultValue="templates" className="space-y-4">
         <TabsList>
           <TabsTrigger value="templates">Email Templates</TabsTrigger>
+          <TabsTrigger value="wrappers">Email Wrappers</TabsTrigger>
           <TabsTrigger value="activity">Email Activity</TabsTrigger>
           <TabsTrigger value="notifications">Notifications</TabsTrigger>
           <TabsTrigger value="automation">System Triggers</TabsTrigger>
