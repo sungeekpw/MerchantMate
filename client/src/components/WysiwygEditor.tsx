@@ -82,28 +82,32 @@ export function WysiwygEditor({
           </TabsList>
         </div>
         
-        <TabsContent value="visual" className="mt-0 p-0">
-          <ReactQuill
-            ref={quillRef}
-            theme="snow"
-            value={htmlContent}
-            onChange={handleVisualChange}
-            modules={modules}
-            formats={formats}
-            placeholder={placeholder}
-            className="wysiwyg-editor"
-            data-testid="wysiwyg-visual-editor"
-          />
+        <TabsContent value="visual" className="mt-0 p-0" asChild>
+          <div>
+            <ReactQuill
+              ref={quillRef}
+              theme="snow"
+              value={htmlContent}
+              onChange={handleVisualChange}
+              modules={modules}
+              formats={formats}
+              placeholder={placeholder}
+              className="wysiwyg-editor"
+              data-testid="wysiwyg-visual-editor"
+            />
+          </div>
         </TabsContent>
         
-        <TabsContent value="html" className="mt-0 p-0">
-          <Textarea
-            value={htmlContent}
-            onChange={(e) => handleHtmlChange(e.target.value)}
-            className="min-h-[300px] font-mono text-sm border-0 rounded-none focus-visible:ring-0"
-            placeholder={placeholder}
-            data-testid="wysiwyg-html-editor"
-          />
+        <TabsContent value="html" className="mt-0 p-0" asChild>
+          <div>
+            <Textarea
+              value={htmlContent}
+              onChange={(e) => handleHtmlChange(e.target.value)}
+              className="min-h-[300px] font-mono text-sm border-0 rounded-none focus-visible:ring-0"
+              placeholder={placeholder}
+              data-testid="wysiwyg-html-editor"
+            />
+          </div>
         </TabsContent>
       </Tabs>
       
