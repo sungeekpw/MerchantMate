@@ -8673,6 +8673,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           customFooter: template.customFooter
         }, {}); // Empty variables object to preserve placeholders
         console.log('Test Email - Wrapper applied, HTML length:', htmlContent.length);
+        console.log('Test Email - First 500 chars of HTML:', htmlContent.substring(0, 500));
       } else {
         console.log('Test Email - Wrapper disabled, using raw content');
       }
