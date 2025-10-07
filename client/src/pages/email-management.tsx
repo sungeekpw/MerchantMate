@@ -52,20 +52,7 @@ import {
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
-
-interface EmailTemplate {
-  id: number;
-  name: string;
-  description?: string;
-  category: string;
-  subject: string;
-  htmlContent: string;
-  textContent?: string;
-  variables: Record<string, any>;
-  isActive: boolean;
-  createdAt: string;
-  updatedAt: string;
-}
+import type { EmailTemplate } from '@shared/schema';
 
 interface EmailActivity {
   id: number;
