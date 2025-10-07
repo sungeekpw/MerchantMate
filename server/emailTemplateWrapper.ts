@@ -159,3 +159,81 @@ export const EmailTemplates = {
     });
   }
 };
+
+/**
+ * Gradient presets for wrapper types
+ */
+const WRAPPER_GRADIENTS: Record<string, string> = {
+  welcome: 'linear-gradient(135deg, #059669 0%, #10b981 100%)',
+  agentNotification: 'linear-gradient(135deg, #7c3aed 0%, #a855f7 100%)',
+  security: 'linear-gradient(135deg, #1e40af 0%, #3b82f6 100%)',
+  notification: 'linear-gradient(135deg, #0891b2 0%, #06b6d4 100%)',
+  custom: 'linear-gradient(135deg, #0891b2 0%, #06b6d4 100%)' // Default for custom
+};
+
+/**
+ * Email template configuration from database
+ */
+export interface EmailTemplateConfig {
+  subject: string;
+  htmlContent: string;
+  useWrapper: boolean;
+  wrapperType: string;
+  headerGradient?: string | null;
+  headerSubtitle?: string | null;
+  ctaButtonText?: string | null;
+  ctaButtonUrl?: string | null;
+  ctaButtonColor?: string | null;
+  customFooter?: string | null;
+}
+
+/**
+ * Apply email wrapper to template content based on configuration
+ */
+export function applyEmailWrapper(
+  template: EmailTemplateConfig,
+  variables: Record<string, string> = {}
+): string {
+  // If wrapper is disabled, return content as-is
+  if (!template.useWrapper) {
+    return template.htmlContent;
+  }
+
+  // Replace variables in content
+  let content = template.htmlContent;
+  Object.entries(variables).forEach(([key, value]) => {
+    content = content.replace(new RegExp(`{{${key}}}`, 'g'), value);
+  });
+
+  // Determine header gradient
+  const gradient = template.wrapperType === 'custom' && template.headerGradient
+    ? template.headerGradient
+    : WRAPPER_GRADIENTS[template.wrapperType] || WRAPPER_GRADIENTS.notification;
+
+  // Build wrapper options
+  const wrapperOptions: EmailTemplateOptions = {
+    headerTitle: template.subject,
+    headerSubtitle: template.headerSubtitle || undefined,
+    headerGradient: gradient,
+    recipientName: variables.firstName && variables.lastName 
+      ? `${variables.firstName} ${variables.lastName}`
+      : variables.firstName || undefined,
+    content: content
+  };
+
+  // Add call-to-action if configured
+  if (template.ctaButtonText && template.ctaButtonUrl) {
+    wrapperOptions.callToAction = {
+      text: template.ctaButtonText,
+      url: template.ctaButtonUrl,
+      color: template.ctaButtonColor || undefined
+    };
+  }
+
+  // Add custom footer if configured
+  if (template.customFooter) {
+    wrapperOptions.footer = template.customFooter;
+  }
+
+  return wrapEmailTemplate(wrapperOptions);
+}
