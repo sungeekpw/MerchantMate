@@ -107,9 +107,9 @@ export function Sidebar() {
   };
 
   return (
-    <div className={cn("corecrm-sidebar min-h-screen flex flex-col transition-all duration-300", isCollapsed ? "w-16" : "w-64")}>
+    <div className={cn("corecrm-sidebar h-screen flex flex-col transition-all duration-300", isCollapsed ? "w-16" : "w-64")}>
       {/* Logo */}
-      <div className={cn("border-b border-gray-200 relative", isCollapsed ? "p-4" : "p-6")}>
+      <div className={cn("border-b border-gray-200 relative flex-shrink-0", isCollapsed ? "p-4" : "p-6")}>
         <div className="flex items-center space-x-3">
           <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
             <CreditCard className="w-6 h-6 text-white" />
@@ -136,7 +136,7 @@ export function Sidebar() {
       </div>
 
       {/* Navigation */}
-      <nav className={cn("flex-1 space-y-2", isCollapsed ? "p-2" : "p-4")}>
+      <nav className={cn("flex-1 overflow-y-auto space-y-2", isCollapsed ? "p-2" : "p-4")}>
         {getFilteredNavigation().map((item: any) => {
           const isActive = location === item.href;
           const hasSubItems = item.subItems && item.subItems.length > 0;
@@ -219,7 +219,7 @@ export function Sidebar() {
 
       {/* User Profile & Logout */}
       {user && (
-        <div className={cn("border-t border-gray-200", isCollapsed ? "p-2" : "p-4")}>
+        <div className={cn("border-t border-gray-200 flex-shrink-0", isCollapsed ? "p-2" : "p-4")}>
           {!isCollapsed && (
             <div className="flex items-center space-x-3 mb-3">
               <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center">
