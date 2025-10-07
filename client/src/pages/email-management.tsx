@@ -728,7 +728,6 @@ const EmailManagement: React.FC = () => {
   const [isNotificationDialogOpen, setIsNotificationDialogOpen] = useState(false);
 
   // Wrapper configuration state
-  const [useWrapper, setUseWrapper] = useState(true);
   const [wrapperType, setWrapperType] = useState('notification');
   
   // HTML content state for WYSIWYG editor
@@ -1057,6 +1056,8 @@ const EmailManagement: React.FC = () => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
     
+    const selectedWrapperType = formData.get('wrapperType') as string || 'none';
+    
     const templateData: Partial<EmailTemplate> = {
       name: formData.get('name') as string,
       category: formData.get('category') as string,
@@ -1065,15 +1066,15 @@ const EmailManagement: React.FC = () => {
       htmlContent: formData.get('htmlContent') as string,
       variables: JSON.parse((formData.get('variables') as string) || '{}'),
       isActive: formData.get('isActive') === 'true',
-      // Wrapper configuration
-      useWrapper: useWrapper,
-      wrapperType: wrapperType,
-      headerGradient: formData.get('headerGradient') as string || null,
-      headerSubtitle: formData.get('headerSubtitle') as string || null,
-      ctaButtonText: formData.get('ctaButtonText') as string || null,
-      ctaButtonUrl: formData.get('ctaButtonUrl') as string || null,
-      ctaButtonColor: formData.get('ctaButtonColor') as string || null,
-      customFooter: formData.get('customFooter') as string || null
+      // Wrapper configuration - simplified to just wrapper type selection
+      useWrapper: selectedWrapperType !== 'none',
+      wrapperType: selectedWrapperType !== 'none' ? selectedWrapperType : null,
+      headerGradient: null,
+      headerSubtitle: null,
+      ctaButtonText: null,
+      ctaButtonUrl: null,
+      ctaButtonColor: null,
+      customFooter: null
     };
 
     if (editingTemplate) {
@@ -1226,7 +1227,6 @@ const EmailManagement: React.FC = () => {
                 <Button 
                   onClick={() => {
                     setEditingTemplate(null);
-                    setUseWrapper(true);
                     setWrapperType('notification');
                     setHtmlContent('');
                     setIsTemplateDialogOpen(true);
@@ -1319,111 +1319,25 @@ const EmailManagement: React.FC = () => {
                     />
                   </div>
 
-                  {/* Wrapper Configuration Section */}
-                  <div className="border-t pt-4 mt-4">
-                    <h4 className="text-sm font-medium mb-3">Email Wrapper Settings</h4>
-                    
-                    <div className="flex items-center space-x-2 mb-4">
-                      <input
-                        type="checkbox"
-                        id="useWrapper"
-                        name="useWrapper"
-                        value="true"
-                        checked={useWrapper}
-                        onChange={(e) => setUseWrapper(e.target.checked)}
-                      />
-                      <Label htmlFor="useWrapper">Use Email Wrapper</Label>
-                    </div>
-
-                    {useWrapper && (
-                      <div className="space-y-4 pl-6 border-l-2 border-gray-200">
-                        <div>
-                          <Label htmlFor="wrapperType">Wrapper Style</Label>
-                          <Select 
-                            name="wrapperType" 
-                            value={wrapperType}
-                            onValueChange={setWrapperType}
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select wrapper style" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="welcome">Welcome (Green Gradient)</SelectItem>
-                              <SelectItem value="agentNotification">Agent Notification (Purple Gradient)</SelectItem>
-                              <SelectItem value="security">Security (Blue Gradient)</SelectItem>
-                              <SelectItem value="notification">Notification (Teal Gradient)</SelectItem>
-                              <SelectItem value="custom">Custom Gradient</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-
-                        {wrapperType === 'custom' && (
-                          <div>
-                            <Label htmlFor="headerGradient">Custom Header Gradient (CSS)</Label>
-                            <Input
-                              id="headerGradient"
-                              name="headerGradient"
-                              defaultValue={editingTemplate?.headerGradient || ''}
-                              placeholder="linear-gradient(135deg, #059669 0%, #10b981 100%)"
-                            />
-                          </div>
-                        )}
-
-                        <div>
-                          <Label htmlFor="headerSubtitle">Header Subtitle</Label>
-                          <Input
-                            id="headerSubtitle"
-                            name="headerSubtitle"
-                            defaultValue={editingTemplate?.headerSubtitle || ''}
-                            placeholder="Optional subtitle text"
-                          />
-                        </div>
-
-                        <div className="border-t pt-4 mt-4">
-                          <h5 className="text-sm font-medium mb-3">Call-to-Action Button (Optional)</h5>
-                          <div className="grid grid-cols-2 gap-4">
-                            <div>
-                              <Label htmlFor="ctaButtonText">Button Text</Label>
-                              <Input
-                                id="ctaButtonText"
-                                name="ctaButtonText"
-                                defaultValue={editingTemplate?.ctaButtonText || ''}
-                                placeholder="Verify Email"
-                              />
-                            </div>
-                            <div>
-                              <Label htmlFor="ctaButtonUrl">Button URL</Label>
-                              <Input
-                                id="ctaButtonUrl"
-                                name="ctaButtonUrl"
-                                defaultValue={editingTemplate?.ctaButtonUrl || ''}
-                                placeholder="{{verificationUrl}}"
-                              />
-                            </div>
-                          </div>
-                          <div className="mt-3">
-                            <Label htmlFor="ctaButtonColor">Button Color (hex or CSS)</Label>
-                            <Input
-                              id="ctaButtonColor"
-                              name="ctaButtonColor"
-                              defaultValue={editingTemplate?.ctaButtonColor || ''}
-                              placeholder="#3b82f6"
-                            />
-                          </div>
-                        </div>
-
-                        <div>
-                          <Label htmlFor="customFooter">Custom Footer HTML (Optional)</Label>
-                          <Textarea
-                            id="customFooter"
-                            name="customFooter"
-                            defaultValue={editingTemplate?.customFooter || ''}
-                            rows={3}
-                            placeholder="Leave blank for default footer"
-                          />
-                        </div>
-                      </div>
-                    )}
+                  {/* Wrapper Selection */}
+                  <div>
+                    <Label htmlFor="wrapperType">Email Wrapper Style</Label>
+                    <Select 
+                      name="wrapperType" 
+                      value={wrapperType}
+                      onValueChange={setWrapperType}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select wrapper style" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">No Wrapper</SelectItem>
+                        <SelectItem value="welcome">Welcome (Green Gradient)</SelectItem>
+                        <SelectItem value="agentNotification">Agent Notification (Purple Gradient)</SelectItem>
+                        <SelectItem value="security">Security (Blue Gradient)</SelectItem>
+                        <SelectItem value="notification">Notification (Teal Gradient)</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                   
                   <div className="flex items-center space-x-2">
@@ -1529,8 +1443,11 @@ const EmailManagement: React.FC = () => {
                               size="sm"
                               onClick={() => {
                                 setEditingTemplate(template);
-                                setUseWrapper(template.useWrapper !== false);
-                                setWrapperType(template.wrapperType || 'notification');
+                                setWrapperType(
+                                  template.useWrapper === false 
+                                    ? 'none' 
+                                    : (template.wrapperType || 'notification')
+                                );
                                 setHtmlContent(template.htmlContent || '');
                                 setIsTemplateDialogOpen(true);
                               }}
