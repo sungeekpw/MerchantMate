@@ -106,6 +106,23 @@ interface EmailStats {
   clickRate: number;
 }
 
+interface NotificationTemplate {
+  id: number;
+  name: string;
+  description?: string;
+  actionType: string;
+  category: string;
+  config: {
+    message: string;
+    type: 'info' | 'success' | 'warning' | 'error';
+    actionUrl?: string;
+  };
+  variables: string[];
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
 const EmailManagement: React.FC = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -120,6 +137,10 @@ const EmailManagement: React.FC = () => {
     templateId: 'all',
     search: ''
   });
+
+  // Notification template state
+  const [editingNotification, setEditingNotification] = useState<NotificationTemplate | null>(null);
+  const [isNotificationDialogOpen, setIsNotificationDialogOpen] = useState(false);
 
   // Fetch email templates
   const { data: templates = [], isLoading: templatesLoading } = useQuery({
@@ -305,6 +326,89 @@ const EmailManagement: React.FC = () => {
     }
   });
 
+  // Fetch notification templates (action templates with type 'notification')
+  const { data: notificationTemplates = [], isLoading: notificationsLoading } = useQuery({
+    queryKey: ['/api/admin/action-templates/type/notification'],
+    queryFn: async () => {
+      const response = await fetch('/api/admin/action-templates/type/notification', {
+        credentials: 'include'
+      });
+      if (!response.ok) throw new Error('Failed to fetch notification templates');
+      return response.json();
+    }
+  });
+
+  // Create/Update notification template mutation
+  const notificationMutation = useMutation({
+    mutationFn: async (template: Partial<NotificationTemplate>) => {
+      const url = template.id 
+        ? `/api/admin/action-templates/${template.id}`
+        : '/api/admin/action-templates';
+      const method = template.id ? 'PUT' : 'POST';
+      
+      const response = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(template)
+      });
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to save notification template');
+      }
+      
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/action-templates/type/notification'] });
+      setIsNotificationDialogOpen(false);
+      setEditingNotification(null);
+      toast({
+        title: 'Success',
+        description: 'Notification template saved successfully'
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: 'Error',
+        description: error.message,
+        variant: 'destructive'
+      });
+    }
+  });
+
+  // Delete notification template mutation
+  const deleteNotificationMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const response = await fetch(`/api/admin/action-templates/${id}`, {
+        method: 'DELETE',
+        credentials: 'include'
+      });
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to delete notification template');
+      }
+      
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/action-templates/type/notification'] });
+      toast({
+        title: 'Success',
+        description: 'Notification template deleted successfully'
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: 'Error',
+        description: error.message,
+        variant: 'destructive'
+      });
+    }
+  });
+
   const handleTemplateSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
@@ -344,6 +448,31 @@ const EmailManagement: React.FC = () => {
     }
 
     triggerMutation.mutate(triggerData);
+  };
+
+  const handleNotificationSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+    
+    const notificationData: Partial<NotificationTemplate> = {
+      name: formData.get('name') as string,
+      description: formData.get('description') as string,
+      category: formData.get('category') as string,
+      actionType: 'notification',
+      config: {
+        message: formData.get('message') as string,
+        type: formData.get('notificationType') as 'info' | 'success' | 'warning' | 'error',
+        actionUrl: formData.get('actionUrl') as string || undefined
+      },
+      variables: JSON.parse((formData.get('variables') as string) || '[]'),
+      isActive: formData.get('isActive') === 'true'
+    };
+
+    if (editingNotification) {
+      notificationData.id = editingNotification.id;
+    }
+
+    notificationMutation.mutate(notificationData);
   };
 
   const getStatusBadge = (status: string) => {
@@ -428,6 +557,7 @@ const EmailManagement: React.FC = () => {
           <TabsTrigger value="templates">Email Templates</TabsTrigger>
           <TabsTrigger value="activity">Email Activity</TabsTrigger>
           <TabsTrigger value="triggers">Email Triggers</TabsTrigger>
+          <TabsTrigger value="notifications">Notifications</TabsTrigger>
           <TabsTrigger value="guide">Template Guide</TabsTrigger>
         </TabsList>
 
@@ -906,6 +1036,236 @@ const EmailManagement: React.FC = () => {
                         </TableCell>
                         <TableCell>
                           {format(new Date(trigger.createdAt), 'MMM d, yyyy')}
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Notifications Tab */}
+        <TabsContent value="notifications" className="space-y-4">
+          <div className="flex justify-between items-center">
+            <div>
+              <h3 className="text-lg font-medium">Notification Templates</h3>
+              <p className="text-sm text-gray-600">Manage in-app notification templates for user alerts</p>
+            </div>
+            <Dialog open={isNotificationDialogOpen} onOpenChange={setIsNotificationDialogOpen}>
+              <DialogTrigger asChild>
+                <Button 
+                  onClick={() => {
+                    setEditingNotification(null);
+                    setIsNotificationDialogOpen(true);
+                  }}
+                  data-testid="button-create-notification"
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  New Notification Template
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-2xl">
+                <DialogHeader>
+                  <DialogTitle>
+                    {editingNotification ? 'Edit Notification Template' : 'Create Notification Template'}
+                  </DialogTitle>
+                  <DialogDescription>
+                    Configure notification template settings and message content
+                  </DialogDescription>
+                </DialogHeader>
+                
+                <form onSubmit={handleNotificationSubmit} className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="notif-name">Template Name</Label>
+                      <Input
+                        id="notif-name"
+                        name="name"
+                        defaultValue={editingNotification?.name || ''}
+                        required
+                        data-testid="input-notification-name"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="notif-category">Category</Label>
+                      <Select name="category" defaultValue={editingNotification?.category || ''}>
+                        <SelectTrigger data-testid="select-notification-category">
+                          <SelectValue placeholder="Select category" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="system">System</SelectItem>
+                          <SelectItem value="application">Application</SelectItem>
+                          <SelectItem value="security">Security</SelectItem>
+                          <SelectItem value="payment">Payment</SelectItem>
+                          <SelectItem value="general">General</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <Label htmlFor="notif-description">Description</Label>
+                    <Input
+                      id="notif-description"
+                      name="description"
+                      defaultValue={editingNotification?.description || ''}
+                      data-testid="input-notification-description"
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="notif-type">Notification Type</Label>
+                    <Select name="notificationType" defaultValue={editingNotification?.config.type || 'info'}>
+                      <SelectTrigger data-testid="select-notification-type">
+                        <SelectValue placeholder="Select type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="info">Info</SelectItem>
+                        <SelectItem value="success">Success</SelectItem>
+                        <SelectItem value="warning">Warning</SelectItem>
+                        <SelectItem value="error">Error</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  <div>
+                    <Label htmlFor="notif-message">Message Content</Label>
+                    <Textarea
+                      id="notif-message"
+                      name="message"
+                      defaultValue={editingNotification?.config.message || ''}
+                      rows={4}
+                      required
+                      placeholder="Use {{variableName}} for dynamic content"
+                      data-testid="textarea-notification-message"
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="notif-action-url">Action URL (optional)</Label>
+                    <Input
+                      id="notif-action-url"
+                      name="actionUrl"
+                      defaultValue={editingNotification?.config.actionUrl || ''}
+                      placeholder="/path/to/action or full URL"
+                      data-testid="input-notification-url"
+                    />
+                  </div>
+                  
+                  <div>
+                    <Label htmlFor="notif-variables">Available Variables (JSON array)</Label>
+                    <Input
+                      id="notif-variables"
+                      name="variables"
+                      defaultValue={JSON.stringify(editingNotification?.variables || [])}
+                      placeholder='["userId", "userName", "actionType"]'
+                      data-testid="input-notification-variables"
+                    />
+                  </div>
+                  
+                  <div className="flex items-center gap-4">
+                    <Label htmlFor="notif-active">Active</Label>
+                    <Select name="isActive" defaultValue={editingNotification?.isActive === false ? 'false' : 'true'}>
+                      <SelectTrigger className="w-32" data-testid="select-notification-active">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="true">Yes</SelectItem>
+                        <SelectItem value="false">No</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  <DialogFooter>
+                    <Button type="submit" data-testid="button-save-notification">
+                      {editingNotification ? 'Update' : 'Create'} Template
+                    </Button>
+                  </DialogFooter>
+                </form>
+              </DialogContent>
+            </Dialog>
+          </div>
+
+          <Card>
+            <CardContent className="pt-6">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Category</TableHead>
+                    <TableHead>Type</TableHead>
+                    <TableHead>Message</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {notificationsLoading ? (
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-center">
+                        Loading notification templates...
+                      </TableCell>
+                    </TableRow>
+                  ) : notificationTemplates.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-center text-gray-500">
+                        No notification templates configured
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    notificationTemplates.map((template: NotificationTemplate) => (
+                      <TableRow key={template.id} data-testid={`row-notification-${template.id}`}>
+                        <TableCell className="font-medium">{template.name}</TableCell>
+                        <TableCell>
+                          <Badge variant="outline">{template.category}</Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Badge 
+                            variant={
+                              template.config.type === 'error' ? 'destructive' :
+                              template.config.type === 'warning' ? 'outline' :
+                              template.config.type === 'success' ? 'default' : 'secondary'
+                            }
+                          >
+                            {template.config.type}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="max-w-md truncate">
+                          {template.config.message}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={template.isActive ? 'default' : 'secondary'}>
+                            {template.isActive ? 'Active' : 'Inactive'}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex gap-2">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                setEditingNotification(template);
+                                setIsNotificationDialogOpen(true);
+                              }}
+                              data-testid={`button-edit-notification-${template.id}`}
+                            >
+                              <Edit className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                if (confirm('Are you sure you want to delete this notification template?')) {
+                                  deleteNotificationMutation.mutate(template.id);
+                                }
+                              }}
+                              data-testid={`button-delete-notification-${template.id}`}
+                            >
+                              <Trash2 className="w-4 h-4 text-red-500" />
+                            </Button>
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))
