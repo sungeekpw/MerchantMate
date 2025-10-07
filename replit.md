@@ -19,6 +19,7 @@ Preferred communication style: Simple, everyday language.
 - **Database**: PostgreSQL with Drizzle ORM, deployed on Neon serverless.
 - **Authentication**: Session-based authentication using `express-session` and a PostgreSQL session store, including 2FA and robust password management.
 - **Email Service**: SendGrid for transactional emails with webhook integration for delivery and open rate tracking.
+- **Email Template Editor**: WYSIWYG editor (React Quill) with visual/HTML toggle for easy template creation and editing, preserving variable placeholders.
 - **File Handling**: Multer for PDF form uploads.
 
 ### Feature Specifications
@@ -54,4 +55,5 @@ Preferred communication style: Simple, everyday language.
 - **express-session**: Session management middleware.
 - **connect-pg-simple**: PostgreSQL session store.
 - **multer**: Middleware for handling `multipart/form-data`.
+- **react-quill**: WYSIWYG rich text editor for email template HTML content.
 - **google-maps-services-js**: Google Maps Geocoding and Places APIs.
