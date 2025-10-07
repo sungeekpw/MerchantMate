@@ -157,6 +157,19 @@ const SystemTriggersTab: React.FC = () => {
   const [isTriggerDialogOpen, setIsTriggerDialogOpen] = useState(false);
   const [isActionDialogOpen, setIsActionDialogOpen] = useState(false);
   const [editingTrigger, setEditingTrigger] = useState<TriggerCatalogItem | null>(null);
+  const [selectedTriggerEvent, setSelectedTriggerEvent] = useState('');
+
+  // Fetch available trigger events
+  const { data: triggerEvents = [] } = useQuery({
+    queryKey: ['/api/admin/trigger-events'],
+    queryFn: async () => {
+      const response = await fetch('/api/admin/trigger-events', {
+        credentials: 'include'
+      });
+      if (!response.ok) throw new Error('Failed to fetch trigger events');
+      return response.json();
+    }
+  });
 
   // Fetch all triggers
   const { data: triggers = [], isLoading: triggersLoading } = useQuery<TriggerCatalogItem[]>({
@@ -210,6 +223,7 @@ const SystemTriggersTab: React.FC = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/trigger-catalog'] });
       setIsTriggerDialogOpen(false);
+      setSelectedTriggerEvent('');
       toast({ title: 'Trigger created successfully' });
     },
     onError: () => {
@@ -242,7 +256,7 @@ const SystemTriggersTab: React.FC = () => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
     createTriggerMutation.mutate({
-      triggerKey: formData.get('triggerKey'),
+      triggerKey: selectedTriggerEvent,
       name: formData.get('name'),
       description: formData.get('description'),
       category: formData.get('category'),
@@ -277,6 +291,7 @@ const SystemTriggersTab: React.FC = () => {
           <DialogTrigger asChild>
             <Button onClick={() => {
               setEditingTrigger(null);
+              setSelectedTriggerEvent('');
               setIsTriggerDialogOpen(true);
             }} data-testid="button-create-trigger">
               <Plus className="w-4 h-4 mr-2" />
@@ -290,8 +305,23 @@ const SystemTriggersTab: React.FC = () => {
             </DialogHeader>
             <form onSubmit={handleTriggerSubmit} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="triggerKey">Trigger Key</Label>
-                <Input id="triggerKey" name="triggerKey" placeholder="user_registered" required data-testid="input-trigger-key" />
+                <Label htmlFor="triggerKey">Trigger Event</Label>
+                <Select 
+                  value={selectedTriggerEvent} 
+                  onValueChange={setSelectedTriggerEvent}
+                  required
+                >
+                  <SelectTrigger data-testid="select-trigger-event">
+                    <SelectValue placeholder="Select trigger event" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {triggerEvents.map((event: string) => (
+                      <SelectItem key={event} value={event}>
+                        {event.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="name">Name</Label>
