@@ -8872,6 +8872,158 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // ============================================================================
+  // TRIGGER CATALOG API ENDPOINTS - Admin Only
+  // ============================================================================
+
+  // Get all triggers
+  app.get("/api/admin/trigger-catalog", requireRole(['admin', 'super_admin']), async (req, res) => {
+    try {
+      const triggers = await storage.getAllTriggerCatalog();
+      res.json(triggers);
+    } catch (error) {
+      console.error("Error fetching trigger catalog:", error);
+      res.status(500).json({ message: "Failed to fetch trigger catalog" });
+    }
+  });
+
+  // Get single trigger
+  app.get("/api/admin/trigger-catalog/:id", requireRole(['admin', 'super_admin']), async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const trigger = await storage.getTriggerCatalog(id);
+      
+      if (!trigger) {
+        return res.status(404).json({ message: "Trigger not found" });
+      }
+      
+      res.json(trigger);
+    } catch (error) {
+      console.error("Error fetching trigger:", error);
+      res.status(500).json({ message: "Failed to fetch trigger" });
+    }
+  });
+
+  // Create trigger
+  app.post("/api/admin/trigger-catalog", requireRole(['admin', 'super_admin']), async (req, res) => {
+    try {
+      const { insertTriggerCatalogSchema } = await import("@shared/schema");
+      const result = insertTriggerCatalogSchema.safeParse(req.body);
+      
+      if (!result.success) {
+        return res.status(400).json({ message: "Invalid trigger data", errors: result.error.errors });
+      }
+      
+      const trigger = await storage.createTriggerCatalog(result.data);
+      res.status(201).json(trigger);
+    } catch (error) {
+      console.error("Error creating trigger:", error);
+      res.status(500).json({ message: "Failed to create trigger" });
+    }
+  });
+
+  // Update trigger
+  app.put("/api/admin/trigger-catalog/:id", requireRole(['admin', 'super_admin']), async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const trigger = await storage.updateTriggerCatalog(id, req.body);
+      
+      if (!trigger) {
+        return res.status(404).json({ message: "Trigger not found" });
+      }
+      
+      res.json(trigger);
+    } catch (error) {
+      console.error("Error updating trigger:", error);
+      res.status(500).json({ message: "Failed to update trigger" });
+    }
+  });
+
+  // Delete trigger
+  app.delete("/api/admin/trigger-catalog/:id", requireRole(['admin', 'super_admin']), async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const success = await storage.deleteTriggerCatalog(id);
+      
+      if (!success) {
+        return res.status(404).json({ message: "Trigger not found" });
+      }
+      
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting trigger:", error);
+      res.status(500).json({ message: "Failed to delete trigger" });
+    }
+  });
+
+  // ============================================================================
+  // TRIGGER ACTIONS API ENDPOINTS - Admin Only
+  // ============================================================================
+
+  // Get actions for a trigger
+  app.get("/api/admin/trigger-catalog/:triggerId/actions", requireRole(['admin', 'super_admin']), async (req, res) => {
+    try {
+      const triggerId = parseInt(req.params.triggerId);
+      const actions = await storage.getTriggerActions(triggerId);
+      res.json(actions);
+    } catch (error) {
+      console.error("Error fetching trigger actions:", error);
+      res.status(500).json({ message: "Failed to fetch trigger actions" });
+    }
+  });
+
+  // Create trigger action (link action template to trigger)
+  app.post("/api/admin/trigger-actions", requireRole(['admin', 'super_admin']), async (req, res) => {
+    try {
+      const { insertTriggerActionSchema } = await import("@shared/schema");
+      const result = insertTriggerActionSchema.safeParse(req.body);
+      
+      if (!result.success) {
+        return res.status(400).json({ message: "Invalid trigger action data", errors: result.error.errors });
+      }
+      
+      const action = await storage.createTriggerAction(result.data);
+      res.status(201).json(action);
+    } catch (error) {
+      console.error("Error creating trigger action:", error);
+      res.status(500).json({ message: "Failed to create trigger action" });
+    }
+  });
+
+  // Update trigger action
+  app.put("/api/admin/trigger-actions/:id", requireRole(['admin', 'super_admin']), async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const action = await storage.updateTriggerAction(id, req.body);
+      
+      if (!action) {
+        return res.status(404).json({ message: "Trigger action not found" });
+      }
+      
+      res.json(action);
+    } catch (error) {
+      console.error("Error updating trigger action:", error);
+      res.status(500).json({ message: "Failed to update trigger action" });
+    }
+  });
+
+  // Delete trigger action
+  app.delete("/api/admin/trigger-actions/:id", requireRole(['admin', 'super_admin']), async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const success = await storage.deleteTriggerAction(id);
+      
+      if (!success) {
+        return res.status(404).json({ message: "Trigger action not found" });
+      }
+      
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting trigger action:", error);
+      res.status(500).json({ message: "Failed to delete trigger action" });
+    }
+  });
+
+  // ============================================================================
   // SENDGRID WEBHOOK ENDPOINTS
   // ============================================================================
 
