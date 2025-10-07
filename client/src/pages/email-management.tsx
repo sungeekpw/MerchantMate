@@ -1662,77 +1662,100 @@ const EmailManagement: React.FC = () => {
                     <TableHead>Type</TableHead>
                     <TableHead>Message</TableHead>
                     <TableHead>Status</TableHead>
+                    <TableHead>Used in Triggers</TableHead>
                     <TableHead>Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {notificationsLoading ? (
                     <TableRow>
-                      <TableCell colSpan={6} className="text-center">
+                      <TableCell colSpan={7} className="text-center">
                         Loading notification templates...
                       </TableCell>
                     </TableRow>
                   ) : notificationTemplates.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={6} className="text-center text-gray-500">
+                      <TableCell colSpan={7} className="text-center text-gray-500">
                         No notification templates configured
                       </TableCell>
                     </TableRow>
                   ) : (
-                    notificationTemplates.map((template: NotificationTemplate) => (
-                      <TableRow key={template.id} data-testid={`row-notification-${template.id}`}>
-                        <TableCell className="font-medium">{template.name}</TableCell>
-                        <TableCell>
-                          <Badge variant="outline">{template.category}</Badge>
-                        </TableCell>
-                        <TableCell>
-                          <Badge 
-                            variant={
-                              template.config.type === 'error' ? 'destructive' :
-                              template.config.type === 'warning' ? 'outline' :
-                              template.config.type === 'success' ? 'default' : 'secondary'
-                            }
-                          >
-                            {template.config.type}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="max-w-md truncate">
-                          {template.config.message}
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant={template.isActive ? 'default' : 'secondary'}>
-                            {template.isActive ? 'Active' : 'Inactive'}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex gap-2">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => {
-                                setEditingNotification(template);
-                                setIsNotificationDialogOpen(true);
-                              }}
-                              data-testid={`button-edit-notification-${template.id}`}
+                    notificationTemplates.map((template: NotificationTemplate) => {
+                      const usage = templateUsage[template.id] || [];
+                      return (
+                        <TableRow key={template.id} data-testid={`row-notification-${template.id}`}>
+                          <TableCell className="font-medium">{template.name}</TableCell>
+                          <TableCell>
+                            <Badge variant="outline">{template.category}</Badge>
+                          </TableCell>
+                          <TableCell>
+                            <Badge 
+                              variant={
+                                template.config.type === 'error' ? 'destructive' :
+                                template.config.type === 'warning' ? 'outline' :
+                                template.config.type === 'success' ? 'default' : 'secondary'
+                              }
                             >
-                              <Edit className="w-4 h-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => {
-                                if (confirm('Are you sure you want to delete this notification template?')) {
-                                  deleteNotificationMutation.mutate(template.id);
-                                }
-                              }}
-                              data-testid={`button-delete-notification-${template.id}`}
-                            >
-                              <Trash2 className="w-4 h-4 text-red-500" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))
+                              {template.config.type}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="max-w-md truncate">
+                            {template.config.message}
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant={template.isActive ? 'default' : 'secondary'}>
+                              {template.isActive ? 'Active' : 'Inactive'}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            {usage.length > 0 ? (
+                              <div className="flex flex-wrap gap-1">
+                                {usage.map((trigger: any) => (
+                                  <Badge 
+                                    key={trigger.triggerId} 
+                                    variant="outline"
+                                    className="cursor-help"
+                                    title={`${trigger.triggerName} (${trigger.triggerKey})`}
+                                    data-testid={`notification-usage-${template.id}-${trigger.triggerId}`}
+                                  >
+                                    {trigger.triggerName}
+                                  </Badge>
+                                ))}
+                              </div>
+                            ) : (
+                              <span className="text-sm text-gray-400">Not used</span>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex gap-2">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => {
+                                  setEditingNotification(template);
+                                  setIsNotificationDialogOpen(true);
+                                }}
+                                data-testid={`button-edit-notification-${template.id}`}
+                              >
+                                <Edit className="w-4 h-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => {
+                                  if (confirm('Are you sure you want to delete this notification template?')) {
+                                    deleteNotificationMutation.mutate(template.id);
+                                  }
+                                }}
+                                data-testid={`button-delete-notification-${template.id}`}
+                              >
+                                <Trash2 className="w-4 h-4 text-red-500" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })
                   )}
                 </TableBody>
               </Table>
