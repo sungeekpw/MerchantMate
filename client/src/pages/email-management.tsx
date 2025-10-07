@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { apiRequest, queryClient } from '@/lib/queryClient';
 import { 
   Card, 
   CardContent, 
@@ -704,6 +705,306 @@ const SystemTriggersTab: React.FC = () => {
           </CardContent>
         </Card>
       </div>
+    </div>
+  );
+};
+
+const EmailWrappersTab: React.FC = () => {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [editingWrapper, setEditingWrapper] = useState<any | null>(null);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+
+  const { data: wrappers = [], isLoading } = useQuery({
+    queryKey: ['/api/admin/email-wrappers']
+  });
+
+  const wrapperMutation = useMutation({
+    mutationFn: async (wrapperData: any) => {
+      const url = wrapperData.id 
+        ? `/api/admin/email-wrappers/${wrapperData.id}`
+        : '/api/admin/email-wrappers';
+      
+      return apiRequest(url, {
+        method: wrapperData.id ? 'PUT' : 'POST',
+        body: JSON.stringify(wrapperData)
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/email-wrappers'] });
+      setIsDialogOpen(false);
+      setEditingWrapper(null);
+      toast({ title: editingWrapper ? 'Wrapper updated successfully' : 'Wrapper created successfully' });
+    },
+    onError: () => {
+      toast({ title: 'Failed to save wrapper', variant: 'destructive' });
+    }
+  });
+
+  const deleteWrapperMutation = useMutation({
+    mutationFn: async (id: number) => {
+      return apiRequest(`/api/admin/email-wrappers/${id}`, {
+        method: 'DELETE'
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/email-wrappers'] });
+      toast({ title: 'Wrapper deleted successfully' });
+    },
+    onError: () => {
+      toast({ title: 'Failed to delete wrapper', variant: 'destructive' });
+    }
+  });
+
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+    
+    const wrapperData = {
+      id: editingWrapper?.id,
+      name: formData.get('name') as string,
+      description: formData.get('description') as string,
+      type: formData.get('type') as string,
+      headerGradient: formData.get('headerGradient') as string || null,
+      headerSubtitle: formData.get('headerSubtitle') as string || null,
+      ctaButtonText: formData.get('ctaButtonText') as string || null,
+      ctaButtonUrl: formData.get('ctaButtonUrl') as string || null,
+      ctaButtonColor: formData.get('ctaButtonColor') as string || null,
+      customFooter: formData.get('customFooter') as string || null,
+      isActive: formData.get('isActive') === 'true'
+    };
+
+    wrapperMutation.mutate(wrapperData);
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex justify-between items-center">
+        <div>
+          <h3 className="text-lg font-medium">Email Wrappers</h3>
+          <p className="text-sm text-gray-600">Manage reusable email wrapper templates</p>
+        </div>
+        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+          <DialogTrigger asChild>
+            <Button onClick={() => { setEditingWrapper(null); setIsDialogOpen(true); }} data-testid="button-new-wrapper">
+              <Plus className="w-4 h-4 mr-2" />
+              New Wrapper
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+            <form onSubmit={handleSubmit}>
+              <DialogHeader>
+                <DialogTitle>{editingWrapper ? 'Edit Wrapper' : 'Create New Wrapper'}</DialogTitle>
+              </DialogHeader>
+
+              <div className="space-y-4 py-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="name">Name <span className="text-red-500">*</span></Label>
+                    <Input
+                      id="name"
+                      name="name"
+                      defaultValue={editingWrapper?.name}
+                      required
+                      data-testid="input-wrapper-name"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="type">Wrapper Type <span className="text-red-500">*</span></Label>
+                    <Select name="type" defaultValue={editingWrapper?.type || 'notification'} required>
+                      <SelectTrigger data-testid="select-wrapper-type">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="welcome">Welcome (Green)</SelectItem>
+                        <SelectItem value="agentNotification">Agent Notification (Purple)</SelectItem>
+                        <SelectItem value="security">Security (Blue)</SelectItem>
+                        <SelectItem value="notification">Notification (Teal)</SelectItem>
+                        <SelectItem value="custom">Custom</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="description">Description</Label>
+                  <Textarea
+                    id="description"
+                    name="description"
+                    defaultValue={editingWrapper?.description}
+                    rows={2}
+                    data-testid="input-wrapper-description"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="headerGradient">Header Gradient (CSS)</Label>
+                  <Input
+                    id="headerGradient"
+                    name="headerGradient"
+                    defaultValue={editingWrapper?.headerGradient}
+                    placeholder="linear-gradient(135deg, #667eea 0%, #764ba2 100%)"
+                    data-testid="input-wrapper-gradient"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="headerSubtitle">Header Subtitle</Label>
+                  <Input
+                    id="headerSubtitle"
+                    name="headerSubtitle"
+                    defaultValue={editingWrapper?.headerSubtitle}
+                    placeholder="Welcome to Core CRM"
+                    data-testid="input-wrapper-subtitle"
+                  />
+                </div>
+
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="ctaButtonText">CTA Button Text</Label>
+                    <Input
+                      id="ctaButtonText"
+                      name="ctaButtonText"
+                      defaultValue={editingWrapper?.ctaButtonText}
+                      placeholder="Get Started"
+                      data-testid="input-wrapper-cta-text"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="ctaButtonUrl">CTA Button URL</Label>
+                    <Input
+                      id="ctaButtonUrl"
+                      name="ctaButtonUrl"
+                      defaultValue={editingWrapper?.ctaButtonUrl}
+                      placeholder="{{dashboardUrl}}"
+                      data-testid="input-wrapper-cta-url"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="ctaButtonColor">CTA Button Color</Label>
+                    <Input
+                      id="ctaButtonColor"
+                      name="ctaButtonColor"
+                      defaultValue={editingWrapper?.ctaButtonColor}
+                      placeholder="#3b82f6"
+                      data-testid="input-wrapper-cta-color"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="customFooter">Custom Footer HTML</Label>
+                  <Textarea
+                    id="customFooter"
+                    name="customFooter"
+                    defaultValue={editingWrapper?.customFooter}
+                    rows={3}
+                    placeholder="<p>Need help? Contact us at support@corecrm.com</p>"
+                    data-testid="input-wrapper-footer"
+                  />
+                </div>
+
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    id="isActive"
+                    name="isActive"
+                    value="true"
+                    defaultChecked={editingWrapper?.isActive ?? true}
+                    className="rounded"
+                    data-testid="checkbox-wrapper-active"
+                  />
+                  <Label htmlFor="isActive">Active</Label>
+                </div>
+              </div>
+
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={wrapperMutation.isPending} data-testid="button-save-wrapper">
+                  {wrapperMutation.isPending ? 'Saving...' : 'Save Wrapper'}
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
+      </div>
+
+      <Card>
+        <CardContent className="p-0">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Name</TableHead>
+                <TableHead>Type</TableHead>
+                <TableHead>Description</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {isLoading ? (
+                <TableRow>
+                  <TableCell colSpan={5} className="text-center py-8 text-gray-500">
+                    Loading wrappers...
+                  </TableCell>
+                </TableRow>
+              ) : wrappers.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={5} className="text-center py-8 text-gray-500">
+                    No wrappers found. Create your first wrapper to get started.
+                  </TableCell>
+                </TableRow>
+              ) : (
+                wrappers.map((wrapper: any) => (
+                  <TableRow key={wrapper.id}>
+                    <TableCell className="font-medium">{wrapper.name}</TableCell>
+                    <TableCell>
+                      <Badge variant="outline">{wrapper.type}</Badge>
+                    </TableCell>
+                    <TableCell className="max-w-md truncate">{wrapper.description || '—'}</TableCell>
+                    <TableCell>
+                      <Badge variant={wrapper.isActive ? 'default' : 'secondary'}>
+                        {wrapper.isActive ? 'Active' : 'Inactive'}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right space-x-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setEditingWrapper(wrapper);
+                          setIsDialogOpen(true);
+                        }}
+                        data-testid={`button-edit-wrapper-${wrapper.id}`}
+                      >
+                        <Edit className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          if (confirm('Are you sure you want to delete this wrapper?')) {
+                            deleteWrapperMutation.mutate(wrapper.id);
+                          }
+                        }}
+                        disabled={deleteWrapperMutation.isPending}
+                        data-testid={`button-delete-wrapper-${wrapper.id}`}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
     </div>
   );
 };
@@ -1483,6 +1784,11 @@ const EmailManagement: React.FC = () => {
               </Table>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* Email Wrappers Tab */}
+        <TabsContent value="wrappers" className="space-y-4">
+          <EmailWrappersTab />
         </TabsContent>
 
         {/* Email Activity Tab */}
