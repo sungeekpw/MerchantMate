@@ -123,6 +123,201 @@ interface NotificationTemplate {
   updatedAt: string;
 }
 
+interface TriggerCatalogItem {
+  id: number;
+  triggerKey: string;
+  name: string;
+  description?: string;
+  category: string;
+  contextSchema?: any;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface TriggerActionItem {
+  id: number;
+  triggerId: number;
+  actionTemplateId: number;
+  sequenceOrder: number;
+  conditions?: any;
+  requiresEmailPreference: boolean;
+  requiresSmsPreference: boolean;
+  delaySeconds: number;
+  retryOnFailure: boolean;
+  maxRetries: number;
+  isActive: boolean;
+  actionTemplate?: NotificationTemplate | EmailTemplate;
+}
+
+const SystemTriggersTab: React.FC = () => {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [selectedTrigger, setSelectedTrigger] = useState<TriggerCatalogItem | null>(null);
+  const [isTriggerDialogOpen, setIsTriggerDialogOpen] = useState(false);
+  const [isActionDialogOpen, setIsActionDialogOpen] = useState(false);
+  const [editingTrigger, setEditingTrigger] = useState<TriggerCatalogItem | null>(null);
+
+  // Fetch all triggers
+  const { data: triggers = [], isLoading: triggersLoading } = useQuery<TriggerCatalogItem[]>({
+    queryKey: ['/api/admin/trigger-catalog'],
+    queryFn: async () => {
+      const response = await fetch('/api/admin/trigger-catalog', {
+        credentials: 'include'
+      });
+      if (!response.ok) throw new Error('Failed to fetch triggers');
+      return response.json();
+    }
+  });
+
+  // Fetch actions for selected trigger
+  const { data: triggerActions = [] } = useQuery<TriggerActionItem[]>({
+    queryKey: ['/api/admin/trigger-catalog', selectedTrigger?.id, 'actions'],
+    queryFn: async () => {
+      if (!selectedTrigger) return [];
+      const response = await fetch(`/api/admin/trigger-catalog/${selectedTrigger.id}/actions`, {
+        credentials: 'include'
+      });
+      if (!response.ok) throw new Error('Failed to fetch trigger actions');
+      return response.json();
+    },
+    enabled: !!selectedTrigger
+  });
+
+  // Fetch all action templates
+  const { data: actionTemplates = [] } = useQuery<NotificationTemplate[]>({
+    queryKey: ['/api/admin/action-templates'],
+    queryFn: async () => {
+      const response = await fetch('/api/admin/action-templates', {
+        credentials: 'include'
+      });
+      if (!response.ok) throw new Error('Failed to fetch action templates');
+      return response.json();
+    }
+  });
+
+  return (
+    <div className="space-y-4">
+      <div className="flex justify-between items-center">
+        <div>
+          <h3 className="text-lg font-medium">System Triggers</h3>
+          <p className="text-sm text-gray-600">Manage automated triggers and their associated actions</p>
+        </div>
+        <Button onClick={() => {
+          setEditingTrigger(null);
+          setIsTriggerDialogOpen(true);
+        }} data-testid="button-create-trigger">
+          <Plus className="w-4 h-4 mr-2" />
+          New Trigger
+        </Button>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <Card>
+          <CardHeader>
+            <CardTitle>Available Triggers</CardTitle>
+            <CardDescription>Select a trigger to view and manage its actions</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {triggersLoading ? (
+              <div>Loading triggers...</div>
+            ) : (
+              <div className="space-y-2">
+                {triggers.map((trigger) => (
+                  <div
+                    key={trigger.id}
+                    className={`p-3 border rounded-lg cursor-pointer transition-colors ${
+                      selectedTrigger?.id === trigger.id 
+                        ? 'border-primary bg-primary/5' 
+                        : 'hover:bg-gray-50 dark:hover:bg-gray-800'
+                    }`}
+                    onClick={() => setSelectedTrigger(trigger)}
+                    data-testid={`trigger-item-${trigger.id}`}
+                  >
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <h4 className="font-medium">{trigger.name}</h4>
+                        <p className="text-sm text-gray-600">{trigger.triggerKey}</p>
+                        {trigger.description && (
+                          <p className="text-xs text-gray-500 mt-1">{trigger.description}</p>
+                        )}
+                      </div>
+                      <Badge variant={trigger.isActive ? 'default' : 'secondary'}>
+                        {trigger.isActive ? 'Active' : 'Inactive'}
+                      </Badge>
+                    </div>
+                  </div>
+                ))}
+                {triggers.length === 0 && (
+                  <p className="text-sm text-gray-500 text-center py-4">No triggers configured</p>
+                )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Trigger Actions</CardTitle>
+            <CardDescription>
+              {selectedTrigger ? `Actions for: ${selectedTrigger.name}` : 'Select a trigger to view actions'}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {selectedTrigger ? (
+              <div className="space-y-4">
+                <Button 
+                  onClick={() => setIsActionDialogOpen(true)} 
+                  variant="outline" 
+                  size="sm"
+                  data-testid="button-add-action"
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add Action
+                </Button>
+                
+                <div className="space-y-2">
+                  {triggerActions.map((action) => (
+                    <div
+                      key={action.id}
+                      className="p-3 border rounded-lg"
+                      data-testid={`action-item-${action.id}`}
+                    >
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <Badge variant="outline">{action.sequenceOrder}</Badge>
+                            <h5 className="font-medium">{action.actionTemplate?.name || 'Unknown Template'}</h5>
+                          </div>
+                          {action.delaySeconds > 0 && (
+                            <p className="text-xs text-gray-500 mt-1">
+                              Delay: {action.delaySeconds}s
+                            </p>
+                          )}
+                        </div>
+                        <Badge variant={action.isActive ? 'default' : 'secondary'}>
+                          {action.isActive ? 'Active' : 'Inactive'}
+                        </Badge>
+                      </div>
+                    </div>
+                  ))}
+                  {triggerActions.length === 0 && (
+                    <p className="text-sm text-gray-500 text-center py-4">No actions configured</p>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <p className="text-sm text-gray-500 text-center py-4">
+                Select a trigger from the left to manage its actions
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+};
+
 const EmailManagement: React.FC = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -558,6 +753,7 @@ const EmailManagement: React.FC = () => {
           <TabsTrigger value="activity">Email Activity</TabsTrigger>
           <TabsTrigger value="triggers">Email Triggers</TabsTrigger>
           <TabsTrigger value="notifications">Notifications</TabsTrigger>
+          <TabsTrigger value="automation">System Triggers</TabsTrigger>
           <TabsTrigger value="guide">Template Guide</TabsTrigger>
         </TabsList>
 
@@ -1544,6 +1740,11 @@ Core CRM Team`}
 
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* System Triggers Tab */}
+        <TabsContent value="automation" className="space-y-4">
+          <SystemTriggersTab />
         </TabsContent>
       </Tabs>
     </div>
