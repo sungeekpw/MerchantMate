@@ -1179,6 +1179,24 @@ export type SecurityEventWithAuditLog = SecurityEvent & {
 };
 
 // Email Management Tables
+
+// Email Wrappers - Reusable email wrapper templates
+export const emailWrappers = pgTable('email_wrappers', {
+  id: serial('id').primaryKey(),
+  name: varchar('name', { length: 100 }).notNull().unique(),
+  description: text('description'),
+  type: varchar('type', { length: 50 }).notNull(), // welcome, security, agentNotification, notification, custom
+  headerGradient: text('header_gradient'), // CSS gradient for header
+  headerSubtitle: text('header_subtitle'), // Optional subtitle for header
+  ctaButtonText: text('cta_button_text'), // Call-to-action button text
+  ctaButtonUrl: text('cta_button_url'), // Call-to-action button URL (can use template variables)
+  ctaButtonColor: text('cta_button_color'), // Call-to-action button color (default: #3b82f6)
+  customFooter: text('custom_footer'), // Custom footer HTML
+  isActive: boolean('is_active').default(true),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+});
+
 export const emailTemplates = pgTable('email_templates', {
   id: serial('id').primaryKey(),
   name: varchar('name', { length: 100 }).notNull().unique(),
@@ -1189,9 +1207,10 @@ export const emailTemplates = pgTable('email_templates', {
   variables: jsonb('variables'), // JSON array of available variables
   category: varchar('category', { length: 50 }).notNull(), // prospect, authentication, notification, etc.
   isActive: boolean('is_active').default(true),
-  // Email Wrapper Configuration
+  // Email Wrapper Configuration (kept for backward compatibility)
   useWrapper: boolean('use_wrapper').default(true), // Whether to apply email wrapper
   wrapperType: varchar('wrapper_type', { length: 50 }).default('notification'), // welcome, security, agentNotification, notification, custom
+  wrapperId: integer('wrapper_id').references(() => emailWrappers.id), // Reference to reusable wrapper
   headerGradient: text('header_gradient'), // Custom gradient if wrapperType is 'custom'
   headerSubtitle: text('header_subtitle'), // Optional subtitle for header
   ctaButtonText: text('cta_button_text'), // Call-to-action button text
@@ -1237,12 +1256,15 @@ export const emailTriggers = pgTable('email_triggers', {
 });
 
 // Email Management Zod schemas and types
+export const insertEmailWrapperSchema = createInsertSchema(emailWrappers).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertEmailTemplateSchema = createInsertSchema(emailTemplates);
 export const insertEmailActivitySchema = createInsertSchema(emailActivity);
 export const insertEmailTriggerSchema = createInsertSchema(emailTriggers).extend({
   triggerEvent: triggerEventSchema, // Enforce valid trigger events
 });
 
+export type EmailWrapper = typeof emailWrappers.$inferSelect;
+export type InsertEmailWrapper = z.infer<typeof insertEmailWrapperSchema>;
 export type EmailTemplate = typeof emailTemplates.$inferSelect;
 export type InsertEmailTemplate = z.infer<typeof insertEmailTemplateSchema>;
 export type EmailActivity = typeof emailActivity.$inferSelect;
