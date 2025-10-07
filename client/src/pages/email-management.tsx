@@ -715,8 +715,17 @@ const EmailWrappersTab: React.FC = () => {
   const [editingWrapper, setEditingWrapper] = useState<any | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
-  const { data: wrappers = [], isLoading } = useQuery({
-    queryKey: ['/api/admin/email-wrappers']
+  const { data: wrappers = [], isLoading, error } = useQuery({
+    queryKey: ['/api/admin/email-wrappers'],
+    queryFn: async () => {
+      const response = await fetch('/api/admin/email-wrappers', {
+        credentials: 'include'
+      });
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${await response.text()}`);
+      }
+      return response.json();
+    }
   });
 
   const wrapperMutation = useMutation({
@@ -725,10 +734,9 @@ const EmailWrappersTab: React.FC = () => {
         ? `/api/admin/email-wrappers/${wrapperData.id}`
         : '/api/admin/email-wrappers';
       
-      return apiRequest(url, {
-        method: wrapperData.id ? 'PUT' : 'POST',
-        body: JSON.stringify(wrapperData)
-      });
+      const method = wrapperData.id ? 'PUT' : 'POST';
+      const response = await apiRequest(method, url, wrapperData);
+      return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/email-wrappers'] });
@@ -743,9 +751,7 @@ const EmailWrappersTab: React.FC = () => {
 
   const deleteWrapperMutation = useMutation({
     mutationFn: async (id: number) => {
-      return apiRequest(`/api/admin/email-wrappers/${id}`, {
-        method: 'DELETE'
-      });
+      await apiRequest('DELETE', `/api/admin/email-wrappers/${id}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/email-wrappers'] });
