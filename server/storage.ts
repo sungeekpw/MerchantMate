@@ -2397,7 +2397,7 @@ export class DatabaseStorage implements IStorage {
         isActive: triggerCatalog.isActive
       })
       .from(triggerActions)
-      .innerJoin(triggerCatalog, eq(triggerActions.triggerCatalogId, triggerCatalog.id))
+      .innerJoin(triggerCatalog, eq(triggerActions.triggerId, triggerCatalog.id))
       .where(eq(triggerActions.actionTemplateId, templateId))
       .orderBy(triggerCatalog.name);
     
@@ -2414,8 +2414,7 @@ export class DatabaseStorage implements IStorage {
         isActive: triggerCatalog.isActive
       })
       .from(triggerActions)
-      .innerJoin(triggerCatalog, eq(triggerActions.triggerCatalogId, triggerCatalog.id))
-      .orderBy(triggerCatalog.name);
+      .innerJoin(triggerCatalog, eq(triggerActions.triggerId, triggerCatalog.id));
     
     const usageMap: Record<number, Array<{ triggerId: number; triggerName: string; triggerKey: string; isActive: boolean }>> = {};
     
