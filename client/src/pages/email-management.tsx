@@ -290,7 +290,7 @@ const SystemTriggersTab: React.FC = () => {
     mutationFn: async (data: any) => {
       const { id, ...updates } = data;
       const response = await fetch(`/api/admin/trigger-actions/${id}`, {
-        method: 'PATCH',
+        method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify(updates)
