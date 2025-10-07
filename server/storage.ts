@@ -372,6 +372,7 @@ export interface IStorage {
   // User Alert operations
   getUserAlerts(userId: string, includeRead?: boolean): Promise<UserAlert[]>;
   getUnreadAlertCount(userId: string): Promise<number>;
+  createUserAlert(alert: InsertUserAlert): Promise<UserAlert>;
   markAlertAsRead(alertId: number, userId: string): Promise<UserAlert | undefined>;
   markAllAlertsAsRead(userId: string): Promise<number>;
   deleteAlert(alertId: number, userId: string): Promise<boolean>;
@@ -2394,6 +2395,11 @@ export class DatabaseStorage implements IStorage {
       ));
     
     return result?.count || 0;
+  }
+
+  async createUserAlert(alert: InsertUserAlert): Promise<UserAlert> {
+    const [newAlert] = await db.insert(userAlerts).values(alert).returning();
+    return newAlert;
   }
 
   async markAlertAsRead(alertId: number, userId: string): Promise<UserAlert | undefined> {
