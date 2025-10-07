@@ -1,4 +1,4 @@
-import { companies, merchants, agents, transactions, users, loginAttempts, twoFactorCodes, userDashboardPreferences, agentMerchants, locations, addresses, pdfForms, pdfFormFields, pdfFormSubmissions, merchantProspects, prospectOwners, prospectSignatures, feeGroups, feeItemGroups, feeItems, pricingTypes, pricingTypeFeeItems, campaigns, campaignFeeValues, campaignAssignments, equipmentItems, campaignEquipment, apiKeys, apiRequestLogs, emailTemplates, emailActivity, emailTriggers, actionTemplates, triggerCatalog, triggerActions, userAlerts, type Merchant, type Agent, type Transaction, type User, type InsertMerchant, type InsertAgent, type InsertTransaction, type UpsertUser, type MerchantWithAgent, type TransactionWithMerchant, type LoginAttempt, type TwoFactorCode, type UserDashboardPreference, type InsertUserDashboardPreference, type AgentMerchant, type InsertAgentMerchant, type Location, type InsertLocation, type Address, type InsertAddress, type LocationWithAddresses, type MerchantWithLocations, type PdfForm, type InsertPdfForm, type PdfFormField, type InsertPdfFormField, type PdfFormSubmission, type InsertPdfFormSubmission, type PdfFormWithFields, type MerchantProspect, type InsertMerchantProspect, type MerchantProspectWithAgent, type ProspectOwner, type InsertProspectOwner, type ProspectSignature, type InsertProspectSignature, type FeeGroup, type InsertFeeGroup, type FeeItemGroup, type InsertFeeItemGroup, type FeeItem, type InsertFeeItem, type PricingType, type InsertPricingType, type PricingTypeFeeItem, type InsertPricingTypeFeeItem, type Campaign, type InsertCampaign, type CampaignFeeValue, type InsertCampaignFeeValue, type CampaignAssignment, type InsertCampaignAssignment, type EquipmentItem, type InsertEquipmentItem, type CampaignEquipment, type InsertCampaignEquipment, type FeeGroupWithItems, type FeeItemGroupWithItems, type FeeGroupWithItemGroups, type PricingTypeWithFeeItems, type CampaignWithDetails, type ApiKey, type InsertApiKey, type ApiRequestLog, type InsertApiRequestLog, type EmailTemplate, type InsertEmailTemplate, type EmailActivity, type InsertEmailActivity, type EmailTrigger, type InsertEmailTrigger, type ActionTemplate, type InsertActionTemplate, type TriggerCatalog, type InsertTriggerCatalog, type TriggerAction, type InsertTriggerAction, type UserAlert, type InsertUserAlert } from "@shared/schema";
+import { companies, merchants, agents, transactions, users, loginAttempts, twoFactorCodes, userDashboardPreferences, agentMerchants, locations, addresses, pdfForms, pdfFormFields, pdfFormSubmissions, merchantProspects, prospectOwners, prospectSignatures, feeGroups, feeItemGroups, feeItems, pricingTypes, pricingTypeFeeItems, campaigns, campaignFeeValues, campaignAssignments, equipmentItems, campaignEquipment, apiKeys, apiRequestLogs, emailWrappers, emailTemplates, emailActivity, emailTriggers, actionTemplates, triggerCatalog, triggerActions, userAlerts, type Merchant, type Agent, type Transaction, type User, type InsertMerchant, type InsertAgent, type InsertTransaction, type UpsertUser, type MerchantWithAgent, type TransactionWithMerchant, type LoginAttempt, type TwoFactorCode, type UserDashboardPreference, type InsertUserDashboardPreference, type AgentMerchant, type InsertAgentMerchant, type Location, type InsertLocation, type Address, type InsertAddress, type LocationWithAddresses, type MerchantWithLocations, type PdfForm, type InsertPdfForm, type PdfFormField, type InsertPdfFormField, type PdfFormSubmission, type InsertPdfFormSubmission, type PdfFormWithFields, type MerchantProspect, type InsertMerchantProspect, type MerchantProspectWithAgent, type ProspectOwner, type InsertProspectOwner, type ProspectSignature, type InsertProspectSignature, type FeeGroup, type InsertFeeGroup, type FeeItemGroup, type InsertFeeItemGroup, type FeeItem, type InsertFeeItem, type PricingType, type InsertPricingType, type PricingTypeFeeItem, type InsertPricingTypeFeeItem, type Campaign, type InsertCampaign, type CampaignFeeValue, type InsertCampaignFeeValue, type CampaignAssignment, type InsertCampaignAssignment, type EquipmentItem, type InsertEquipmentItem, type CampaignEquipment, type InsertCampaignEquipment, type FeeGroupWithItems, type FeeItemGroupWithItems, type FeeGroupWithItemGroups, type PricingTypeWithFeeItems, type CampaignWithDetails, type ApiKey, type InsertApiKey, type ApiRequestLog, type InsertApiRequestLog, type EmailWrapper, type InsertEmailWrapper, type EmailTemplate, type InsertEmailTemplate, type EmailActivity, type InsertEmailActivity, type EmailTrigger, type InsertEmailTrigger, type ActionTemplate, type InsertActionTemplate, type TriggerCatalog, type InsertTriggerCatalog, type TriggerAction, type InsertTriggerAction, type UserAlert, type InsertUserAlert } from "@shared/schema";
 import { db } from "./db";
 import { eq, or, and, gte, sql, desc, inArray, like, ilike, not } from "drizzle-orm";
 
@@ -134,6 +134,13 @@ export interface IStorage {
   getProspectOwnerByEmailAndProspectId(email: string, prospectId: number): Promise<ProspectOwner | undefined>;
 
   // Email Management operations
+  getAllEmailWrappers(): Promise<EmailWrapper[]>;
+  getEmailWrapper(id: number): Promise<EmailWrapper | undefined>;
+  getEmailWrapperByName(name: string): Promise<EmailWrapper | undefined>;
+  createEmailWrapper(wrapper: InsertEmailWrapper): Promise<EmailWrapper>;
+  updateEmailWrapper(id: number, updates: Partial<InsertEmailWrapper>): Promise<EmailWrapper | undefined>;
+  deleteEmailWrapper(id: number): Promise<boolean>;
+
   getAllEmailTemplates(): Promise<EmailTemplate[]>;
   getEmailTemplate(id: number): Promise<EmailTemplate | undefined>;
   getEmailTemplateByName(name: string): Promise<EmailTemplate | undefined>;
@@ -1961,6 +1968,38 @@ export class DatabaseStorage implements IStorage {
   async getAllPdfForms() {
     // Return empty array for now - this feature may not be implemented yet
     return [];
+  }
+
+  async getAllEmailWrappers() {
+    return await db.select().from(emailWrappers);
+  }
+
+  async getEmailWrapper(id: number) {
+    const [wrapper] = await db.select().from(emailWrappers).where(eq(emailWrappers.id, id));
+    return wrapper;
+  }
+
+  async getEmailWrapperByName(name: string) {
+    const [wrapper] = await db.select().from(emailWrappers).where(eq(emailWrappers.name, name));
+    return wrapper;
+  }
+
+  async createEmailWrapper(wrapper: InsertEmailWrapper) {
+    const [newWrapper] = await db.insert(emailWrappers).values(wrapper).returning();
+    return newWrapper;
+  }
+
+  async updateEmailWrapper(id: number, updates: Partial<InsertEmailWrapper>) {
+    const [updatedWrapper] = await db.update(emailWrappers)
+      .set(updates)
+      .where(eq(emailWrappers.id, id))
+      .returning();
+    return updatedWrapper;
+  }
+
+  async deleteEmailWrapper(id: number) {
+    const deleted = await db.delete(emailWrappers).where(eq(emailWrappers.id, id));
+    return deleted.rowCount > 0;
   }
 
   async getAllEmailTemplates() {
