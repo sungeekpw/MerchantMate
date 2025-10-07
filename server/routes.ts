@@ -8644,22 +8644,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Email template not found" });
       }
       
-      console.log('Test Email - Template data:', {
-        id: template.id,
-        name: template.name,
-        useWrapper: template.useWrapper,
-        wrapperType: template.wrapperType,
-        hasHeaderSubtitle: !!template.headerSubtitle,
-        hasCTA: !!(template.ctaButtonText && template.ctaButtonUrl)
-      });
-      
       // Import email wrapper utility
       const { applyEmailWrapper } = await import("./emailTemplateWrapper");
       
       // Apply wrapper if configured (keeping placeholders intact)
       let htmlContent = template.htmlContent;
       if (template.useWrapper) {
-        console.log('Test Email - Applying wrapper');
         htmlContent = applyEmailWrapper({
           subject: template.subject,
           htmlContent: template.htmlContent,
@@ -8672,10 +8662,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           ctaButtonColor: template.ctaButtonColor,
           customFooter: template.customFooter
         }, {}); // Empty variables object to preserve placeholders
-        console.log('Test Email - Wrapper applied, HTML length:', htmlContent.length);
-        console.log('Test Email - First 500 chars of HTML:', htmlContent.substring(0, 500));
-      } else {
-        console.log('Test Email - Wrapper disabled, using raw content');
       }
       
       // Send email using SendGrid
