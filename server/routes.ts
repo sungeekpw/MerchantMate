@@ -8871,6 +8871,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get template usage (which triggers use this template)
+  app.get("/api/admin/action-templates/:id/usage", requireRole(['admin', 'super_admin']), async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const usage = await storage.getActionTemplateUsage(id);
+      res.json(usage);
+    } catch (error) {
+      console.error("Error fetching action template usage:", error);
+      res.status(500).json({ message: "Failed to fetch action template usage" });
+    }
+  });
+
+  // Get all template usage
+  app.get("/api/admin/action-templates-usage", requireRole(['admin', 'super_admin']), async (req, res) => {
+    try {
+      const usage = await storage.getAllActionTemplateUsage();
+      res.json(usage);
+    } catch (error) {
+      console.error("Error fetching action template usage:", error);
+      res.status(500).json({ message: "Failed to fetch action template usage" });
+    }
+  });
+
   // ============================================================================
   // TRIGGER CATALOG API ENDPOINTS - Admin Only
   // ============================================================================
