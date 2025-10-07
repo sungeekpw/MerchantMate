@@ -228,8 +228,8 @@ const SystemTriggersTab: React.FC = () => {
       if (!response.ok) throw new Error('Failed to create action');
       return response.json();
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/trigger-catalog', selectedTrigger?.id, 'actions'] });
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/trigger-catalog', variables.triggerId, 'actions'] });
       setIsActionDialogOpen(false);
       toast({ title: 'Action added successfully' });
     },
