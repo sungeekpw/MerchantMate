@@ -8685,8 +8685,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         to: email,
         from: process.env.SENDGRID_FROM_EMAIL || 'noreply@charrg.com',
         subject: `[TEST] ${template.subject}`,
-        html: htmlContent,
-        text: template.textContent || undefined
+        html: htmlContent
+        // Don't send text version for test emails - always show HTML wrapper
       });
       
       res.json({ 
