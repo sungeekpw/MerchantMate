@@ -743,6 +743,11 @@ const EmailManagement: React.FC = () => {
   const [useWrapper, setUseWrapper] = useState(true);
   const [wrapperType, setWrapperType] = useState('notification');
 
+  // Test email state
+  const [isTestEmailDialogOpen, setIsTestEmailDialogOpen] = useState(false);
+  const [testEmailTemplate, setTestEmailTemplate] = useState<EmailTemplate | null>(null);
+  const [testEmailRecipient, setTestEmailRecipient] = useState('');
+
   // Fetch email templates
   const { data: templates = [], isLoading: templatesLoading } = useQuery({
     queryKey: ['/api/admin/email-templates'],
@@ -888,6 +893,41 @@ const EmailManagement: React.FC = () => {
       toast({
         title: 'Success',
         description: 'Email template deleted successfully'
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: 'Error',
+        description: error.message,
+        variant: 'destructive'
+      });
+    }
+  });
+
+  // Test email mutation
+  const testEmailMutation = useMutation({
+    mutationFn: async ({ templateId, email }: { templateId: number; email: string }) => {
+      const response = await fetch(`/api/admin/email-templates/${templateId}/test`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ email })
+      });
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to send test email');
+      }
+      
+      return response.json();
+    },
+    onSuccess: () => {
+      setIsTestEmailDialogOpen(false);
+      setTestEmailRecipient('');
+      setTestEmailTemplate(null);
+      toast({
+        title: 'Success',
+        description: 'Test email sent successfully'
       });
     },
     onError: (error: Error) => {
@@ -1485,11 +1525,24 @@ const EmailManagement: React.FC = () => {
                               variant="outline"
                               size="sm"
                               onClick={() => {
+                                setTestEmailTemplate(template);
+                                setTestEmailRecipient('');
+                                setIsTestEmailDialogOpen(true);
+                              }}
+                              data-testid={`button-test-email-${template.id}`}
+                            >
+                              <Send className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
                                 setEditingTemplate(template);
                                 setUseWrapper(template.useWrapper !== false);
                                 setWrapperType(template.wrapperType || 'notification');
                                 setIsTemplateDialogOpen(true);
                               }}
+                              data-testid={`button-edit-${template.id}`}
                             >
                               <Edit className="w-4 h-4" />
                             </Button>
@@ -1507,6 +1560,7 @@ const EmailManagement: React.FC = () => {
                                 deleteTemplateMutation.mutate(template.id);
                               }}
                               disabled={deleteTemplateMutation.isPending}
+                              data-testid={`button-delete-${template.id}`}
                             >
                               <Trash2 className="w-4 h-4" />
                             </Button>
@@ -2179,6 +2233,85 @@ Core CRM Team`}
           <SystemTriggersTab />
         </TabsContent>
       </Tabs>
+
+      {/* Test Email Dialog */}
+      <Dialog open={isTestEmailDialogOpen} onOpenChange={setIsTestEmailDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Send Test Email</DialogTitle>
+            <DialogDescription>
+              Send a test email with variable placeholders preserved so you can see where they would appear.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            {testEmailTemplate && (
+              <div className="space-y-2">
+                <div className="bg-gray-50 dark:bg-gray-900 p-3 rounded-lg">
+                  <p className="text-sm font-medium">{testEmailTemplate.name}</p>
+                  <p className="text-xs text-gray-500">{testEmailTemplate.subject}</p>
+                </div>
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <Label htmlFor="test-email-recipient">
+                Recipient Email Address <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                id="test-email-recipient"
+                type="email"
+                placeholder="Enter email address"
+                value={testEmailRecipient}
+                onChange={(e) => setTestEmailRecipient(e.target.value)}
+                data-testid="input-test-email-recipient"
+              />
+              <p className="text-xs text-gray-500">
+                Variable placeholders like {'{{firstName}}'} will be left as-is so you can see where they would appear.
+              </p>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setIsTestEmailDialogOpen(false);
+                setTestEmailRecipient('');
+                setTestEmailTemplate(null);
+              }}
+              data-testid="button-cancel-test-email"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                // Email validation
+                const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                if (!testEmailRecipient || !emailRegex.test(testEmailRecipient)) {
+                  toast({
+                    title: 'Invalid Email',
+                    description: 'Please enter a valid email address',
+                    variant: 'destructive'
+                  });
+                  return;
+                }
+
+                if (testEmailTemplate) {
+                  testEmailMutation.mutate({
+                    templateId: testEmailTemplate.id,
+                    email: testEmailRecipient
+                  });
+                }
+              }}
+              disabled={testEmailMutation.isPending || !testEmailRecipient}
+              data-testid="button-send-test-email"
+            >
+              {testEmailMutation.isPending ? 'Sending...' : 'Send Test Email'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
