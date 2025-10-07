@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { 
   Card, 
@@ -157,7 +157,15 @@ const SystemTriggersTab: React.FC = () => {
   const [isTriggerDialogOpen, setIsTriggerDialogOpen] = useState(false);
   const [isActionDialogOpen, setIsActionDialogOpen] = useState(false);
   const [editingTrigger, setEditingTrigger] = useState<TriggerCatalogItem | null>(null);
+  const [editingAction, setEditingAction] = useState<TriggerActionItem | null>(null);
   const [selectedTriggerEvent, setSelectedTriggerEvent] = useState('');
+
+  // Populate form when editing trigger
+  useEffect(() => {
+    if (editingTrigger) {
+      setSelectedTriggerEvent(editingTrigger.triggerKey);
+    }
+  }, [editingTrigger]);
 
   // Fetch available trigger events
   const { data: triggerEvents = [] } = useQuery({
@@ -223,11 +231,36 @@ const SystemTriggersTab: React.FC = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/trigger-catalog'] });
       setIsTriggerDialogOpen(false);
+      setEditingTrigger(null);
       setSelectedTriggerEvent('');
       toast({ title: 'Trigger created successfully' });
     },
     onError: () => {
       toast({ title: 'Failed to create trigger', variant: 'destructive' });
+    }
+  });
+
+  const updateTriggerMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const { id, ...updates } = data;
+      const response = await fetch(`/api/admin/trigger-catalog/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(updates)
+      });
+      if (!response.ok) throw new Error('Failed to update trigger');
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/trigger-catalog'] });
+      setIsTriggerDialogOpen(false);
+      setEditingTrigger(null);
+      setSelectedTriggerEvent('');
+      toast({ title: 'Trigger updated successfully' });
+    },
+    onError: () => {
+      toast({ title: 'Failed to update trigger', variant: 'destructive' });
     }
   });
 
@@ -245,6 +278,7 @@ const SystemTriggersTab: React.FC = () => {
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/trigger-catalog', variables.triggerId, 'actions'] });
       setIsActionDialogOpen(false);
+      setEditingAction(null);
       toast({ title: 'Action added successfully' });
     },
     onError: () => {
@@ -252,22 +286,51 @@ const SystemTriggersTab: React.FC = () => {
     }
   });
 
+  const updateActionMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const { id, ...updates } = data;
+      const response = await fetch(`/api/admin/trigger-actions/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(updates)
+      });
+      if (!response.ok) throw new Error('Failed to update action');
+      return response.json();
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/trigger-catalog', selectedTrigger?.id, 'actions'] });
+      setIsActionDialogOpen(false);
+      setEditingAction(null);
+      toast({ title: 'Action updated successfully' });
+    },
+    onError: () => {
+      toast({ title: 'Failed to update action', variant: 'destructive' });
+    }
+  });
+
   const handleTriggerSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
-    createTriggerMutation.mutate({
+    const data = {
       triggerKey: selectedTriggerEvent,
       name: formData.get('name'),
       description: formData.get('description'),
       category: formData.get('category'),
       isActive: formData.get('isActive') === 'true'
-    });
+    };
+    
+    if (editingTrigger) {
+      updateTriggerMutation.mutate({ id: editingTrigger.id, ...data });
+    } else {
+      createTriggerMutation.mutate(data);
+    }
   };
 
   const handleActionSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
-    createActionMutation.mutate({
+    const data = {
       triggerId: selectedTrigger?.id,
       actionTemplateId: parseInt(formData.get('actionTemplateId') as string),
       sequenceOrder: parseInt(formData.get('sequenceOrder') as string) || 1,
@@ -277,7 +340,13 @@ const SystemTriggersTab: React.FC = () => {
       retryOnFailure: formData.get('retryOnFailure') === 'true',
       maxRetries: parseInt(formData.get('maxRetries') as string) || 3,
       isActive: formData.get('isActive') === 'true'
-    });
+    };
+    
+    if (editingAction) {
+      updateActionMutation.mutate({ id: editingAction.id, ...data });
+    } else {
+      createActionMutation.mutate(data);
+    }
   };
 
   return (
@@ -300,8 +369,10 @@ const SystemTriggersTab: React.FC = () => {
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Create Trigger</DialogTitle>
-              <DialogDescription>Define a new system trigger event</DialogDescription>
+              <DialogTitle>{editingTrigger ? 'Edit' : 'Create'} Trigger</DialogTitle>
+              <DialogDescription>
+                {editingTrigger ? 'Update trigger settings' : 'Define a new system trigger event'}
+              </DialogDescription>
             </DialogHeader>
             <form onSubmit={handleTriggerSubmit} className="space-y-4">
               <div className="space-y-2">
@@ -325,15 +396,28 @@ const SystemTriggersTab: React.FC = () => {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="name">Name</Label>
-                <Input id="name" name="name" placeholder="User Registered" required data-testid="input-trigger-name" />
+                <Input 
+                  id="name" 
+                  name="name" 
+                  placeholder="User Registered" 
+                  defaultValue={editingTrigger?.name || ''}
+                  required 
+                  data-testid="input-trigger-name" 
+                />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="description">Description</Label>
-                <Textarea id="description" name="description" placeholder="Triggered when a user registers" data-testid="input-trigger-description" />
+                <Textarea 
+                  id="description" 
+                  name="description" 
+                  placeholder="Triggered when a user registers" 
+                  defaultValue={editingTrigger?.description || ''}
+                  data-testid="input-trigger-description" 
+                />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="category">Category</Label>
-                <Select name="category" defaultValue="user" required>
+                <Select name="category" defaultValue={editingTrigger?.category || 'user'} required>
                   <SelectTrigger data-testid="select-trigger-category">
                     <SelectValue placeholder="Select category" />
                   </SelectTrigger>
@@ -348,7 +432,7 @@ const SystemTriggersTab: React.FC = () => {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="isActive">Status</Label>
-                <Select name="isActive" defaultValue="true">
+                <Select name="isActive" defaultValue={editingTrigger?.isActive === false ? 'false' : 'true'}>
                   <SelectTrigger data-testid="select-trigger-status">
                     <SelectValue />
                   </SelectTrigger>
@@ -359,7 +443,9 @@ const SystemTriggersTab: React.FC = () => {
                 </Select>
               </div>
               <DialogFooter>
-                <Button type="submit" data-testid="button-submit-trigger">Create Trigger</Button>
+                <Button type="submit" data-testid="button-submit-trigger">
+                  {editingTrigger ? 'Update' : 'Create'} Trigger
+                </Button>
               </DialogFooter>
             </form>
           </DialogContent>
@@ -389,16 +475,30 @@ const SystemTriggersTab: React.FC = () => {
                     data-testid={`trigger-item-${trigger.id}`}
                   >
                     <div className="flex justify-between items-start">
-                      <div>
+                      <div className="flex-1" onClick={() => setSelectedTrigger(trigger)}>
                         <h4 className="font-medium">{trigger.name}</h4>
                         <p className="text-sm text-gray-600">{trigger.triggerKey}</p>
                         {trigger.description && (
                           <p className="text-xs text-gray-500 mt-1">{trigger.description}</p>
                         )}
                       </div>
-                      <Badge variant={trigger.isActive ? 'default' : 'secondary'}>
-                        {trigger.isActive ? 'Active' : 'Inactive'}
-                      </Badge>
+                      <div className="flex items-center gap-2">
+                        <Badge variant={trigger.isActive ? 'default' : 'secondary'}>
+                          {trigger.isActive ? 'Active' : 'Inactive'}
+                        </Badge>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setEditingTrigger(trigger);
+                            setIsTriggerDialogOpen(true);
+                          }}
+                          data-testid={`button-edit-trigger-${trigger.id}`}
+                        >
+                          <Edit className="w-4 h-4" />
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -423,7 +523,10 @@ const SystemTriggersTab: React.FC = () => {
                 <Dialog open={isActionDialogOpen} onOpenChange={setIsActionDialogOpen}>
                   <DialogTrigger asChild>
                     <Button 
-                      onClick={() => setIsActionDialogOpen(true)} 
+                      onClick={() => {
+                        setEditingAction(null);
+                        setIsActionDialogOpen(true);
+                      }} 
                       variant="outline" 
                       size="sm"
                       data-testid="button-add-action"
@@ -434,15 +537,15 @@ const SystemTriggersTab: React.FC = () => {
                   </DialogTrigger>
                   <DialogContent className="max-w-2xl">
                     <DialogHeader>
-                      <DialogTitle>Add Action to Trigger</DialogTitle>
+                      <DialogTitle>{editingAction ? 'Edit' : 'Add'} Action to Trigger</DialogTitle>
                       <DialogDescription>
-                        Associate an action template with {selectedTrigger.name}
+                        {editingAction ? 'Update action settings' : `Associate an action template with ${selectedTrigger.name}`}
                       </DialogDescription>
                     </DialogHeader>
                     <form onSubmit={handleActionSubmit} className="space-y-4">
                       <div className="space-y-2">
                         <Label htmlFor="actionTemplateId">Action Template</Label>
-                        <Select name="actionTemplateId" required>
+                        <Select name="actionTemplateId" defaultValue={editingAction?.actionTemplateId?.toString()} required>
                           <SelectTrigger data-testid="select-action-template">
                             <SelectValue placeholder="Select action template" />
                           </SelectTrigger>
@@ -462,7 +565,7 @@ const SystemTriggersTab: React.FC = () => {
                             id="sequenceOrder" 
                             name="sequenceOrder" 
                             type="number" 
-                            defaultValue="1" 
+                            defaultValue={editingAction?.sequenceOrder || 1} 
                             min="1"
                             data-testid="input-sequence-order" 
                           />
@@ -473,7 +576,7 @@ const SystemTriggersTab: React.FC = () => {
                             id="delaySeconds" 
                             name="delaySeconds" 
                             type="number" 
-                            defaultValue="0" 
+                            defaultValue={editingAction?.delaySeconds || 0} 
                             min="0"
                             data-testid="input-delay-seconds" 
                           />
@@ -488,6 +591,7 @@ const SystemTriggersTab: React.FC = () => {
                               id="requiresEmailPreference" 
                               name="requiresEmailPreference" 
                               value="true"
+                              defaultChecked={editingAction?.requiresEmailPreference || false}
                               className="rounded"
                               data-testid="checkbox-email-preference"
                             />
@@ -501,6 +605,7 @@ const SystemTriggersTab: React.FC = () => {
                               id="requiresSmsPreference" 
                               name="requiresSmsPreference" 
                               value="true"
+                              defaultChecked={editingAction?.requiresSmsPreference || false}
                               className="rounded"
                               data-testid="checkbox-sms-preference"
                             />
@@ -518,7 +623,7 @@ const SystemTriggersTab: React.FC = () => {
                               id="retryOnFailure" 
                               name="retryOnFailure" 
                               value="true"
-                              defaultChecked
+                              defaultChecked={editingAction?.retryOnFailure !== false}
                               className="rounded"
                               data-testid="checkbox-retry-failure"
                             />
@@ -533,7 +638,7 @@ const SystemTriggersTab: React.FC = () => {
                             id="maxRetries" 
                             name="maxRetries" 
                             type="number" 
-                            defaultValue="3" 
+                            defaultValue={editingAction?.maxRetries || 3} 
                             min="0"
                             data-testid="input-max-retries" 
                           />
@@ -541,7 +646,7 @@ const SystemTriggersTab: React.FC = () => {
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="actionIsActive">Status</Label>
-                        <Select name="isActive" defaultValue="true">
+                        <Select name="isActive" defaultValue={editingAction?.isActive === false ? 'false' : 'true'}>
                           <SelectTrigger data-testid="select-action-status">
                             <SelectValue />
                           </SelectTrigger>
@@ -552,7 +657,9 @@ const SystemTriggersTab: React.FC = () => {
                         </Select>
                       </div>
                       <DialogFooter>
-                        <Button type="submit" data-testid="button-submit-action">Add Action</Button>
+                        <Button type="submit" data-testid="button-submit-action">
+                          {editingAction ? 'Update' : 'Add'} Action
+                        </Button>
                       </DialogFooter>
                     </form>
                   </DialogContent>
@@ -566,7 +673,7 @@ const SystemTriggersTab: React.FC = () => {
                       data-testid={`action-item-${action.id}`}
                     >
                       <div className="flex justify-between items-start">
-                        <div>
+                        <div className="flex-1">
                           <div className="flex items-center gap-2">
                             <Badge variant="outline">{action.sequenceOrder}</Badge>
                             <h5 className="font-medium">{action.actionTemplate?.name || 'Unknown Template'}</h5>
@@ -577,9 +684,22 @@ const SystemTriggersTab: React.FC = () => {
                             </p>
                           )}
                         </div>
-                        <Badge variant={action.isActive ? 'default' : 'secondary'}>
-                          {action.isActive ? 'Active' : 'Inactive'}
-                        </Badge>
+                        <div className="flex items-center gap-2">
+                          <Badge variant={action.isActive ? 'default' : 'secondary'}>
+                            {action.isActive ? 'Active' : 'Inactive'}
+                          </Badge>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              setEditingAction(action);
+                              setIsActionDialogOpen(true);
+                            }}
+                            data-testid={`button-edit-action-${action.id}`}
+                          >
+                            <Edit className="w-4 h-4" />
+                          </Button>
+                        </div>
                       </div>
                     </div>
                   ))}
