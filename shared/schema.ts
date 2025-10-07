@@ -1210,7 +1210,7 @@ export const emailTemplates = pgTable('email_templates', {
   // Email Wrapper Configuration (kept for backward compatibility)
   useWrapper: boolean('use_wrapper').default(true), // Whether to apply email wrapper
   wrapperType: varchar('wrapper_type', { length: 50 }).default('notification'), // welcome, security, agentNotification, notification, custom
-  wrapperId: integer('wrapper_id').references(() => emailWrappers.id), // Reference to reusable wrapper
+  // wrapperId: integer('wrapper_id'), // Temporarily removed to debug issue
   headerGradient: text('header_gradient'), // Custom gradient if wrapperType is 'custom'
   headerSubtitle: text('header_subtitle'), // Optional subtitle for header
   ctaButtonText: text('cta_button_text'), // Call-to-action button text
