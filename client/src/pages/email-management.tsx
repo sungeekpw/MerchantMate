@@ -196,6 +196,76 @@ const SystemTriggersTab: React.FC = () => {
     }
   });
 
+  const createTriggerMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const response = await fetch('/api/admin/trigger-catalog', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(data)
+      });
+      if (!response.ok) throw new Error('Failed to create trigger');
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/trigger-catalog'] });
+      setIsTriggerDialogOpen(false);
+      toast({ title: 'Trigger created successfully' });
+    },
+    onError: () => {
+      toast({ title: 'Failed to create trigger', variant: 'destructive' });
+    }
+  });
+
+  const createActionMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const response = await fetch('/api/admin/trigger-actions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(data)
+      });
+      if (!response.ok) throw new Error('Failed to create action');
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/trigger-catalog', selectedTrigger?.id, 'actions'] });
+      setIsActionDialogOpen(false);
+      toast({ title: 'Action added successfully' });
+    },
+    onError: () => {
+      toast({ title: 'Failed to add action', variant: 'destructive' });
+    }
+  });
+
+  const handleTriggerSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+    createTriggerMutation.mutate({
+      triggerKey: formData.get('triggerKey'),
+      name: formData.get('name'),
+      description: formData.get('description'),
+      category: formData.get('category'),
+      isActive: formData.get('isActive') === 'true'
+    });
+  };
+
+  const handleActionSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+    createActionMutation.mutate({
+      triggerId: selectedTrigger?.id,
+      actionTemplateId: parseInt(formData.get('actionTemplateId') as string),
+      sequenceOrder: parseInt(formData.get('sequenceOrder') as string) || 1,
+      delaySeconds: parseInt(formData.get('delaySeconds') as string) || 0,
+      requiresEmailPreference: formData.get('requiresEmailPreference') === 'true',
+      requiresSmsPreference: formData.get('requiresSmsPreference') === 'true',
+      retryOnFailure: formData.get('retryOnFailure') === 'true',
+      maxRetries: parseInt(formData.get('maxRetries') as string) || 3,
+      isActive: formData.get('isActive') === 'true'
+    });
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
@@ -203,13 +273,67 @@ const SystemTriggersTab: React.FC = () => {
           <h3 className="text-lg font-medium">System Triggers</h3>
           <p className="text-sm text-gray-600">Manage automated triggers and their associated actions</p>
         </div>
-        <Button onClick={() => {
-          setEditingTrigger(null);
-          setIsTriggerDialogOpen(true);
-        }} data-testid="button-create-trigger">
-          <Plus className="w-4 h-4 mr-2" />
-          New Trigger
-        </Button>
+        <Dialog open={isTriggerDialogOpen} onOpenChange={setIsTriggerDialogOpen}>
+          <DialogTrigger asChild>
+            <Button onClick={() => {
+              setEditingTrigger(null);
+              setIsTriggerDialogOpen(true);
+            }} data-testid="button-create-trigger">
+              <Plus className="w-4 h-4 mr-2" />
+              New Trigger
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Create Trigger</DialogTitle>
+              <DialogDescription>Define a new system trigger event</DialogDescription>
+            </DialogHeader>
+            <form onSubmit={handleTriggerSubmit} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="triggerKey">Trigger Key</Label>
+                <Input id="triggerKey" name="triggerKey" placeholder="user_registered" required data-testid="input-trigger-key" />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="name">Name</Label>
+                <Input id="name" name="name" placeholder="User Registered" required data-testid="input-trigger-name" />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="description">Description</Label>
+                <Textarea id="description" name="description" placeholder="Triggered when a user registers" data-testid="input-trigger-description" />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="category">Category</Label>
+                <Select name="category" defaultValue="user" required>
+                  <SelectTrigger data-testid="select-trigger-category">
+                    <SelectValue placeholder="Select category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="user">User</SelectItem>
+                    <SelectItem value="application">Application</SelectItem>
+                    <SelectItem value="merchant">Merchant</SelectItem>
+                    <SelectItem value="agent">Agent</SelectItem>
+                    <SelectItem value="system">System</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="isActive">Status</Label>
+                <Select name="isActive" defaultValue="true">
+                  <SelectTrigger data-testid="select-trigger-status">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="true">Active</SelectItem>
+                    <SelectItem value="false">Inactive</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <DialogFooter>
+                <Button type="submit" data-testid="button-submit-trigger">Create Trigger</Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
       </div>
 
       <div className="grid grid-cols-2 gap-4">
@@ -266,15 +390,143 @@ const SystemTriggersTab: React.FC = () => {
           <CardContent>
             {selectedTrigger ? (
               <div className="space-y-4">
-                <Button 
-                  onClick={() => setIsActionDialogOpen(true)} 
-                  variant="outline" 
-                  size="sm"
-                  data-testid="button-add-action"
-                >
-                  <Plus className="w-4 h-4 mr-2" />
-                  Add Action
-                </Button>
+                <Dialog open={isActionDialogOpen} onOpenChange={setIsActionDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button 
+                      onClick={() => setIsActionDialogOpen(true)} 
+                      variant="outline" 
+                      size="sm"
+                      data-testid="button-add-action"
+                    >
+                      <Plus className="w-4 h-4 mr-2" />
+                      Add Action
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-2xl">
+                    <DialogHeader>
+                      <DialogTitle>Add Action to Trigger</DialogTitle>
+                      <DialogDescription>
+                        Associate an action template with {selectedTrigger.name}
+                      </DialogDescription>
+                    </DialogHeader>
+                    <form onSubmit={handleActionSubmit} className="space-y-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="actionTemplateId">Action Template</Label>
+                        <Select name="actionTemplateId" required>
+                          <SelectTrigger data-testid="select-action-template">
+                            <SelectValue placeholder="Select action template" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {actionTemplates.map((template) => (
+                              <SelectItem key={template.id} value={template.id.toString()}>
+                                {template.name} ({template.actionType})
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="sequenceOrder">Sequence Order</Label>
+                          <Input 
+                            id="sequenceOrder" 
+                            name="sequenceOrder" 
+                            type="number" 
+                            defaultValue="1" 
+                            min="1"
+                            data-testid="input-sequence-order" 
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="delaySeconds">Delay (seconds)</Label>
+                          <Input 
+                            id="delaySeconds" 
+                            name="delaySeconds" 
+                            type="number" 
+                            defaultValue="0" 
+                            min="0"
+                            data-testid="input-delay-seconds" 
+                          />
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Preferences</Label>
+                        <div className="space-y-2">
+                          <div className="flex items-center space-x-2">
+                            <input 
+                              type="checkbox" 
+                              id="requiresEmailPreference" 
+                              name="requiresEmailPreference" 
+                              value="true"
+                              className="rounded"
+                              data-testid="checkbox-email-preference"
+                            />
+                            <Label htmlFor="requiresEmailPreference" className="font-normal">
+                              Requires email preference
+                            </Label>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <input 
+                              type="checkbox" 
+                              id="requiresSmsPreference" 
+                              name="requiresSmsPreference" 
+                              value="true"
+                              className="rounded"
+                              data-testid="checkbox-sms-preference"
+                            />
+                            <Label htmlFor="requiresSmsPreference" className="font-normal">
+                              Requires SMS preference
+                            </Label>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <div className="flex items-center space-x-2">
+                            <input 
+                              type="checkbox" 
+                              id="retryOnFailure" 
+                              name="retryOnFailure" 
+                              value="true"
+                              defaultChecked
+                              className="rounded"
+                              data-testid="checkbox-retry-failure"
+                            />
+                            <Label htmlFor="retryOnFailure" className="font-normal">
+                              Retry on failure
+                            </Label>
+                          </div>
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="maxRetries">Max Retries</Label>
+                          <Input 
+                            id="maxRetries" 
+                            name="maxRetries" 
+                            type="number" 
+                            defaultValue="3" 
+                            min="0"
+                            data-testid="input-max-retries" 
+                          />
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="actionIsActive">Status</Label>
+                        <Select name="isActive" defaultValue="true">
+                          <SelectTrigger data-testid="select-action-status">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="true">Active</SelectItem>
+                            <SelectItem value="false">Inactive</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <DialogFooter>
+                        <Button type="submit" data-testid="button-submit-action">Add Action</Button>
+                      </DialogFooter>
+                    </form>
+                  </DialogContent>
+                </Dialog>
                 
                 <div className="space-y-2">
                   {triggerActions.map((action) => (
