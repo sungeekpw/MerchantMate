@@ -1372,7 +1372,16 @@ const EmailManagement: React.FC = () => {
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={() => deleteTemplateMutation.mutate(template.id)}
+                              onClick={() => {
+                                const usage = templateUsage[template.id] || [];
+                                if (usage.length > 0) {
+                                  const triggerNames = usage.map((t: any) => t.triggerName).join(', ');
+                                  if (!confirm(`Warning: This template is used by ${usage.length} trigger(s): ${triggerNames}\n\nDeleting it will break these automations. Continue?`)) {
+                                    return;
+                                  }
+                                }
+                                deleteTemplateMutation.mutate(template.id);
+                              }}
                               disabled={deleteTemplateMutation.isPending}
                             >
                               <Trash2 className="w-4 h-4" />
@@ -1743,7 +1752,15 @@ const EmailManagement: React.FC = () => {
                                 variant="ghost"
                                 size="sm"
                                 onClick={() => {
-                                  if (confirm('Are you sure you want to delete this notification template?')) {
+                                  const usage = templateUsage[template.id] || [];
+                                  let message = 'Are you sure you want to delete this notification template?';
+                                  
+                                  if (usage.length > 0) {
+                                    const triggerNames = usage.map((t: any) => t.triggerName).join(', ');
+                                    message = `Warning: This template is used by ${usage.length} trigger(s): ${triggerNames}\n\nDeleting it will break these automations. Continue?`;
+                                  }
+                                  
+                                  if (confirm(message)) {
                                     deleteNotificationMutation.mutate(template.id);
                                   }
                                 }}
