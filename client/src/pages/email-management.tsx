@@ -53,6 +53,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import type { EmailTemplate } from '@shared/schema';
+import { WysiwygEditor } from '@/components/WysiwygEditor';
 
 interface EmailActivity {
   id: number;
@@ -729,6 +730,9 @@ const EmailManagement: React.FC = () => {
   // Wrapper configuration state
   const [useWrapper, setUseWrapper] = useState(true);
   const [wrapperType, setWrapperType] = useState('notification');
+  
+  // HTML content state for WYSIWYG editor
+  const [htmlContent, setHtmlContent] = useState('');
 
   // Test email state
   const [isTestEmailDialogOpen, setIsTestEmailDialogOpen] = useState(false);
@@ -1224,6 +1228,7 @@ const EmailManagement: React.FC = () => {
                     setEditingTemplate(null);
                     setUseWrapper(true);
                     setWrapperType('notification');
+                    setHtmlContent('');
                     setIsTemplateDialogOpen(true);
                   }}
                 >
@@ -1305,13 +1310,12 @@ const EmailManagement: React.FC = () => {
                   
                   <div>
                     <Label htmlFor="htmlContent">HTML Content</Label>
-                    <Textarea
+                    <WysiwygEditor
                       id="htmlContent"
                       name="htmlContent"
-                      defaultValue={editingTemplate?.htmlContent || ''}
-                      rows={10}
-                      required
-                      placeholder="HTML email content with template variables"
+                      value={htmlContent}
+                      onChange={setHtmlContent}
+                      placeholder="HTML email content with template variables like {{firstName}}, {{email}}, etc."
                     />
                   </div>
 
@@ -1527,6 +1531,7 @@ const EmailManagement: React.FC = () => {
                                 setEditingTemplate(template);
                                 setUseWrapper(template.useWrapper !== false);
                                 setWrapperType(template.wrapperType || 'notification');
+                                setHtmlContent(template.htmlContent || '');
                                 setIsTemplateDialogOpen(true);
                               }}
                               data-testid={`button-edit-${template.id}`}
