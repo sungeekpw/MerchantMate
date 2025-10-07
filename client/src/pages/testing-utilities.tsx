@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Progress } from "@/components/ui/progress";
 import TestingDashboard from "@/components/TestingDashboard";
 import { Trash2, RefreshCw, Database, CheckCircle, X, Server, Shield, ShieldCheck, TestTube, Settings, Play, Pause, BarChart3, FileText, AlertCircle, Clock, Copy, Terminal, ArrowLeftRight, Download, Upload, Eye, List, Bell } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 interface ResetResult {
   success: boolean;
@@ -77,6 +78,7 @@ export default function TestingUtilities() {
   };
 
   const queryClient = useQueryClient();
+  const { toast } = useToast();
 
   // Query to get current database environment
   const { data: dbEnvironment } = useQuery({
@@ -132,9 +134,20 @@ export default function TestingUtilities() {
       if (!response.ok) throw new Error('Failed to create test alerts');
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['/api/alerts'] });
       queryClient.invalidateQueries({ queryKey: ['/api/alerts/count'] });
+      toast({
+        title: 'Test Alerts Created',
+        description: `${data.message || '4 test alerts created successfully'}. Check the bell icon in the header to view them.`,
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: 'Error',
+        description: 'Failed to create test alerts. Please try again.',
+        variant: 'destructive',
+      });
     },
   });
 
