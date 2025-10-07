@@ -8519,6 +8519,107 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // EMAIL MANAGEMENT API ENDPOINTS - Admin Only
   // ============================================================================
 
+  // Email Wrappers
+  // Get all email wrappers
+  app.get("/api/admin/email-wrappers", requireRole(['admin', 'super_admin']), async (req, res) => {
+    try {
+      const wrappers = await storage.getAllEmailWrappers();
+      res.json(wrappers);
+    } catch (error) {
+      console.error("Error fetching email wrappers:", error);
+      res.status(500).json({ message: "Failed to fetch email wrappers" });
+    }
+  });
+
+  // Get single email wrapper
+  app.get("/api/admin/email-wrappers/:id", requireRole(['admin', 'super_admin']), async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const wrapper = await storage.getEmailWrapper(id);
+      
+      if (!wrapper) {
+        return res.status(404).json({ message: "Email wrapper not found" });
+      }
+      
+      res.json(wrapper);
+    } catch (error) {
+      console.error("Error fetching email wrapper:", error);
+      res.status(500).json({ message: "Failed to fetch email wrapper" });
+    }
+  });
+
+  // Create email wrapper
+  app.post("/api/admin/email-wrappers", requireRole(['admin', 'super_admin']), async (req, res) => {
+    try {
+      const { insertEmailWrapperSchema } = await import("@shared/schema");
+      const result = insertEmailWrapperSchema.safeParse(req.body);
+      
+      if (!result.success) {
+        return res.status(400).json({ 
+          message: "Invalid email wrapper data", 
+          errors: result.error.errors 
+        });
+      }
+
+      const wrapper = await storage.createEmailWrapper(result.data);
+      res.status(201).json(wrapper);
+    } catch (error) {
+      console.error("Error creating email wrapper:", error);
+      if (error.code === '23505') { // Unique constraint violation
+        return res.status(400).json({ message: "Email wrapper name already exists" });
+      }
+      res.status(500).json({ message: "Failed to create email wrapper" });
+    }
+  });
+
+  // Update email wrapper
+  app.put("/api/admin/email-wrappers/:id", requireRole(['admin', 'super_admin']), async (req, res) => {
+    try {
+      const { insertEmailWrapperSchema } = await import("@shared/schema");
+      const id = parseInt(req.params.id);
+      const result = insertEmailWrapperSchema.partial().safeParse(req.body);
+      
+      if (!result.success) {
+        return res.status(400).json({ 
+          message: "Invalid email wrapper data", 
+          errors: result.error.errors 
+        });
+      }
+
+      const wrapper = await storage.updateEmailWrapper(id, result.data);
+      
+      if (!wrapper) {
+        return res.status(404).json({ message: "Email wrapper not found" });
+      }
+      
+      res.json(wrapper);
+    } catch (error) {
+      console.error("Error updating email wrapper:", error);
+      if (error.code === '23505') {
+        return res.status(400).json({ message: "Email wrapper name already exists" });
+      }
+      res.status(500).json({ message: "Failed to update email wrapper" });
+    }
+  });
+
+  // Delete email wrapper
+  app.delete("/api/admin/email-wrappers/:id", requireRole(['admin', 'super_admin']), async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const deleted = await storage.deleteEmailWrapper(id);
+      
+      if (!deleted) {
+        return res.status(404).json({ message: "Email wrapper not found" });
+      }
+      
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting email wrapper:", error);
+      res.status(500).json({ message: "Failed to delete email wrapper" });
+    }
+  });
+
+  // Email Templates
   // Get all email templates
   app.get("/api/admin/email-templates", requireRole(['admin', 'super_admin']), async (req, res) => {
     try {
