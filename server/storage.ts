@@ -377,6 +377,20 @@ export interface IStorage {
   markAllAlertsAsRead(userId: string): Promise<number>;
   deleteAlert(alertId: number, userId: string): Promise<boolean>;
   deleteAllReadAlerts(userId: string): Promise<number>;
+
+  // Trigger Catalog operations
+  getAllTriggerCatalog(): Promise<TriggerCatalog[]>;
+  getTriggerCatalog(id: number): Promise<TriggerCatalog | undefined>;
+  getTriggerCatalogByKey(triggerKey: string): Promise<TriggerCatalog | undefined>;
+  createTriggerCatalog(trigger: InsertTriggerCatalog): Promise<TriggerCatalog>;
+  updateTriggerCatalog(id: number, updates: Partial<InsertTriggerCatalog>): Promise<TriggerCatalog | undefined>;
+  deleteTriggerCatalog(id: number): Promise<boolean>;
+
+  // Trigger Actions operations
+  getTriggerActions(triggerId: number): Promise<(TriggerAction & { actionTemplate: ActionTemplate })[]>;
+  createTriggerAction(triggerAction: InsertTriggerAction): Promise<TriggerAction>;
+  updateTriggerAction(id: number, updates: Partial<InsertTriggerAction>): Promise<TriggerAction | undefined>;
+  deleteTriggerAction(id: number): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -2456,6 +2470,77 @@ export class DatabaseStorage implements IStorage {
       .returning();
     
     return result.length;
+  }
+
+  // Trigger Catalog operations
+  async getAllTriggerCatalog(): Promise<TriggerCatalog[]> {
+    return db.select().from(triggerCatalog).orderBy(triggerCatalog.triggerKey);
+  }
+
+  async getTriggerCatalog(id: number): Promise<TriggerCatalog | undefined> {
+    const [trigger] = await db.select().from(triggerCatalog).where(eq(triggerCatalog.id, id));
+    return trigger;
+  }
+
+  async getTriggerCatalogByKey(triggerKey: string): Promise<TriggerCatalog | undefined> {
+    const [trigger] = await db.select().from(triggerCatalog).where(eq(triggerCatalog.triggerKey, triggerKey));
+    return trigger;
+  }
+
+  async createTriggerCatalog(trigger: InsertTriggerCatalog): Promise<TriggerCatalog> {
+    const [newTrigger] = await db.insert(triggerCatalog).values(trigger).returning();
+    return newTrigger;
+  }
+
+  async updateTriggerCatalog(id: number, updates: Partial<InsertTriggerCatalog>): Promise<TriggerCatalog | undefined> {
+    const [updatedTrigger] = await db
+      .update(triggerCatalog)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(triggerCatalog.id, id))
+      .returning();
+    return updatedTrigger;
+  }
+
+  async deleteTriggerCatalog(id: number): Promise<boolean> {
+    const result = await db.delete(triggerCatalog).where(eq(triggerCatalog.id, id)).returning();
+    return result.length > 0;
+  }
+
+  // Trigger Actions operations
+  async getTriggerActions(triggerId: number): Promise<(TriggerAction & { actionTemplate: ActionTemplate })[]> {
+    const results = await db
+      .select({
+        triggerAction: triggerActions,
+        actionTemplate: actionTemplates,
+      })
+      .from(triggerActions)
+      .innerJoin(actionTemplates, eq(triggerActions.actionTemplateId, actionTemplates.id))
+      .where(eq(triggerActions.triggerId, triggerId))
+      .orderBy(triggerActions.sequenceOrder);
+
+    return results.map(row => ({
+      ...row.triggerAction,
+      actionTemplate: row.actionTemplate,
+    }));
+  }
+
+  async createTriggerAction(triggerAction: InsertTriggerAction): Promise<TriggerAction> {
+    const [newAction] = await db.insert(triggerActions).values(triggerAction).returning();
+    return newAction;
+  }
+
+  async updateTriggerAction(id: number, updates: Partial<InsertTriggerAction>): Promise<TriggerAction | undefined> {
+    const [updatedAction] = await db
+      .update(triggerActions)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(triggerActions.id, id))
+      .returning();
+    return updatedAction;
+  }
+
+  async deleteTriggerAction(id: number): Promise<boolean> {
+    const result = await db.delete(triggerActions).where(eq(triggerActions.id, id)).returning();
+    return result.length > 0;
   }
 }
 
