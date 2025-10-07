@@ -1189,6 +1189,15 @@ export const emailTemplates = pgTable('email_templates', {
   variables: jsonb('variables'), // JSON array of available variables
   category: varchar('category', { length: 50 }).notNull(), // prospect, authentication, notification, etc.
   isActive: boolean('is_active').default(true),
+  // Email Wrapper Configuration
+  useWrapper: boolean('use_wrapper').default(true), // Whether to apply email wrapper
+  wrapperType: varchar('wrapper_type', { length: 50 }).default('notification'), // welcome, security, agentNotification, notification, custom
+  headerGradient: text('header_gradient'), // Custom gradient if wrapperType is 'custom'
+  headerSubtitle: text('header_subtitle'), // Optional subtitle for header
+  ctaButtonText: text('cta_button_text'), // Call-to-action button text
+  ctaButtonUrl: text('cta_button_url'), // Call-to-action button URL
+  ctaButtonColor: text('cta_button_color'), // Call-to-action button color (default: #3b82f6)
+  customFooter: text('custom_footer'), // Custom footer HTML
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
 });
