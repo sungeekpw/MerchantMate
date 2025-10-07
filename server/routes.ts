@@ -8626,6 +8626,69 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Send test email with template
+  app.post("/api/admin/email-templates/:id/test", requireRole(['admin', 'super_admin']), async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { email } = req.body;
+      
+      // Validate email
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!email || !emailRegex.test(email)) {
+        return res.status(400).json({ message: "Invalid email address" });
+      }
+      
+      // Get template
+      const template = await storage.getEmailTemplate(id);
+      if (!template) {
+        return res.status(404).json({ message: "Email template not found" });
+      }
+      
+      // Import email wrapper utility
+      const { applyEmailWrapper } = await import("./emailTemplateWrapper");
+      
+      // Apply wrapper if configured (keeping placeholders intact)
+      let htmlContent = template.htmlContent;
+      if (template.useWrapper) {
+        htmlContent = applyEmailWrapper({
+          subject: template.subject,
+          htmlContent: template.htmlContent,
+          useWrapper: template.useWrapper,
+          wrapperType: template.wrapperType || 'notification',
+          headerSubtitle: template.headerSubtitle,
+          ctaButtonText: template.ctaButtonText,
+          ctaButtonUrl: template.ctaButtonUrl,
+          headerGradient: template.headerGradient,
+          ctaButtonColor: template.ctaButtonColor,
+          customFooter: template.customFooter
+        }, {}); // Empty variables object to preserve placeholders
+      }
+      
+      // Send email using SendGrid
+      const mailService = (await import('@sendgrid/mail')).default;
+      mailService.setApiKey(process.env.SENDGRID_API_KEY!);
+      
+      await mailService.send({
+        to: email,
+        from: process.env.SENDGRID_FROM_EMAIL || 'noreply@charrg.com',
+        subject: `[TEST] ${template.subject}`,
+        html: htmlContent,
+        text: template.textContent || undefined
+      });
+      
+      res.json({ 
+        success: true, 
+        message: `Test email sent to ${email}` 
+      });
+    } catch (error) {
+      console.error("Error sending test email:", error);
+      res.status(500).json({ 
+        message: "Failed to send test email",
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
   // Get available trigger events
   app.get("/api/admin/trigger-events", requireRole(['admin', 'super_admin']), async (req, res) => {
     try {
