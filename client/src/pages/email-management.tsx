@@ -792,6 +792,18 @@ const EmailManagement: React.FC = () => {
     }
   });
 
+  // Fetch template usage (which triggers use which templates)
+  const { data: templateUsage = {} } = useQuery({
+    queryKey: ['/api/admin/action-templates-usage'],
+    queryFn: async () => {
+      const response = await fetch('/api/admin/action-templates-usage', {
+        credentials: 'include'
+      });
+      if (!response.ok) throw new Error('Failed to fetch template usage');
+      return response.json();
+    }
+  });
+
   // Fetch available trigger events
   const { data: triggerEvents = [] } = useQuery({
     queryKey: ['/api/admin/trigger-events'],
@@ -1291,6 +1303,7 @@ const EmailManagement: React.FC = () => {
                     <TableHead>Category</TableHead>
                     <TableHead>Subject</TableHead>
                     <TableHead>Status</TableHead>
+                    <TableHead>Used in Triggers</TableHead>
                     <TableHead>Updated</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
@@ -1298,54 +1311,76 @@ const EmailManagement: React.FC = () => {
                 <TableBody>
                   {templatesLoading ? (
                     <TableRow>
-                      <TableCell colSpan={6} className="text-center py-4">
+                      <TableCell colSpan={7} className="text-center py-4">
                         Loading templates...
                       </TableCell>
                     </TableRow>
                   ) : templates.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={6} className="text-center py-4">
+                      <TableCell colSpan={7} className="text-center py-4">
                         No email templates found
                       </TableCell>
                     </TableRow>
                   ) : (
-                    templates.map((template: EmailTemplate) => (
-                      <TableRow key={template.id}>
-                        <TableCell className="font-medium">{template.name}</TableCell>
-                        <TableCell>
-                          <Badge variant="outline">{template.category}</Badge>
-                        </TableCell>
-                        <TableCell className="max-w-xs truncate">{template.subject}</TableCell>
-                        <TableCell>
-                          <Badge variant={template.isActive ? 'default' : 'secondary'}>
-                            {template.isActive ? 'Active' : 'Inactive'}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          {format(new Date(template.updatedAt), 'MMM d, yyyy')}
-                        </TableCell>
-                        <TableCell className="text-right space-x-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              setEditingTemplate(template);
-                              setIsTemplateDialogOpen(true);
-                            }}
-                          >
-                            <Edit className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => deleteTemplateMutation.mutate(template.id)}
-                            disabled={deleteTemplateMutation.isPending}
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))
+                    templates.map((template: EmailTemplate) => {
+                      const usage = templateUsage[template.id] || [];
+                      return (
+                        <TableRow key={template.id}>
+                          <TableCell className="font-medium">{template.name}</TableCell>
+                          <TableCell>
+                            <Badge variant="outline">{template.category}</Badge>
+                          </TableCell>
+                          <TableCell className="max-w-xs truncate">{template.subject}</TableCell>
+                          <TableCell>
+                            <Badge variant={template.isActive ? 'default' : 'secondary'}>
+                              {template.isActive ? 'Active' : 'Inactive'}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            {usage.length > 0 ? (
+                              <div className="flex flex-wrap gap-1">
+                                {usage.map((trigger: any) => (
+                                  <Badge 
+                                    key={trigger.triggerId} 
+                                    variant="outline"
+                                    className="cursor-help"
+                                    title={`${trigger.triggerName} (${trigger.triggerKey})`}
+                                    data-testid={`template-usage-${template.id}-${trigger.triggerId}`}
+                                  >
+                                    {trigger.triggerName}
+                                  </Badge>
+                                ))}
+                              </div>
+                            ) : (
+                              <span className="text-sm text-gray-400">Not used</span>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            {format(new Date(template.updatedAt), 'MMM d, yyyy')}
+                          </TableCell>
+                          <TableCell className="text-right space-x-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                setEditingTemplate(template);
+                                setIsTemplateDialogOpen(true);
+                              }}
+                            >
+                              <Edit className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => deleteTemplateMutation.mutate(template.id)}
+                              disabled={deleteTemplateMutation.isPending}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })
                   )}
                 </TableBody>
               </Table>
