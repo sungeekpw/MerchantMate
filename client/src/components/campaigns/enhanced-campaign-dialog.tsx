@@ -374,37 +374,18 @@ export function EnhancedCampaignDialog({
                 <CardTitle className="text-base">Campaign Information</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="name">Campaign Name *</Label>
-                    <Input
-                      id="name"
-                      placeholder="Enter campaign name"
-                      value={formData.name}
-                      onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                      className={errors.name ? 'border-destructive' : ''}
-                    />
-                    {errors.name && (
-                      <p className="text-sm text-destructive mt-1">{errors.name}</p>
-                    )}
-                  </div>
-                  
-                  <div>
-                    <Label htmlFor="acquirer">Acquirer *</Label>
-                    <Select value={formData.acquirer} onValueChange={(value) => setFormData(prev => ({ ...prev, acquirer: value }))}>
-                      <SelectTrigger className={errors.acquirer ? 'border-destructive' : ''}>
-                        <SelectValue placeholder="Select acquirer" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Esquire">Esquire</SelectItem>
-                        <SelectItem value="Merrick">Merrick</SelectItem>
-                        <SelectItem value="Wells Fargo">Wells Fargo</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    {errors.acquirer && (
-                      <p className="text-sm text-destructive mt-1">{errors.acquirer}</p>
-                    )}
-                  </div>
+                <div>
+                  <Label htmlFor="name">Campaign Name *</Label>
+                  <Input
+                    id="name"
+                    placeholder="Enter campaign name"
+                    value={formData.name}
+                    onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                    className={errors.name ? 'border-destructive' : ''}
+                  />
+                  {errors.name && (
+                    <p className="text-sm text-destructive mt-1">{errors.name}</p>
+                  )}
                 </div>
 
                 <div>
