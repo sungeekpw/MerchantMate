@@ -2306,6 +2306,30 @@ const EmailManagement: React.FC = () => {
                     </ul>
                   </div>
                 </div>
+
+                {/* Prospect Validation */}
+                <div className="border rounded-lg p-4 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-semibold text-base">prospect_validation</h4>
+                    <Badge variant="outline">Prospect Events</Badge>
+                  </div>
+                  <p className="text-sm text-gray-600">Fired when a prospect validates their email address to start an application</p>
+                  <div className="bg-gray-50 dark:bg-gray-900 p-3 rounded-md">
+                    <ul className="text-sm space-y-1 font-mono">
+                      <li><span className="text-blue-600">{`{{prospectId}}`}</span> - Prospect's unique ID</li>
+                      <li><span className="text-blue-600">{`{{prospectName}}`}</span> - Full name of the prospect</li>
+                      <li><span className="text-blue-600">{`{{firstName}}`}</span> - Prospect's first name</li>
+                      <li><span className="text-blue-600">{`{{lastName}}`}</span> - Prospect's last name</li>
+                      <li><span className="text-blue-600">{`{{email}}`}</span> - Prospect's email address</li>
+                      <li><span className="text-blue-600">{`{{phone}}`}</span> - Prospect's phone number</li>
+                      <li><span className="text-blue-600">{`{{companyName}}`}</span> - Business/company name</li>
+                      <li><span className="text-blue-600">{`{{agentId}}`}</span> - Assigned agent's ID</li>
+                      <li><span className="text-blue-600">{`{{agentName}}`}</span> - Assigned agent's full name</li>
+                      <li><span className="text-blue-600">{`{{agentEmail}}`}</span> - Assigned agent's email</li>
+                      <li><span className="text-blue-600">{`{{validationDate}}`}</span> - Email validation timestamp</li>
+                    </ul>
+                  </div>
+                </div>
               </div>
 
               {/* Best Practices Section */}
