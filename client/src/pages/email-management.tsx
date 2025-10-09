@@ -1748,7 +1748,7 @@ const EmailManagement: React.FC = () => {
                             )}
                           </TableCell>
                           <TableCell>
-                            {format(new Date(template.updatedAt), 'MMM d, yyyy')}
+                            {template.updatedAt ? format(new Date(template.updatedAt), 'MMM d, yyyy') : '-'}
                           </TableCell>
                           <TableCell className="text-right space-x-2">
                             <Button
