@@ -11,7 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Progress } from "@/components/ui/progress";
 import TestingDashboard from "@/components/TestingDashboard";
-import { Trash2, RefreshCw, Database, CheckCircle, X, Server, Shield, ShieldCheck, TestTube, Settings, Play, Pause, BarChart3, FileText, AlertCircle, Clock, Copy, Terminal, ArrowLeftRight, Download, Upload, Eye, List, Bell } from "lucide-react";
+import { Trash2, RefreshCw, Database, CheckCircle, X, Server, Shield, ShieldCheck, TestTube, Settings, Play, Pause, BarChart3, FileText, AlertCircle, Clock, Copy, Terminal, ArrowLeftRight, Download, Upload, Eye, List, Bell, ClipboardCheck } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface ResetResult {
@@ -66,6 +66,9 @@ export default function TestingUtilities() {
   const [selectedExport, setSelectedExport] = useState<string>('');
   const [dryRun, setDryRun] = useState(true);
   const [clearFirst, setClearFirst] = useState(false);
+
+  // Manual Test Cases State
+  const [checkedTests, setCheckedTests] = useState<Record<string, boolean>>({});
 
   // Helper function to copy text to clipboard
   const copyToClipboard = async (text: string) => {
@@ -308,7 +311,7 @@ export default function TestingUtilities() {
     <div className="space-y-6">
       {/* Main Tabs for Testing Features */}
       <Tabs defaultValue="dashboard" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-2">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="dashboard" className="flex items-center gap-2">
             <TestTube className="h-4 w-4" />
             Test Dashboard
@@ -316,6 +319,10 @@ export default function TestingUtilities() {
           <TabsTrigger value="utilities" className="flex items-center gap-2">
             <Database className="h-4 w-4" />
             Data Utilities
+          </TabsTrigger>
+          <TabsTrigger value="manual-tests" className="flex items-center gap-2">
+            <ClipboardCheck className="h-4 w-4" />
+            Manual Tests
           </TabsTrigger>
         </TabsList>
 
@@ -1360,6 +1367,484 @@ Check console for full details.`);
         </DialogContent>
       </Dialog>
 
+        </TabsContent>
+
+        {/* Manual Test Cases Tab */}
+        <TabsContent value="manual-tests" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <ClipboardCheck className="h-5 w-5" />
+                Communication Management Test Cases
+              </CardTitle>
+              <CardDescription>
+                Complete these manual tests before deployment to verify all communication features
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              
+              {/* Email Templates Section */}
+              <div className="space-y-3">
+                <h3 className="text-lg font-semibold">Email Templates (Action Templates - Email Type)</h3>
+                
+                <div className="space-y-2 border-l-2 border-blue-500 pl-4">
+                  <h4 className="font-medium">Test Case 1: Create Email Template</h4>
+                  {['Navigate to Communication Management → Email Templates tab',
+                    'Click "New Template" button',
+                    'Fill in template name (e.g., "Welcome Email")',
+                    'Select category (e.g., "welcome")',
+                    'Enter subject line with variables (e.g., "Welcome {{firstName}} {{lastName}}")',
+                    'Add HTML content using the editor',
+                    'Select wrapper type (notification, transactional, marketing, system, or none)',
+                    'Click "Create" to save',
+                    'Verify template appears in the list',
+                    'Verify template shows as actionType "email"'
+                  ].map((step, idx) => (
+                    <div key={`tc1-${idx}`} className="flex items-center gap-2">
+                      <Checkbox 
+                        id={`tc1-${idx}`}
+                        checked={checkedTests[`tc1-${idx}`] || false}
+                        onCheckedChange={(checked) => setCheckedTests({...checkedTests, [`tc1-${idx}`]: checked as boolean})}
+                        data-testid={`checkbox-test-case-1-step-${idx}`}
+                      />
+                      <label htmlFor={`tc1-${idx}`} className="text-sm cursor-pointer">{step}</label>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="space-y-2 border-l-2 border-blue-500 pl-4">
+                  <h4 className="font-medium">Test Case 2: Send Test Email</h4>
+                  {['Find the email template you created',
+                    'Click the "Test Email" button (envelope icon)',
+                    'Enter your email address in the recipient field',
+                    'Click "Send Test Email"',
+                    'Check your inbox for the test email',
+                    'Verify subject line and content are correct',
+                    'Verify wrapper styling is applied'
+                  ].map((step, idx) => (
+                    <div key={`tc2-${idx}`} className="flex items-center gap-2">
+                      <Checkbox 
+                        id={`tc2-${idx}`}
+                        checked={checkedTests[`tc2-${idx}`] || false}
+                        onCheckedChange={(checked) => setCheckedTests({...checkedTests, [`tc2-${idx}`]: checked as boolean})}
+                        data-testid={`checkbox-test-case-2-step-${idx}`}
+                      />
+                      <label htmlFor={`tc2-${idx}`} className="text-sm cursor-pointer">{step}</label>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="space-y-2 border-l-2 border-blue-500 pl-4">
+                  <h4 className="font-medium">Test Case 3: Edit Email Template</h4>
+                  {['Click the edit button (pencil icon) on an email template',
+                    'Modify the template content',
+                    'Save changes',
+                    'Verify changes appear in the template list',
+                    'Send a test email to confirm changes'
+                  ].map((step, idx) => (
+                    <div key={`tc3-${idx}`} className="flex items-center gap-2">
+                      <Checkbox 
+                        id={`tc3-${idx}`}
+                        checked={checkedTests[`tc3-${idx}`] || false}
+                        onCheckedChange={(checked) => setCheckedTests({...checkedTests, [`tc3-${idx}`]: checked as boolean})}
+                        data-testid={`checkbox-test-case-3-step-${idx}`}
+                      />
+                      <label htmlFor={`tc3-${idx}`} className="text-sm cursor-pointer">{step}</label>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Notification Templates Section */}
+              <div className="space-y-3">
+                <h3 className="text-lg font-semibold">Notification Templates (Action Templates - Notification Type)</h3>
+                
+                <div className="space-y-2 border-l-2 border-purple-500 pl-4">
+                  <h4 className="font-medium">Test Case 4: Create Notification Template</h4>
+                  {['Navigate to Communication Management → Notifications tab',
+                    'Click "New Notification Template"',
+                    'Enter template name (e.g., "Security Alert")',
+                    'Select category (e.g., "security")',
+                    'Select notification type (info, success, warning, or error)',
+                    'Enter message content with variables (e.g., "Alert: {{alertType}} detected")',
+                    'Add optional action URL (e.g., "/security")',
+                    'Enter available variables as JSON array (e.g., ["alertType", "userName"])',
+                    'Set Active to "Yes"',
+                    'Click "Create Template"',
+                    'Verify template appears in notifications list',
+                    'Verify purple Bell icon is displayed'
+                  ].map((step, idx) => (
+                    <div key={`tc4-${idx}`} className="flex items-center gap-2">
+                      <Checkbox 
+                        id={`tc4-${idx}`}
+                        checked={checkedTests[`tc4-${idx}`] || false}
+                        onCheckedChange={(checked) => setCheckedTests({...checkedTests, [`tc4-${idx}`]: checked as boolean})}
+                        data-testid={`checkbox-test-case-4-step-${idx}`}
+                      />
+                      <label htmlFor={`tc4-${idx}`} className="text-sm cursor-pointer">{step}</label>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="space-y-2 border-l-2 border-purple-500 pl-4">
+                  <h4 className="font-medium">Test Case 5: Verify Notification Template Configuration</h4>
+                  {['Click edit on a notification template',
+                    'Verify all fields are populated correctly',
+                    'Verify notification type is saved',
+                    'Verify variables are properly formatted',
+                    'Make a change and save',
+                    'Verify changes persist'
+                  ].map((step, idx) => (
+                    <div key={`tc5-${idx}`} className="flex items-center gap-2">
+                      <Checkbox 
+                        id={`tc5-${idx}`}
+                        checked={checkedTests[`tc5-${idx}`] || false}
+                        onCheckedChange={(checked) => setCheckedTests({...checkedTests, [`tc5-${idx}`]: checked as boolean})}
+                        data-testid={`checkbox-test-case-5-step-${idx}`}
+                      />
+                      <label htmlFor={`tc5-${idx}`} className="text-sm cursor-pointer">{step}</label>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Email Wrappers Section */}
+              <div className="space-y-3">
+                <h3 className="text-lg font-semibold">Email Wrappers</h3>
+                
+                <div className="space-y-2 border-l-2 border-green-500 pl-4">
+                  <h4 className="font-medium">Test Case 6: Create Email Wrapper</h4>
+                  {['Navigate to Communication Management → Email Wrappers tab',
+                    'Click "New Wrapper"',
+                    'Enter wrapper name (e.g., "Security Wrapper")',
+                    'Select wrapper type (welcome, agentNotification, security, notification, or custom)',
+                    'Enter description',
+                    'Add header gradient CSS (e.g., "linear-gradient(135deg, #1e40af 0%, #3b82f6 100%)")',
+                    'Enter header subtitle',
+                    'Configure CTA button (text, URL, color)',
+                    'Add custom footer HTML',
+                    'Ensure "Active" is checked',
+                    'Click "Save Wrapper"',
+                    'Verify wrapper appears in the table'
+                  ].map((step, idx) => (
+                    <div key={`tc6-${idx}`} className="flex items-center gap-2">
+                      <Checkbox 
+                        id={`tc6-${idx}`}
+                        checked={checkedTests[`tc6-${idx}`] || false}
+                        onCheckedChange={(checked) => setCheckedTests({...checkedTests, [`tc6-${idx}`]: checked as boolean})}
+                        data-testid={`checkbox-test-case-6-step-${idx}`}
+                      />
+                      <label htmlFor={`tc6-${idx}`} className="text-sm cursor-pointer">{step}</label>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="space-y-2 border-l-2 border-green-500 pl-4">
+                  <h4 className="font-medium">Test Case 7: Test Wrapper with Email</h4>
+                  {['Create or edit an email template',
+                    'Select the wrapper you just created',
+                    'Send a test email',
+                    'Verify the email uses the wrapper styling',
+                    'Check header gradient, subtitle, CTA button, and footer'
+                  ].map((step, idx) => (
+                    <div key={`tc7-${idx}`} className="flex items-center gap-2">
+                      <Checkbox 
+                        id={`tc7-${idx}`}
+                        checked={checkedTests[`tc7-${idx}`] || false}
+                        onCheckedChange={(checked) => setCheckedTests({...checkedTests, [`tc7-${idx}`]: checked as boolean})}
+                        data-testid={`checkbox-test-case-7-step-${idx}`}
+                      />
+                      <label htmlFor={`tc7-${idx}`} className="text-sm cursor-pointer">{step}</label>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* System Triggers Section */}
+              <div className="space-y-3">
+                <h3 className="text-lg font-semibold">System Triggers</h3>
+                
+                <div className="space-y-2 border-l-2 border-orange-500 pl-4">
+                  <h4 className="font-medium">Test Case 8: Create System Trigger</h4>
+                  {['Navigate to Communication Management → System Triggers tab',
+                    'Click "New Trigger"',
+                    'Select trigger event from dropdown (e.g., "user_registered")',
+                    'Enter trigger name (e.g., "User Registration Flow")',
+                    'Add description',
+                    'Select category (user, application, merchant, agent, or system)',
+                    'Set status to "Active"',
+                    'Click "Create Trigger"',
+                    'Verify trigger appears in the list'
+                  ].map((step, idx) => (
+                    <div key={`tc8-${idx}`} className="flex items-center gap-2">
+                      <Checkbox 
+                        id={`tc8-${idx}`}
+                        checked={checkedTests[`tc8-${idx}`] || false}
+                        onCheckedChange={(checked) => setCheckedTests({...checkedTests, [`tc8-${idx}`]: checked as boolean})}
+                        data-testid={`checkbox-test-case-8-step-${idx}`}
+                      />
+                      <label htmlFor={`tc8-${idx}`} className="text-sm cursor-pointer">{step}</label>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="space-y-2 border-l-2 border-orange-500 pl-4">
+                  <h4 className="font-medium">Test Case 9: Add Sequenced Actions to Trigger</h4>
+                  {['Click on the trigger you created to select it',
+                    'Click "Add Action" button',
+                    'Select an email template from dropdown (should show blue Mail icon)',
+                    'Set sequence order to 1',
+                    'Set delay to 0 seconds',
+                    'Leave preferences unchecked for testing',
+                    'Click "Add Action"',
+                    'Verify action appears with sequence badge "1"'
+                  ].map((step, idx) => (
+                    <div key={`tc9-${idx}`} className="flex items-center gap-2">
+                      <Checkbox 
+                        id={`tc9-${idx}`}
+                        checked={checkedTests[`tc9-${idx}`] || false}
+                        onCheckedChange={(checked) => setCheckedTests({...checkedTests, [`tc9-${idx}`]: checked as boolean})}
+                        data-testid={`checkbox-test-case-9-step-${idx}`}
+                      />
+                      <label htmlFor={`tc9-${idx}`} className="text-sm cursor-pointer">{step}</label>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="space-y-2 border-l-2 border-orange-500 pl-4">
+                  <h4 className="font-medium">Test Case 10: Add Multiple Action Types (Email → Notification → Email)</h4>
+                  {['With a trigger selected, click "Add Action" again',
+                    'Select a notification template (should show purple Bell icon)',
+                    'Set sequence order to 2',
+                    'Set delay to 5 seconds',
+                    'Click "Add Action"',
+                    'Verify action appears with sequence badge "2"',
+                    'Click "Add Action" again',
+                    'Select a different email template',
+                    'Set sequence order to 3',
+                    'Set delay to 10 seconds',
+                    'Click "Add Action"',
+                    'Verify action appears with sequence badge "3"',
+                    'Verify all 3 actions are displayed in correct order (1, 2, 3)',
+                    'Verify visual differentiation (email = blue Mail, notification = purple Bell)'
+                  ].map((step, idx) => (
+                    <div key={`tc10-${idx}`} className="flex items-center gap-2">
+                      <Checkbox 
+                        id={`tc10-${idx}`}
+                        checked={checkedTests[`tc10-${idx}`] || false}
+                        onCheckedChange={(checked) => setCheckedTests({...checkedTests, [`tc10-${idx}`]: checked as boolean})}
+                        data-testid={`checkbox-test-case-10-step-${idx}`}
+                      />
+                      <label htmlFor={`tc10-${idx}`} className="text-sm cursor-pointer">{step}</label>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="space-y-2 border-l-2 border-orange-500 pl-4">
+                  <h4 className="font-medium">Test Case 11: Test Action Preferences and Retry Settings</h4>
+                  {['Edit an existing trigger action',
+                    'Check "Requires email preference"',
+                    'Check "Retry on failure"',
+                    'Set max retries to 5',
+                    'Save changes',
+                    'Verify settings are saved correctly'
+                  ].map((step, idx) => (
+                    <div key={`tc11-${idx}`} className="flex items-center gap-2">
+                      <Checkbox 
+                        id={`tc11-${idx}`}
+                        checked={checkedTests[`tc11-${idx}`] || false}
+                        onCheckedChange={(checked) => setCheckedTests({...checkedTests, [`tc11-${idx}`]: checked as boolean})}
+                        data-testid={`checkbox-test-case-11-step-${idx}`}
+                      />
+                      <label htmlFor={`tc11-${idx}`} className="text-sm cursor-pointer">{step}</label>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* New Trigger Events Section */}
+              <div className="space-y-3">
+                <h3 className="text-lg font-semibold">New Trigger Events</h3>
+                
+                <div className="space-y-2 border-l-2 border-indigo-500 pl-4">
+                  <h4 className="font-medium">Test Case 12: Verify New Trigger Events in Template Guide</h4>
+                  {['Navigate to Communication Management → Template Guide tab',
+                    'Scroll to "Available Trigger Events" section',
+                    'Verify "email_verification_requested" is documented',
+                    'Confirm it shows "Security Events" badge',
+                    'Verify description: "Fired when a user needs to verify their email address"',
+                    'Check available variables: email, verificationLink, firstName, lastName, userName',
+                    'Verify "two_factor_requested" is documented',
+                    'Confirm it shows "Security Events" badge',
+                    'Verify description: "Fired when a user requests two-factor authentication code"',
+                    'Check available variables: email, twoFactorCode, firstName, lastName, userName, expiresIn'
+                  ].map((step, idx) => (
+                    <div key={`tc12-${idx}`} className="flex items-center gap-2">
+                      <Checkbox 
+                        id={`tc12-${idx}`}
+                        checked={checkedTests[`tc12-${idx}`] || false}
+                        onCheckedChange={(checked) => setCheckedTests({...checkedTests, [`tc12-${idx}`]: checked as boolean})}
+                        data-testid={`checkbox-test-case-12-step-${idx}`}
+                      />
+                      <label htmlFor={`tc12-${idx}`} className="text-sm cursor-pointer">{step}</label>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="space-y-2 border-l-2 border-indigo-500 pl-4">
+                  <h4 className="font-medium">Test Case 13: Use New Trigger Events</h4>
+                  {['Navigate to System Triggers tab',
+                    'Click "New Trigger"',
+                    'Open trigger event dropdown',
+                    'Verify "Email Verification Requested" appears in options',
+                    'Verify "Two Factor Requested" appears in options',
+                    'Select "Email Verification Requested"',
+                    'Complete trigger creation',
+                    'Verify trigger is created with correct event'
+                  ].map((step, idx) => (
+                    <div key={`tc13-${idx}`} className="flex items-center gap-2">
+                      <Checkbox 
+                        id={`tc13-${idx}`}
+                        checked={checkedTests[`tc13-${idx}`] || false}
+                        onCheckedChange={(checked) => setCheckedTests({...checkedTests, [`tc13-${idx}`]: checked as boolean})}
+                        data-testid={`checkbox-test-case-13-step-${idx}`}
+                      />
+                      <label htmlFor={`tc13-${idx}`} className="text-sm cursor-pointer">{step}</label>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Communication Activity Section */}
+              <div className="space-y-3">
+                <h3 className="text-lg font-semibold">Communication Activity</h3>
+                
+                <div className="space-y-2 border-l-2 border-teal-500 pl-4">
+                  <h4 className="font-medium">Test Case 14: View Communication Activity</h4>
+                  {['Navigate to Communication Management → Communication Activity tab',
+                    'Verify activity log is displayed',
+                    'Check email delivery status (pending, sent, delivered, opened, clicked, failed)',
+                    'Test filtering by status',
+                    'Test searching by recipient email',
+                    'Verify sent timestamps are displayed',
+                    'Check for opened/clicked timestamps if available'
+                  ].map((step, idx) => (
+                    <div key={`tc14-${idx}`} className="flex items-center gap-2">
+                      <Checkbox 
+                        id={`tc14-${idx}`}
+                        checked={checkedTests[`tc14-${idx}`] || false}
+                        onCheckedChange={(checked) => setCheckedTests({...checkedTests, [`tc14-${idx}`]: checked as boolean})}
+                        data-testid={`checkbox-test-case-14-step-${idx}`}
+                      />
+                      <label htmlFor={`tc14-${idx}`} className="text-sm cursor-pointer">{step}</label>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Template Usage Tracking Section */}
+              <div className="space-y-3">
+                <h3 className="text-lg font-semibold">Template Usage Tracking</h3>
+                
+                <div className="space-y-2 border-l-2 border-pink-500 pl-4">
+                  <h4 className="font-medium">Test Case 15: Verify Template Usage Indicators</h4>
+                  {['Create an email template',
+                    'Associate it with a trigger action',
+                    'Navigate back to Email Templates tab',
+                    'Find the template in the list',
+                    'Verify "Used in Triggers" column shows the trigger name(s)',
+                    'Hover over the badge to see trigger details',
+                    'Try to delete a template that\'s in use',
+                    'Verify warning message appears listing triggers using the template'
+                  ].map((step, idx) => (
+                    <div key={`tc15-${idx}`} className="flex items-center gap-2">
+                      <Checkbox 
+                        id={`tc15-${idx}`}
+                        checked={checkedTests[`tc15-${idx}`] || false}
+                        onCheckedChange={(checked) => setCheckedTests({...checkedTests, [`tc15-${idx}`]: checked as boolean})}
+                        data-testid={`checkbox-test-case-15-step-${idx}`}
+                      />
+                      <label htmlFor={`tc15-${idx}`} className="text-sm cursor-pointer">{step}</label>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* End-to-End Integration Section */}
+              <div className="space-y-3">
+                <h3 className="text-lg font-semibold">Integration Testing</h3>
+                
+                <div className="space-y-2 border-l-2 border-red-500 pl-4">
+                  <h4 className="font-medium">Test Case 16: End-to-End Communication Flow</h4>
+                  {['Create an email wrapper',
+                    'Create an email template using that wrapper',
+                    'Create a notification template',
+                    'Create a system trigger (e.g., "user_registered")',
+                    'Add sequenced actions: Email → Notification → Email',
+                    'Verify entire flow is configured correctly',
+                    'Check Template Guide for correct variable documentation',
+                    'Send test email to verify wrapper and template work together'
+                  ].map((step, idx) => (
+                    <div key={`tc16-${idx}`} className="flex items-center gap-2">
+                      <Checkbox 
+                        id={`tc16-${idx}`}
+                        checked={checkedTests[`tc16-${idx}`] || false}
+                        onCheckedChange={(checked) => setCheckedTests({...checkedTests, [`tc16-${idx}`]: checked as boolean})}
+                        data-testid={`checkbox-test-case-16-step-${idx}`}
+                      />
+                      <label htmlFor={`tc16-${idx}`} className="text-sm cursor-pointer">{step}</label>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Summary Checklist */}
+              <div className="mt-6 p-4 bg-muted/50 rounded-lg">
+                <h3 className="text-lg font-semibold mb-3">✅ Communication Management Test Summary</h3>
+                <p className="text-sm text-muted-foreground mb-3">Before deploying communication features, ensure:</p>
+                <div className="space-y-2">
+                  {[
+                    'All email templates create successfully and send test emails',
+                    'All notification templates save with correct configuration',
+                    'Email wrappers apply styling correctly to emails',
+                    'System triggers can be created with all available events',
+                    'Trigger actions can be sequenced in correct order (1, 2, 3...)',
+                    'Different action types can be mixed (email, notification)',
+                    'Visual indicators work (blue Mail icon for email, purple Bell for notification)',
+                    'New trigger events (email_verification_requested, two_factor_requested) are documented',
+                    'Template Guide shows all available variables for each trigger event',
+                    'Communication Activity tab displays email tracking correctly',
+                    'Template usage indicators prevent accidental deletion of active templates',
+                    'Page title shows "Communication Management" instead of "Email Management"'
+                  ].map((item, idx) => (
+                    <div key={`summary-${idx}`} className="flex items-center gap-2">
+                      <Checkbox 
+                        id={`summary-${idx}`}
+                        checked={checkedTests[`summary-${idx}`] || false}
+                        onCheckedChange={(checked) => setCheckedTests({...checkedTests, [`summary-${idx}`]: checked as boolean})}
+                        data-testid={`checkbox-summary-${idx}`}
+                      />
+                      <label htmlFor={`summary-${idx}`} className="text-sm cursor-pointer">{item}</label>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Progress Indicator */}
+              <div className="mt-6">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-medium">Overall Progress</span>
+                  <span className="text-sm text-muted-foreground">
+                    {Object.values(checkedTests).filter(Boolean).length} / {Object.keys(checkedTests).length} completed
+                  </span>
+                </div>
+                <Progress 
+                  value={(Object.values(checkedTests).filter(Boolean).length / Object.keys(checkedTests).length) * 100 || 0} 
+                  className="h-2"
+                />
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
     </div>
