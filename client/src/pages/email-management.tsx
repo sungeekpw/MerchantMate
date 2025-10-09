@@ -2347,6 +2347,27 @@ const EmailManagement: React.FC = () => {
                     </ul>
                   </div>
                 </div>
+
+                {/* Email Verification */}
+                <div className="border rounded-lg p-4 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-semibold text-base">email_verification_requested</h4>
+                    <Badge variant="outline">Security Events</Badge>
+                  </div>
+                  <p className="text-sm text-gray-600">Fired when a user needs to verify their email address</p>
+                  <div className="bg-gray-50 dark:bg-gray-900 p-3 rounded-md">
+                    <ul className="text-sm space-y-1 font-mono">
+                      <li><span className="text-blue-600">{`{{userId}}`}</span> - User's unique ID</li>
+                      <li><span className="text-blue-600">{`{{userName}}`}</span> - User's full name</li>
+                      <li><span className="text-blue-600">{`{{firstName}}`}</span> - User's first name</li>
+                      <li><span className="text-blue-600">{`{{lastName}}`}</span> - User's last name</li>
+                      <li><span className="text-blue-600">{`{{email}}`}</span> - User's email address</li>
+                      <li><span className="text-blue-600">{`{{verificationLink}}`}</span> - Email verification URL</li>
+                      <li><span className="text-blue-600">{`{{verificationCode}}`}</span> - Verification code (if applicable)</li>
+                      <li><span className="text-blue-600">{`{{expiresIn}}`}</span> - Link expiration time</li>
+                    </ul>
+                  </div>
+                </div>
               </div>
 
               {/* Best Practices Section */}
