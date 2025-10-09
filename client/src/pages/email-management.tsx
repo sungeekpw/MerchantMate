@@ -49,7 +49,8 @@ import {
   CheckCircle,
   XCircle,
   AlertCircle,
-  Search
+  Search,
+  Bell
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
@@ -550,7 +551,14 @@ const SystemTriggersTab: React.FC = () => {
                           <SelectContent>
                             {actionTemplates.map((template) => (
                               <SelectItem key={template.id} value={template.id.toString()}>
-                                {template.name} ({template.actionType})
+                                <div className="flex items-center gap-2">
+                                  {template.actionType === 'email' ? (
+                                    <Mail className="h-4 w-4 text-blue-500" />
+                                  ) : (
+                                    <Bell className="h-4 w-4 text-purple-500" />
+                                  )}
+                                  <span>{template.name}</span>
+                                </div>
                               </SelectItem>
                             ))}
                           </SelectContent>
