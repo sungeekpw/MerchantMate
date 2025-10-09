@@ -138,8 +138,8 @@ function AuthenticatedApp() {
         };
       case "/email-management":
         return {
-          title: "Email Management",
-          subtitle: "Manage email templates and track communication activity"
+          title: "Communication Management",
+          subtitle: "Manage email templates, notifications, and track multi-channel communication"
         };
       case "/pdf-forms":
         return {

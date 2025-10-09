@@ -1534,7 +1534,7 @@ const EmailManagement: React.FC = () => {
         <TabsList>
           <TabsTrigger value="templates">Email Templates</TabsTrigger>
           <TabsTrigger value="wrappers">Email Wrappers</TabsTrigger>
-          <TabsTrigger value="activity">Email Activity</TabsTrigger>
+          <TabsTrigger value="activity">Communication Activity</TabsTrigger>
           <TabsTrigger value="notifications">Notifications</TabsTrigger>
           <TabsTrigger value="automation">System Triggers</TabsTrigger>
           <TabsTrigger value="guide">Template Guide</TabsTrigger>
@@ -1814,11 +1814,11 @@ const EmailManagement: React.FC = () => {
           <EmailWrappersTab />
         </TabsContent>
 
-        {/* Email Activity Tab */}
+        {/* Communication Activity Tab */}
         <TabsContent value="activity" className="space-y-4">
           <div className="flex justify-between items-center">
             <div>
-              <h3 className="text-lg font-medium">Email Activity</h3>
+              <h3 className="text-lg font-medium">Communication Activity</h3>
               <p className="text-sm text-gray-600">Track email delivery and engagement metrics</p>
             </div>
           </div>
