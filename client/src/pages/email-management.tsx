@@ -319,10 +319,19 @@ const SystemTriggersTab: React.FC = () => {
   const handleActionSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
+    
+    // Calculate next sequence order for new actions
+    const maxSequence = triggerActions.length > 0 
+      ? Math.max(...triggerActions.map(a => a.sequenceOrder))
+      : 0;
+    const nextSequence = editingAction 
+      ? parseInt(formData.get('sequenceOrder') as string) || editingAction.sequenceOrder
+      : maxSequence + 1;
+    
     const data = {
       triggerId: selectedTrigger?.id,
       actionTemplateId: parseInt(formData.get('actionTemplateId') as string),
-      sequenceOrder: parseInt(formData.get('sequenceOrder') as string) || 1,
+      sequenceOrder: nextSequence,
       delaySeconds: parseInt(formData.get('delaySeconds') as string) || 0,
       requiresEmailPreference: formData.get('requiresEmailPreference') === 'true',
       requiresSmsPreference: formData.get('requiresSmsPreference') === 'true',
