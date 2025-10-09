@@ -15,6 +15,7 @@ export const TRIGGER_EVENTS = [
   'prospect_created',
   'prospect_validation',
   'email_verification_requested',
+  'two_factor_requested',
 ] as const;
 
 export const triggerEventSchema = z.enum(TRIGGER_EVENTS);
