@@ -8623,8 +8623,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get all email templates
   app.get("/api/admin/email-templates", requireRole(['admin', 'super_admin']), async (req, res) => {
     try {
-      const templates = await storage.getAllEmailTemplates();
-      res.json(templates);
+      // Fetch action templates with type 'email'
+      const actionTemplates = await storage.getActionTemplatesByType('email');
+      
+      // Transform to email template format for UI compatibility
+      const emailTemplates = actionTemplates.map(at => ({
+        id: at.id,
+        name: at.name,
+        description: at.description,
+        subject: at.config.subject || '',
+        htmlContent: at.config.htmlContent || '',
+        textContent: at.config.textContent,
+        variables: at.variables,
+        category: at.category,
+        isActive: at.isActive,
+        useWrapper: at.config.useWrapper,
+        wrapperType: at.config.wrapperType,
+        headerGradient: at.config.headerGradient,
+        headerSubtitle: at.config.headerSubtitle,
+        ctaButtonText: at.config.ctaButtonText,
+        ctaButtonUrl: at.config.ctaButtonUrl,
+        ctaButtonColor: at.config.ctaButtonColor,
+        customFooter: at.config.customFooter,
+        createdAt: at.createdAt,
+        updatedAt: at.updatedAt,
+      }));
+      
+      res.json(emailTemplates);
     } catch (error) {
       console.error("Error fetching email templates:", error);
       res.status(500).json({ message: "Failed to fetch email templates" });
@@ -8646,20 +8671,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/admin/email-templates/:id", requireRole(['admin', 'super_admin']), async (req, res) => {
     try {
       const id = parseInt(req.params.id);
-      const template = await storage.getEmailTemplate(id);
+      const actionTemplate = await storage.getActionTemplate(id);
       
-      if (!template) {
+      if (!actionTemplate || actionTemplate.actionType !== 'email') {
         return res.status(404).json({ message: "Email template not found" });
       }
       
-      res.json(template);
+      // Transform to email template format
+      const emailTemplate = {
+        id: actionTemplate.id,
+        name: actionTemplate.name,
+        description: actionTemplate.description,
+        subject: actionTemplate.config.subject || '',
+        htmlContent: actionTemplate.config.htmlContent || '',
+        textContent: actionTemplate.config.textContent,
+        variables: actionTemplate.variables,
+        category: actionTemplate.category,
+        isActive: actionTemplate.isActive,
+        useWrapper: actionTemplate.config.useWrapper,
+        wrapperType: actionTemplate.config.wrapperType,
+        headerGradient: actionTemplate.config.headerGradient,
+        headerSubtitle: actionTemplate.config.headerSubtitle,
+        ctaButtonText: actionTemplate.config.ctaButtonText,
+        ctaButtonUrl: actionTemplate.config.ctaButtonUrl,
+        ctaButtonColor: actionTemplate.config.ctaButtonColor,
+        customFooter: actionTemplate.config.customFooter,
+        createdAt: actionTemplate.createdAt,
+        updatedAt: actionTemplate.updatedAt,
+      };
+      
+      res.json(emailTemplate);
     } catch (error) {
       console.error("Error fetching email template:", error);
       res.status(500).json({ message: "Failed to fetch email template" });
     }
   });
 
-  // Create email template
+  // Create email template (saved as action template with type 'email')
   app.post("/api/admin/email-templates", requireRole(['admin', 'super_admin']), async (req, res) => {
     try {
       const { insertEmailTemplateSchema } = await import("@shared/schema");
@@ -8672,8 +8720,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      const template = await storage.createEmailTemplate(result.data);
-      res.status(201).json(template);
+      // Create as action template with type 'email' so it's available for trigger actions
+      const actionTemplate = await storage.createActionTemplate({
+        name: result.data.name,
+        description: result.data.description || '',
+        actionType: 'email',
+        category: result.data.category || 'general',
+        config: {
+          subject: result.data.subject,
+          htmlContent: result.data.htmlContent,
+          textContent: result.data.textContent,
+          useWrapper: result.data.useWrapper,
+          wrapperType: result.data.wrapperType,
+          headerGradient: result.data.headerGradient,
+          headerSubtitle: result.data.headerSubtitle,
+          ctaButtonText: result.data.ctaButtonText,
+          ctaButtonUrl: result.data.ctaButtonUrl,
+          ctaButtonColor: result.data.ctaButtonColor,
+          customFooter: result.data.customFooter,
+        },
+        variables: result.data.variables || {},
+        isActive: result.data.isActive ?? true,
+        version: 1,
+      });
+      
+      // Return in email template format for UI compatibility
+      res.status(201).json({
+        id: actionTemplate.id,
+        name: actionTemplate.name,
+        description: actionTemplate.description,
+        subject: actionTemplate.config.subject,
+        htmlContent: actionTemplate.config.htmlContent,
+        textContent: actionTemplate.config.textContent,
+        variables: actionTemplate.variables,
+        category: actionTemplate.category,
+        isActive: actionTemplate.isActive,
+        useWrapper: actionTemplate.config.useWrapper,
+        wrapperType: actionTemplate.config.wrapperType,
+        headerGradient: actionTemplate.config.headerGradient,
+        headerSubtitle: actionTemplate.config.headerSubtitle,
+        ctaButtonText: actionTemplate.config.ctaButtonText,
+        ctaButtonUrl: actionTemplate.config.ctaButtonUrl,
+        ctaButtonColor: actionTemplate.config.ctaButtonColor,
+        customFooter: actionTemplate.config.customFooter,
+        createdAt: actionTemplate.createdAt,
+        updatedAt: actionTemplate.updatedAt,
+      });
     } catch (error) {
       console.error("Error creating email template:", error);
       if (error.code === '23505') { // Unique constraint violation
@@ -8683,7 +8775,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Update email template
+  // Update email template (updates action template with type 'email')
   app.put("/api/admin/email-templates/:id", requireRole(['admin', 'super_admin']), async (req, res) => {
     try {
       const { insertEmailTemplateSchema } = await import("@shared/schema");
@@ -8697,24 +8789,81 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      const template = await storage.updateEmailTemplate(id, result.data);
+      // Build the update object for action template
+      const updates: any = {};
+      if (result.data.name) updates.name = result.data.name;
+      if (result.data.description !== undefined) updates.description = result.data.description;
+      if (result.data.category !== undefined) updates.category = result.data.category;
+      if (result.data.isActive !== undefined) updates.isActive = result.data.isActive;
       
-      if (!template) {
+      // Build config updates
+      const existing = await storage.getActionTemplate(id);
+      if (!existing || existing.actionType !== 'email') {
         return res.status(404).json({ message: "Email template not found" });
       }
       
-      res.json(template);
+      const configUpdates: any = { ...existing.config };
+      if (result.data.subject) configUpdates.subject = result.data.subject;
+      if (result.data.htmlContent) configUpdates.htmlContent = result.data.htmlContent;
+      if (result.data.textContent !== undefined) configUpdates.textContent = result.data.textContent;
+      if (result.data.useWrapper !== undefined) configUpdates.useWrapper = result.data.useWrapper;
+      if (result.data.wrapperType !== undefined) configUpdates.wrapperType = result.data.wrapperType;
+      if (result.data.headerGradient !== undefined) configUpdates.headerGradient = result.data.headerGradient;
+      if (result.data.headerSubtitle !== undefined) configUpdates.headerSubtitle = result.data.headerSubtitle;
+      if (result.data.ctaButtonText !== undefined) configUpdates.ctaButtonText = result.data.ctaButtonText;
+      if (result.data.ctaButtonUrl !== undefined) configUpdates.ctaButtonUrl = result.data.ctaButtonUrl;
+      if (result.data.ctaButtonColor !== undefined) configUpdates.ctaButtonColor = result.data.ctaButtonColor;
+      if (result.data.customFooter !== undefined) configUpdates.customFooter = result.data.customFooter;
+      
+      updates.config = configUpdates;
+      if (result.data.variables !== undefined) updates.variables = result.data.variables;
+      
+      const actionTemplate = await storage.updateActionTemplate(id, updates);
+      
+      if (!actionTemplate) {
+        return res.status(404).json({ message: "Email template not found" });
+      }
+      
+      // Return in email template format for UI compatibility
+      res.json({
+        id: actionTemplate.id,
+        name: actionTemplate.name,
+        description: actionTemplate.description,
+        subject: actionTemplate.config.subject,
+        htmlContent: actionTemplate.config.htmlContent,
+        textContent: actionTemplate.config.textContent,
+        variables: actionTemplate.variables,
+        category: actionTemplate.category,
+        isActive: actionTemplate.isActive,
+        useWrapper: actionTemplate.config.useWrapper,
+        wrapperType: actionTemplate.config.wrapperType,
+        headerGradient: actionTemplate.config.headerGradient,
+        headerSubtitle: actionTemplate.config.headerSubtitle,
+        ctaButtonText: actionTemplate.config.ctaButtonText,
+        ctaButtonUrl: actionTemplate.config.ctaButtonUrl,
+        ctaButtonColor: actionTemplate.config.ctaButtonColor,
+        customFooter: actionTemplate.config.customFooter,
+        createdAt: actionTemplate.createdAt,
+        updatedAt: actionTemplate.updatedAt,
+      });
     } catch (error) {
       console.error("Error updating email template:", error);
       res.status(500).json({ message: "Failed to update email template" });
     }
   });
 
-  // Delete email template
+  // Delete email template (deletes from action_templates)
   app.delete("/api/admin/email-templates/:id", requireRole(['admin', 'super_admin']), async (req, res) => {
     try {
       const id = parseInt(req.params.id);
-      const success = await storage.deleteEmailTemplate(id);
+      
+      // Verify it's an email type action template before deleting
+      const template = await storage.getActionTemplate(id);
+      if (!template || template.actionType !== 'email') {
+        return res.status(404).json({ message: "Email template not found" });
+      }
+      
+      const success = await storage.deleteActionTemplate(id);
       
       if (!success) {
         return res.status(404).json({ message: "Email template not found" });
