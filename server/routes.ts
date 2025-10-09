@@ -8888,29 +8888,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Invalid email address" });
       }
       
-      // Get template
-      const template = await storage.getEmailTemplate(id);
-      if (!template) {
+      // Get template from action_templates
+      const actionTemplate = await storage.getActionTemplate(id);
+      if (!actionTemplate || actionTemplate.actionType !== 'email') {
         return res.status(404).json({ message: "Email template not found" });
       }
+      
+      // Extract email config from action template
+      const emailConfig = actionTemplate.config;
       
       // Import email wrapper utility
       const { applyEmailWrapper } = await import("./emailTemplateWrapper");
       
       // Apply wrapper if configured (keeping placeholders intact)
-      let htmlContent = template.htmlContent;
-      if (template.useWrapper) {
+      let htmlContent = emailConfig.htmlContent || '';
+      if (emailConfig.useWrapper) {
         htmlContent = applyEmailWrapper({
-          subject: template.subject,
-          htmlContent: template.htmlContent,
-          useWrapper: template.useWrapper,
-          wrapperType: template.wrapperType || 'notification',
-          headerSubtitle: template.headerSubtitle,
-          ctaButtonText: template.ctaButtonText,
-          ctaButtonUrl: template.ctaButtonUrl,
-          headerGradient: template.headerGradient,
-          ctaButtonColor: template.ctaButtonColor,
-          customFooter: template.customFooter
+          subject: emailConfig.subject || '',
+          htmlContent: emailConfig.htmlContent || '',
+          useWrapper: emailConfig.useWrapper,
+          wrapperType: emailConfig.wrapperType || 'notification',
+          headerSubtitle: emailConfig.headerSubtitle,
+          ctaButtonText: emailConfig.ctaButtonText,
+          ctaButtonUrl: emailConfig.ctaButtonUrl,
+          headerGradient: emailConfig.headerGradient,
+          ctaButtonColor: emailConfig.ctaButtonColor,
+          customFooter: emailConfig.customFooter
         }, {}); // Empty variables object to preserve placeholders
       }
       
@@ -8921,7 +8924,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await mailService.send({
         to: email,
         from: process.env.SENDGRID_FROM_EMAIL || 'noreply@charrg.com',
-        subject: `[TEST] ${template.subject}`,
+        subject: `[TEST] ${emailConfig.subject || actionTemplate.name}`,
         html: htmlContent
         // Don't send text version for test emails - always show HTML wrapper
       });
