@@ -39,6 +39,7 @@ Preferred communication style: Simple, everyday language.
 
 ### System Design Choices
 - **Testing Framework**: TDD-style with Jest and React Testing Library for comprehensive testing, including a visual testing dashboard.
+- **Manual Testing Checklist**: Comprehensive manual test cases in `TESTING_CHECKLIST.md` covering all Communication Management features for non-technical users to validate before deployment.
 - **Schema Management**: Comprehensive database schema comparison and synchronization utilities with a version-controlled migration system.
 - **Multi-Environment Support**: Session-based database environment switching (Development, Test, Production) with an environment selector and automatic connection fallback.
 - **Database Safety**: Strict protocols and wrapper scripts (`scripts/execute-sql.ts`) are enforced to prevent accidental production database modifications, explicitly forbidding direct use of `execute_sql_tool` for non-emergency situations.
