@@ -5,8 +5,8 @@ import { v4 as uuidv4 } from "uuid";
 import sgMail from "@sendgrid/mail";
 import { storage, DatabaseStorage } from "./storage";
 import { emailService } from "./emailService";
-import { users } from "@shared/schema";
-import { eq } from "drizzle-orm";
+import { users, loginAttempts } from "@shared/schema";
+import { eq, and, or, gte } from "drizzle-orm";
 import type { Request } from "express";
 import type { 
   RegisterUser, 
@@ -74,9 +74,25 @@ export class AuthService {
   }
 
   // Check for recent failed login attempts
-  async checkLoginAttempts(usernameOrEmail: string, ip: string): Promise<boolean> {
-    const recentAttempts = await storage.getRecentLoginAttempts(usernameOrEmail, ip, LOCKOUT_TIME);
-    return recentAttempts.length < MAX_LOGIN_ATTEMPTS;
+  async checkLoginAttempts(usernameOrEmail: string, ip: string, db: any = null): Promise<boolean> {
+    if (db) {
+      // Use dynamic database for login attempts check
+      const timeThreshold = new Date(Date.now() - LOCKOUT_TIME);
+      const recentAttempts = await db.select().from(loginAttempts)
+        .where(and(
+          or(
+            eq(loginAttempts.username, usernameOrEmail),
+            eq(loginAttempts.email, usernameOrEmail)
+          ),
+          eq(loginAttempts.ipAddress, ip),
+          gte(loginAttempts.createdAt, timeThreshold)
+        ));
+      return recentAttempts.length < MAX_LOGIN_ATTEMPTS;
+    } else {
+      // Fallback to storage for backward compatibility
+      const recentAttempts = await storage.getRecentLoginAttempts(usernameOrEmail, ip, LOCKOUT_TIME);
+      return recentAttempts.length < MAX_LOGIN_ATTEMPTS;
+    }
   }
 
   // Log login attempt
@@ -85,16 +101,30 @@ export class AuthService {
     ip: string,
     userAgent: string,
     success: boolean,
-    failureReason?: string
+    failureReason?: string,
+    db: any = null
   ): Promise<void> {
-    await storage.createLoginAttempt({
-      username: usernameOrEmail.includes("@") ? null : usernameOrEmail,
-      email: usernameOrEmail.includes("@") ? usernameOrEmail : null,
-      ipAddress: ip,
-      userAgent,
-      success,
-      failureReason,
-    });
+    if (db) {
+      // Use dynamic database for login attempt logging
+      await db.insert(loginAttempts).values({
+        username: usernameOrEmail.includes("@") ? null : usernameOrEmail,
+        email: usernameOrEmail.includes("@") ? usernameOrEmail : null,
+        ipAddress: ip,
+        userAgent,
+        success,
+        failureReason: failureReason || null,
+      });
+    } else {
+      // Fallback to storage for backward compatibility
+      await storage.createLoginAttempt({
+        username: usernameOrEmail.includes("@") ? null : usernameOrEmail,
+        email: usernameOrEmail.includes("@") ? usernameOrEmail : null,
+        ipAddress: ip,
+        userAgent,
+        success,
+        failureReason,
+      });
+    }
   }
 
   // Send email using SendGrid
@@ -413,8 +443,8 @@ export class AuthService {
 
     try {
       // Check login attempts
-      if (!(await this.checkLoginAttempts(loginData.usernameOrEmail, ip))) {
-        await this.logLoginAttempt(loginData.usernameOrEmail, ip, userAgent, false, "too_many_attempts");
+      if (!(await this.checkLoginAttempts(loginData.usernameOrEmail, ip, db))) {
+        await this.logLoginAttempt(loginData.usernameOrEmail, ip, userAgent, false, "too_many_attempts", db);
         return {
           success: false,
           message: "Too many failed login attempts. Please try again in 15 minutes."
@@ -484,7 +514,7 @@ export class AuthService {
         }
       } catch (dbError) {
         console.error("Database query error:", dbError);
-        await this.logLoginAttempt(loginData.usernameOrEmail, ip, userAgent, false, "database_error");
+        await this.logLoginAttempt(loginData.usernameOrEmail, ip, userAgent, false, "database_error", db);
         return {
           success: false,
           message: "Login failed. Please try again."
@@ -492,7 +522,7 @@ export class AuthService {
       }
 
       if (!user) {
-        await this.logLoginAttempt(loginData.usernameOrEmail, ip, userAgent, false, "user_not_found");
+        await this.logLoginAttempt(loginData.usernameOrEmail, ip, userAgent, false, "user_not_found", db);
         return {
           success: false,
           message: "Invalid username/email or password"
@@ -501,7 +531,7 @@ export class AuthService {
 
       // Check if account is active
       if (user.status !== "active") {
-        await this.logLoginAttempt(loginData.usernameOrEmail, ip, userAgent, false, "account_inactive");
+        await this.logLoginAttempt(loginData.usernameOrEmail, ip, userAgent, false, "account_inactive", db);
         return {
           success: false,
           message: "Account is suspended. Please contact support."
@@ -510,7 +540,7 @@ export class AuthService {
 
       // Verify password
       if (!(await this.verifyPassword(loginData.password, user.passwordHash))) {
-        await this.logLoginAttempt(loginData.usernameOrEmail, ip, userAgent, false, "invalid_password");
+        await this.logLoginAttempt(loginData.usernameOrEmail, ip, userAgent, false, "invalid_password", db);
         return {
           success: false,
           message: "Invalid username/email or password"
@@ -556,7 +586,7 @@ export class AuthService {
           // Verify 2FA code
           const validCode = await storage.verify2FACode(user.id, loginData.twoFactorCode);
           if (!validCode) {
-            await this.logLoginAttempt(loginData.usernameOrEmail, ip, userAgent, false, "invalid_2fa");
+            await this.logLoginAttempt(loginData.usernameOrEmail, ip, userAgent, false, "invalid_2fa", db);
             return {
               success: false,
               message: "Invalid or expired security code"
@@ -579,7 +609,7 @@ export class AuthService {
       await db.update(users).set(updateData).where(eq(users.id, user.id));
 
       // Log successful login
-      await this.logLoginAttempt(loginData.usernameOrEmail, ip, userAgent, true);
+      await this.logLoginAttempt(loginData.usernameOrEmail, ip, userAgent, true, undefined, db);
 
       return {
         success: true,
@@ -589,7 +619,7 @@ export class AuthService {
       };
     } catch (error) {
       console.error("Login error:", error);
-      await this.logLoginAttempt(loginData.usernameOrEmail, ip, userAgent, false, "system_error");
+      await this.logLoginAttempt(loginData.usernameOrEmail, ip, userAgent, false, "system_error", db);
       return {
         success: false,
         message: "Login failed. Please try again."
