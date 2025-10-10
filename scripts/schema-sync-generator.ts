@@ -64,6 +64,17 @@ function generateSyncSQL(
       // Table exists in source but not in target - need to create it
       console.log(`⚠️  Table ${tableName} exists in ${sourceEnv} but not in ${targetEnv} - creating table`);
       
+      // First, create any sequences needed for serial columns
+      for (const col of sourceColumns) {
+        if (col.columnDefault?.includes('nextval')) {
+          const seqMatch = col.columnDefault.match(/'([^']+)'/);
+          if (seqMatch) {
+            const seqName = seqMatch[1];
+            sqlStatements.push(`CREATE SEQUENCE IF NOT EXISTS ${seqName};`);
+          }
+        }
+      }
+      
       // Generate CREATE TABLE statement
       const columnDefs = sourceColumns.map(col => {
         const nullable = col.isNullable === 'YES' ? '' : ' NOT NULL';
