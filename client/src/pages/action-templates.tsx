@@ -1056,6 +1056,36 @@ export default function ActionTemplates() {
     },
   });
 
+  // Duplicate mutation
+  const duplicateMutation = useMutation({
+    mutationFn: async (template: ActionTemplate) => {
+      const duplicateData = {
+        name: `${template.name} (Copy)`,
+        description: template.description,
+        actionType: template.actionType,
+        category: template.category,
+        config: template.config,
+        variables: template.variables,
+        isActive: false, // Start duplicates as inactive
+      };
+      return apiRequest('/api/action-templates', 'POST', duplicateData);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/action-templates'] });
+      toast({
+        title: "Success",
+        description: "Template duplicated successfully",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to duplicate template",
+        variant: "destructive",
+      });
+    },
+  });
+
   // Filter templates
   const filteredTemplates = templates.filter(template => {
     const matchesSearch = template.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -1294,8 +1324,9 @@ export default function ActionTemplates() {
                               variant="outline" 
                               size="sm"
                               onClick={() => {
-                                // TODO: Implement duplicate functionality
+                                duplicateMutation.mutate(template);
                               }}
+                              disabled={duplicateMutation.isPending}
                               data-testid={`button-duplicate-${template.id}`}
                             >
                               <Copy className="h-3 w-3" />
