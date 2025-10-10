@@ -46,6 +46,7 @@ import Acquirers from "@/pages/acquirers";
 import ApplicationTemplates from "@/pages/application-templates";
 import FormDemo from "@/pages/form-demo";
 import EmailManagement from "@/pages/email-management";
+import ActionTemplates from "@/pages/action-templates";
 import ApiDocumentation from "@/pages/api-documentation";
 import TestingUtilities from "@/pages/testing-utilities";
 import AlertsPage from "@/pages/AlertsPage";
@@ -140,6 +141,11 @@ function AuthenticatedApp() {
         return {
           title: "Communication Management",
           subtitle: "Manage email templates, notifications, and track multi-channel communication"
+        };
+      case "/action-templates":
+        return {
+          title: "Action Templates",
+          subtitle: "Manage reusable action templates for triggers and workflows"
         };
       case "/pdf-forms":
         return {
@@ -357,6 +363,24 @@ function AuthenticatedApp() {
                   />
                   <main className="flex-1 overflow-auto bg-gray-50">
                     <EmailManagement />
+                  </main>
+                </>
+              );
+            }}
+          </Route>
+          <Route path="/action-templates">
+            {() => {
+              const userRoles = (user as any)?.roles || [];
+              if (!user || (!userRoles.includes('admin') && !userRoles.includes('super_admin'))) return <NotFound />;
+              const pageInfo = getPageInfo("/action-templates");
+              return (
+                <>
+                  <Header 
+                    title={pageInfo.title} 
+                    onSearch={setGlobalSearch}
+                  />
+                  <main className="flex-1 overflow-auto bg-gray-50">
+                    <ActionTemplates />
                   </main>
                 </>
               );
