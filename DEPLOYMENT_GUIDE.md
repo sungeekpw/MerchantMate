@@ -60,24 +60,30 @@ Production: (not configured)
 
 ---
 
-### Option 3: Migration-Based Deployment (Future Use)
+### Option 3: Advanced Schema Deployment Script
 
-For version-controlled deployments:
+**Use Case**: When you need to add columns to existing tables (not for empty databases)
 
-#### Generate Migration
+The `deploy-schema-to-production.ts` script is for **incremental updates** only:
+- ✅ Works when: Tables exist but are missing some columns
+- ❌ Doesn't work when: Database is completely empty (no tables)
+
+#### Compare Schemas
 ```bash
-tsx scripts/migration-manager.ts generate
+tsx scripts/deploy-schema-to-production.ts compare development test
 ```
 
-#### Apply to Test
+#### Generate Deployment SQL
 ```bash
-tsx scripts/migration-manager.ts apply test
+tsx scripts/deploy-schema-to-production.ts generate development test
 ```
 
-#### Apply to Production (After Testing)
+#### Apply Changes
 ```bash
-tsx scripts/migration-manager.ts apply prod
+tsx scripts/deploy-schema-to-production.ts apply test
 ```
+
+**Important**: For empty databases, use Option 1 (UI Data Sync) or Option 2 (db:push) instead
 
 ---
 
