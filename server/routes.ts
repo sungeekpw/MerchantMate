@@ -3069,6 +3069,169 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Generate SQL migration to fix schema drift
+  app.post("/api/admin/schema-drift/generate-fix", requireRole(['super_admin']), async (req, res) => {
+    try {
+      const { env1, env2 } = req.body;
+      
+      // Strict whitelist validation to prevent command injection
+      const allowedEnvs = ['development', 'test', 'production'];
+      if (!allowedEnvs.includes(env1) || !allowedEnvs.includes(env2)) {
+        return res.status(400).json({ 
+          success: false, 
+          message: "Invalid environment. Allowed values: development, test, production" 
+        });
+      }
+
+      if (env1 === env2) {
+        return res.status(400).json({ 
+          success: false, 
+          message: "Source and target environments must be different" 
+        });
+      }
+
+      // Use spawn instead of exec to prevent command injection
+      const { spawn } = await import('child_process');
+      
+      const child = spawn('tsx', ['scripts/schema-sync-generator.ts', env1, env2], {
+        cwd: process.cwd(),
+        stdio: ['ignore', 'pipe', 'pipe']
+      });
+
+      let stdout = '';
+      let stderr = '';
+
+      child.stdout.on('data', (data) => {
+        stdout += data.toString();
+      });
+
+      child.stderr.on('data', (data) => {
+        stderr += data.toString();
+      });
+
+      await new Promise<void>((resolve, reject) => {
+        child.on('close', (code) => {
+          if (code === 0) {
+            resolve();
+          } else {
+            reject(new Error(`Process exited with code ${code}: ${stderr}`));
+          }
+        });
+        child.on('error', reject);
+      });
+
+      // Parse output to find generated file
+      const fileMatch = stdout.match(/Generated migration file: (.+)/);
+      const migrationFile = fileMatch ? fileMatch[1] : null;
+
+      res.json({
+        success: true,
+        message: "SQL migration generated successfully",
+        migrationFile,
+        output: stdout,
+        errors: stderr
+      });
+    } catch (error) {
+      console.error("Error generating fix SQL:", error);
+      res.status(500).json({ 
+        success: false, 
+        message: "Failed to generate fix SQL",
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
+  // Auto-sync environments (runs sync-environments script)
+  app.post("/api/admin/schema-drift/auto-sync", requireRole(['super_admin']), async (req, res) => {
+    try {
+      const { env1, env2, includeData } = req.body;
+      
+      // Strict whitelist validation to prevent command injection
+      const allowedEnvs = ['development', 'test', 'production'];
+      if (!allowedEnvs.includes(env1) || !allowedEnvs.includes(env2)) {
+        return res.status(400).json({ 
+          success: false, 
+          message: "Invalid environment. Allowed values: development, test, production" 
+        });
+      }
+
+      if (env1 === env2) {
+        return res.status(400).json({ 
+          success: false, 
+          message: "Source and target environments must be different" 
+        });
+      }
+
+      // Map environment names to sync script format (dev-to-test, test-to-prod, etc.)
+      const envMapping: Record<string, string> = {
+        development: 'dev',
+        test: 'test',
+        production: 'prod'
+      };
+
+      const sourceEnv = envMapping[env1];
+      const targetEnv = envMapping[env2];
+      const syncType = `${sourceEnv}-to-${targetEnv}`;
+      
+      // Validate includeData is boolean
+      const safeIncludeData = includeData === true;
+      const dataFlag = safeIncludeData ? '--with-data' : '--schema-only';
+
+      // Use spawn instead of exec to prevent command injection
+      const { spawn } = await import('child_process');
+      
+      const child = spawn('tsx', ['scripts/sync-environments.ts', syncType, dataFlag], {
+        cwd: process.cwd(),
+        stdio: ['ignore', 'pipe', 'pipe']
+      });
+
+      let stdout = '';
+      let stderr = '';
+
+      child.stdout.on('data', (data) => {
+        stdout += data.toString();
+      });
+
+      child.stderr.on('data', (data) => {
+        stderr += data.toString();
+      });
+
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new Error('Sync operation timed out after 60 seconds')), 60000);
+      });
+
+      await Promise.race([
+        new Promise<void>((resolve, reject) => {
+          child.on('close', (code) => {
+            if (code === 0) {
+              resolve();
+            } else {
+              reject(new Error(`Process exited with code ${code}: ${stderr}`));
+            }
+          });
+          child.on('error', reject);
+        }),
+        timeoutPromise
+      ]);
+
+      res.json({
+        success: true,
+        message: `Successfully synced ${env1} to ${env2}`,
+        syncType,
+        includeData: safeIncludeData,
+        output: stdout,
+        errors: stderr
+      });
+    } catch (error) {
+      console.error("Error auto-syncing environments:", error);
+      res.status(500).json({ 
+        success: false, 
+        message: "Failed to auto-sync environments",
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
   // Update prospect status to "in progress" when they start filling out the form
   app.post("/api/prospects/:id/start-application", async (req, res) => {
     try {

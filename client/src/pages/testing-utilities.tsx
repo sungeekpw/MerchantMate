@@ -11,7 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Progress } from "@/components/ui/progress";
 import TestingDashboard from "@/components/TestingDashboard";
-import { Trash2, RefreshCw, Database, CheckCircle, X, Server, Shield, ShieldCheck, TestTube, Settings, Play, Pause, BarChart3, FileText, AlertCircle, Clock, Copy, Terminal, ArrowLeftRight, Download, Upload, Eye, List, Bell, ClipboardCheck } from "lucide-react";
+import { Trash2, RefreshCw, Database, CheckCircle, X, Server, Shield, ShieldCheck, TestTube, Settings, Play, Pause, BarChart3, FileText, AlertCircle, Clock, Copy, Terminal, ArrowLeftRight, Download, Upload, Eye, List, Bell, ClipboardCheck, FileCode, ArrowRightLeft } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface ResetResult {
@@ -297,6 +297,62 @@ export default function TestingUtilities() {
     onError: (error) => {
       toast({
         title: "Error Detecting Drift",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Generate fix SQL mutation
+  const generateFixSQLMutation = useMutation({
+    mutationFn: async ({ env1, env2 }: { env1: string; env2: string }) => {
+      const response = await fetch('/api/admin/schema-drift/generate-fix', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ env1, env2 }),
+      });
+      if (!response.ok) throw new Error("Failed to generate fix SQL");
+      return response.json();
+    },
+    onSuccess: (data) => {
+      toast({
+        title: "Fix SQL Generated",
+        description: data.migrationFile ? `Created: ${data.migrationFile}` : "SQL migration created successfully",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error Generating Fix SQL",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Auto-sync mutation
+  const autoSyncMutation = useMutation({
+    mutationFn: async ({ env1, env2, includeData }: { env1: string; env2: string; includeData: boolean }) => {
+      const response = await fetch('/api/admin/schema-drift/auto-sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ env1, env2, includeData }),
+      });
+      if (!response.ok) throw new Error("Failed to auto-sync environments");
+      return response.json();
+    },
+    onSuccess: (data, variables) => {
+      toast({
+        title: "Sync Complete",
+        description: `Successfully synced ${variables.env1} to ${variables.env2}`,
+      });
+      // Re-detect drift to verify sync
+      detectDriftMutation.mutate({ env1: variables.env1, env2: variables.env2 });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error Syncing Environments",
         description: error.message,
         variant: "destructive",
       });
@@ -1551,20 +1607,74 @@ Check console for full details.`);
                     </div>
                     
                     {driftResult.hasDrift && (
-                      <div className="mt-4 space-y-2">
-                        <Badge variant="destructive" className="mr-2">
-                          {driftResult.missingInEnv2.length} Missing in {driftResult.env2}
-                        </Badge>
-                        <Badge variant="outline" className="mr-2">
-                          {driftResult.extraInEnv2.length} Extra in {driftResult.env2}
-                        </Badge>
+                      <div className="mt-4 space-y-3">
+                        <div className="flex gap-2">
+                          <Badge variant="destructive" className="flex-1 justify-center">
+                            {driftResult.missingInEnv2.length} Missing in {driftResult.env2}
+                          </Badge>
+                          <Badge variant="outline" className="flex-1 justify-center">
+                            {driftResult.extraInEnv2.length} Extra in {driftResult.env2}
+                          </Badge>
+                        </div>
+                        
+                        <div className="grid grid-cols-2 gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => generateFixSQLMutation.mutate({ env1: driftResult.env1, env2: driftResult.env2 })}
+                            disabled={generateFixSQLMutation.isPending}
+                            data-testid="button-generate-fix-sql"
+                          >
+                            {generateFixSQLMutation.isPending ? (
+                              <>
+                                <RefreshCw className="mr-1 h-3 w-3 animate-spin" />
+                                Generating...
+                              </>
+                            ) : (
+                              <>
+                                <FileCode className="mr-1 h-3 w-3" />
+                                Generate Fix SQL
+                              </>
+                            )}
+                          </Button>
+                          
+                          <Button
+                            variant="default"
+                            size="sm"
+                            onClick={() => {
+                              if (confirm(`Auto-sync will copy schema from ${driftResult.env1} to ${driftResult.env2}. Continue?`)) {
+                                autoSyncMutation.mutate({ 
+                                  env1: driftResult.env1, 
+                                  env2: driftResult.env2, 
+                                  includeData: false 
+                                });
+                              }
+                            }}
+                            disabled={autoSyncMutation.isPending}
+                            data-testid="button-auto-sync"
+                          >
+                            {autoSyncMutation.isPending ? (
+                              <>
+                                <RefreshCw className="mr-1 h-3 w-3 animate-spin" />
+                                Syncing...
+                              </>
+                            ) : (
+                              <>
+                                <ArrowRightLeft className="mr-1 h-3 w-3" />
+                                Auto-Sync
+                              </>
+                            )}
+                          </Button>
+                        </div>
+                        
                         <Button
                           variant="outline"
                           size="sm"
                           onClick={() => setShowDriftModal(true)}
-                          className="mt-2 w-full"
+                          className="w-full"
                           data-testid="button-view-drift-details"
                         >
+                          <Eye className="mr-1 h-3 w-3" />
                           View Detailed Analysis
                         </Button>
                       </div>
