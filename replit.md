@@ -64,6 +64,7 @@ Preferred communication style: Simple, everyday language.
 - Added to `equipmentItems`: model (text), price (decimal), status (text, default 'available')
 - Added to `feeItems`: feeItemGroupId (integer, foreign key to fee_item_groups)
 - Extended `auditLogs`: Added 15 columns for enhanced tracking (resource_type, details, timestamp, severity, category, outcome, error_message, request_id, correlation_id, metadata, geolocation, device_info, retention_policy, encryption_key_id, updated_at)
+- Extended `merchants`: Added 10 columns for comprehensive merchant data (business_name, business_type, email, phone, dba_name, legal_name, ein, website, industry, updated_at)
 
 ## External Dependencies
 - **pg**: Native PostgreSQL driver.
