@@ -248,7 +248,7 @@ function TemplateModal({ open, onClose, template, mode }: TemplateModalProps) {
         config: validatedConfig,
         variables: parsedVariables,
       };
-      return apiRequest('/api/action-templates', 'POST', payload);
+      return apiRequest('POST', '/api/action-templates', payload);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/action-templates'] });
@@ -289,7 +289,7 @@ function TemplateModal({ open, onClose, template, mode }: TemplateModalProps) {
         config: validatedConfig,
         variables: parsedVariables,
       };
-      return apiRequest(`/api/action-templates/${template?.id}`, 'PATCH', payload);
+      return apiRequest('PATCH', `/api/action-templates/${template?.id}`, payload);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/action-templates'] });
@@ -1037,7 +1037,7 @@ export default function ActionTemplates() {
   // Delete mutation
   const deleteMutation = useMutation({
     mutationFn: async (id: number) => {
-      return apiRequest(`/api/action-templates/${id}`, 'DELETE');
+      return apiRequest('DELETE', `/api/action-templates/${id}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/action-templates'] });
@@ -1068,7 +1068,7 @@ export default function ActionTemplates() {
         variables: template.variables,
         isActive: false, // Start duplicates as inactive
       };
-      return apiRequest('/api/action-templates', 'POST', duplicateData);
+      return apiRequest('POST', '/api/action-templates', duplicateData);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/action-templates'] });
