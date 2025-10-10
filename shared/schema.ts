@@ -1091,6 +1091,23 @@ export const auditLogs = pgTable("audit_logs", {
   notes: text("notes"), // Human-readable description
   
   createdAt: timestamp("created_at").defaultNow().notNull(),
+  
+  // Extended audit fields
+  resourceType: text("resource_type"), // Type classification for the resource
+  details: jsonb("details"), // Additional structured details
+  timestamp: timestamp("timestamp").defaultNow(), // Alternative timestamp field
+  severity: text("severity").default("info"), // info, warning, error, critical
+  category: text("category"), // Categorization for filtering
+  outcome: text("outcome"), // success, failure, partial
+  errorMessage: text("error_message"), // Error details if applicable
+  requestId: varchar("request_id"), // Unique request identifier
+  correlationId: varchar("correlation_id"), // For tracking related requests
+  metadata: jsonb("metadata"), // Additional flexible metadata
+  geolocation: jsonb("geolocation"), // Geographic information
+  deviceInfo: jsonb("device_info"), // Device details
+  retentionPolicy: text("retention_policy"), // Data retention classification
+  encryptionKeyId: varchar("encryption_key_id"), // Reference to encryption key
+  updatedAt: timestamp("updated_at").defaultNow(), // Last update timestamp
 }, (table) => ({
   userIdIdx: index("audit_logs_user_id_idx").on(table.userId),
   actionIdx: index("audit_logs_action_idx").on(table.action),
