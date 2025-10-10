@@ -94,7 +94,7 @@ export default function ActionTemplates() {
   // Filter templates
   const filteredTemplates = templates.filter(template => {
     const matchesSearch = template.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         template.description?.toLowerCase().includes(searchQuery.toLowerCase());
+                         (template.description || '').toLowerCase().includes(searchQuery.toLowerCase());
     const matchesType = selectedType === 'all' || template.actionType === selectedType;
     const matchesCategory = selectedCategory === 'all' || template.category === selectedCategory;
     
