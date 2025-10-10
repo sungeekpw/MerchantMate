@@ -3095,7 +3095,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const child = spawn('tsx', ['scripts/schema-sync-generator.ts', env1, env2], {
         cwd: process.cwd(),
-        stdio: ['ignore', 'pipe', 'pipe']
+        stdio: ['ignore', 'pipe', 'pipe'],
+        env: {
+          ...process.env,
+          DATABASE_URL: process.env.DATABASE_URL,           // Production
+          TEST_DATABASE_URL: process.env.TEST_DATABASE_URL, // Test
+          DEV_DATABASE_URL: process.env.DEV_DATABASE_URL    // Development
+        }
       });
 
       let stdout = '';
