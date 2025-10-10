@@ -98,36 +98,47 @@ function generateSyncSQL(dev: Map<string, ColumnInfo[]>, test: Map<string, Colum
 }
 
 async function main() {
-  const devUrl = process.env.DEV_DATABASE_URL;
-  const testUrl = process.env.TEST_DATABASE_URL;
+  // Get source and target environments from command line args
+  const sourceEnv = process.argv[2] || 'development';
+  const targetEnv = process.argv[3] || 'test';
+  
+  // Map environment names to database URL environment variables
+  const envUrlMap: Record<string, string> = {
+    'development': process.env.DEV_DATABASE_URL || '',
+    'test': process.env.TEST_DATABASE_URL || '',
+    'production': process.env.DATABASE_URL || ''
+  };
 
-  if (!devUrl || !testUrl) {
-    console.error('❌ Missing environment variables');
+  const sourceUrl = envUrlMap[sourceEnv];
+  const targetUrl = envUrlMap[targetEnv];
+
+  if (!sourceUrl || !targetUrl) {
+    console.error(`❌ Missing environment variables for ${sourceEnv} or ${targetEnv}`);
     process.exit(1);
   }
 
-  console.log('🔍 Analyzing schema differences...\n');
+  console.log(`🔍 Analyzing schema differences: ${sourceEnv} → ${targetEnv}\n`);
 
-  const devSchema = await getSchema(devUrl);
-  const testSchema = await getSchema(testUrl);
+  const sourceSchema = await getSchema(sourceUrl);
+  const targetSchema = await getSchema(targetUrl);
   
-  const syncSQL = generateSyncSQL(devSchema, testSchema);
+  const syncSQL = generateSyncSQL(sourceSchema, targetSchema);
 
   if (syncSQL.length === 0) {
     console.log('✅ No synchronization needed - schemas match!\n');
     return;
   }
 
-  console.log(`📝 Generated ${syncSQL.length} SQL statements to sync Test with Development\n`);
+  console.log(`📝 Generated ${syncSQL.length} SQL statements to sync ${targetEnv} with ${sourceEnv}\n`);
 
   // Create migrations directory if it doesn't exist
-  const timestamp = new Date().toISOString().replace(/[:.]/g, '-').split('T')[0];
-  const filename = `schema-sync-${timestamp}.sql`;
+  const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+  const filename = `schema-fix-${sourceEnv}-to-${targetEnv}-${timestamp}.sql`;
   const filepath = join(process.cwd(), 'migrations', filename);
 
   // Write to file
   const sqlContent = [
-    `-- Schema Synchronization: Development → Test`,
+    `-- Schema Synchronization: ${sourceEnv} → ${targetEnv}`,
     `-- Generated: ${new Date().toISOString()}`,
     `-- Total statements: ${syncSQL.length}`,
     ``,
@@ -143,7 +154,8 @@ async function main() {
 
   try {
     writeFileSync(filepath, sqlContent);
-    console.log(`✅ Sync SQL written to: ${filepath}\n`);
+    console.log(`✅ Sync SQL written to: ${filepath}`);
+    console.log(`Generated migration file: ${filepath}\n`);
   } catch (error) {
     console.log('📋 Sync SQL statements:\n');
     console.log(sqlContent);
@@ -152,8 +164,8 @@ async function main() {
   console.log('💡 TO APPLY THIS SYNC:');
   console.log('─'.repeat(80));
   console.log(`1. Review the SQL file: ${filename}`);
-  console.log(`2. Apply to Test: psql "$TEST_DATABASE_URL" < migrations/${filename}`);
-  console.log(`3. Verify: tsx scripts/schema-drift-simple.ts\n`);
+  console.log(`2. Apply to ${targetEnv}: psql "$${targetEnv.toUpperCase()}_DATABASE_URL" < migrations/${filename}`);
+  console.log(`3. Verify: tsx scripts/schema-drift-simple.ts ${sourceEnv} ${targetEnv}\n`);
 }
 
 main().catch(console.error);
