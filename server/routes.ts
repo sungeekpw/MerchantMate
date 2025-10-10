@@ -2947,6 +2947,124 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Schema drift detection endpoint
+  app.get("/api/admin/schema-drift/:env1/:env2", requireRole(['super_admin', 'admin']), async (req, res) => {
+    try {
+      const { env1, env2 } = req.params;
+      
+      const envMap = {
+        development: process.env.DEV_DATABASE_URL,
+        test: process.env.TEST_DATABASE_URL,
+        production: process.env.DATABASE_URL,
+      };
+
+      if (!envMap[env1] || !envMap[env2]) {
+        return res.status(400).json({ 
+          success: false, 
+          message: "Invalid environment specified" 
+        });
+      }
+
+      // Get schema from both environments
+      const getSchema = async (connectionString: string) => {
+        const pool = new Pool({ connectionString });
+        try {
+          const result = await pool.query(`
+            SELECT 
+              table_name as "tableName",
+              column_name as "columnName",
+              data_type as "dataType",
+              is_nullable as "isNullable",
+              column_default as "columnDefault",
+              ordinal_position as "position"
+            FROM information_schema.columns 
+            WHERE table_schema = 'public'
+              AND table_name NOT IN ('drizzle_migrations', 'drizzle__migrations', 'schema_migrations')
+            ORDER BY table_name, ordinal_position
+          `);
+          return result.rows;
+        } finally {
+          await pool.end();
+        }
+      };
+
+      const [schema1, schema2] = await Promise.all([
+        getSchema(envMap[env1]),
+        getSchema(envMap[env2])
+      ]);
+
+      // Organize by table
+      const organizeByTable = (rows: any[]) => {
+        const map = new Map();
+        for (const row of rows) {
+          if (!map.has(row.tableName)) {
+            map.set(row.tableName, []);
+          }
+          map.get(row.tableName).push(row);
+        }
+        return map;
+      };
+
+      const tables1 = organizeByTable(schema1);
+      const tables2 = organizeByTable(schema2);
+
+      // Find differences
+      const missingInEnv2: any[] = [];
+      const extraInEnv2: any[] = [];
+
+      // Find columns in env1 but not in env2
+      for (const [tableName, columns] of tables1.entries()) {
+        const columns2 = tables2.get(tableName);
+        if (!columns2) {
+          missingInEnv2.push(...columns);
+          continue;
+        }
+        const columnNames2 = new Set(columns2.map((c: any) => c.columnName));
+        for (const col of columns) {
+          if (!columnNames2.has(col.columnName)) {
+            missingInEnv2.push(col);
+          }
+        }
+      }
+
+      // Find columns in env2 but not in env1
+      for (const [tableName, columns] of tables2.entries()) {
+        const columns1 = tables1.get(tableName);
+        if (!columns1) {
+          extraInEnv2.push(...columns);
+          continue;
+        }
+        const columnNames1 = new Set(columns1.map((c: any) => c.columnName));
+        for (const col of columns) {
+          if (!columnNames1.has(col.columnName)) {
+            extraInEnv2.push(col);
+          }
+        }
+      }
+
+      const hasDrift = missingInEnv2.length > 0 || extraInEnv2.length > 0;
+
+      res.json({
+        success: true,
+        hasDrift,
+        env1,
+        env2,
+        totalTables: tables1.size,
+        totalColumnsEnv1: schema1.length,
+        totalColumnsEnv2: schema2.length,
+        missingInEnv2,
+        extraInEnv2,
+      });
+    } catch (error) {
+      console.error("Error detecting schema drift:", error);
+      res.status(500).json({ 
+        success: false, 
+        message: "Failed to detect schema drift",
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
   // Update prospect status to "in progress" when they start filling out the form
   app.post("/api/prospects/:id/start-application", async (req, res) => {
     try {
