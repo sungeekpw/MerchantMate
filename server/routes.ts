@@ -3191,9 +3191,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         stdio: ['ignore', 'pipe', 'pipe'],
         env: {
           ...process.env,
-          DATABASE_URL_PROD: process.env.DATABASE_URL_PROD,
-          DATABASE_URL_TEST: process.env.DATABASE_URL_TEST,
-          DATABASE_URL: process.env.DATABASE_URL
+          DATABASE_URL: process.env.DATABASE_URL,           // Production
+          TEST_DATABASE_URL: process.env.TEST_DATABASE_URL, // Test
+          DEV_DATABASE_URL: process.env.DEV_DATABASE_URL    // Development
         }
       });
 
