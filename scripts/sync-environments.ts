@@ -76,12 +76,36 @@ class EnvironmentSync {
       console.log('✅ Auto-confirmed: Proceeding with sync...');
     }
     
+    // Push schema changes to test using drizzle-kit
+    console.log('\n[1/3] Pushing schema changes to Test database...');
+    try {
+      const testDbUrl = process.env.DATABASE_URL_TEST;
+      if (!testDbUrl) {
+        throw new Error('DATABASE_URL_TEST environment variable not found');
+      }
+      
+      const { stdout, stderr } = await execAsync('npx drizzle-kit push --force', {
+        env: { ...process.env, DATABASE_URL: testDbUrl }
+      });
+      
+      if (stdout) console.log(stdout);
+      if (stderr && !stderr.includes('warn')) console.error('⚠️  Warnings:', stderr);
+      console.log('✅ Schema pushed to Test');
+    } catch (error: any) {
+      console.error('❌ Error pushing schema to Test:', error.message);
+      if (AUTO_CONFIRM) {
+        console.log('⚠️  Error occurred in auto-confirm mode - aborting sync for safety');
+        throw error;
+      } else {
+        const continueAnyway = await ask('\nContinue with remaining steps? (yes/no): ');
+        if (continueAnyway.toLowerCase() !== 'yes') {
+          console.log('❌ Sync aborted.');
+          throw error;
+        }
+      }
+    }
+    
     const steps: SyncStep[] = [
-      {
-        name: 'Apply Schema Changes to Test',
-        command: 'DATABASE_URL=$DATABASE_URL_TEST npm run db:push -- --force',
-        description: 'Pushing schema changes to Test database...'
-      },
       {
         name: 'Export Lookup Data from Dev',
         command: 'tsx scripts/data-sync-manager.ts export development',
@@ -148,12 +172,36 @@ class EnvironmentSync {
       console.log('✅ Auto-confirmed: Proceeding with PRODUCTION sync...');
     }
     
+    // Push schema changes to production using drizzle-kit
+    console.log('\n[1/3] Pushing schema changes to Production database...');
+    try {
+      const prodDbUrl = process.env.DATABASE_URL_PROD;
+      if (!prodDbUrl) {
+        throw new Error('DATABASE_URL_PROD environment variable not found');
+      }
+      
+      const { stdout, stderr } = await execAsync('npx drizzle-kit push --force', {
+        env: { ...process.env, DATABASE_URL: prodDbUrl }
+      });
+      
+      if (stdout) console.log(stdout);
+      if (stderr && !stderr.includes('warn')) console.error('⚠️  Warnings:', stderr);
+      console.log('✅ Schema pushed to Production');
+    } catch (error: any) {
+      console.error('❌ Error pushing schema to Production:', error.message);
+      if (AUTO_CONFIRM) {
+        console.log('⚠️  Error occurred in auto-confirm mode - aborting sync for safety');
+        throw error;
+      } else {
+        const continueAnyway = await ask('\nContinue with remaining steps? (yes/no): ');
+        if (continueAnyway.toLowerCase() !== 'yes') {
+          console.log('❌ Sync aborted.');
+          throw error;
+        }
+      }
+    }
+    
     const steps: SyncStep[] = [
-      {
-        name: 'Apply Schema Changes to Production',
-        command: 'DATABASE_URL=$DATABASE_URL_PROD npm run db:push -- --force',
-        description: 'Pushing schema changes to Production database...'
-      },
       {
         name: 'Export Lookup Data from Test',
         command: 'tsx scripts/data-sync-manager.ts export test',
