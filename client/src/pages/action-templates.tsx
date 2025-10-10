@@ -165,6 +165,8 @@ function TemplateModal({ open, onClose, template, mode }: TemplateModalProps) {
   const { toast } = useToast();
   const [configFields, setConfigFields] = useState<any>({});
   const [activeFieldRef, setActiveFieldRef] = useState<HTMLInputElement | HTMLTextAreaElement | null>(null);
+  const [showPreview, setShowPreview] = useState(false);
+  const [sampleData, setSampleData] = useState<Record<string, string>>({});
   
   const subjectRef = useRef<HTMLInputElement>(null);
   const bodyRef = useRef<HTMLTextAreaElement>(null);
@@ -338,6 +340,43 @@ function TemplateModal({ open, onClose, template, mode }: TemplateModalProps) {
       // Fallback: append to end
       setConfigFields({ ...configFields, [fieldName]: currentValue + variable });
     }
+  };
+
+  const renderTemplateWithData = (text: string, data: Record<string, string>): string => {
+    if (!text) return '';
+    
+    return text.replace(/\{\{([^}]+)\}\}/g, (match, varName) => {
+      const trimmedVar = varName.trim();
+      return data[trimmedVar] || match;
+    });
+  };
+
+  const extractVariables = (): string[] => {
+    const vars = new Set<string>();
+    const regex = /\{\{([^}]+)\}\}/g;
+    
+    Object.values(configFields).forEach(value => {
+      if (typeof value === 'string') {
+        let match;
+        while ((match = regex.exec(value)) !== null) {
+          vars.add(match[1].trim());
+        }
+      }
+    });
+    
+    return Array.from(vars);
+  };
+
+  const handlePreview = () => {
+    const variables = extractVariables();
+    const initialData: Record<string, string> = {};
+    
+    variables.forEach(v => {
+      initialData[v] = sampleData[v] || `[${v}]`;
+    });
+    
+    setSampleData(initialData);
+    setShowPreview(true);
   };
 
   const renderConfigFields = () => {
@@ -778,6 +817,15 @@ function TemplateModal({ open, onClose, template, mode }: TemplateModalProps) {
                 Cancel
               </Button>
               <Button
+                type="button"
+                variant="secondary"
+                onClick={handlePreview}
+                data-testid="button-preview-template"
+              >
+                <ExternalLink className="w-4 h-4 mr-2" />
+                Preview
+              </Button>
+              <Button
                 type="submit"
                 disabled={createMutation.isPending || updateMutation.isPending}
                 data-testid="button-save-template"
@@ -788,6 +836,179 @@ function TemplateModal({ open, onClose, template, mode }: TemplateModalProps) {
           </form>
         </Form>
       </DialogContent>
+
+      {/* Preview Dialog */}
+      <Dialog open={showPreview} onOpenChange={setShowPreview}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Template Preview</DialogTitle>
+            <DialogDescription>
+              Enter sample data to preview how your template will look
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-6">
+            {/* Sample Data Inputs */}
+            <div className="space-y-4">
+              <h3 className="text-sm font-medium">Sample Variable Values</h3>
+              <div className="grid grid-cols-2 gap-4">
+                {extractVariables().map((varName) => (
+                  <div key={varName} className="space-y-2">
+                    <label className="text-sm font-medium">{varName}</label>
+                    <Input
+                      value={sampleData[varName] || ''}
+                      onChange={(e) => setSampleData({ ...sampleData, [varName]: e.target.value })}
+                      placeholder={`Enter ${varName}`}
+                      data-testid={`input-sample-${varName}`}
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Rendered Preview */}
+            <div className="space-y-4">
+              <h3 className="text-sm font-medium">Preview Output</h3>
+              <div className="p-4 border rounded-lg bg-gray-50 dark:bg-gray-800 space-y-4">
+                {actionType === 'email' && (
+                  <>
+                    <div>
+                      <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Subject</div>
+                      <div className="text-sm font-medium" data-testid="preview-email-subject">
+                        {renderTemplateWithData(configFields.subject || '', sampleData)}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Body</div>
+                      <div className="text-sm whitespace-pre-wrap" data-testid="preview-email-body">
+                        {renderTemplateWithData(configFields.body || '', sampleData)}
+                      </div>
+                    </div>
+                    {configFields.fromEmail && (
+                      <div>
+                        <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">From</div>
+                        <div className="text-sm" data-testid="preview-email-from">
+                          {configFields.fromEmail}
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
+
+                {actionType === 'sms' && (
+                  <>
+                    <div>
+                      <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Message</div>
+                      <div className="text-sm whitespace-pre-wrap" data-testid="preview-sms-message">
+                        {renderTemplateWithData(configFields.message || '', sampleData)}
+                      </div>
+                    </div>
+                    {configFields.toPhone && (
+                      <div>
+                        <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">To</div>
+                        <div className="text-sm" data-testid="preview-sms-to">
+                          {configFields.toPhone}
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
+
+                {actionType === 'webhook' && (
+                  <>
+                    <div>
+                      <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">URL</div>
+                      <div className="text-sm font-mono break-all" data-testid="preview-webhook-url">
+                        {configFields.url || ''}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Method</div>
+                      <div className="text-sm" data-testid="preview-webhook-method">
+                        {configFields.method || 'POST'}
+                      </div>
+                    </div>
+                    {configFields.body && (
+                      <div>
+                        <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Body</div>
+                        <div className="text-sm font-mono whitespace-pre-wrap" data-testid="preview-webhook-body">
+                          {renderTemplateWithData(configFields.body, sampleData)}
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
+
+                {actionType === 'notification' && (
+                  <>
+                    <div>
+                      <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Title</div>
+                      <div className="text-sm font-medium" data-testid="preview-notification-title">
+                        {renderTemplateWithData(configFields.title || '', sampleData)}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Message</div>
+                      <div className="text-sm" data-testid="preview-notification-message">
+                        {renderTemplateWithData(configFields.message || '', sampleData)}
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                {actionType === 'slack' && (
+                  <>
+                    <div>
+                      <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Message</div>
+                      <div className="text-sm whitespace-pre-wrap" data-testid="preview-slack-message">
+                        {renderTemplateWithData(configFields.message || '', sampleData)}
+                      </div>
+                    </div>
+                    {configFields.channel && (
+                      <div>
+                        <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Channel</div>
+                        <div className="text-sm" data-testid="preview-slack-channel">
+                          {renderTemplateWithData(configFields.channel, sampleData)}
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
+
+                {actionType === 'teams' && (
+                  <>
+                    {configFields.title && (
+                      <div>
+                        <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Title</div>
+                        <div className="text-sm font-medium" data-testid="preview-teams-title">
+                          {renderTemplateWithData(configFields.title, sampleData)}
+                        </div>
+                      </div>
+                    )}
+                    <div>
+                      <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Message</div>
+                      <div className="text-sm whitespace-pre-wrap" data-testid="preview-teams-message">
+                        {renderTemplateWithData(configFields.message || '', sampleData)}
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setShowPreview(false)}
+              data-testid="button-close-preview"
+            >
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Dialog>
   );
 }
