@@ -79,6 +79,15 @@ export const pool = new Pool({
   connectionTimeoutMillis: 10000,
 });
 
+// Set search_path to public schema for all connections
+pool.on('connect', (client) => {
+  client.query('SET search_path TO public', (err) => {
+    if (err) {
+      console.error('Error setting search_path on static pool:', err);
+    }
+  });
+});
+
 export const db = drizzle(pool, { schema });
 
 // Environment switching for testing utilities
@@ -106,6 +115,15 @@ export function getDynamicDatabase(environment: string = 'production') {
       max: 3, // Reduced from 5 to prevent connection overload
       idleTimeoutMillis: 15000, // Reduced from 30000 to free connections faster
       connectionTimeoutMillis: 15000, // Increased from 10000 to allow more time for connections
+    });
+    
+    // Set search_path to public schema for all connections
+    dynamicPool.on('connect', (client) => {
+      client.query('SET search_path TO public', (err) => {
+        if (err) {
+          console.error('Error setting search_path:', err);
+        }
+      });
     });
     connectionPools.set(environment, dynamicPool);
   }
