@@ -1,14 +1,22 @@
 # Database Deployment Guide: Dev → Test → Production
 
-## Current Status
+## 🚨 Emergency Fix (If Deployment Broken)
 
-✅ **Development Database**: Schema synced (2 migrations applied)  
-❌ **Test Database**: Empty (needs sync)  
-❌ **Production Database**: URL not configured
+If you're experiencing schema sync issues or deployment failures:
+
+```bash
+# Fix development database
+tsx scripts/emergency-fix.ts development
+
+# Fix test database  
+tsx scripts/emergency-fix.ts test
+```
+
+This will completely rebuild the schema from `shared/schema.ts` using Drizzle.
 
 ---
 
-## 🚀 Deployment Strategy
+## 🚀 Tested & Working Deployment Strategy
 
 ### Option 1: UI-Based Data Sync (Recommended)
 

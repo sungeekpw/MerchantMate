@@ -241,8 +241,10 @@ class DataSyncManager {
           
           // Import data
           for (const row of tableData.data) {
-            const columns = Object.keys(row);
-            const values = Object.values(row).map((value, index) => {
+            // Build column-value pairs for explicit INSERT
+            const entries = Object.entries(row);
+            const columns = entries.map(([key]) => key);
+            const values = entries.map(([, value]) => {
               // Handle JSON/JSONB columns - convert objects/arrays to JSON strings
               if (value !== null && typeof value === 'object') {
                 return JSON.stringify(value);
@@ -252,13 +254,16 @@ class DataSyncManager {
             const placeholders = values.map((_, i) => `$${i + 1}`).join(', ');
             
             if (tableConfig.preserveIds) {
-              // Insert with original IDs
+              // Insert with original IDs using ON CONFLICT for upsert
+              const updateSet = columns
+                .filter(col => col !== 'id')
+                .map(col => `"${col}" = EXCLUDED."${col}"`)
+                .join(', ');
+              
               const insertQuery = `
-                INSERT INTO ${tableConfig.name} (${columns.join(', ')}) 
+                INSERT INTO ${tableConfig.name} (${columns.map(c => `"${c}"`).join(', ')}) 
                 VALUES (${placeholders})
-                ON CONFLICT (id) DO UPDATE SET ${
-                  columns.filter(col => col !== 'id').map(col => `${col} = EXCLUDED.${col}`).join(', ')
-                }
+                ON CONFLICT (id) DO UPDATE SET ${updateSet}
               `;
               await pool.query(insertQuery, values);
             } else {
