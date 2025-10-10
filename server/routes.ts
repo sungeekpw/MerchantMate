@@ -3219,6 +3219,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         timeoutPromise
       ]);
 
+      // Log the sync output for debugging
+      console.log('=== SYNC SCRIPT OUTPUT ===');
+      console.log('STDOUT:', stdout);
+      console.log('STDERR:', stderr);
+      console.log('=========================');
+
       res.json({
         success: true,
         message: `Successfully synced ${env1} to ${env2}`,
