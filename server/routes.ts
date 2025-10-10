@@ -2952,13 +2952,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { env1, env2 } = req.params;
       
-      const envMap = {
+      const envMap: Record<string, string | undefined> = {
         development: process.env.DEV_DATABASE_URL,
         test: process.env.TEST_DATABASE_URL,
         production: process.env.DATABASE_URL,
       };
 
-      if (!envMap[env1] || !envMap[env2]) {
+      const url1 = envMap[env1];
+      const url2 = envMap[env2];
+
+      if (!url1 || !url2) {
         return res.status(400).json({ 
           success: false, 
           message: "Invalid environment specified" 
@@ -2967,6 +2970,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Get schema from both environments
       const getSchema = async (connectionString: string) => {
+        const { Pool } = await import('pg');
         const pool = new Pool({ connectionString });
         try {
           const result = await pool.query(`
@@ -2989,8 +2993,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       };
 
       const [schema1, schema2] = await Promise.all([
-        getSchema(envMap[env1]),
-        getSchema(envMap[env2])
+        getSchema(url1),
+        getSchema(url2)
       ]);
 
       // Organize by table
