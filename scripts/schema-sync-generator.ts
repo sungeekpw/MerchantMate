@@ -48,47 +48,63 @@ async function getSchema(connectionString: string): Promise<Map<string, ColumnIn
   }
 }
 
-function generateSyncSQL(dev: Map<string, ColumnInfo[]>, test: Map<string, ColumnInfo[]>): string[] {
+function generateSyncSQL(
+  source: Map<string, ColumnInfo[]>, 
+  target: Map<string, ColumnInfo[]>,
+  sourceEnv: string,
+  targetEnv: string
+): string[] {
   const sqlStatements: string[] = [];
 
-  // Add missing columns (in Dev but not in Test)
-  for (const [tableName, devColumns] of dev.entries()) {
-    const testColumns = test.get(tableName);
+  // Add missing columns and tables (in Source but not in Target)
+  for (const [tableName, sourceColumns] of source.entries()) {
+    const targetColumns = target.get(tableName);
     
-    if (!testColumns) {
-      console.log(`⚠️  Table ${tableName} exists in Dev but not in Test - manual intervention needed`);
+    if (!targetColumns) {
+      // Table exists in source but not in target - need to create it
+      console.log(`⚠️  Table ${tableName} exists in ${sourceEnv} but not in ${targetEnv} - creating table`);
+      
+      // Generate CREATE TABLE statement
+      const columnDefs = sourceColumns.map(col => {
+        const nullable = col.isNullable === 'YES' ? '' : ' NOT NULL';
+        const defaultVal = col.columnDefault ? ` DEFAULT ${col.columnDefault}` : '';
+        return `  ${col.columnName} ${col.dataType.toUpperCase()}${nullable}${defaultVal}`;
+      }).join(',\n');
+      
+      sqlStatements.push(`CREATE TABLE IF NOT EXISTS ${tableName} (\n${columnDefs}\n);`);
       continue;
     }
 
-    const testColumnNames = new Set(testColumns.map(c => c.columnName));
+    const targetColumnNames = new Set(targetColumns.map(c => c.columnName));
     
-    for (const devCol of devColumns) {
-      if (!testColumnNames.has(devCol.columnName)) {
-        const nullable = devCol.isNullable === 'YES' ? '' : ' NOT NULL';
-        const defaultVal = devCol.columnDefault ? ` DEFAULT ${devCol.columnDefault}` : '';
+    for (const sourceCol of sourceColumns) {
+      if (!targetColumnNames.has(sourceCol.columnName)) {
+        const nullable = sourceCol.isNullable === 'YES' ? '' : ' NOT NULL';
+        const defaultVal = sourceCol.columnDefault ? ` DEFAULT ${sourceCol.columnDefault}` : '';
         
         sqlStatements.push(
-          `ALTER TABLE ${tableName} ADD COLUMN IF NOT EXISTS ${devCol.columnName} ${devCol.dataType.toUpperCase()}${nullable}${defaultVal};`
+          `ALTER TABLE ${tableName} ADD COLUMN IF NOT EXISTS ${sourceCol.columnName} ${sourceCol.dataType.toUpperCase()}${nullable}${defaultVal};`
         );
       }
     }
   }
 
-  // Remove extra columns (in Test but not in Dev)
-  for (const [tableName, testColumns] of test.entries()) {
-    const devColumns = dev.get(tableName);
+  // Remove extra columns (in Target but not in Source)
+  for (const [tableName, targetColumns] of target.entries()) {
+    const sourceColumns = source.get(tableName);
     
-    if (!devColumns) {
-      console.log(`⚠️  Table ${tableName} exists in Test but not in Dev - manual intervention needed`);
+    if (!sourceColumns) {
+      console.log(`⚠️  Table ${tableName} exists in ${targetEnv} but not in ${sourceEnv} - will be dropped`);
+      sqlStatements.push(`DROP TABLE IF EXISTS ${tableName};`);
       continue;
     }
 
-    const devColumnNames = new Set(devColumns.map(c => c.columnName));
+    const sourceColumnNames = new Set(sourceColumns.map(c => c.columnName));
     
-    for (const testCol of testColumns) {
-      if (!devColumnNames.has(testCol.columnName)) {
+    for (const targetCol of targetColumns) {
+      if (!sourceColumnNames.has(targetCol.columnName)) {
         sqlStatements.push(
-          `ALTER TABLE ${tableName} DROP COLUMN IF EXISTS ${testCol.columnName};`
+          `ALTER TABLE ${tableName} DROP COLUMN IF EXISTS ${targetCol.columnName};`
         );
       }
     }
@@ -122,7 +138,7 @@ async function main() {
   const sourceSchema = await getSchema(sourceUrl);
   const targetSchema = await getSchema(targetUrl);
   
-  const syncSQL = generateSyncSQL(sourceSchema, targetSchema);
+  const syncSQL = generateSyncSQL(sourceSchema, targetSchema, sourceEnv, targetEnv);
 
   if (syncSQL.length === 0) {
     console.log('✅ No synchronization needed - schemas match!\n');
