@@ -9544,6 +9544,61 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Create action template (admin only)
+  app.post("/api/action-templates", requireRole(['admin', 'super_admin']), async (req, res) => {
+    try {
+      const template = await storage.createActionTemplate(req.body);
+      res.status(201).json(template);
+    } catch (error) {
+      console.error("Error creating action template:", error);
+      res.status(500).json({ message: "Failed to create action template" });
+    }
+  });
+
+  // Update action template (admin only)
+  app.patch("/api/action-templates/:id", requireRole(['admin', 'super_admin']), async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const template = await storage.updateActionTemplate(id, req.body);
+      
+      if (!template) {
+        return res.status(404).json({ message: "Action template not found" });
+      }
+      
+      res.json(template);
+    } catch (error) {
+      console.error("Error updating action template:", error);
+      res.status(500).json({ message: "Failed to update action template" });
+    }
+  });
+
+  // Delete action template (admin only)
+  app.delete("/api/action-templates/:id", requireRole(['admin', 'super_admin']), async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      
+      // Check if template is in use
+      const usage = await storage.getActionTemplateUsage(id);
+      if (usage && usage.length > 0) {
+        return res.status(400).json({ 
+          message: "Cannot delete template that is in use by triggers",
+          usage 
+        });
+      }
+      
+      const deleted = await storage.deleteActionTemplate(id);
+      
+      if (!deleted) {
+        return res.status(404).json({ message: "Action template not found" });
+      }
+      
+      res.json({ message: "Action template deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting action template:", error);
+      res.status(500).json({ message: "Failed to delete action template" });
+    }
+  });
+
   // ============================================================================
   // TRIGGER CATALOG API ENDPOINTS - Admin Only
   // ============================================================================
