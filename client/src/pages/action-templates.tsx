@@ -1021,6 +1021,8 @@ export default function ActionTemplates() {
   const [modalOpen, setModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState<'create' | 'edit'>('create');
   const [selectedTemplate, setSelectedTemplate] = useState<ActionTemplate | null>(null);
+  const [usageDialogOpen, setUsageDialogOpen] = useState(false);
+  const [usageTemplate, setUsageTemplate] = useState<ActionTemplate | null>(null);
 
   // Fetch all action templates
   const { data: templates = [], isLoading } = useQuery<ActionTemplate[]>({
@@ -1252,7 +1254,15 @@ export default function ActionTemplates() {
                             </Badge>
                             <Badge variant="outline">v{template.version}</Badge>
                             {isInUse && (
-                              <Badge variant="secondary" className="gap-1">
+                              <Badge 
+                                variant="secondary" 
+                                className="gap-1 cursor-pointer hover:bg-secondary/80"
+                                onClick={() => {
+                                  setUsageTemplate(template);
+                                  setUsageDialogOpen(true);
+                                }}
+                                data-testid={`badge-usage-${template.id}`}
+                              >
                                 <ExternalLink className="h-3 w-3" />
                                 {usage.length} trigger{usage.length > 1 ? 's' : ''}
                               </Badge>
@@ -1324,6 +1334,80 @@ export default function ActionTemplates() {
           })}
         </div>
       )}
+
+      {/* Usage Dialog */}
+      <Dialog open={usageDialogOpen} onOpenChange={setUsageDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Template Usage</DialogTitle>
+            <DialogDescription>
+              {usageTemplate ? `Triggers using "${usageTemplate.name}"` : 'Template usage details'}
+            </DialogDescription>
+          </DialogHeader>
+
+          {usageTemplate && (
+            <div className="space-y-4">
+              <div className="flex items-center gap-2">
+                <div className={`${actionTypeColors[usageTemplate.actionType]} p-2 rounded-lg`}>
+                  {actionTypeIcons[usageTemplate.actionType]({ className: "h-5 w-5 text-white" })}
+                </div>
+                <div>
+                  <h3 className="font-semibold">{usageTemplate.name}</h3>
+                  <p className="text-sm text-muted-foreground">
+                    {usageTemplate.actionType} • {usageTemplate.category}
+                  </p>
+                </div>
+              </div>
+
+              {usageData[usageTemplate.id] && usageData[usageTemplate.id].length > 0 ? (
+                <div className="space-y-2">
+                  <h4 className="text-sm font-medium">
+                    Used by {usageData[usageTemplate.id].length} trigger{usageData[usageTemplate.id].length > 1 ? 's' : ''}:
+                  </h4>
+                  <div className="space-y-2 max-h-[400px] overflow-y-auto">
+                    {usageData[usageTemplate.id].map((usage) => (
+                      <Card key={usage.triggerId} data-testid={`usage-trigger-${usage.triggerId}`}>
+                        <CardContent className="p-4">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <h5 className="font-medium">{usage.triggerName}</h5>
+                              <p className="text-sm text-muted-foreground">
+                                Key: {usage.triggerKey}
+                              </p>
+                            </div>
+                            <Badge variant={usage.isActive ? "default" : "outline"}>
+                              {usage.isActive ? 'Active' : 'Inactive'}
+                            </Badge>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  <ExternalLink className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <p>This template is not currently used by any triggers</p>
+                </div>
+              )}
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setUsageDialogOpen(false);
+                setUsageTemplate(null);
+              }}
+              data-testid="button-close-usage"
+            >
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Template Modal */}
       <TemplateModal
