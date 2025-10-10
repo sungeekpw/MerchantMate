@@ -1,22 +1,22 @@
 # Database Deployment Guide: Dev → Test → Production
 
-## 🚨 Emergency Fix (If Deployment Broken)
+## ⚠️ CRITICAL: Safe Schema Changes
 
-If you're experiencing schema sync issues or deployment failures:
+**NEVER add required fields to existing tables with data!** This causes Drizzle to drop and recreate the table, **deleting all data**.
 
-```bash
-# Fix development database
-tsx scripts/emergency-fix.ts development
+### ✅ Safe Schema Changes:
+- ✅ Add optional columns: `phone: varchar("phone")`
+- ✅ Add columns with defaults: `.default("email")`
+- ✅ Add new tables
 
-# Fix test database  
-tsx scripts/emergency-fix.ts test
-```
-
-This will completely rebuild the schema from `shared/schema.ts` using Drizzle.
+### ❌ Dangerous Schema Changes:
+- ❌ Add required fields: `.notNull()` on new columns
+- ❌ Change ID column types (serial ↔ varchar)
+- ❌ Change column types on tables with data
 
 ---
 
-## 🚀 Tested & Working Deployment Strategy
+## 🚀 Safe Deployment Strategy
 
 ### Option 1: UI-Based Data Sync (Recommended)
 

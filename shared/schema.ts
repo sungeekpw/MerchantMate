@@ -268,9 +268,9 @@ export const users = pgTable("users", {
   passwordHash: varchar("password_hash").notNull(),
   firstName: varchar("first_name"),
   lastName: varchar("last_name"),
-  phone: varchar("phone").notNull(), // Required phone number
+  phone: varchar("phone"), // Optional phone number to avoid data loss on existing users
   profileImageUrl: varchar("profile_image_url"),
-  communicationPreference: text("communication_preference").notNull().default("email"), // email, sms, or both
+  communicationPreference: text("communication_preference").default("email"), // email, sms, or both
   roles: text("roles").array().notNull().default(sql`ARRAY['merchant']`), // Array of roles: merchant, agent, admin, corporate, super_admin
   status: text("status").notNull().default("active"), // active, suspended, inactive
   permissions: jsonb("permissions").default("{}"),
