@@ -3144,7 +3144,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Auto-sync environments (runs sync-environments script)
   app.post("/api/admin/schema-drift/auto-sync", requireRole(['super_admin']), async (req, res) => {
     try {
-      const { env1, env2, includeData } = req.body;
+      const { env1, env2 } = req.body;
       
       // Strict whitelist validation to prevent command injection
       const allowedEnvs = ['development', 'test', 'production'];
@@ -3173,14 +3173,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const targetEnv = envMapping[env2];
       const syncType = `${sourceEnv}-to-${targetEnv}`;
       
-      // Validate includeData is boolean
-      const safeIncludeData = includeData === true;
-      const dataFlag = safeIncludeData ? '--with-data' : '--schema-only';
+      // Validate that this is a supported sync type
+      const supportedSyncs = ['dev-to-test', 'test-to-prod'];
+      if (!supportedSyncs.includes(syncType)) {
+        return res.status(400).json({ 
+          success: false, 
+          message: `Unsupported sync direction: ${syncType}. Supported syncs: dev-to-test, test-to-prod` 
+        });
+      }
 
       // Use spawn instead of exec to prevent command injection
       const { spawn } = await import('child_process');
       
-      const child = spawn('tsx', ['scripts/sync-environments.ts', syncType, dataFlag, '--auto-confirm'], {
+      const child = spawn('tsx', ['scripts/sync-environments.ts', syncType, '--auto-confirm'], {
         cwd: process.cwd(),
         stdio: ['ignore', 'pipe', 'pipe']
       });
@@ -3218,7 +3223,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         success: true,
         message: `Successfully synced ${env1} to ${env2}`,
         syncType,
-        includeData: safeIncludeData,
         output: stdout,
         errors: stderr
       });
