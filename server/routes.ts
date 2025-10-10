@@ -3180,7 +3180,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Use spawn instead of exec to prevent command injection
       const { spawn } = await import('child_process');
       
-      const child = spawn('tsx', ['scripts/sync-environments.ts', syncType, dataFlag], {
+      const child = spawn('tsx', ['scripts/sync-environments.ts', syncType, dataFlag, '--auto-confirm'], {
         cwd: process.cwd(),
         stdio: ['ignore', 'pipe', 'pipe']
       });
