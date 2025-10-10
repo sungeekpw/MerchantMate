@@ -90,16 +90,21 @@ class EnvironmentSync {
     // Get the latest export and import it
     console.log('\n[3/3] Importing lookup data into Test...');
     try {
+      // Get the list of exports and find the most recent one
       const { stdout: listOutput } = await execAsync('tsx scripts/data-sync-manager.ts list');
-      const exports = listOutput.trim().split('\n').filter(line => line.includes('-'));
+      const lines = listOutput.trim().split('\n');
       
-      if (exports.length === 0) {
+      // Find lines that look like export names (contain timestamp pattern)
+      const exportLines = lines.filter(line => /development-\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{3}Z/.test(line));
+      
+      if (exportLines.length === 0) {
         console.error('❌ No exports found after export step');
         return;
       }
       
-      const latestExport = exports[exports.length - 1].trim();
-      console.log(`Using export: ${latestExport}`);
+      // Get the last (most recent) export
+      const latestExport = exportLines[exportLines.length - 1].trim().replace(/^\s*/, '');
+      console.log(`Using latest export: ${latestExport}`);
       
       const { stdout: importOutput } = await execAsync(`tsx scripts/data-sync-manager.ts import test "${latestExport}" --clear-first`);
       console.log(importOutput);
