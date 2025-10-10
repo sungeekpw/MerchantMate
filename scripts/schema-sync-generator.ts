@@ -15,11 +15,17 @@ interface ColumnInfo {
   position: number;
 }
 
-async function getSchema(connectionString: string): Promise<Map<string, ColumnInfo[]>> {
+interface SchemaInfo {
+  columns: ColumnInfo[];
+  primaryKey: string | null;
+}
+
+async function getSchema(connectionString: string): Promise<Map<string, SchemaInfo>> {
   const pool = new Pool({ connectionString });
   
   try {
-    const result = await pool.query(`
+    // Get columns
+    const columnsResult = await pool.query(`
       SELECT 
         table_name as "tableName",
         column_name as "columnName",
@@ -33,13 +39,37 @@ async function getSchema(connectionString: string): Promise<Map<string, ColumnIn
       ORDER BY table_name, ordinal_position
     `);
 
-    const schemaMap = new Map<string, ColumnInfo[]>();
+    // Get primary keys
+    const pkResult = await pool.query(`
+      SELECT
+        tc.table_name as "tableName",
+        kcu.column_name as "columnName"
+      FROM information_schema.table_constraints tc
+      JOIN information_schema.key_column_usage kcu
+        ON tc.constraint_name = kcu.constraint_name
+        AND tc.table_schema = kcu.table_schema
+      WHERE tc.constraint_type = 'PRIMARY KEY'
+        AND tc.table_schema = 'public'
+        AND tc.table_name NOT IN ('drizzle_migrations', 'drizzle__migrations', 'schema_migrations')
+    `);
+
+    const schemaMap = new Map<string, SchemaInfo>();
+    const pkMap = new Map<string, string>();
     
-    for (const row of result.rows) {
+    // Map primary keys
+    for (const row of pkResult.rows) {
+      pkMap.set(row.tableName, row.columnName);
+    }
+    
+    // Map columns
+    for (const row of columnsResult.rows) {
       if (!schemaMap.has(row.tableName)) {
-        schemaMap.set(row.tableName, []);
+        schemaMap.set(row.tableName, {
+          columns: [],
+          primaryKey: pkMap.get(row.tableName) || null
+        });
       }
-      schemaMap.get(row.tableName)!.push(row);
+      schemaMap.get(row.tableName)!.columns.push(row);
     }
 
     return schemaMap;
@@ -49,23 +79,23 @@ async function getSchema(connectionString: string): Promise<Map<string, ColumnIn
 }
 
 function generateSyncSQL(
-  source: Map<string, ColumnInfo[]>, 
-  target: Map<string, ColumnInfo[]>,
+  source: Map<string, SchemaInfo>, 
+  target: Map<string, SchemaInfo>,
   sourceEnv: string,
   targetEnv: string
 ): string[] {
   const sqlStatements: string[] = [];
 
   // Add missing columns and tables (in Source but not in Target)
-  for (const [tableName, sourceColumns] of source.entries()) {
-    const targetColumns = target.get(tableName);
+  for (const [tableName, sourceInfo] of source.entries()) {
+    const targetInfo = target.get(tableName);
     
-    if (!targetColumns) {
+    if (!targetInfo) {
       // Table exists in source but not in target - need to create it
       console.log(`⚠️  Table ${tableName} exists in ${sourceEnv} but not in ${targetEnv} - creating table`);
       
       // First, create any sequences needed for serial columns
-      for (const col of sourceColumns) {
+      for (const col of sourceInfo.columns) {
         if (col.columnDefault?.includes('nextval')) {
           const seqMatch = col.columnDefault.match(/'([^']+)'/);
           if (seqMatch) {
@@ -75,20 +105,25 @@ function generateSyncSQL(
         }
       }
       
-      // Generate CREATE TABLE statement
-      const columnDefs = sourceColumns.map(col => {
+      // Generate CREATE TABLE statement with PRIMARY KEY
+      const columnDefs = sourceInfo.columns.map(col => {
         const nullable = col.isNullable === 'YES' ? '' : ' NOT NULL';
         const defaultVal = col.columnDefault ? ` DEFAULT ${col.columnDefault}` : '';
         return `  ${col.columnName} ${col.dataType.toUpperCase()}${nullable}${defaultVal}`;
       }).join(',\n');
       
-      sqlStatements.push(`CREATE TABLE IF NOT EXISTS ${tableName} (\n${columnDefs}\n);`);
+      // Add PRIMARY KEY constraint if it exists
+      const pkConstraint = sourceInfo.primaryKey 
+        ? `,\n  PRIMARY KEY (${sourceInfo.primaryKey})`
+        : '';
+      
+      sqlStatements.push(`CREATE TABLE IF NOT EXISTS ${tableName} (\n${columnDefs}${pkConstraint}\n);`);
       continue;
     }
 
-    const targetColumnNames = new Set(targetColumns.map(c => c.columnName));
+    const targetColumnNames = new Set(targetInfo.columns.map(c => c.columnName));
     
-    for (const sourceCol of sourceColumns) {
+    for (const sourceCol of sourceInfo.columns) {
       if (!targetColumnNames.has(sourceCol.columnName)) {
         const nullable = sourceCol.isNullable === 'YES' ? '' : ' NOT NULL';
         const defaultVal = sourceCol.columnDefault ? ` DEFAULT ${sourceCol.columnDefault}` : '';
@@ -101,18 +136,18 @@ function generateSyncSQL(
   }
 
   // Remove extra columns (in Target but not in Source)
-  for (const [tableName, targetColumns] of target.entries()) {
-    const sourceColumns = source.get(tableName);
+  for (const [tableName, targetInfo] of target.entries()) {
+    const sourceInfo = source.get(tableName);
     
-    if (!sourceColumns) {
+    if (!sourceInfo) {
       console.log(`⚠️  Table ${tableName} exists in ${targetEnv} but not in ${sourceEnv} - will be dropped`);
       sqlStatements.push(`DROP TABLE IF EXISTS ${tableName};`);
       continue;
     }
 
-    const sourceColumnNames = new Set(sourceColumns.map(c => c.columnName));
+    const sourceColumnNames = new Set(sourceInfo.columns.map(c => c.columnName));
     
-    for (const targetCol of targetColumns) {
+    for (const targetCol of targetInfo.columns) {
       if (!sourceColumnNames.has(targetCol.columnName)) {
         sqlStatements.push(
           `ALTER TABLE ${tableName} DROP COLUMN IF EXISTS ${targetCol.columnName};`
