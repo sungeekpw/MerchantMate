@@ -78,9 +78,9 @@ class EnvironmentSync {
     
     const steps: SyncStep[] = [
       {
-        name: 'Apply Schema Migrations to Test',
-        command: 'tsx scripts/migration-manager.ts apply test',
-        description: 'Updating Test database schema...'
+        name: 'Apply Schema Changes to Test',
+        command: 'DATABASE_URL=$DATABASE_URL_TEST npm run db:push -- --force',
+        description: 'Pushing schema changes to Test database...'
       },
       {
         name: 'Export Lookup Data from Dev',
@@ -91,26 +91,24 @@ class EnvironmentSync {
     
     await this.executeSteps(steps);
     
-    // Get the latest export and import it
+    // Get the latest DEVELOPMENT export and import it
     console.log('\n[3/3] Importing lookup data into Test...');
     try {
-      // Get the list of exports and find the most recent one
       const { stdout: listOutput } = await execAsync('tsx scripts/data-sync-manager.ts list');
-      const lines = listOutput.trim().split('\n');
+      const allExports = listOutput.trim().split('\n').filter(line => line.includes('-'));
       
-      // Find lines that look like export names (contain timestamp pattern)
-      const exportLines = lines.filter(line => /development-\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{3}Z/.test(line));
+      // Filter to only get DEVELOPMENT exports
+      const devExports = allExports.filter(line => line.trim().startsWith('development-'));
       
-      if (exportLines.length === 0) {
-        console.error('❌ No exports found after export step');
+      if (devExports.length === 0) {
+        console.error('❌ No development exports found after export step');
         return;
       }
       
-      // Get the last (most recent) export
-      const latestExport = exportLines[exportLines.length - 1].trim().replace(/^\s*/, '');
-      console.log(`Using latest export: ${latestExport}`);
+      const latestDevExport = devExports[devExports.length - 1].trim();
+      console.log(`Using latest development export: ${latestDevExport}`);
       
-      const { stdout: importOutput } = await execAsync(`tsx scripts/data-sync-manager.ts import test "${latestExport}" --clear-first`);
+      const { stdout: importOutput } = await execAsync(`tsx scripts/data-sync-manager.ts import test "${latestDevExport}" --clear-first`);
       console.log(importOutput);
       console.log('✅ Import Lookup Data to Test completed');
       
@@ -152,9 +150,9 @@ class EnvironmentSync {
     
     const steps: SyncStep[] = [
       {
-        name: 'Apply Schema Migrations to Production',
-        command: 'tsx scripts/migration-manager.ts apply prod',
-        description: 'Updating Production database schema...'
+        name: 'Apply Schema Changes to Production',
+        command: 'DATABASE_URL=$DATABASE_URL_PROD npm run db:push -- --force',
+        description: 'Pushing schema changes to Production database...'
       },
       {
         name: 'Export Lookup Data from Test',
@@ -165,21 +163,24 @@ class EnvironmentSync {
     
     await this.executeSteps(steps);
     
-    // Get the latest export and import it
+    // Get the latest TEST export and import it
     console.log('\n[3/3] Importing lookup data into Production...');
     try {
       const { stdout: listOutput } = await execAsync('tsx scripts/data-sync-manager.ts list');
-      const exports = listOutput.trim().split('\n').filter(line => line.includes('-'));
+      const allExports = listOutput.trim().split('\n').filter(line => line.includes('-'));
       
-      if (exports.length === 0) {
-        console.error('❌ No exports found after export step');
+      // Filter to only get TEST exports
+      const testExports = allExports.filter(line => line.trim().startsWith('test-'));
+      
+      if (testExports.length === 0) {
+        console.error('❌ No test exports found after export step');
         return;
       }
       
-      const latestExport = exports[exports.length - 1].trim();
-      console.log(`Using export: ${latestExport}`);
+      const latestTestExport = testExports[testExports.length - 1].trim();
+      console.log(`Using latest test export: ${latestTestExport}`);
       
-      const { stdout: importOutput } = await execAsync(`tsx scripts/data-sync-manager.ts import production "${latestExport}" --clear-first`);
+      const { stdout: importOutput } = await execAsync(`tsx scripts/data-sync-manager.ts import production "${latestTestExport}" --clear-first`);
       console.log(importOutput);
       console.log('✅ Import Lookup Data to Production completed');
       
