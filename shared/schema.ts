@@ -132,6 +132,13 @@ export const transactions = pgTable("transactions", {
   processingFee: decimal("processing_fee", { precision: 12, scale: 2 }),
   netAmount: decimal("net_amount", { precision: 12, scale: 2 }),
   createdAt: timestamp("created_at").defaultNow(),
+  commissionRate: decimal("commission_rate", { precision: 5, scale: 4 }).default("0.025"), // Agent commission rate
+  commissionAmount: decimal("commission_amount", { precision: 12, scale: 2 }).default("0"), // Calculated commission
+  transactionDate: timestamp("transaction_date", { withTimezone: true }).defaultNow(), // Transaction processing date
+  referenceNumber: text("reference_number"), // External reference number
+  locationId: integer("location_id"), // Associated location
+  transactionType: text("transaction_type").notNull().default("payment"), // payment, refund, chargeback
+  processedAt: timestamp("processed_at", { withTimezone: true }), // When transaction was processed
 });
 
 // Junction table for agent-merchant associations
