@@ -34,6 +34,19 @@ export const dbEnvironmentMiddleware = (req: RequestWithDB, res: Response, next:
     return;
   }
   
+  // Check request body for database selection (e.g., from login form)
+  const bodyDbEnv = req.body?.database;
+  if (bodyDbEnv && ['test', 'development', 'dev', 'production'].includes(bodyDbEnv)) {
+    const normalizedEnv = bodyDbEnv === 'dev' ? 'development' : bodyDbEnv;
+    req.dbEnv = normalizedEnv;
+    req.dynamicDB = getDynamicDatabase(normalizedEnv);
+    req.db = req.dynamicDB;
+    res.setHeader('X-Database-Environment', normalizedEnv);
+    console.log(`Database from request body: using ${normalizedEnv} database`);
+    next();
+    return;
+  }
+  
   // Extract database environment from URL parameters, headers, or subdomain
   const dbEnv = extractDbEnv(req);
   
