@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -170,7 +170,7 @@ function TemplateModal({ open, onClose, template, mode }: TemplateModalProps) {
       name: template?.name || '',
       description: template?.description || '',
       actionType: template?.actionType || 'email',
-      category: template?.category || 'notification',
+      category: (template?.category as 'authentication' | 'application' | 'notification' | 'alert') || 'notification',
       config: template?.config || {},
       variables: template?.variables ? JSON.stringify(template.variables, null, 2) : '',
       isActive: template?.isActive ?? true,
@@ -179,19 +179,66 @@ function TemplateModal({ open, onClose, template, mode }: TemplateModalProps) {
 
   const actionType = form.watch('actionType');
 
-  // Initialize config fields when template or actionType changes
-  useState(() => {
-    if (template?.config) {
-      setConfigFields(template.config);
+  // Initialize/reset config fields when modal opens or template changes
+  useEffect(() => {
+    if (open) {
+      if (template?.config) {
+        setConfigFields(template.config);
+      } else {
+        setConfigFields({});
+      }
     }
-  });
+  }, [open, template]);
+
+  // Reset config fields when action type changes in create mode
+  useEffect(() => {
+    if (open && !template) {
+      setConfigFields({});
+    }
+  }, [actionType, open, template]);
+
+  const validateConfig = (actionType: string, config: any) => {
+    try {
+      switch (actionType) {
+        case 'email':
+          return emailConfigSchema.parse(config);
+        case 'sms':
+          return smsConfigSchema.parse(config);
+        case 'webhook':
+          return webhookConfigSchema.parse(config);
+        case 'notification':
+          return notificationConfigSchema.parse(config);
+        case 'slack':
+          return slackConfigSchema.parse(config);
+        case 'teams':
+          return teamsConfigSchema.parse(config);
+        default:
+          return config;
+      }
+    } catch (error: any) {
+      throw new Error(`Invalid configuration: ${error.message}`);
+    }
+  };
 
   const createMutation = useMutation({
     mutationFn: async (data: TemplateFormData) => {
+      // Validate config
+      const validatedConfig = validateConfig(data.actionType, configFields);
+      
+      // Parse variables safely
+      let parsedVariables = null;
+      if (data.variables) {
+        try {
+          parsedVariables = JSON.parse(data.variables);
+        } catch (error) {
+          throw new Error("Invalid JSON in variables field");
+        }
+      }
+      
       const payload = {
         ...data,
-        config: configFields,
-        variables: data.variables ? JSON.parse(data.variables) : null,
+        config: validatedConfig,
+        variables: parsedVariables,
       };
       return apiRequest('/api/action-templates', 'POST', payload);
     },
@@ -203,6 +250,7 @@ function TemplateModal({ open, onClose, template, mode }: TemplateModalProps) {
       });
       onClose();
       form.reset();
+      setConfigFields({});
     },
     onError: (error: any) => {
       toast({
@@ -215,10 +263,23 @@ function TemplateModal({ open, onClose, template, mode }: TemplateModalProps) {
 
   const updateMutation = useMutation({
     mutationFn: async (data: TemplateFormData) => {
+      // Validate config
+      const validatedConfig = validateConfig(data.actionType, configFields);
+      
+      // Parse variables safely
+      let parsedVariables = null;
+      if (data.variables) {
+        try {
+          parsedVariables = JSON.parse(data.variables);
+        } catch (error) {
+          throw new Error("Invalid JSON in variables field");
+        }
+      }
+      
       const payload = {
         ...data,
-        config: configFields,
-        variables: data.variables ? JSON.parse(data.variables) : null,
+        config: validatedConfig,
+        variables: parsedVariables,
       };
       return apiRequest(`/api/action-templates/${template?.id}`, 'PATCH', payload);
     },
@@ -676,6 +737,7 @@ function TemplateModal({ open, onClose, template, mode }: TemplateModalProps) {
 }
 
 export default function ActionTemplates() {
+  const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedType, setSelectedType] = useState<ActionType | 'all'>('all');
   const [selectedCategory, setSelectedCategory] = useState<Category>('all');
@@ -691,6 +753,28 @@ export default function ActionTemplates() {
   // Fetch template usage data
   const { data: usageData = {} } = useQuery<Record<number, TemplateUsage[]>>({
     queryKey: ['/api/action-templates/usage'],
+  });
+
+  // Delete mutation
+  const deleteMutation = useMutation({
+    mutationFn: async (id: number) => {
+      return apiRequest(`/api/action-templates/${id}`, 'DELETE');
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/action-templates'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/action-templates/usage'] });
+      toast({
+        title: "Success",
+        description: "Template deleted successfully",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete template",
+        variant: "destructive",
+      });
+    },
   });
 
   // Filter templates
@@ -932,6 +1016,22 @@ export default function ActionTemplates() {
                             <Button 
                               variant="outline" 
                               size="sm"
+                              onClick={() => {
+                                const usage = usageData[template.id] || [];
+                                if (usage.length > 0) {
+                                  toast({
+                                    title: "Cannot Delete Template",
+                                    description: `This template is used by ${usage.length} trigger(s): ${usage.map(u => u.triggerName).join(', ')}`,
+                                    variant: "destructive",
+                                  });
+                                  return;
+                                }
+                                
+                                if (confirm(`Are you sure you want to delete "${template.name}"?`)) {
+                                  deleteMutation.mutate(template.id);
+                                }
+                              }}
+                              disabled={deleteMutation.isPending}
                               data-testid={`button-delete-${template.id}`}
                             >
                               <Trash2 className="h-3 w-3" />
