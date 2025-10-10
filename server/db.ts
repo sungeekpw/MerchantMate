@@ -97,6 +97,10 @@ export function getDynamicDatabase(environment: string = 'production') {
       );
     }
     
+    // Debug logging
+    console.log(`🔧 Creating dynamic database pool for: ${environment}`);
+    console.log(`🔧 Connection URL: ${url.substring(0, 60)}...`);
+    
     const dynamicPool = new Pool({
       connectionString: url,
       max: 3, // Reduced from 5 to prevent connection overload

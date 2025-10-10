@@ -77,6 +77,7 @@ export class AuthService {
   async checkLoginAttempts(usernameOrEmail: string, ip: string, db: any = null): Promise<boolean> {
     if (db) {
       // Use dynamic database for login attempts check
+      console.log(`🔍 checkLoginAttempts: Using dynamic DB for user: ${usernameOrEmail}`);
       const timeThreshold = new Date(Date.now() - LOCKOUT_TIME);
       const recentAttempts = await db.select().from(loginAttempts)
         .where(and(
@@ -87,6 +88,7 @@ export class AuthService {
           eq(loginAttempts.ipAddress, ip),
           gte(loginAttempts.createdAt, timeThreshold)
         ));
+      console.log(`✅ checkLoginAttempts: Found ${recentAttempts.length} recent attempts`);
       return recentAttempts.length < MAX_LOGIN_ATTEMPTS;
     } else {
       // Fallback to storage for backward compatibility
