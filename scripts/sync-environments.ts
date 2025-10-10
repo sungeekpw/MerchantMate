@@ -79,9 +79,9 @@ class EnvironmentSync {
     // Push schema changes to test using drizzle-kit
     console.log('\n[1/3] Pushing schema changes to Test database...');
     try {
-      const testDbUrl = process.env.DATABASE_URL_TEST;
+      const testDbUrl = process.env.TEST_DATABASE_URL;
       if (!testDbUrl) {
-        throw new Error('DATABASE_URL_TEST environment variable not found');
+        throw new Error('TEST_DATABASE_URL environment variable not found');
       }
       
       const { stdout, stderr } = await execAsync('npx drizzle-kit push --force', {
@@ -175,9 +175,9 @@ class EnvironmentSync {
     // Push schema changes to production using drizzle-kit
     console.log('\n[1/3] Pushing schema changes to Production database...');
     try {
-      const prodDbUrl = process.env.DATABASE_URL_PROD;
+      const prodDbUrl = process.env.DATABASE_URL; // Production uses DATABASE_URL
       if (!prodDbUrl) {
-        throw new Error('DATABASE_URL_PROD environment variable not found');
+        throw new Error('DATABASE_URL environment variable not found');
       }
       
       const { stdout, stderr } = await execAsync('npx drizzle-kit push --force', {
