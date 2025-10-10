@@ -265,13 +265,21 @@ class SchemaDeployer {
     console.log(`This will modify the ${target.toUpperCase()} database.`);
     console.log(`File: ${deploymentFile}\n`);
 
-    // Execute using the safe wrapper
+    // Execute using the safe wrapper via file (avoids command-line escaping issues)
     try {
       const forceFlag = target === 'production' ? ' --force-production' : '';
-      const command = `tsx scripts/execute-sql.ts --env ${target}${forceFlag} --sql "${cleanSQL.replace(/"/g, '\\"')}"`;
+      
+      // Write clean SQL to a temporary file to avoid command-line escaping issues
+      const tempSqlFile = path.join(this.deploymentsDir, `temp-deploy-${target}.sql`);
+      fs.writeFileSync(tempSqlFile, cleanSQL);
+      
+      const command = `tsx scripts/execute-sql.ts --env ${target}${forceFlag} --file "${tempSqlFile}"`;
       
       console.log('🔄 Executing via safe wrapper...\n');
       execSync(command, { stdio: 'inherit' });
+      
+      // Clean up temp file
+      fs.unlinkSync(tempSqlFile);
       
       console.log(`\n✅ ${target.toUpperCase()} deployment completed successfully!`);
       
