@@ -119,6 +119,8 @@ POST /api/admin/schema-drift/generate-fix - SQL migration generation
 - ✅ Successfully eliminated Test → Production drift (4 tables, 4 sequences)
 - ✅ Established safe, reviewable migration workflow
 - ✅ Empowered non-technical users to manage database promotions
+- ✅ Fixed PRIMARY KEY constraint issue in schema-sync-generator
+- ✅ Verified lookup data import/export works correctly across all environments
 
 ## 🎓 Lessons Learned
 
@@ -138,6 +140,11 @@ POST /api/admin/schema-drift/generate-fix - SQL migration generation
 - Environment variables format: `DATABASE_URL`, `TEST_DATABASE_URL`, `DEV_DATABASE_URL`
 - Sequence creation must come before table creation
 - PostgreSQL sequences must exist before being used in DEFAULT clauses
+- **PRIMARY KEY Issue Found & Fixed**: 
+  - Generated tables were missing PRIMARY KEY constraints
+  - Caused lookup data import to fail with "no unique or exclusion constraint matching ON CONFLICT"
+  - Fixed `schema-sync-generator.ts` to query and include PRIMARY KEY constraints in CREATE TABLE statements
+  - Lookup data import now works correctly with upsert logic
 
 ## 📁 Documentation Updated
 
