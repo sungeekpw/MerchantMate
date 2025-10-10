@@ -9519,6 +9519,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // ============================================================================
+  // PUBLIC ACTION TEMPLATE ENDPOINTS
+  // ============================================================================
+
+  // Get all action templates (public - authenticated users)
+  app.get("/api/action-templates", isAuthenticated, async (req, res) => {
+    try {
+      const templates = await storage.getAllActionTemplates();
+      res.json(templates);
+    } catch (error) {
+      console.error("Error fetching action templates:", error);
+      res.status(500).json({ message: "Failed to fetch action templates" });
+    }
+  });
+
+  // Get all template usage (public - authenticated users)
+  app.get("/api/action-templates/usage", isAuthenticated, async (req, res) => {
+    try {
+      const usage = await storage.getAllActionTemplateUsage();
+      res.json(usage);
+    } catch (error) {
+      console.error("Error fetching action template usage:", error);
+      res.status(500).json({ message: "Failed to fetch action template usage" });
+    }
+  });
+
+  // ============================================================================
   // TRIGGER CATALOG API ENDPOINTS - Admin Only
   // ============================================================================
 
