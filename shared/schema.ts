@@ -720,6 +720,7 @@ export const feeItemGroups = pgTable("fee_item_groups", {
 // Fee Items table - individual fees (now standalone, can belong to multiple fee groups)
 export const feeItems = pgTable("fee_items", {
   id: serial("id").primaryKey(),
+  feeItemGroupId: integer("fee_item_group_id").references(() => feeItemGroups.id, { onDelete: "cascade" }), // Optional grouping
   name: text("name").notNull().unique(), // e.g., "Visa", "MasterCard", "American Express"
   description: text("description"),
   valueType: text("value_type").notNull(), // "percentage", "fixed", "basis_points", "numeric"
@@ -782,6 +783,9 @@ export const equipmentItems = pgTable("equipment_items", {
   isActive: boolean("is_active").notNull().default(true),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  model: text("model"), // Additional model information
+  price: decimal("price", { precision: 10, scale: 2 }), // Equipment price
+  status: text("status").default("available"), // Equipment availability status
 });
 
 // Acquirers table - payment processors that require different application forms
