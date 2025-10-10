@@ -44,6 +44,7 @@ Preferred communication style: Simple, everyday language.
 - **Multi-Environment Support**: Session-based database environment switching (Development, Test, Production) with an environment selector and automatic connection fallback.
 - **Database Safety**: Strict protocols and wrapper scripts (`scripts/execute-sql.ts`) are enforced to prevent accidental production database modifications, explicitly forbidding direct use of `execute_sql_tool` for non-emergency situations.
 - **Safe Schema Changes**: NEVER add required fields (`.notNull()`) to existing tables with data - this causes Drizzle to drop/recreate tables, deleting all data. Always make new fields optional or use defaults. See `DEPLOYMENT_GUIDE.md` for detailed safety guidelines.
+- **Environment Synchronization**: Automated Dev → Test → Production pipeline using `scripts/sync-environments.ts` for schema migrations and lookup data synchronization. See `SYNC_GUIDE.md` for non-technical user instructions.
 
 ## External Dependencies
 - **pg**: Native PostgreSQL driver.
