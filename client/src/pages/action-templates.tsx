@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -50,6 +50,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { VariablePicker } from "@/components/variable-picker";
 
 type ActionType = 'email' | 'sms' | 'webhook' | 'notification' | 'slack' | 'teams';
 type Category = 'authentication' | 'application' | 'notification' | 'alert' | 'all';
@@ -163,6 +164,11 @@ interface TemplateModalProps {
 function TemplateModal({ open, onClose, template, mode }: TemplateModalProps) {
   const { toast } = useToast();
   const [configFields, setConfigFields] = useState<any>({});
+  const [activeFieldRef, setActiveFieldRef] = useState<HTMLInputElement | HTMLTextAreaElement | null>(null);
+  
+  const subjectRef = useRef<HTMLInputElement>(null);
+  const bodyRef = useRef<HTMLTextAreaElement>(null);
+  const messageRef = useRef<HTMLTextAreaElement>(null);
   
   const form = useForm<TemplateFormData>({
     resolver: zodResolver(templateFormSchema),
@@ -308,28 +314,70 @@ function TemplateModal({ open, onClose, template, mode }: TemplateModalProps) {
     }
   };
 
+  const handleVariableInsert = (variable: string, fieldName: string) => {
+    const currentValue = configFields[fieldName] || '';
+    const ref = activeFieldRef;
+    
+    if (ref) {
+      const cursorPos = ref.selectionStart ?? currentValue.length;
+      const cursorEnd = ref.selectionEnd ?? cursorPos;
+      const newValue = 
+        currentValue.substring(0, cursorPos) + 
+        variable + 
+        currentValue.substring(cursorEnd);
+      
+      setConfigFields({ ...configFields, [fieldName]: newValue });
+      
+      // Set cursor position after inserted variable
+      setTimeout(() => {
+        ref.focus();
+        const newPos = cursorPos + variable.length;
+        ref.setSelectionRange(newPos, newPos);
+      }, 0);
+    } else {
+      // Fallback: append to end
+      setConfigFields({ ...configFields, [fieldName]: currentValue + variable });
+    }
+  };
+
   const renderConfigFields = () => {
     switch (actionType) {
       case 'email':
         return (
           <>
             <FormItem>
-              <FormLabel>Subject</FormLabel>
+              <div className="flex items-center justify-between mb-2">
+                <FormLabel>Subject</FormLabel>
+                <VariablePicker
+                  onInsert={(v) => handleVariableInsert(v, 'subject')}
+                  variables={template?.variables || undefined}
+                />
+              </div>
               <FormControl>
                 <Input
+                  ref={subjectRef}
                   value={configFields.subject || ''}
                   onChange={(e) => setConfigFields({ ...configFields, subject: e.target.value })}
+                  onFocus={() => setActiveFieldRef(subjectRef.current)}
                   placeholder="Email subject (use {{variables}})"
                   data-testid="input-email-subject"
                 />
               </FormControl>
             </FormItem>
             <FormItem>
-              <FormLabel>Body</FormLabel>
+              <div className="flex items-center justify-between mb-2">
+                <FormLabel>Body</FormLabel>
+                <VariablePicker
+                  onInsert={(v) => handleVariableInsert(v, 'body')}
+                  variables={template?.variables || undefined}
+                />
+              </div>
               <FormControl>
                 <Textarea
+                  ref={bodyRef}
                   value={configFields.body || ''}
                   onChange={(e) => setConfigFields({ ...configFields, body: e.target.value })}
+                  onFocus={() => setActiveFieldRef(bodyRef.current)}
                   placeholder="Email body (use {{variables}})"
                   rows={6}
                   data-testid="textarea-email-body"
@@ -355,11 +403,19 @@ function TemplateModal({ open, onClose, template, mode }: TemplateModalProps) {
         return (
           <>
             <FormItem>
-              <FormLabel>Message</FormLabel>
+              <div className="flex items-center justify-between mb-2">
+                <FormLabel>Message</FormLabel>
+                <VariablePicker
+                  onInsert={(v) => handleVariableInsert(v, 'message')}
+                  variables={template?.variables || undefined}
+                />
+              </div>
               <FormControl>
                 <Textarea
+                  ref={messageRef}
                   value={configFields.message || ''}
                   onChange={(e) => setConfigFields({ ...configFields, message: e.target.value })}
+                  onFocus={() => setActiveFieldRef(messageRef.current)}
                   placeholder="SMS message (use {{variables}})"
                   rows={4}
                   data-testid="textarea-sms-message"
