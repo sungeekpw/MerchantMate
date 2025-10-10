@@ -65,11 +65,15 @@ class EnvironmentSync {
     console.log('  4. Import lookup data into Test');
     console.log('\n⚠️  WARNING: This will overwrite Test data with Dev data!\n');
     
-    const confirm = await ask('Do you want to continue? (yes/no): ');
-    
-    if (confirm.toLowerCase() !== 'yes') {
-      console.log('❌ Sync cancelled.');
-      return;
+    if (!AUTO_CONFIRM) {
+      const confirm = await ask('Do you want to continue? (yes/no): ');
+      
+      if (confirm.toLowerCase() !== 'yes') {
+        console.log('❌ Sync cancelled.');
+        return;
+      }
+    } else {
+      console.log('✅ Auto-confirmed: Proceeding with sync...');
     }
     
     const steps: SyncStep[] = [
@@ -128,18 +132,22 @@ class EnvironmentSync {
     console.log('  4. Import lookup data into Production');
     console.log('\n🚨 CRITICAL WARNING: This affects PRODUCTION data!\n');
     
-    const confirm1 = await ask('Are you ABSOLUTELY SURE you want to sync to Production? (yes/no): ');
-    
-    if (confirm1.toLowerCase() !== 'yes') {
-      console.log('❌ Sync cancelled.');
-      return;
-    }
-    
-    const confirm2 = await ask('Type "SYNC TO PRODUCTION" to confirm: ');
-    
-    if (confirm2 !== 'SYNC TO PRODUCTION') {
-      console.log('❌ Sync cancelled. Confirmation text did not match.');
-      return;
+    if (!AUTO_CONFIRM) {
+      const confirm1 = await ask('Are you ABSOLUTELY SURE you want to sync to Production? (yes/no): ');
+      
+      if (confirm1.toLowerCase() !== 'yes') {
+        console.log('❌ Sync cancelled.');
+        return;
+      }
+      
+      const confirm2 = await ask('Type "SYNC TO PRODUCTION" to confirm: ');
+      
+      if (confirm2 !== 'SYNC TO PRODUCTION') {
+        console.log('❌ Sync cancelled. Confirmation text did not match.');
+        return;
+      }
+    } else {
+      console.log('✅ Auto-confirmed: Proceeding with PRODUCTION sync...');
     }
     
     const steps: SyncStep[] = [
@@ -210,10 +218,15 @@ class EnvironmentSync {
         if (error.stdout) console.log(error.stdout);
         if (error.stderr) console.error(error.stderr);
         
-        const continueAnyway = await ask('\nContinue with remaining steps? (yes/no): ');
-        
-        if (continueAnyway.toLowerCase() !== 'yes') {
-          console.log('❌ Sync aborted.');
+        if (!AUTO_CONFIRM) {
+          const continueAnyway = await ask('\nContinue with remaining steps? (yes/no): ');
+          
+          if (continueAnyway.toLowerCase() !== 'yes') {
+            console.log('❌ Sync aborted.');
+            throw error;
+          }
+        } else {
+          console.log('⚠️  Error occurred in auto-confirm mode - aborting sync for safety');
           throw error;
         }
       }
@@ -221,8 +234,19 @@ class EnvironmentSync {
   }
 }
 
+// Global flag for auto-confirmation (used when called from API)
+let AUTO_CONFIRM = false;
+
 async function main() {
-  const command = process.argv[2];
+  const args = process.argv.slice(2);
+  const command = args[0];
+  
+  // Check for auto-confirm flag
+  if (args.includes('--auto-confirm') || args.includes('-y')) {
+    AUTO_CONFIRM = true;
+    console.log('🤖 Running in auto-confirm mode (no prompts)');
+  }
+  
   const sync = new EnvironmentSync();
   
   console.log('╔══════════════════════════════════════════════╗');
@@ -246,10 +270,11 @@ async function main() {
         
       default:
         console.log('\n📖 Usage:');
-        console.log('  tsx scripts/sync-environments.ts dev-to-test    # Sync Dev → Test');
-        console.log('  tsx scripts/sync-environments.ts test-to-prod   # Sync Test → Prod');
-        console.log('  tsx scripts/sync-environments.ts status         # Check status');
-        console.log('\n💡 Always follow the pipeline: Dev → Test → Production\n');
+        console.log('  tsx scripts/sync-environments.ts dev-to-test [--auto-confirm]    # Sync Dev → Test');
+        console.log('  tsx scripts/sync-environments.ts test-to-prod [--auto-confirm]   # Sync Test → Prod');
+        console.log('  tsx scripts/sync-environments.ts status                          # Check status');
+        console.log('\n💡 Always follow the pipeline: Dev → Test → Production');
+        console.log('   Use --auto-confirm to skip confirmation prompts (for API use)\n');
     }
   } catch (error: any) {
     console.error('\n❌ Sync failed:', error.message);
