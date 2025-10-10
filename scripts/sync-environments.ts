@@ -82,15 +82,34 @@ class EnvironmentSync {
         name: 'Export Lookup Data from Dev',
         command: 'tsx scripts/data-sync-manager.ts export development',
         description: 'Exporting lookup data from Development...'
-      },
-      {
-        name: 'Import Lookup Data to Test',
-        command: 'tsx scripts/data-sync-manager.ts import test',
-        description: 'Importing lookup data into Test...'
       }
     ];
     
     await this.executeSteps(steps);
+    
+    // Get the latest export and import it
+    console.log('\n[3/3] Importing lookup data into Test...');
+    try {
+      const { stdout: listOutput } = await execAsync('tsx scripts/data-sync-manager.ts list');
+      const exports = listOutput.trim().split('\n').filter(line => line.includes('-'));
+      
+      if (exports.length === 0) {
+        console.error('❌ No exports found after export step');
+        return;
+      }
+      
+      const latestExport = exports[exports.length - 1].trim();
+      console.log(`Using export: ${latestExport}`);
+      
+      const { stdout: importOutput } = await execAsync(`tsx scripts/data-sync-manager.ts import test "${latestExport}" --clear-first`);
+      console.log(importOutput);
+      console.log('✅ Import Lookup Data to Test completed');
+      
+    } catch (error: any) {
+      console.error('❌ Error importing lookup data:', error.message);
+      if (error.stdout) console.log(error.stdout);
+      if (error.stderr) console.error(error.stderr);
+    }
     
     console.log('\n✅ Development → Test sync complete!\n');
   }
@@ -128,15 +147,34 @@ class EnvironmentSync {
         name: 'Export Lookup Data from Test',
         command: 'tsx scripts/data-sync-manager.ts export test',
         description: 'Exporting lookup data from Test...'
-      },
-      {
-        name: 'Import Lookup Data to Production',
-        command: 'tsx scripts/data-sync-manager.ts import production',
-        description: 'Importing lookup data into Production...'
       }
     ];
     
     await this.executeSteps(steps);
+    
+    // Get the latest export and import it
+    console.log('\n[3/3] Importing lookup data into Production...');
+    try {
+      const { stdout: listOutput } = await execAsync('tsx scripts/data-sync-manager.ts list');
+      const exports = listOutput.trim().split('\n').filter(line => line.includes('-'));
+      
+      if (exports.length === 0) {
+        console.error('❌ No exports found after export step');
+        return;
+      }
+      
+      const latestExport = exports[exports.length - 1].trim();
+      console.log(`Using export: ${latestExport}`);
+      
+      const { stdout: importOutput } = await execAsync(`tsx scripts/data-sync-manager.ts import production "${latestExport}" --clear-first`);
+      console.log(importOutput);
+      console.log('✅ Import Lookup Data to Production completed');
+      
+    } catch (error: any) {
+      console.error('❌ Error importing lookup data:', error.message);
+      if (error.stdout) console.log(error.stdout);
+      if (error.stderr) console.error(error.stderr);
+    }
     
     console.log('\n✅ Test → Production sync complete!\n');
     console.log('⚠️  Remember to verify Production application immediately!\n');
