@@ -45,6 +45,27 @@ interface DataSyncResult {
   error?: string;
 }
 
+interface ColumnInfo {
+  tableName: string;
+  columnName: string;
+  dataType: string;
+  isNullable: string;
+  columnDefault: string | null;
+  position: number;
+}
+
+interface SchemaDriftResult {
+  success: boolean;
+  hasDrift: boolean;
+  env1: string;
+  env2: string;
+  totalTables: number;
+  totalColumnsEnv1: number;
+  totalColumnsEnv2: number;
+  missingInEnv2: ColumnInfo[];
+  extraInEnv2: ColumnInfo[];
+}
+
 export default function TestingUtilities() {
   const [selectedOptions, setSelectedOptions] = useState({
     prospects: false,
@@ -66,6 +87,12 @@ export default function TestingUtilities() {
   const [selectedExport, setSelectedExport] = useState<string>('');
   const [dryRun, setDryRun] = useState(true);
   const [clearFirst, setClearFirst] = useState(false);
+
+  // Schema Drift State
+  const [driftResult, setDriftResult] = useState<SchemaDriftResult | null>(null);
+  const [showDriftModal, setShowDriftModal] = useState(false);
+  const [driftEnv1, setDriftEnv1] = useState<string>('development');
+  const [driftEnv2, setDriftEnv2] = useState<string>('test');
 
   // Manual Test Cases State
   const [checkedTests, setCheckedTests] = useState<Record<string, boolean>>({});
@@ -248,6 +275,34 @@ export default function TestingUtilities() {
     },
   });
 
+  // Schema drift detection mutation
+  const detectDriftMutation = useMutation({
+    mutationFn: async ({ env1, env2 }: { env1: string; env2: string }) => {
+      const response = await fetch(`/api/admin/schema-drift/${env1}/${env2}`, {
+        credentials: "include",
+      });
+      if (!response.ok) throw new Error("Failed to detect drift");
+      return response.json() as Promise<SchemaDriftResult>;
+    },
+    onSuccess: (data) => {
+      setDriftResult(data);
+      setShowDriftModal(true);
+      if (!data.hasDrift) {
+        toast({
+          title: "No Drift Detected",
+          description: `${data.env1} and ${data.env2} schemas are perfectly synchronized!`,
+        });
+      }
+    },
+    onError: (error) => {
+      toast({
+        title: "Error Detecting Drift",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleOptionChange = (option: string, checked: boolean) => {
     setSelectedOptions(prev => ({
       ...prev,
@@ -311,7 +366,7 @@ export default function TestingUtilities() {
     <div className="space-y-6">
       {/* Main Tabs for Testing Features */}
       <Tabs defaultValue="dashboard" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="dashboard" className="flex items-center gap-2">
             <TestTube className="h-4 w-4" />
             Test Dashboard
@@ -319,6 +374,10 @@ export default function TestingUtilities() {
           <TabsTrigger value="utilities" className="flex items-center gap-2">
             <Database className="h-4 w-4" />
             Data Utilities
+          </TabsTrigger>
+          <TabsTrigger value="drift" className="flex items-center gap-2">
+            <ShieldCheck className="h-4 w-4" />
+            Schema Drift
           </TabsTrigger>
           <TabsTrigger value="manual-tests" className="flex items-center gap-2">
             <ClipboardCheck className="h-4 w-4" />
@@ -1369,6 +1428,154 @@ Check console for full details.`);
 
         </TabsContent>
 
+        {/* Schema Drift Detection Tab */}
+        <TabsContent value="drift" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <ShieldCheck className="h-5 w-5" />
+                Schema Drift Detection
+              </CardTitle>
+              <CardDescription>
+                Compare database schemas across environments to detect and resolve drift
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* Environment Selection */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-medium mb-2 block">Source Environment</label>
+                  <Select value={driftEnv1} onValueChange={setDriftEnv1}>
+                    <SelectTrigger data-testid="select-drift-env1">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="development">Development</SelectItem>
+                      <SelectItem value="test">Test</SelectItem>
+                      <SelectItem value="production">Production</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <label className="text-sm font-medium mb-2 block">Target Environment</label>
+                  <Select value={driftEnv2} onValueChange={setDriftEnv2}>
+                    <SelectTrigger data-testid="select-drift-env2">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="development">Development</SelectItem>
+                      <SelectItem value="test">Test</SelectItem>
+                      <SelectItem value="production">Production</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {/* Detect Drift Button */}
+              <Button
+                onClick={() => detectDriftMutation.mutate({ env1: driftEnv1, env2: driftEnv2 })}
+                disabled={detectDriftMutation.isPending || driftEnv1 === driftEnv2}
+                className="w-full"
+                data-testid="button-detect-drift"
+              >
+                {detectDriftMutation.isPending ? (
+                  <>
+                    <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                    Detecting Drift...
+                  </>
+                ) : (
+                  <>
+                    <ShieldCheck className="mr-2 h-4 w-4" />
+                    Detect Schema Drift
+                  </>
+                )}
+              </Button>
+
+              {driftEnv1 === driftEnv2 && (
+                <Alert>
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>
+                    Please select different environments to compare
+                  </AlertDescription>
+                </Alert>
+              )}
+
+              {/* Quick Info Card */}
+              <div className="p-4 bg-blue-50 dark:bg-blue-950/30 rounded-lg border border-blue-200 dark:border-blue-800">
+                <h3 className="font-medium text-blue-900 dark:text-blue-100 mb-2">What is Schema Drift?</h3>
+                <p className="text-sm text-blue-800 dark:text-blue-200 mb-3">
+                  Schema drift occurs when database structures don't match across environments. This can happen when:
+                </p>
+                <ul className="text-sm text-blue-800 dark:text-blue-200 space-y-1 list-disc list-inside">
+                  <li>Changes are made directly in the database instead of through schema.ts</li>
+                  <li>Environments are out of sync due to failed promotions</li>
+                  <li>Manual SQL commands are run bypassing the standard workflow</li>
+                </ul>
+                <div className="mt-3 p-3 bg-gray-900 dark:bg-gray-800 rounded font-mono text-xs text-green-400">
+                  tsx scripts/schema-drift-simple.ts
+                </div>
+              </div>
+
+              {/* Current Status Summary */}
+              {driftResult && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2 text-base">
+                      {driftResult.hasDrift ? (
+                        <>
+                          <AlertCircle className="h-5 w-5 text-orange-500" />
+                          Drift Detected
+                        </>
+                      ) : (
+                        <>
+                          <CheckCircle className="h-5 w-5 text-green-500" />
+                          No Drift
+                        </>
+                      )}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-3 gap-4 text-center">
+                      <div className="p-3 bg-muted/50 rounded-lg">
+                        <div className="text-2xl font-bold">{driftResult.totalTables}</div>
+                        <div className="text-sm text-muted-foreground">Total Tables</div>
+                      </div>
+                      <div className="p-3 bg-muted/50 rounded-lg">
+                        <div className="text-2xl font-bold">{driftResult.totalColumnsEnv1}</div>
+                        <div className="text-sm text-muted-foreground capitalize">{driftResult.env1} Columns</div>
+                      </div>
+                      <div className="p-3 bg-muted/50 rounded-lg">
+                        <div className="text-2xl font-bold">{driftResult.totalColumnsEnv2}</div>
+                        <div className="text-sm text-muted-foreground capitalize">{driftResult.env2} Columns</div>
+                      </div>
+                    </div>
+                    
+                    {driftResult.hasDrift && (
+                      <div className="mt-4 space-y-2">
+                        <Badge variant="destructive" className="mr-2">
+                          {driftResult.missingInEnv2.length} Missing in {driftResult.env2}
+                        </Badge>
+                        <Badge variant="outline" className="mr-2">
+                          {driftResult.extraInEnv2.length} Extra in {driftResult.env2}
+                        </Badge>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setShowDriftModal(true)}
+                          className="mt-2 w-full"
+                          data-testid="button-view-drift-details"
+                        >
+                          View Detailed Analysis
+                        </Button>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
         {/* Manual Test Cases Tab */}
         <TabsContent value="manual-tests" className="space-y-6">
           <Card>
@@ -1847,6 +2054,187 @@ Check console for full details.`);
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Schema Drift Details Modal */}
+      <Dialog open={showDriftModal} onOpenChange={setShowDriftModal}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <ShieldCheck className="h-5 w-5" />
+              Schema Drift Analysis
+            </DialogTitle>
+            <DialogDescription>
+              Detailed comparison of database schemas between {driftResult?.env1} and {driftResult?.env2}
+            </DialogDescription>
+          </DialogHeader>
+
+          {driftResult && (
+            <div className="space-y-6">
+              {/* Summary Stats */}
+              <div className="grid grid-cols-4 gap-4">
+                <Card>
+                  <CardContent className="pt-6 text-center">
+                    <div className="text-3xl font-bold">{driftResult.totalTables}</div>
+                    <div className="text-sm text-muted-foreground mt-1">Tables</div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="pt-6 text-center">
+                    <div className="text-3xl font-bold">{driftResult.totalColumnsEnv1}</div>
+                    <div className="text-sm text-muted-foreground mt-1 capitalize">{driftResult.env1}</div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="pt-6 text-center">
+                    <div className="text-3xl font-bold">{driftResult.totalColumnsEnv2}</div>
+                    <div className="text-sm text-muted-foreground mt-1 capitalize">{driftResult.env2}</div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="pt-6 text-center">
+                    <div className={`text-3xl font-bold ${driftResult.hasDrift ? 'text-orange-500' : 'text-green-500'}`}>
+                      {driftResult.hasDrift ? 'DRIFT' : 'SYNCED'}
+                    </div>
+                    <div className="text-sm text-muted-foreground mt-1">Status</div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Missing Columns (in env1 but not in env2) */}
+              {driftResult.missingInEnv2.length > 0 && (
+                <div>
+                  <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
+                    <AlertCircle className="h-5 w-5 text-orange-500" />
+                    Missing in {driftResult.env2} ({driftResult.missingInEnv2.length} columns)
+                  </h3>
+                  <div className="border rounded-lg overflow-hidden">
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="bg-orange-50 dark:bg-orange-950/30">
+                          <TableHead>Table</TableHead>
+                          <TableHead>Column</TableHead>
+                          <TableHead>Type</TableHead>
+                          <TableHead>Nullable</TableHead>
+                          <TableHead>Default</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {(() => {
+                          // Group by table
+                          const byTable = driftResult.missingInEnv2.reduce((acc, col) => {
+                            if (!acc[col.tableName]) acc[col.tableName] = [];
+                            acc[col.tableName].push(col);
+                            return acc;
+                          }, {} as Record<string, ColumnInfo[]>);
+
+                          return Object.entries(byTable).map(([tableName, columns]) => (
+                            columns.map((col, idx) => (
+                              <TableRow key={`${tableName}-${col.columnName}`}>
+                                <TableCell className="font-medium">
+                                  {idx === 0 ? tableName : ''}
+                                </TableCell>
+                                <TableCell>{col.columnName}</TableCell>
+                                <TableCell><Badge variant="outline">{col.dataType}</Badge></TableCell>
+                                <TableCell>
+                                  {col.isNullable === 'YES' ? (
+                                    <Badge variant="secondary">NULL</Badge>
+                                  ) : (
+                                    <Badge>NOT NULL</Badge>
+                                  )}
+                                </TableCell>
+                                <TableCell className="font-mono text-xs">{col.columnDefault || '-'}</TableCell>
+                              </TableRow>
+                            ))
+                          ));
+                        })()}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </div>
+              )}
+
+              {/* Extra Columns (in env2 but not in env1) */}
+              {driftResult.extraInEnv2.length > 0 && (
+                <div>
+                  <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
+                    <X className="h-5 w-5 text-red-500" />
+                    Extra in {driftResult.env2} ({driftResult.extraInEnv2.length} columns)
+                  </h3>
+                  <div className="border rounded-lg overflow-hidden">
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="bg-red-50 dark:bg-red-950/30">
+                          <TableHead>Table</TableHead>
+                          <TableHead>Column</TableHead>
+                          <TableHead>Type</TableHead>
+                          <TableHead>Nullable</TableHead>
+                          <TableHead>Default</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {(() => {
+                          // Group by table
+                          const byTable = driftResult.extraInEnv2.reduce((acc, col) => {
+                            if (!acc[col.tableName]) acc[col.tableName] = [];
+                            acc[col.tableName].push(col);
+                            return acc;
+                          }, {} as Record<string, ColumnInfo[]>);
+
+                          return Object.entries(byTable).map(([tableName, columns]) => (
+                            columns.map((col, idx) => (
+                              <TableRow key={`${tableName}-${col.columnName}`}>
+                                <TableCell className="font-medium">
+                                  {idx === 0 ? tableName : ''}
+                                </TableCell>
+                                <TableCell>{col.columnName}</TableCell>
+                                <TableCell><Badge variant="outline">{col.dataType}</Badge></TableCell>
+                                <TableCell>
+                                  {col.isNullable === 'YES' ? (
+                                    <Badge variant="secondary">NULL</Badge>
+                                  ) : (
+                                    <Badge>NOT NULL</Badge>
+                                  )}
+                                </TableCell>
+                                <TableCell className="font-mono text-xs">{col.columnDefault || '-'}</TableCell>
+                              </TableRow>
+                            ))
+                          ));
+                        })()}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </div>
+              )}
+
+              {/* No Drift Message */}
+              {!driftResult.hasDrift && (
+                <div className="p-6 bg-green-50 dark:bg-green-950/30 rounded-lg border border-green-200 dark:border-green-800 text-center">
+                  <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-3" />
+                  <h3 className="text-lg font-semibold text-green-900 dark:text-green-100 mb-2">
+                    Perfect Synchronization!
+                  </h3>
+                  <p className="text-green-800 dark:text-green-200">
+                    {driftResult.env1} and {driftResult.env2} have identical schemas with {driftResult.totalColumnsEnv1} columns across {driftResult.totalTables} tables.
+                  </p>
+                </div>
+              )}
+
+              {/* Recommended Actions */}
+              {driftResult.hasDrift && (
+                <div className="p-4 bg-blue-50 dark:bg-blue-950/30 rounded-lg border border-blue-200 dark:border-blue-800">
+                  <h3 className="font-medium text-blue-900 dark:text-blue-100 mb-2">Recommended Actions</h3>
+                  <ol className="text-sm text-blue-800 dark:text-blue-200 space-y-2 list-decimal list-inside">
+                    <li>Update <code className="bg-blue-900/20 px-1 rounded">shared/schema.ts</code> to match {driftResult.env1}</li>
+                    <li>Run <code className="bg-blue-900/20 px-1 rounded">npm run db:push</code> to apply changes</li>
+                    <li>Sync to {driftResult.env2}: <code className="bg-blue-900/20 px-1 rounded">tsx scripts/sync-environments.ts {driftResult.env1.substring(0, 3)}-to-{driftResult.env2.substring(0, 4)}</code></li>
+                    <li>Verify: <code className="bg-blue-900/20 px-1 rounded">tsx scripts/schema-drift-simple.ts</code></li>
+                  </ol>
+                </div>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
