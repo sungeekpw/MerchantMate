@@ -6,7 +6,7 @@ import sgMail from "@sendgrid/mail";
 import { storage, DatabaseStorage } from "./storage";
 import { emailService } from "./emailService";
 import { users, loginAttempts } from "@shared/schema";
-import { eq, and, or, gte } from "drizzle-orm";
+import { eq, and, or, gte, sql } from "drizzle-orm";
 import type { Request } from "express";
 import type { 
   RegisterUser, 
@@ -78,6 +78,15 @@ export class AuthService {
     if (db) {
       // Use dynamic database for login attempts check
       console.log(`🔍 checkLoginAttempts: Using dynamic DB for user: ${usernameOrEmail}`);
+      
+      // Test raw query first
+      try {
+        const rawTest: any = await db.execute(sql`SELECT COUNT(*) as count FROM login_attempts WHERE created_at > NOW() - INTERVAL '15 minutes'`);
+        console.log(`🔍 Raw SQL test - login_attempts count:`, rawTest.rows?.[0]?.count || rawTest[0]?.count || 'unknown');
+      } catch (rawError: any) {
+        console.error(`❌ Raw SQL test failed:`, rawError.message);
+      }
+      
       const timeThreshold = new Date(Date.now() - LOCKOUT_TIME);
       const recentAttempts = await db.select().from(loginAttempts)
         .where(and(
