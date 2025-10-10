@@ -23,14 +23,24 @@ export type TriggerEvent = z.infer<typeof triggerEventSchema>;
 
 export const merchants = pgTable("merchants", {
   id: serial("id").primaryKey(),
-  userId: varchar("user_id").references(() => users.id, { onDelete: "restrict" }).unique(),
-  companyId: integer("company_id").notNull().references(() => companies.id, { onDelete: "cascade" }), // Every merchant must have a company
+  businessName: text("business_name"), // DBA or trade name
+  businessType: text("business_type"), // LLC, Corporation, Sole Proprietor, etc.
+  email: text("email"), // Business email
+  phone: text("phone"), // Business phone
   agentId: integer("agent_id"),
   processingFee: decimal("processing_fee", { precision: 5, scale: 2 }).default("2.50").notNull(),
   status: text("status").notNull().default("active"), // active, pending, suspended
   monthlyVolume: decimal("monthly_volume", { precision: 12, scale: 2 }).default("0").notNull(),
-  notes: text("notes"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
+  userId: varchar("user_id").references(() => users.id, { onDelete: "restrict" }).unique(),
+  dbaName: text("dba_name"), // Doing Business As name
+  legalName: text("legal_name"), // Legal business name
+  ein: text("ein"), // Employer Identification Number
+  website: text("website"), // Business website URL
+  industry: text("industry"), // Business industry/category
+  updatedAt: timestamp("updated_at", { withTimezone: true }), // Last update timestamp
+  companyId: integer("company_id").notNull().references(() => companies.id, { onDelete: "cascade" }), // Every merchant must have a company
+  notes: text("notes"),
 });
 
 export const locations = pgTable("locations", {
