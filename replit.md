@@ -46,6 +46,24 @@ Preferred communication style: Simple, everyday language.
 - **Safe Schema Changes**: NEVER add required fields (`.notNull()`) to existing tables with data - this causes Drizzle to drop/recreate tables, deleting all data. Always make new fields optional or use defaults. See `DEPLOYMENT_GUIDE.md` for detailed safety guidelines.
 - **Environment Synchronization**: Automated Dev → Test → Production pipeline using `scripts/sync-environments.ts` for schema migrations and lookup data synchronization. See `SYNC_GUIDE.md` for non-technical user instructions.
 
+### Critical Schema Change Protocol
+**MANDATORY STEPS - NEVER SKIP:**
+1. **ALWAYS update `shared/schema.ts` FIRST** when adding/modifying database columns
+2. **NEVER manually modify databases** with SQL commands - all changes go through the schema file
+3. **Run `npm run db:push`** to sync schema changes to Development database
+4. **Use sync tools** to propagate changes: `tsx scripts/sync-environments.ts dev-to-test`
+5. **Column order matters** - PostgreSQL column positions must match exactly across environments
+6. **Verify with Compare Schemas** - Use Database Utilities to visually confirm sync success
+
+**Why This Matters:**
+- Schema drift (database columns not in schema.ts) causes Drizzle to drop tables/columns on next push
+- Manual database changes bypass version control and cause environment inconsistencies
+- Incorrect column order confuses Drizzle's change detection system
+
+**Recent Schema Updates (October 2025):**
+- Added to `equipmentItems`: model (text), price (decimal), status (text, default 'available')
+- Added to `feeItems`: feeItemGroupId (integer, foreign key to fee_item_groups)
+
 ## External Dependencies
 - **pg**: Native PostgreSQL driver.
 - **drizzle-orm**: Type-safe ORM for PostgreSQL.
