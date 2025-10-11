@@ -1025,7 +1025,8 @@ export default function ActionTemplates() {
   const [usageTemplate, setUsageTemplate] = useState<ActionTemplate | null>(null);
 
   // Fetch all action templates
-  const { data: templates = [], isLoading, refetch } = useQuery<ActionTemplate[]>({
+  // Note: Custom queryFn with aggressive refetch settings to avoid stale data from pre-auth 401 responses
+  const { data: templates = [], isLoading } = useQuery<ActionTemplate[]>({
     queryKey: ['/api/action-templates'],
     queryFn: async () => {
       const response = await fetch('/api/action-templates', {
@@ -1034,25 +1035,13 @@ export default function ActionTemplates() {
       if (!response.ok) {
         throw new Error('Failed to fetch templates');
       }
-      const data = await response.json();
-      console.log('✅ Fetched templates:', data.length);
-      return data;
+      return response.json();
     },
     staleTime: 0,
     gcTime: 0,
     refetchOnMount: 'always',
     refetchOnWindowFocus: true,
   });
-
-  // Debug: Log templates data
-  useEffect(() => {
-    console.log('🔍 Action Templates Debug:', {
-      isLoading,
-      templatesCount: templates?.length || 0,
-      templates: templates,
-      firstTemplate: templates?.[0]
-    });
-  }, [templates, isLoading]);
 
   // Fetch template usage data
   const { data: usageData = {} } = useQuery<Record<number, TemplateUsage[]>>({

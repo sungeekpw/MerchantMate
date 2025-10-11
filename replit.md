@@ -36,6 +36,7 @@ Preferred communication style: Simple, everyday language.
 - **Campaign Management**: Full CRUD for campaigns, pricing types, fee groups, and equipment associations.
 - **SOC2 Compliance Features**: Comprehensive audit trail system with logging, security events, and login attempt tracking.
 - **Generic Trigger/Action Catalog System**: Extensible event-driven action system supporting multi-channel notifications and action chaining with a unified `action_templates` architecture.
+- **Email Templates Migration**: Successfully migrated from legacy `email_templates` table to unified `action_templates` system. Email Management UI now uses `/api/admin/action-templates/type/email` endpoint.
 
 ### System Design Choices
 - **Testing Framework**: TDD-style with Jest and React Testing Library for comprehensive testing, including a visual testing dashboard.
@@ -46,6 +47,7 @@ Preferred communication style: Simple, everyday language.
 - **Environment Synchronization**: Automated Dev → Test → Production pipeline for schema migrations and lookup data synchronization.
 - **Critical Schema Change Protocol**: Mandates updating `shared/schema.ts` first, using `npm run db:push`, and sync tools for propagation, explicitly forbidding manual database modifications.
 - **Schema Drift Detection**: CLI and GUI tools for real-time drift detection and automated SQL migration generation across environments to ensure schema consistency and prevent data loss during promotions.
+- **React Query Optimization**: Custom queryFn implementations with aggressive refetch settings (`staleTime: 0`, `gcTime: 0`, `refetchOnMount: 'always'`) for critical queries to prevent stale data caching from pre-authentication 401 responses. Applied to Action Templates and other admin pages.
 
 ## External Dependencies
 - **pg**: Native PostgreSQL driver.
