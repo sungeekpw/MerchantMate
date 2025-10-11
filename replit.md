@@ -18,15 +18,15 @@ Preferred communication style: Simple, everyday language.
 - **Backend**: Express.js with TypeScript.
 - **Database**: PostgreSQL with Drizzle ORM, deployed on Neon serverless.
 - **Authentication**: Session-based authentication using `express-session` and a PostgreSQL session store, including 2FA and robust password management.
-- **Email Service**: SendGrid for transactional emails with webhook integration for delivery and open rate tracking.
-- **Email Template Editor**: WYSIWYG editor (React Quill) with visual/HTML toggle for easy template creation and editing, preserving variable placeholders.
+- **Email Service**: SendGrid for transactional emails with webhook integration.
+- **Email Template Editor**: WYSIWYG editor (React Quill) with visual/HTML toggle.
 - **File Handling**: Multer for PDF form uploads.
 
 ### Feature Specifications
-- **Company-Centric Data Architecture**: Companies are the root entity, ensuring data integrity and cascading operations for agents and merchants.
+- **Company-Centric Data Architecture**: Companies are the root entity, ensuring data integrity.
 - **Role-Based Access Control**: Granular permissions for `merchant`, `agent`, `admin`, `corporate`, `super_admin` roles.
-- **Secure Authentication**: Session management, login attempt tracking, 2FA, password reset, and strong password requirements with re-verification for sensitive operations.
-- **Merchant & Agent Management**: Comprehensive profiles, assignment, status tracking, and fee management with real-time phone number and EIN/Tax ID formatting and validation.
+- **Secure Authentication**: Session management, login attempt tracking, 2FA, password reset, and strong password requirements.
+- **Merchant & Agent Management**: Comprehensive profiles, assignment, status tracking, and fee management with real-time validation.
 - **Location Management**: Polymorphic locations supporting both merchant-specific and company-level addresses, with geolocation and operating hours.
 - **Transaction Processing**: Tracking, commission calculations, and revenue analytics.
 - **Form Management System**: PDF upload/parsing, dynamic field generation, and public access.
@@ -35,148 +35,17 @@ Preferred communication style: Simple, everyday language.
 - **Address Validation**: Google Maps Geocoding and Places Autocomplete integration.
 - **Campaign Management**: Full CRUD for campaigns, pricing types, fee groups, and equipment associations.
 - **SOC2 Compliance Features**: Comprehensive audit trail system with logging, security events, and login attempt tracking.
-- **Generic Trigger/Action Catalog System**: Extensible event-driven action system supporting multi-channel notifications and action chaining.
+- **Generic Trigger/Action Catalog System**: Extensible event-driven action system supporting multi-channel notifications and action chaining with a unified `action_templates` architecture.
 
 ### System Design Choices
 - **Testing Framework**: TDD-style with Jest and React Testing Library for comprehensive testing, including a visual testing dashboard.
-- **Manual Testing Checklist**: Comprehensive manual test cases in `TESTING_CHECKLIST.md` covering all Communication Management features for non-technical users to validate before deployment.
-- **Schema Management**: Comprehensive database schema comparison and synchronization utilities with a version-controlled migration system.
+- **Manual Testing Checklist**: Comprehensive manual test cases in `TESTING_CHECKLIST.md`.
+- **Schema Management**: Comprehensive database schema comparison and synchronization utilities with a version-controlled migration system and drift detection.
 - **Multi-Environment Support**: Session-based database environment switching (Development, Test, Production) with an environment selector and automatic connection fallback.
-- **Database Safety**: Strict protocols and wrapper scripts (`scripts/execute-sql.ts`) are enforced to prevent accidental production database modifications, explicitly forbidding direct use of `execute_sql_tool` for non-emergency situations.
-- **Safe Schema Changes**: NEVER add required fields (`.notNull()`) to existing tables with data - this causes Drizzle to drop/recreate tables, deleting all data. Always make new fields optional or use defaults. See `DEPLOYMENT_GUIDE.md` for detailed safety guidelines.
-- **Environment Synchronization**: Automated Dev → Test → Production pipeline using `scripts/sync-environments.ts` for schema migrations and lookup data synchronization. See `SYNC_GUIDE.md` for non-technical user instructions.
-
-### Critical Schema Change Protocol
-**MANDATORY STEPS - NEVER SKIP:**
-1. **ALWAYS update `shared/schema.ts` FIRST** when adding/modifying database columns
-2. **NEVER manually modify databases** with SQL commands - all changes go through the schema file
-3. **Run `npm run db:push`** to sync schema changes to Development database
-4. **Use sync tools** to propagate changes: `tsx scripts/sync-environments.ts dev-to-test`
-5. **Column order matters** - PostgreSQL column positions must match exactly across environments
-6. **Verify with Compare Schemas** - Use Database Utilities to visually confirm sync success
-
-**Why This Matters:**
-- Schema drift (database columns not in schema.ts) causes Drizzle to drop tables/columns on next push
-- Manual database changes bypass version control and cause environment inconsistencies
-- Incorrect column order confuses Drizzle's change detection system
-
-### Week 1 Drift Detection Foundation (October 2025)
-**Status:** ✅ Complete - Zero Drift Achieved
-
-Built comprehensive schema drift detection and prevention system to ensure safe Dev → Test → Production promotions:
-
-**Tools Created:**
-- **`scripts/schema-drift-simple.ts`**: CLI tool for real-time drift detection between Development and Test
-  - Compares all 50 tables and 585 columns automatically
-  - Identifies missing/extra columns with detailed reporting
-  - Exit code integration for CI/CD pipelines
-  - Usage: `tsx scripts/schema-drift-simple.ts`
-
-- **`scripts/schema-sync-generator.ts`**: Auto-generates SQL migrations to fix detected drift
-  - Analyzes schema differences
-  - Creates timestamped, reviewable migration files
-  - Handles both column additions and removals safely
-  - Usage: `tsx scripts/schema-sync-generator.ts`
-
-- **`/api/admin/schema-drift/:env1/:env2`**: REST API endpoint for UI drift detection
-  - Real-time schema comparison between any two environments
-  - Returns detailed drift analysis (missing columns, extra columns, totals)
-  - Accessible via Testing Utilities → Data Utilities interface
-
-**Documentation:**
-- **`PROMOTION_GUIDE.md`**: Comprehensive step-by-step promotion workflow guide
-  - Pre-promotion checklists
-  - Standard promotion procedures (Dev → Test → Prod)
-  - Drift detection and resolution procedures
-  - Troubleshooting common issues
-  - Command reference and safety protocols
-
-- **`WEEK1_FOUNDATION_SUMMARY.md`**: Detailed summary of drift resolution efforts
-  - Resolved 36 columns of schema drift across 5 tables
-  - Before/after comparison showing zero drift achievement
-  - Schema synchronization details and validation results
-
-**Achievement:**
-- Synchronized 585 columns across 50 tables (Development and Test) with ZERO drift
-- Eliminated risk of data loss during schema promotions
-- Established automated validation workflow for all future changes
-
-### Week 2 GUI Integration (October 2025)
-**Status:** ✅ Complete - Visual Drift Detection & Generate Fix SQL
-
-Built comprehensive GUI for schema drift detection and SQL migration generation integrated into Testing Utilities:
-
-**Features Implemented:**
-- **Schema Drift Detection Tab**: New dedicated tab in Testing Utilities with intuitive UI
-  - Environment selectors for any two environments (Development, Test, Production)
-  - One-click drift detection with real-time analysis
-  - Visual status indicators (SYNCED green / DRIFT orange)
-  - Summary statistics showing table counts and column totals
-
-- **Visual Diff Viewer**: Detailed modal showing exact drift differences
-  - Tables grouped by drift type (Missing vs. Extra columns)
-  - Column-level details: name, data type, nullable status, defaults
-  - Color-coded sections (orange for missing, red for extra)
-  - Perfect sync celebration when no drift detected
-
-- **Generate Fix SQL**: One-click SQL migration generation
-  - Auto-creates timestamped migration file using `schema-sync-generator.ts`
-  - Creates sequences before tables to avoid database errors
-  - Supports any environment combination (Dev→Test, Test→Prod, etc.)
-  - Safe, reviewable SQL that can be version controlled
-  - **Note**: Auto-sync not implemented - drizzle-kit push requires interactive confirmation and cannot be automated
-
-**Security Enhancements:**
-- ✅ **Command Injection Prevention**: Strict whitelist validation (only development/test/production)
-- ✅ **Safe Execution**: Uses `child_process.spawn` with array arguments (no shell expansion)
-- ✅ **Input Validation**: Prevents same-environment comparison, validates all parameters
-- ✅ **Timeout Protection**: 60-second timeout on operations
-- ✅ **Role-Based Access**: All endpoints require `super_admin` role
-
-**API Endpoints:**
-- `GET /api/admin/schema-drift/:env1/:env2` - Real-time drift detection
-- `POST /api/admin/schema-drift/generate-fix` - SQL migration generation
-
-**User Workflow (Non-Technical Admin):**
-1. **Request Feature**: Tell the AI agent what you need
-2. **Agent Updates Schema**: Agent modifies `shared/schema.ts` and applies to Development
-3. **Promote to Test**:
-   - Go to Testing Utilities → Schema Drift tab
-   - Select Source: development, Target: test
-   - Click "Detect Schema Drift"
-   - Click "Generate Fix SQL"
-   - Agent applies the SQL (or you can review first)
-4. **Test Your Feature**: Validate in Test environment
-5. **Promote to Production**:
-   - Select Source: test, Target: production
-   - Click "Detect Schema Drift"
-   - Click "Generate Fix SQL"
-   - Agent applies the SQL to Production
-
-**User Experience:**
-- Educational info cards explaining drift concepts
-- Step-by-step recommended actions for drift resolution
-- Clear error messages and success feedback
-- Fully accessible with data-testid attributes for testing
-- No code or command-line access required
-
-**Achievement:**
-- Successfully eliminated drift between Test and Production (4 tables, 4 sequences)
-- Established safe, reviewable migration workflow
-- Empowered non-technical users to manage database promotions
-
-**Recent Schema Updates (October 2025):**
-- **New Tables (Week 2)**:
-  - `fee_groups`: Groups of fee items for pricing structures
-  - `fee_items`: Individual fee line items with pricing details
-  - `fee_item_groups`: Fee item categorization/grouping
-  - `fee_group_fee_items`: Junction table linking fee groups to fee items
-- **Previous Updates**:
-  - Extended `equipmentItems`: model (text), price (decimal), status (text, default 'available')
-  - Extended `feeItems`: feeItemGroupId (integer, foreign key to fee_item_groups)
-  - Extended `auditLogs`: 15 columns for enhanced tracking (resource_type, details, timestamp, severity, category, outcome, error_message, request_id, correlation_id, metadata, geolocation, device_info, retention_policy, encryption_key_id, updated_at)
-  - Extended `merchants`: 10 columns for comprehensive merchant data (business_name, business_type, email, phone, dba_name, legal_name, ein, website, industry, updated_at)
-  - Extended `transactions`: 7 columns for transaction tracking (commission_rate, commission_amount, transaction_date, reference_number, location_id, transaction_type, processed_at)
+- **Database Safety**: Strict protocols and wrapper scripts are enforced to prevent accidental production database modifications. Safe schema changes prioritize adding optional fields or using defaults to prevent data loss.
+- **Environment Synchronization**: Automated Dev → Test → Production pipeline for schema migrations and lookup data synchronization.
+- **Critical Schema Change Protocol**: Mandates updating `shared/schema.ts` first, using `npm run db:push`, and sync tools for propagation, explicitly forbidding manual database modifications.
+- **Schema Drift Detection**: CLI and GUI tools for real-time drift detection and automated SQL migration generation across environments to ensure schema consistency and prevent data loss during promotions.
 
 ## External Dependencies
 - **pg**: Native PostgreSQL driver.
@@ -190,5 +59,5 @@ Built comprehensive GUI for schema drift detection and SQL migration generation 
 - **express-session**: Session management middleware.
 - **connect-pg-simple**: PostgreSQL session store.
 - **multer**: Middleware for handling `multipart/form-data`.
-- **react-quill**: WYSIWYG rich text editor for email template HTML content.
+- **react-quill**: WYSIWYG rich text editor.
 - **google-maps-services-js**: Google Maps Geocoding and Places APIs.
