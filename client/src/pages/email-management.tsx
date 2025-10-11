@@ -1062,15 +1062,38 @@ const EmailManagement: React.FC = () => {
   const [testEmailTemplate, setTestEmailTemplate] = useState<EmailTemplate | null>(null);
   const [testEmailRecipient, setTestEmailRecipient] = useState('');
 
-  // Fetch email templates
+  // Fetch email templates (from action_templates with type 'email')
   const { data: templates = [], isLoading: templatesLoading } = useQuery({
-    queryKey: ['/api/admin/email-templates'],
+    queryKey: ['/api/admin/action-templates/type/email'],
     queryFn: async () => {
-      const response = await fetch('/api/admin/email-templates', {
+      const response = await fetch('/api/admin/action-templates/type/email', {
         credentials: 'include'
       });
       if (!response.ok) throw new Error('Failed to fetch templates');
-      return response.json();
+      const actionTemplates = await response.json();
+      
+      // Transform action templates to email template format for UI compatibility
+      return actionTemplates.map((at: any) => ({
+        id: at.id,
+        name: at.name,
+        description: at.description,
+        subject: at.config?.subject || '',
+        htmlContent: at.config?.htmlContent || '',
+        textContent: at.config?.textContent || '',
+        variables: at.variables || {},
+        category: at.category,
+        isActive: at.isActive ?? true,
+        useWrapper: at.config?.useWrapper ?? true,
+        wrapperType: at.config?.wrapperType || 'notification',
+        headerGradient: at.config?.headerGradient || null,
+        headerSubtitle: at.config?.headerSubtitle || null,
+        ctaButtonText: at.config?.ctaButtonText || null,
+        ctaButtonUrl: at.config?.ctaButtonUrl || null,
+        ctaButtonColor: at.config?.ctaButtonColor || null,
+        customFooter: at.config?.customFooter || null,
+        createdAt: at.createdAt,
+        updatedAt: at.updatedAt,
+      }));
     }
   });
 
@@ -1150,16 +1173,40 @@ const EmailManagement: React.FC = () => {
   // Create/Update template mutation
   const templateMutation = useMutation({
     mutationFn: async (template: Partial<EmailTemplate>) => {
+      // Transform email template format to action template format
+      const actionTemplate = {
+        id: template.id,
+        name: template.name,
+        description: template.description,
+        actionType: 'email',
+        category: template.category,
+        config: {
+          subject: template.subject,
+          htmlContent: template.htmlContent,
+          textContent: template.textContent,
+          useWrapper: template.useWrapper,
+          wrapperType: template.wrapperType,
+          headerGradient: template.headerGradient,
+          headerSubtitle: template.headerSubtitle,
+          ctaButtonText: template.ctaButtonText,
+          ctaButtonUrl: template.ctaButtonUrl,
+          ctaButtonColor: template.ctaButtonColor,
+          customFooter: template.customFooter,
+        },
+        variables: template.variables,
+        isActive: template.isActive,
+      };
+
       const url = template.id 
-        ? `/api/admin/email-templates/${template.id}`
-        : '/api/admin/email-templates';
+        ? `/api/admin/action-templates/${template.id}`
+        : '/api/admin/action-templates';
       const method = template.id ? 'PUT' : 'POST';
       
       const response = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify(template)
+        body: JSON.stringify(actionTemplate)
       });
       
       if (!response.ok) {
@@ -1170,7 +1217,7 @@ const EmailManagement: React.FC = () => {
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/email-templates'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/action-templates/type/email'] });
       setIsTemplateDialogOpen(false);
       setEditingTemplate(null);
       toast({
@@ -1190,7 +1237,7 @@ const EmailManagement: React.FC = () => {
   // Delete template mutation
   const deleteTemplateMutation = useMutation({
     mutationFn: async (id: number) => {
-      const response = await fetch(`/api/admin/email-templates/${id}`, {
+      const response = await fetch(`/api/admin/action-templates/${id}`, {
         method: 'DELETE',
         credentials: 'include'
       });
@@ -1203,7 +1250,7 @@ const EmailManagement: React.FC = () => {
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/email-templates'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/action-templates/type/email'] });
       toast({
         title: 'Success',
         description: 'Email template deleted successfully'
