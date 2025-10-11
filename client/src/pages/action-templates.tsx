@@ -51,9 +51,11 @@ import { z } from "zod";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { VariablePicker } from "@/components/variable-picker";
+import { WysiwygEditor } from "@/components/WysiwygEditor";
+import { Send } from "lucide-react";
 
 type ActionType = 'email' | 'sms' | 'webhook' | 'notification' | 'slack' | 'teams';
-type Category = 'authentication' | 'application' | 'notification' | 'alert' | 'all';
+type Category = 'authentication' | 'application' | 'notification' | 'alert' | 'all' | 'welcome';
 
 interface ActionTemplate {
   id: number;
@@ -79,11 +81,20 @@ interface TemplateUsage {
 // Form schemas for different action types
 const emailConfigSchema = z.object({
   subject: z.string().min(1, "Subject is required"),
-  body: z.string().min(1, "Body is required"),
+  htmlContent: z.string().min(1, "HTML content is required"),
+  textContent: z.string().optional(),
   fromEmail: z.string().email().optional(),
   toEmail: z.string().optional(),
   ccEmails: z.string().optional(),
   bccEmails: z.string().optional(),
+  useWrapper: z.boolean().optional(),
+  wrapperType: z.enum(['notification', 'alert', 'marketing', 'transactional', 'custom']).optional(),
+  headerGradient: z.string().optional(),
+  headerSubtitle: z.string().optional(),
+  ctaButtonText: z.string().optional(),
+  ctaButtonUrl: z.string().optional(),
+  ctaButtonColor: z.string().optional(),
+  customFooter: z.string().optional(),
 });
 
 const smsConfigSchema = z.object({
@@ -121,7 +132,7 @@ const templateFormSchema = z.object({
   name: z.string().min(1, "Name is required").max(200),
   description: z.string().optional(),
   actionType: z.enum(['email', 'sms', 'webhook', 'notification', 'slack', 'teams']),
-  category: z.enum(['authentication', 'application', 'notification', 'alert']),
+  category: z.enum(['authentication', 'application', 'notification', 'alert', 'welcome']),
   config: z.any(),
   variables: z.string().optional(),
   isActive: z.boolean().default(true),
@@ -152,6 +163,7 @@ const categoryColors: Record<string, string> = {
   application: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
   notification: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200",
   alert: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200",
+  welcome: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
 };
 
 interface TemplateModalProps {
@@ -167,6 +179,8 @@ function TemplateModal({ open, onClose, template, mode }: TemplateModalProps) {
   const [activeFieldRef, setActiveFieldRef] = useState<HTMLInputElement | HTMLTextAreaElement | null>(null);
   const [showPreview, setShowPreview] = useState(false);
   const [sampleData, setSampleData] = useState<Record<string, string>>({});
+  const [showTestDialog, setShowTestDialog] = useState(false);
+  const [testEmail, setTestEmail] = useState('');
   
   const subjectRef = useRef<HTMLInputElement>(null);
   const bodyRef = useRef<HTMLTextAreaElement>(null);
@@ -318,11 +332,46 @@ function TemplateModal({ open, onClose, template, mode }: TemplateModalProps) {
     },
   });
 
+  const testEmailMutation = useMutation({
+    mutationFn: async ({ templateId, recipientEmail }: { templateId: number; recipientEmail: string }) => {
+      return apiRequest('POST', `/api/action-templates/${templateId}/test`, { recipientEmail });
+    },
+    onSuccess: () => {
+      toast({
+        title: "Test email sent",
+        description: `Test email sent to ${testEmail}`,
+      });
+      setShowTestDialog(false);
+      setTestEmail('');
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Failed to send test email",
+        description: error.message || "An error occurred",
+        variant: "destructive",
+      });
+    },
+  });
+
   const onSubmit = (data: TemplateFormData) => {
     if (mode === 'create') {
       createMutation.mutate(data);
     } else {
       updateMutation.mutate(data);
+    }
+  };
+
+  const handleTestEmail = () => {
+    if (!testEmail) {
+      toast({
+        title: "Email required",
+        description: "Please enter a recipient email address",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (template?.id) {
+      testEmailMutation.mutate({ templateId: template.id, recipientEmail: testEmail });
     }
   };
 
@@ -413,26 +462,103 @@ function TemplateModal({ open, onClose, template, mode }: TemplateModalProps) {
                 />
               </FormControl>
             </FormItem>
+
             <FormItem>
               <div className="flex items-center justify-between mb-2">
-                <FormLabel>Body</FormLabel>
-                <VariablePicker
-                  onInsert={(v) => handleVariableInsert(v, 'body')}
-                  variables={template?.variables || undefined}
-                />
+                <FormLabel>HTML Content</FormLabel>
               </div>
               <FormControl>
-                <Textarea
-                  ref={bodyRef}
-                  value={configFields.body || ''}
-                  onChange={(e) => setConfigFields({ ...configFields, body: e.target.value })}
-                  onFocus={() => setActiveFieldRef(bodyRef.current)}
-                  placeholder="Email body (use {{variables}})"
-                  rows={6}
-                  data-testid="textarea-email-body"
+                <WysiwygEditor
+                  value={configFields.htmlContent || ''}
+                  onChange={(value) => setConfigFields({ ...configFields, htmlContent: value })}
+                  placeholder="Enter your email HTML content..."
+                />
+              </FormControl>
+              <FormDescription className="text-xs">
+                Design your email using the visual editor or switch to HTML mode for direct editing. Use {'{{variables}}'} for dynamic content.
+              </FormDescription>
+            </FormItem>
+
+            <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+              <div className="space-y-0.5">
+                <FormLabel className="text-base">Use Email Wrapper</FormLabel>
+                <FormDescription>
+                  Wrap content in a professional email template with header and footer
+                </FormDescription>
+              </div>
+              <FormControl>
+                <Switch
+                  checked={configFields.useWrapper ?? true}
+                  onCheckedChange={(checked) => setConfigFields({ ...configFields, useWrapper: checked })}
+                  data-testid="switch-use-wrapper"
                 />
               </FormControl>
             </FormItem>
+
+            {configFields.useWrapper !== false && (
+              <>
+                <FormItem>
+                  <FormLabel>Wrapper Type</FormLabel>
+                  <Select
+                    value={configFields.wrapperType || 'notification'}
+                    onValueChange={(value) => setConfigFields({ ...configFields, wrapperType: value })}
+                  >
+                    <SelectTrigger data-testid="select-wrapper-type">
+                      <SelectValue placeholder="Select wrapper type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="notification">Notification</SelectItem>
+                      <SelectItem value="alert">Alert</SelectItem>
+                      <SelectItem value="marketing">Marketing</SelectItem>
+                      <SelectItem value="transactional">Transactional</SelectItem>
+                      <SelectItem value="custom">Custom</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormDescription className="text-xs">
+                    Choose a pre-defined color scheme for the email header
+                  </FormDescription>
+                </FormItem>
+
+                <FormItem>
+                  <FormLabel>Header Subtitle (optional)</FormLabel>
+                  <FormControl>
+                    <Input
+                      value={configFields.headerSubtitle || ''}
+                      onChange={(e) => setConfigFields({ ...configFields, headerSubtitle: e.target.value })}
+                      placeholder="Subtitle text for email header"
+                      data-testid="input-header-subtitle"
+                    />
+                  </FormControl>
+                </FormItem>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <FormItem>
+                    <FormLabel>CTA Button Text (optional)</FormLabel>
+                    <FormControl>
+                      <Input
+                        value={configFields.ctaButtonText || ''}
+                        onChange={(e) => setConfigFields({ ...configFields, ctaButtonText: e.target.value })}
+                        placeholder="Get Started"
+                        data-testid="input-cta-text"
+                      />
+                    </FormControl>
+                  </FormItem>
+
+                  <FormItem>
+                    <FormLabel>CTA Button URL (optional)</FormLabel>
+                    <FormControl>
+                      <Input
+                        value={configFields.ctaButtonUrl || ''}
+                        onChange={(e) => setConfigFields({ ...configFields, ctaButtonUrl: e.target.value })}
+                        placeholder="https://example.com/action"
+                        data-testid="input-cta-url"
+                      />
+                    </FormControl>
+                  </FormItem>
+                </div>
+              </>
+            )}
+
             <FormItem>
               <FormLabel>From Email (optional)</FormLabel>
               <FormControl>
@@ -826,6 +952,17 @@ function TemplateModal({ open, onClose, template, mode }: TemplateModalProps) {
               >
                 Cancel
               </Button>
+              {actionType === 'email' && mode === 'edit' && template?.id && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setShowTestDialog(true)}
+                  data-testid="button-test-email"
+                >
+                  <Send className="w-4 h-4 mr-2" />
+                  Test Email
+                </Button>
+              )}
               <Button
                 type="button"
                 variant="secondary"
@@ -1015,6 +1152,57 @@ function TemplateModal({ open, onClose, template, mode }: TemplateModalProps) {
               data-testid="button-close-preview"
             >
               Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Test Email Dialog */}
+      <Dialog open={showTestDialog} onOpenChange={setShowTestDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Send Test Email</DialogTitle>
+            <DialogDescription>
+              Send a test email to verify how this template looks
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <FormItem>
+              <FormLabel>Recipient Email</FormLabel>
+              <FormControl>
+                <Input
+                  type="email"
+                  value={testEmail}
+                  onChange={(e) => setTestEmail(e.target.value)}
+                  placeholder="Enter email address"
+                  data-testid="input-test-email-recipient"
+                />
+              </FormControl>
+              <FormDescription className="text-xs">
+                The test email will use sample data for variables
+              </FormDescription>
+            </FormItem>
+          </div>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setShowTestDialog(false);
+                setTestEmail('');
+              }}
+              data-testid="button-cancel-test"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={handleTestEmail}
+              disabled={testEmailMutation.isPending || !testEmail}
+              data-testid="button-send-test-email"
+            >
+              <Send className="w-4 h-4 mr-2" />
+              {testEmailMutation.isPending ? 'Sending...' : 'Send Test Email'}
             </Button>
           </DialogFooter>
         </DialogContent>
