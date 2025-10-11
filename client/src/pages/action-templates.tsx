@@ -187,16 +187,26 @@ function TemplateModal({ open, onClose, template, mode }: TemplateModalProps) {
 
   const actionType = form.watch('actionType');
 
-  // Initialize/reset config fields when modal opens or template changes
+  // Reset form when template changes or modal opens
   useEffect(() => {
     if (open) {
+      form.reset({
+        name: template?.name || '',
+        description: template?.description || '',
+        actionType: template?.actionType || 'email',
+        category: (template?.category as 'authentication' | 'application' | 'notification' | 'alert') || 'notification',
+        config: template?.config || {},
+        variables: template?.variables ? JSON.stringify(template.variables, null, 2) : '',
+        isActive: template?.isActive ?? true,
+      });
+      
       if (template?.config) {
         setConfigFields(template.config);
       } else {
         setConfigFields({});
       }
     }
-  }, [open, template]);
+  }, [open, template, form]);
 
   // Reset config fields when action type changes in create mode
   useEffect(() => {
