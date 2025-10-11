@@ -1027,9 +1027,13 @@ function TemplateModal({ open, onClose, template, mode }: TemplateModalProps) {
                     </div>
                     <div>
                       <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Body</div>
-                      <div className="text-sm whitespace-pre-wrap" data-testid="preview-email-body">
-                        {renderTemplateWithData(configFields.body || '', sampleData)}
-                      </div>
+                      <div 
+                        className="text-sm border rounded p-3 bg-gray-50 dark:bg-gray-900" 
+                        data-testid="preview-email-body"
+                        dangerouslySetInnerHTML={{ 
+                          __html: renderTemplateWithData(configFields.htmlContent || configFields.textContent || '', sampleData) 
+                        }}
+                      />
                     </div>
                     {configFields.fromEmail && (
                       <div>
