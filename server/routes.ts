@@ -8927,8 +8927,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Email Templates
+  // ============================================================================
+  // EMAIL TEMPLATES (DEPRECATED - Use /api/admin/action-templates/type/email instead)
+  // ============================================================================
+  // These routes are deprecated as of the unified action templates migration.
+  // Email templates are now managed as action templates with actionType='email'.
+  // Kept temporarily for backward compatibility but will be removed in future version.
+  
   // Get all email templates
+  // @deprecated Use GET /api/admin/action-templates/type/email instead
   app.get("/api/admin/email-templates", requireRole(['admin', 'super_admin']), async (req, res) => {
     try {
       // Fetch action templates with type 'email'
@@ -8976,6 +8983,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get single email template
+  // @deprecated Use GET /api/admin/action-templates/:id instead
   app.get("/api/admin/email-templates/:id", requireRole(['admin', 'super_admin']), async (req, res) => {
     try {
       const id = parseInt(req.params.id);
@@ -9016,6 +9024,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Create email template (saved as action template with type 'email')
+  // @deprecated Use POST /api/admin/action-templates instead
   app.post("/api/admin/email-templates", requireRole(['admin', 'super_admin']), async (req, res) => {
     try {
       const { insertEmailTemplateSchema } = await import("@shared/schema");
@@ -9084,6 +9093,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Update email template (updates action template with type 'email')
+  // @deprecated Use PUT /api/admin/action-templates/:id instead
   app.put("/api/admin/email-templates/:id", requireRole(['admin', 'super_admin']), async (req, res) => {
     try {
       const { insertEmailTemplateSchema } = await import("@shared/schema");
@@ -9161,6 +9171,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Delete email template (deletes from action_templates)
+  // @deprecated Use DELETE /api/admin/action-templates/:id instead
   app.delete("/api/admin/email-templates/:id", requireRole(['admin', 'super_admin']), async (req, res) => {
     try {
       const id = parseInt(req.params.id);
