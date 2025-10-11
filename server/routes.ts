@@ -9610,6 +9610,72 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Send test email with action template
+  app.post("/api/action-templates/:id/test", requireRole(['admin', 'super_admin']), async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { recipientEmail } = req.body;
+      
+      // Validate email
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!recipientEmail || !emailRegex.test(recipientEmail)) {
+        return res.status(400).json({ message: "Invalid email address" });
+      }
+      
+      // Get template from action_templates
+      const actionTemplate = await storage.getActionTemplate(id);
+      if (!actionTemplate || actionTemplate.actionType !== 'email') {
+        return res.status(404).json({ message: "Email template not found" });
+      }
+      
+      // Extract email config from action template
+      const emailConfig = actionTemplate.config;
+      
+      // Import email wrapper utility
+      const { applyEmailWrapper } = await import("./emailTemplateWrapper");
+      
+      // Prepare HTML content with wrapper if enabled
+      let htmlContent = emailConfig.htmlContent || '';
+      if (emailConfig.useWrapper !== false) {
+        htmlContent = applyEmailWrapper({
+          subject: emailConfig.subject || actionTemplate.name,
+          htmlContent: emailConfig.htmlContent || '',
+          textContent: emailConfig.textContent,
+          useWrapper: true,
+          wrapperType: emailConfig.wrapperType || 'notification',
+          headerSubtitle: emailConfig.headerSubtitle,
+          headerGradient: emailConfig.headerGradient,
+          ctaButtonText: emailConfig.ctaButtonText,
+          ctaButtonUrl: emailConfig.ctaButtonUrl,
+          ctaButtonColor: emailConfig.ctaButtonColor,
+          customFooter: emailConfig.customFooter
+        }, {}); // Empty variables object to preserve placeholders
+      }
+      
+      // Send email using SendGrid
+      const mailService = (await import('@sendgrid/mail')).default;
+      mailService.setApiKey(process.env.SENDGRID_API_KEY!);
+      
+      await mailService.send({
+        to: recipientEmail,
+        from: process.env.SENDGRID_FROM_EMAIL || 'noreply@charrg.com',
+        subject: `[TEST] ${emailConfig.subject || actionTemplate.name}`,
+        html: htmlContent
+      });
+      
+      res.json({ 
+        success: true, 
+        message: `Test email sent to ${recipientEmail}` 
+      });
+    } catch (error) {
+      console.error("Error sending test email:", error);
+      res.status(500).json({ 
+        message: "Failed to send test email",
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
   // ============================================================================
   // TRIGGER CATALOG API ENDPOINTS - Admin Only
   // ============================================================================
