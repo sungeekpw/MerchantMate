@@ -1167,21 +1167,21 @@ function TemplateModal({ open, onClose, template, mode }: TemplateModalProps) {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
-            <FormItem>
-              <FormLabel>Recipient Email</FormLabel>
-              <FormControl>
-                <Input
-                  type="email"
-                  value={testEmail}
-                  onChange={(e) => setTestEmail(e.target.value)}
-                  placeholder="Enter email address"
-                  data-testid="input-test-email-recipient"
-                />
-              </FormControl>
-              <FormDescription className="text-xs">
+            <div className="space-y-2">
+              <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                Recipient Email
+              </label>
+              <Input
+                type="email"
+                value={testEmail}
+                onChange={(e) => setTestEmail(e.target.value)}
+                placeholder="Enter email address"
+                data-testid="input-test-email-recipient"
+              />
+              <p className="text-xs text-muted-foreground">
                 The test email will use sample data for variables
-              </FormDescription>
-            </FormItem>
+              </p>
+            </div>
           </div>
           <DialogFooter>
             <Button
