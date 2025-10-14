@@ -2005,7 +2005,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Get user roles (handle both single role and roles array)
       const userRoles = user.roles || (user.role ? [user.role] : []);
-      console.log(`DELETE prospect - User: ${user.username}, Roles:`, userRoles, `Has permission:`, userRoles.some(role => ['agent', 'admin', 'corporate', 'super_admin'].includes(role)));
       
       if (!userRoles.some(role => ['agent', 'admin', 'corporate', 'super_admin'].includes(role))) {
         return res.status(403).json({ message: "Insufficient permissions" });
