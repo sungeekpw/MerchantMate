@@ -51,8 +51,28 @@ Preferred communication style: Simple, everyday language.
 - **Schema Drift Detection**: CLI and GUI tools for real-time drift detection and automated SQL migration generation across environments to ensure schema consistency and prevent data loss during promotions.
 - **React Query Optimization**: Custom queryFn implementations with aggressive refetch settings (`staleTime: 0`, `gcTime: 0`, `refetchOnMount: 'always'`) for critical queries to prevent stale data caching from pre-authentication 401 responses. Applied to Action Templates and other admin pages.
 - **Deployment Pipeline Compliance**: **CRITICAL** - All schema changes MUST follow the strict Dev → Test → Production deployment pipeline documented in `MIGRATION_WORKFLOW.md`. Direct production/test modifications bypass migration tracking and create compliance violations. Always use `tsx scripts/migration-manager.ts` workflow: (1) Update `shared/schema.ts`, (2) Generate migration in dev, (3) Apply to dev, (4) Promote to test, (5) Promote to production. This ensures proper version control, rollback capability, and audit trail for all database changes.
+- **User-Company Association Pattern**: **CRITICAL ARCHITECTURE** - ALL agent and merchant lookups MUST use the generic pattern: `User → user_company_associations → Company → Agent/Merchant`. NEVER use direct `agents.userId` or `merchants.userId` lookups. This pattern is future-proof, consistent, and allows for multi-company support. Methods using this pattern: `getAgentByUserId()`, `getMerchantsForUser()`. This architecture requires `user_company_associations` records exist for all users with agent/merchant roles.
 
 ## Recent Changes (October 2025)
+
+### User-Company Association Architecture Implementation  
+**Status**: ✅ Complete (Oct 14, 2025)
+
+**Problem Resolved**: Agent Dashboard returning 404 errors due to direct `userId` lookups in agents/merchants tables.
+
+**Solution Implemented**: Standardized all agent and merchant lookups to use the generic `User → user_company_associations → Company → Agent/Merchant` pattern.
+
+**Code Changes**:
+1. **getAgentByUserId()** - Refactored to use JOIN through user_company_associations table
+2. **getMerchantsForUser()** - Updated both agent and merchant branches to use the association pattern
+3. **Data Migration** - Created missing user_company_association record for existing agent user
+4. **Documentation** - Added critical architecture pattern to System Design Choices
+
+**Why This Matters**: 
+- **Future-proof**: Supports multi-company functionality without code changes
+- **Consistent**: Same pattern works for agents, merchants, and future roles
+- **Maintainable**: Generic approach prevents fragmented lookup logic
+- **Required**: `user_company_associations` records MUST exist for all users with agent/merchant roles
 
 ### Agent Signature Implementation  
 **Status**: ✅ Complete and Deployed (Oct 14, 2025)
