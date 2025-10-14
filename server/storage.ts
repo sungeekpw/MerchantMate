@@ -1354,27 +1354,16 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getAgentByUserId(userId: string): Promise<Agent | undefined> {
-    // Use raw SQL to bypass Drizzle caching issues
-    console.log('🔍 getAgentByUserId - Looking for userId:', userId);
-    
-    // Check current database
-    const dbCheck = await pool.query('SELECT current_database()');
-    console.log('🔍 getAgentByUserId - Current database:', dbCheck.rows[0]?.current_database);
-    
-    // Check all agents to see what exists
-    const allAgents = await pool.query('SELECT id, user_id, first_name, last_name FROM public.agents LIMIT 5');
-    console.log('🔍 getAgentByUserId - Sample agents in DB:', JSON.stringify(allAgents.rows));
-    
+    // Use the proper architecture: User → user_company_associations → Company → Agent
+    // This is the generic, future-proof pattern that works consistently
     const result = await pool.query(
-      'SELECT * FROM public.agents WHERE user_id = $1 LIMIT 1',
+      `SELECT a.* FROM agents a
+       INNER JOIN user_company_associations uca ON uca.company_id = a.company_id
+       WHERE uca.user_id = $1 AND uca.is_active = true
+       ORDER BY uca.is_primary DESC
+       LIMIT 1`,
       [userId]
     );
-    console.log('🔍 getAgentByUserId - Query result rows:', result.rows.length);
-    if (result.rows.length > 0) {
-      console.log('🔍 getAgentByUserId - Found agent:', result.rows[0].id, result.rows[0].first_name, result.rows[0].last_name);
-    } else {
-      console.log('🔍 getAgentByUserId - No agent found for userId:', userId);
-    }
     return result.rows[0] || undefined;
   }
 
