@@ -2217,17 +2217,30 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getAllMerchantProspects() {
-    const result = await db
-      .select({
-        prospect: merchantProspects,
-        agent: agents,
-      })
-      .from(merchantProspects)
-      .leftJoin(agents, eq(merchantProspects.agentId, agents.id));
+    // Use raw SQL to bypass Drizzle schema caching issues
+    const result = await db.execute(sql`
+      SELECT 
+        mp.*,
+        json_build_object(
+          'id', a.id,
+          'user_id', a.user_id,
+          'company_id', a.company_id,
+          'full_name', a.full_name,
+          'email', a.email,
+          'phone', a.phone,
+          'status', a.status,
+          'commission_rate', a.commission_rate,
+          'created_at', a.created_at,
+          'updated_at', a.updated_at,
+          'location_id', a.location_id
+        ) as agent
+      FROM merchant_prospects mp
+      LEFT JOIN agents a ON mp.agent_id = a.id
+    `);
 
-    return result.map(row => ({
-      ...row.prospect,
-      agent: row.agent || undefined,
+    return (result.rows as any[]).map(row => ({
+      ...row,
+      agent: row.agent.id ? row.agent : undefined,
     }));
   }
 
