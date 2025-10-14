@@ -2225,14 +2225,12 @@ export class DatabaseStorage implements IStorage {
           'id', a.id,
           'user_id', a.user_id,
           'company_id', a.company_id,
-          'full_name', a.full_name,
-          'email', a.email,
-          'phone', a.phone,
+          'first_name', a.first_name,
+          'last_name', a.last_name,
+          'territory', a.territory,
           'status', a.status,
           'commission_rate', a.commission_rate,
-          'created_at', a.created_at,
-          'updated_at', a.updated_at,
-          'location_id', a.location_id
+          'created_at', a.created_at
         ) as agent
       FROM merchant_prospects mp
       LEFT JOIN agents a ON mp.agent_id = a.id
