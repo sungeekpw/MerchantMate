@@ -2003,7 +2003,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "User not found" });
       }
       
-      if (!['agent', 'admin', 'corporate', 'super_admin'].includes(user.role)) {
+      // Get user roles (handle both single role and roles array)
+      const userRoles = user.roles || (user.role ? [user.role] : []);
+      
+      if (!userRoles.some(role => ['agent', 'admin', 'corporate', 'super_admin'].includes(role))) {
         return res.status(403).json({ message: "Insufficient permissions" });
       }
       
