@@ -809,9 +809,11 @@ export class DatabaseStorage implements IStorage {
       .select({
         campaign: campaigns,
         pricingType: pricingTypes,
+        acquirer: acquirers,
       })
       .from(campaigns)
       .leftJoin(pricingTypes, eq(campaigns.pricingTypeId, pricingTypes.id))
+      .leftJoin(acquirers, eq(campaigns.acquirerId, acquirers.id))
       .where(eq(campaigns.id, id));
 
     if (result.length === 0) return undefined;
@@ -820,6 +822,7 @@ export class DatabaseStorage implements IStorage {
     return {
       ...row.campaign,
       pricingType: row.pricingType || undefined,
+      acquirer: row.acquirer?.displayName || row.acquirer?.name || row.campaign.acquirer || 'N/A',
       feeValues: [],
       createdByUser: undefined,
     };
