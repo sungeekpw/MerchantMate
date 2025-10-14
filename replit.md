@@ -50,11 +50,12 @@ Preferred communication style: Simple, everyday language.
 - **Critical Schema Change Protocol**: Mandates updating `shared/schema.ts` first, using `npm run db:push`, and sync tools for propagation, explicitly forbidding manual database modifications.
 - **Schema Drift Detection**: CLI and GUI tools for real-time drift detection and automated SQL migration generation across environments to ensure schema consistency and prevent data loss during promotions.
 - **React Query Optimization**: Custom queryFn implementations with aggressive refetch settings (`staleTime: 0`, `gcTime: 0`, `refetchOnMount: 'always'`) for critical queries to prevent stale data caching from pre-authentication 401 responses. Applied to Action Templates and other admin pages.
+- **Deployment Pipeline Compliance**: **CRITICAL** - All schema changes MUST follow the strict Dev → Test → Production deployment pipeline documented in `MIGRATION_WORKFLOW.md`. Direct production/test modifications bypass migration tracking and create compliance violations. Always use `tsx scripts/migration-manager.ts` workflow: (1) Update `shared/schema.ts`, (2) Generate migration in dev, (3) Apply to dev, (4) Promote to test, (5) Promote to production. This ensures proper version control, rollback capability, and audit trail for all database changes.
 
 ## Recent Changes (October 2025)
 
 ### Agent Signature Implementation  
-**Status**: ✅ Complete and Ready for Use
+**Status**: ✅ Complete and Deployed (Oct 14, 2025)
 
 **Implemented Features**:
 1. **Database Schema** (shared/schema.ts): Added agent_signature, agent_signature_type, agent_signed_at fields to merchantProspects table
@@ -62,11 +63,12 @@ Preferred communication style: Simple, everyday language.
 3. **API Endpoint** (routes.ts): POST /api/prospects/:id/agent-signature saves agent signature and timestamp
 4. **Validation Logic** (routes.ts): Submit endpoint validates agent signature present before allowing application submission
 
-**Database Schema Verification**:
-- ✅ Schema fully synchronized across all environments (no drift detected)
-- ✅ Columns confirmed in database: agent_signature (text), agent_signature_type (text), agent_signed_at (timestamp)
-- ✅ Development and test environments aligned
-- ✅ Server connection pool refreshed
+**Deployment History**:
+- Migration 0002_migration_20251014T05044 successfully deployed to all environments
+- ✅ Development: Applied Oct 14, 2025
+- ✅ Test: Applied Oct 14, 2025  
+- ✅ Production: Applied Oct 14, 2025
+- **Lesson Learned**: Initial deployment violated Dev→Test→Prod pipeline by applying changes directly to production/test. Remediated by rolling back unauthorized changes and re-applying via proper migration workflow using `migration-manager.ts`
 
 **How It Works**:
 1. Merchant application loads with owners section
