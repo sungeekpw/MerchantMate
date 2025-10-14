@@ -38,6 +38,7 @@ Preferred communication style: Simple, everyday language.
 - **Generic Trigger/Action Catalog System**: Extensible event-driven action system supporting multi-channel notifications and action chaining with a unified `action_templates` architecture.
 - **Email Templates Migration**: Successfully migrated from legacy `email_templates` table to unified `action_templates` system. Email Management UI now uses `/api/admin/action-templates/type/email` endpoint.
 - **User Profile Management**: Self-service profile/settings page where users can update their own information (name, email, phone, communication preferences) and change passwords without admin intervention. Accessible via user menu dropdown in header.
+- **Agent Signature Workflow**: Complete signature chain for merchant applications - owners with ≥25% ownership sign first, then assigned agent provides final signature to complete application. Agent Signature section appears dynamically after all required owner signatures are collected, using the same DigitalSignaturePad component with canvas drawing and typed signature support. Validation enforces signature order and completeness before submission.
 
 ### System Design Choices
 - **Testing Framework**: TDD-style with Jest and React Testing Library for comprehensive testing, including a visual testing dashboard.
@@ -49,6 +50,33 @@ Preferred communication style: Simple, everyday language.
 - **Critical Schema Change Protocol**: Mandates updating `shared/schema.ts` first, using `npm run db:push`, and sync tools for propagation, explicitly forbidding manual database modifications.
 - **Schema Drift Detection**: CLI and GUI tools for real-time drift detection and automated SQL migration generation across environments to ensure schema consistency and prevent data loss during promotions.
 - **React Query Optimization**: Custom queryFn implementations with aggressive refetch settings (`staleTime: 0`, `gcTime: 0`, `refetchOnMount: 'always'`) for critical queries to prevent stale data caching from pre-authentication 401 responses. Applied to Action Templates and other admin pages.
+
+## Recent Changes (October 2025)
+
+### Agent Signature Implementation
+**Status**: ✅ Code Complete | ⚠️ Database Sync Pending
+
+**Implemented Features**:
+1. **Database Schema** (shared/schema.ts): Added agent_signature, agent_signature_type, agent_signed_at fields to merchantProspects table
+2. **Frontend UI** (enhanced-pdf-wizard.tsx): Dynamic "Agent Signature" section appears after all owner signatures (≥25% ownership) are collected
+3. **API Endpoint** (routes.ts): POST /api/prospects/:id/agent-signature saves agent signature and timestamp
+4. **Validation Logic** (routes.ts): Submit endpoint validates agent signature present before allowing application submission
+
+**Database Synchronization Notes**:
+- Schema changes defined in shared/schema.ts
+- Columns added to development database via `ALTER TABLE` and `execute_sql_tool`
+- Test environment synced via `tsx scripts/bulletproof-deploy.ts test`
+- **Known Issue**: Session-based database connections may require additional sync. If encountering "column agent_signature does not exist" errors:
+  1. Verify schema with: `tsx scripts/schema-drift-simple.ts development test`
+  2. Sync schemas with: `tsx scripts/schema-sync-generator.ts development test`
+  3. Apply generated SQL to target environment
+  4. Restart server to refresh Drizzle ORM connection pool
+
+**Testing Status**:
+- Unit tests: Not applicable (UI/database integration feature)
+- E2E tests: Blocked by database schema sync issue
+- Manual testing: Requires database environment resolution
+- Code review: ✅ Completed by architect
 
 ## External Dependencies
 - **pg**: Native PostgreSQL driver.
