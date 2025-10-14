@@ -2223,23 +2223,50 @@ export class DatabaseStorage implements IStorage {
         mp.*,
         json_build_object(
           'id', a.id,
-          'user_id', a.user_id,
-          'company_id', a.company_id,
-          'first_name', a.first_name,
-          'last_name', a.last_name,
+          'userId', a.user_id,
+          'companyId', a.company_id,
+          'firstName', a.first_name,
+          'lastName', a.last_name,
           'territory', a.territory,
           'status', a.status,
-          'commission_rate', a.commission_rate,
-          'created_at', a.created_at
+          'commissionRate', a.commission_rate,
+          'createdAt', a.created_at
         ) as agent
       FROM merchant_prospects mp
       LEFT JOIN agents a ON mp.agent_id = a.id
     `);
 
-    return result.rows.map((row: any) => ({
-      ...row,
-      agent: row.agent.id ? row.agent : undefined,
-    }));
+    return result.rows.map((row: any) => {
+      // Map snake_case to camelCase for frontend compatibility
+      return {
+        id: row.id,
+        businessName: row.business_name,
+        dba: row.dba,
+        federalTaxId: row.federal_tax_id,
+        businessType: row.business_type,
+        businessStartDate: row.business_start_date,
+        email: row.email,
+        phone: row.phone,
+        website: row.website,
+        agentId: row.agent_id,
+        acquirerId: row.acquirer_id,
+        campaignId: row.campaign_id,
+        status: row.status,
+        statusReason: row.status_reason,
+        applicationUrl: row.application_url,
+        validationToken: row.validation_token,
+        tokenExpiresAt: row.token_expires_at,
+        emailValidatedAt: row.email_validated_at,
+        submittedAt: row.submitted_at,
+        agentSignature: row.agent_signature,
+        agentSignatureType: row.agent_signature_type,
+        agentSignedAt: row.agent_signed_at,
+        notes: row.notes,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+        agent: row.agent?.id ? row.agent : undefined,
+      };
+    });
   }
 
   async getMerchantProspect(id: number) {
