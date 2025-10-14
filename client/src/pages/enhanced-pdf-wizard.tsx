@@ -862,11 +862,51 @@ export default function EnhancedPdfWizard() {
     return baseSections;
   };
 
+  // Convert template field configuration to FormSection format
+  const createSectionsFromTemplate = (template: any): FormSection[] => {
+    if (!template?.fieldConfiguration?.sections) {
+      return createProspectFormSections();
+    }
+    
+    const iconMap: Record<string, any> = {
+      'Campaign Details': FileText,
+      'Equipment Selection': Monitor,
+      'Merchant Information': Building,
+      'Business Type & Tax Information': FileText,
+      'Business Ownership': Users,
+      'Products, Services & Processing': CheckCircle,
+      'Transaction Information': ArrowRight,
+    };
+    
+    return template.fieldConfiguration.sections.map((section: any, sectionIndex: number) => ({
+      name: section.title,
+      description: section.description || '',
+      icon: iconMap[section.title] || FileText,
+      fields: section.fields.map((field: any, fieldIndex: number) => ({
+        id: sectionIndex * 100 + fieldIndex,
+        fieldName: field.id,
+        fieldType: field.type,
+        fieldLabel: field.label,
+        isRequired: field.required || false,
+        options: field.options || null,
+        defaultValue: null,
+        validation: field.pattern || null,
+        position: sectionIndex * 100 + fieldIndex,
+        section: section.title,
+      }))
+    }));
+  };
+
   // Create enhanced sections with descriptions and icons
   let sections: FormSection[] = [];
   
   if (isProspectMode) {
-    sections = createProspectFormSections();
+    // Use template fields if available, otherwise use hardcoded sections
+    if (prospectData?.applicationTemplate) {
+      sections = createSectionsFromTemplate(prospectData.applicationTemplate);
+    } else {
+      sections = createProspectFormSections();
+    }
   } else if (pdfForm?.fields) {
     sections = [
       {
