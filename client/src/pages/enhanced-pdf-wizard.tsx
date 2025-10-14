@@ -918,6 +918,35 @@ export default function EnhancedPdfWizard() {
     ];
   }
 
+  // Add agent signature section if all owner signatures are collected
+  if (isProspectMode) {
+    const owners = formData.owners || [];
+    const ownersNeedingSignatures = owners.filter((owner: any) => parseFloat(owner.percentage || 0) >= 25);
+    const allOwnersSigned = ownersNeedingSignatures.length > 0 && ownersNeedingSignatures.every((owner: any) => owner.signature);
+    
+    if (allOwnersSigned) {
+      sections.push({
+        name: 'Agent Signature',
+        description: 'Final approval signature from assigned agent',
+        icon: Signature,
+        fields: [
+          { 
+            id: 9999, 
+            fieldName: 'agentSignature', 
+            fieldType: 'agent-signature', 
+            fieldLabel: 'Agent Signature', 
+            isRequired: true, 
+            options: null, 
+            defaultValue: null, 
+            validation: null, 
+            position: 9999, 
+            section: 'Agent Signature' 
+          },
+        ]
+      });
+    }
+  }
+
   // Fetch address suggestions using Google Places Autocomplete API
   const fetchAddressSuggestions = async (input: string) => {
     if (input.length < 4) {
@@ -2455,6 +2484,98 @@ export default function EnhancedPdfWizard() {
                 </div>
               </div>
             )}
+          </div>
+        );
+
+      case 'agent-signature':
+        const agentSignature = formData.agentSignature;
+        const agentSignatureType = formData.agentSignatureType;
+        const agentName = prospectData?.agent ? `${prospectData.agent.firstName} ${prospectData.agent.lastName}` : '';
+
+        return (
+          <div className="space-y-4">
+            <div className="p-6 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg">
+              <div className="flex items-start gap-3 mb-4">
+                <Signature className="w-6 h-6 text-blue-600 mt-1" />
+                <div>
+                  <h3 className="text-lg font-semibold text-blue-900">Agent Final Approval</h3>
+                  <p className="text-sm text-blue-700 mt-1">
+                    All owner signatures have been collected. As the assigned agent, your signature is required to complete this application.
+                  </p>
+                </div>
+              </div>
+              
+              <div className="mb-4 p-3 bg-white rounded border border-blue-100">
+                <p className="text-sm text-gray-600">
+                  <span className="font-medium">Assigned Agent:</span> {agentName}
+                </p>
+              </div>
+
+              {agentSignature ? (
+                <div className="space-y-3">
+                  <div className="p-4 bg-white rounded border border-green-200">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-medium text-green-700">Signature Captured</span>
+                      <Check className="w-5 h-5 text-green-600" />
+                    </div>
+                    <div className="mt-2 p-3 bg-gray-50 rounded border border-gray-200 flex items-center justify-center min-h-[80px]">
+                      {agentSignatureType === 'canvas' ? (
+                        <img src={agentSignature} alt="Agent signature" className="max-h-16" />
+                      ) : (
+                        <span className="text-2xl font-signature">{agentSignature}</span>
+                      )}
+                    </div>
+                  </div>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      handleFieldChange('agentSignature', null);
+                      handleFieldChange('agentSignatureType', null);
+                    }}
+                    className="w-full"
+                    data-testid="button-clear-agent-signature"
+                  >
+                    <RotateCcw className="w-4 h-4 mr-2" />
+                    Clear and Re-sign
+                  </Button>
+                </div>
+              ) : (
+                <DigitalSignaturePad
+                  ownerIndex={-1}
+                  owner={{ name: agentName }}
+                  onSignatureChange={async (_, signature, type) => {
+                    handleFieldChange('agentSignature', signature);
+                    handleFieldChange('agentSignatureType', type);
+                    
+                    // Save agent signature to database
+                    if (signature && type && prospectData?.prospect?.id) {
+                      try {
+                        const response = await fetch(`/api/prospects/${prospectData.prospect.id}/agent-signature`, {
+                          method: 'POST',
+                          headers: {
+                            'Content-Type': 'application/json',
+                          },
+                          body: JSON.stringify({
+                            agentSignature: signature,
+                            agentSignatureType: type,
+                          }),
+                        });
+                        
+                        if (!response.ok) {
+                          toast({
+                            title: 'Error',
+                            description: 'Failed to save agent signature',
+                            variant: 'destructive'
+                          });
+                        }
+                      } catch (error) {
+                        console.error('Error saving agent signature:', error);
+                      }
+                    }
+                  }}
+                />
+              )}
+            </div>
           </div>
         );
 
