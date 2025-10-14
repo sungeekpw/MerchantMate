@@ -18,8 +18,8 @@ import { dbEnvironmentMiddleware, adminDbMiddleware, getRequestDB, type RequestW
 // New global environment system
 import { globalEnvironmentMiddleware, adminEnvironmentMiddleware, type RequestWithGlobalDB } from "./globalEnvironmentMiddleware";
 import { setupEnvironmentRoutes } from "./environmentRoutes";
-import { getDynamicDatabase } from "./db";
-import { users, agents, merchants, agentMerchants, companies, addresses, companyAddresses } from "@shared/schema";
+import { getDynamicDatabase, db } from "./db";
+import { users, agents, merchants, agentMerchants, companies, addresses, companyAddresses, acquirerApplicationTemplates } from "@shared/schema";
 import crypto from "crypto";
 import { eq, or, ilike, sql, inArray } from "drizzle-orm";
 
@@ -2203,6 +2203,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const campaignAssignment = await storage.getProspectCampaignAssignment(prospect.id);
       let campaign = null;
       let campaignEquipment = [];
+      let applicationTemplate = null;
 
       if (campaignAssignment) {
         // Get campaign details
@@ -2210,13 +2211,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         // Get equipment associated with this campaign using the correct method
         campaignEquipment = await storage.getCampaignEquipment(campaignAssignment.campaignId);
+        
+        // Get the active application template for this acquirer
+        if (campaign?.acquirerId) {
+          const templates = await db.select()
+            .from(acquirerApplicationTemplates)
+            .where(eq(acquirerApplicationTemplates.acquirerId, campaign.acquirerId));
+          applicationTemplate = templates.find(t => t.isActive) || templates[0] || null;
+        }
       }
 
       res.json({
         prospect,
         agent,
         campaign,
-        campaignEquipment
+        campaignEquipment,
+        applicationTemplate
       });
     } catch (error) {
       console.error("Error fetching prospect by token:", error);
