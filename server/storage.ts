@@ -1355,10 +1355,17 @@ export class DatabaseStorage implements IStorage {
 
   async getAgentByUserId(userId: string): Promise<Agent | undefined> {
     // Use raw SQL to bypass Drizzle caching issues
+    console.log('🔍 getAgentByUserId - Looking for userId:', userId);
     const result = await pool.query(
       'SELECT * FROM agents WHERE user_id = $1 LIMIT 1',
       [userId]
     );
+    console.log('🔍 getAgentByUserId - Query result rows:', result.rows.length);
+    if (result.rows.length > 0) {
+      console.log('🔍 getAgentByUserId - Found agent:', result.rows[0].id, result.rows[0].first_name, result.rows[0].last_name);
+    } else {
+      console.log('🔍 getAgentByUserId - No agent found for userId:', userId);
+    }
     return result.rows[0] || undefined;
   }
 
