@@ -37,6 +37,7 @@ Preferred communication style: Simple, everyday language.
 - **SOC2 Compliance Features**: Comprehensive audit trail system with logging, security events, and login attempt tracking.
 - **Generic Trigger/Action Catalog System**: Extensible event-driven action system supporting multi-channel notifications and action chaining with a unified `action_templates` architecture.
 - **Email Templates Migration**: Successfully migrated from legacy `email_templates` table to unified `action_templates` system. Email Management UI now uses `/api/admin/action-templates/type/email` endpoint.
+- **User Profile Management**: Self-service profile/settings page where users can update their own information (name, email, phone, communication preferences) and change passwords without admin intervention. Accessible via user menu dropdown in header.
 
 ### System Design Choices
 - **Testing Framework**: TDD-style with Jest and React Testing Library for comprehensive testing, including a visual testing dashboard.
