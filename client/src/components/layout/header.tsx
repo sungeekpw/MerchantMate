@@ -249,7 +249,7 @@ interface HeaderProps {
 
 export function Header({ title, onSearch }: HeaderProps) {
   const [searchQuery, setSearchQuery] = useState("");
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const queryClient = useQueryClient();
   
   // Global environment system - listen for environment changes
