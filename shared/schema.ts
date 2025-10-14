@@ -116,6 +116,9 @@ export const merchantProspects = pgTable("merchant_prospects", {
   applicationStartedAt: timestamp("application_started_at"),
   formData: text("form_data"), // JSON string of form data for resuming applications
   currentStep: integer("current_step").default(0), // Current step in the application form
+  agentSignature: text("agent_signature"), // Agent's signature data (canvas data URL or typed text)
+  agentSignatureType: text("agent_signature_type"), // 'canvas' or 'typed'
+  agentSignedAt: timestamp("agent_signed_at"), // When the agent signed
   notes: text("notes"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
