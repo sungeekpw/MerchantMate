@@ -1354,8 +1354,8 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getAgentByUserId(userId: string): Promise<Agent | undefined> {
-    // Use the proper architecture: User → user_company_associations → Company → Agent
-    // This is the generic, future-proof pattern that works consistently
+    // CRITICAL PATTERN: User → user_company_associations → Company → Agent
+    // This generic pattern works consistently for agents, merchants, and future roles
     const result = await pool.query(
       `SELECT a.* FROM agents a
        INNER JOIN user_company_associations uca ON uca.company_id = a.company_id
@@ -1792,18 +1792,27 @@ export class DatabaseStorage implements IStorage {
     }
 
     // Agent can see their assigned merchants
+    // CRITICAL PATTERN: User → user_company_associations → Company → Agent
     if (user.roles.includes('agent')) {
-      const agent = await db.select().from(agents).where(eq(agents.userId, userId)).limit(1);
-      if (agent[0]) {
-        return this.getMerchantsByAgent(agent[0].id);
+      const agent = await this.getAgentByUserId(userId);
+      if (agent) {
+        return this.getMerchantsByAgent(agent.id);
       }
     }
 
     // Merchant can see only their own data
+    // CRITICAL PATTERN: User → user_company_associations → Company → Merchant
     if (user.roles.includes('merchant')) {
-      const merchant = await db.select().from(merchants).where(eq(merchants.userId, userId)).limit(1);
-      if (merchant[0]) {
-        return [{ ...merchant[0] }];
+      const result = await pool.query(
+        `SELECT m.* FROM merchants m
+         INNER JOIN user_company_associations uca ON uca.company_id = m.company_id
+         WHERE uca.user_id = $1 AND uca.is_active = true
+         ORDER BY uca.is_primary DESC
+         LIMIT 1`,
+        [userId]
+      );
+      if (result.rows[0]) {
+        return [{ ...result.rows[0] }];
       }
     }
 
