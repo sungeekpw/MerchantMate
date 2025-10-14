@@ -1354,8 +1354,12 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getAgentByUserId(userId: string): Promise<Agent | undefined> {
-    const [agent] = await db.select().from(agents).where(eq(agents.userId, userId));
-    return agent || undefined;
+    // Use raw SQL to bypass Drizzle caching issues
+    const result = await pool.query(
+      'SELECT * FROM agents WHERE user_id = $1 LIMIT 1',
+      [userId]
+    );
+    return result.rows[0] || undefined;
   }
 
   async createPdfForm(form: InsertPdfForm): Promise<PdfForm> {
