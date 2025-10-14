@@ -134,7 +134,7 @@ export class EmailExecutor implements IActionExecutor {
     try {
       await mailService.send({
         to: params.to,
-        from: params.from || process.env.SENDGRID_FROM_EMAIL || 'noreply@corecrm.com',
+        from: params.from || process.env.SENDGRID_FROM_EMAIL!,
         subject: params.subject,
         html: params.html,
         text: params.text,

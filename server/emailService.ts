@@ -314,7 +314,7 @@ This email was sent to ${data.ownerEmail}
       // Email to merchant with PDF attachment
       const merchantMsg = {
         to: data.applicantEmail,
-        from: process.env.SENDGRID_FROM_EMAIL || 'noreply@corecrm.com',
+        from: process.env.SENDGRID_FROM_EMAIL!,
         subject: `Application Submitted Successfully - ${data.companyName}`,
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -378,7 +378,7 @@ This email was sent to ${data.ownerEmail}
       // Email to agent notification
       const agentMsg = {
         to: data.agentEmail,
-        from: process.env.SENDGRID_FROM_EMAIL || 'noreply@corecrm.com',
+        from: process.env.SENDGRID_FROM_EMAIL!,
         subject: `New Application Submitted - ${data.companyName}`,
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
