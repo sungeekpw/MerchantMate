@@ -1851,7 +1851,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Invalid prospect data", errors: result.error.errors });
       }
 
-      const prospect = await storage.createMerchantProspect(result.data);
+      // Generate validation token for the prospect
+      const crypto = await import('crypto');
+      const validationToken = crypto.randomUUID();
+      
+      // Create prospect with validation token
+      const prospect = await storage.createMerchantProspect({
+        ...result.data,
+        validationToken
+      });
       
       // Create campaign assignment
       await storage.assignCampaignToProspect(campaignId, prospect.id, userId);
