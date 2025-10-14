@@ -524,8 +524,9 @@ export default function UsersPage() {
       setPendingUpdate({ userId: editingUser.id, updates });
       setPasswordConfirmOpen(true);
     } else {
-      // No sensitive changes, proceed directly
-      updateUserMutation.mutate({ userId: editingUser.id, updates });
+      // No sensitive changes, exclude roles and status from updates to avoid password requirement
+      const { roles, status, ...nonSensitiveUpdates } = updates;
+      updateUserMutation.mutate({ userId: editingUser.id, updates: nonSensitiveUpdates });
     }
   };
 
