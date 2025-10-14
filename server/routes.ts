@@ -1991,6 +1991,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Save agent signature for a prospect
+  app.post("/api/prospects/:id/agent-signature", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { agentSignature, agentSignatureType } = req.body;
+      
+      const prospect = await storage.getMerchantProspect(parseInt(id));
+      if (!prospect) {
+        return res.status(404).json({ message: "Prospect not found" });
+      }
+      
+      // Update prospect with agent signature
+      const updatedProspect = await storage.updateMerchantProspect(parseInt(id), {
+        agentSignature,
+        agentSignatureType,
+        agentSignedAt: new Date().toISOString(),
+      });
+      
+      if (!updatedProspect) {
+        return res.status(500).json({ message: "Failed to save agent signature" });
+      }
+      
+      res.json({ success: true, prospect: updatedProspect });
+    } catch (error) {
+      console.error("Error saving agent signature:", error);
+      res.status(500).json({ message: "Failed to save agent signature" });
+    }
+  });
+
   app.delete("/api/prospects/:id", isAuthenticated, async (req, res) => {
     try {
       const { id } = req.params;
@@ -3495,6 +3524,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
             percentage: owner.percentage
           })));
           validationErrors.push(`Signatures required for owners with 25% or more ownership`);
+        }
+        
+        // Check for agent signature after all owner signatures are collected
+        if (ownersWithoutSignatures.length === 0 && ownersRequiringSignatures.length > 0) {
+          if (!formData.agentSignature || formData.agentSignature === null || formData.agentSignature === '') {
+            validationErrors.push('Agent signature required for final approval');
+          }
         }
       } else {
         validationErrors.push('At least one business owner is required');
