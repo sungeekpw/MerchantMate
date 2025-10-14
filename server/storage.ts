@@ -2277,16 +2277,154 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createMerchantProspect(prospect: any) {
-    const [newProspect] = await db.insert(merchantProspects).values(prospect).returning();
-    return newProspect;
+    const fields: string[] = [];
+    const values: any[] = [];
+    const placeholders: string[] = [];
+    let paramCount = 1;
+
+    const fieldMapping: { [key: string]: string } = {
+      firstName: 'first_name',
+      lastName: 'last_name',
+      email: 'email',
+      agentId: 'agent_id',
+      status: 'status',
+      validationToken: 'validation_token',
+      validatedAt: 'validated_at',
+      applicationStartedAt: 'application_started_at',
+      formData: 'form_data',
+      currentStep: 'current_step',
+      agentSignature: 'agent_signature',
+      agentSignatureType: 'agent_signature_type',
+      agentSignedAt: 'agent_signed_at',
+      notes: 'notes'
+    };
+
+    for (const [camelKey, snakeKey] of Object.entries(fieldMapping)) {
+      if (prospect[camelKey] !== undefined) {
+        fields.push(snakeKey);
+        values.push(prospect[camelKey]);
+        placeholders.push(`$${paramCount++}`);
+      }
+    }
+
+    const sql = `
+      INSERT INTO merchant_prospects (${fields.join(', ')})
+      VALUES (${placeholders.join(', ')})
+      RETURNING *
+    `;
+
+    const result = await pool.query(sql, values);
+    const row = result.rows[0];
+    
+    return {
+      id: row.id,
+      firstName: row.first_name,
+      lastName: row.last_name,
+      email: row.email,
+      agentId: row.agent_id,
+      status: row.status,
+      validationToken: row.validation_token,
+      validatedAt: row.validated_at,
+      applicationStartedAt: row.application_started_at,
+      formData: row.form_data,
+      currentStep: row.current_step,
+      agentSignature: row.agent_signature,
+      agentSignatureType: row.agent_signature_type,
+      agentSignedAt: row.agent_signed_at,
+      notes: row.notes,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at
+    };
   }
 
   async updateMerchantProspect(id: number, updates: any) {
-    const [updatedProspect] = await db.update(merchantProspects)
-      .set(updates)
-      .where(eq(merchantProspects.id, id))
-      .returning();
-    return updatedProspect;
+    const sets: string[] = [];
+    const values: any[] = [];
+    let paramCount = 1;
+
+    const fieldMapping: { [key: string]: string } = {
+      firstName: 'first_name',
+      lastName: 'last_name',
+      email: 'email',
+      agentId: 'agent_id',
+      status: 'status',
+      validationToken: 'validation_token',
+      validatedAt: 'validated_at',
+      applicationStartedAt: 'application_started_at',
+      formData: 'form_data',
+      currentStep: 'current_step',
+      agentSignature: 'agent_signature',
+      agentSignatureType: 'agent_signature_type',
+      agentSignedAt: 'agent_signed_at',
+      notes: 'notes',
+      updatedAt: 'updated_at'
+    };
+
+    for (const [camelKey, snakeKey] of Object.entries(fieldMapping)) {
+      if (updates[camelKey] !== undefined) {
+        sets.push(`${snakeKey} = $${paramCount++}`);
+        values.push(updates[camelKey]);
+      }
+    }
+
+    if (sets.length === 0) {
+      const result = await pool.query('SELECT * FROM merchant_prospects WHERE id = $1', [id]);
+      const row = result.rows[0];
+      if (!row) return null;
+      
+      return {
+        id: row.id,
+        firstName: row.first_name,
+        lastName: row.last_name,
+        email: row.email,
+        agentId: row.agent_id,
+        status: row.status,
+        validationToken: row.validation_token,
+        validatedAt: row.validated_at,
+        applicationStartedAt: row.application_started_at,
+        formData: row.form_data,
+        currentStep: row.current_step,
+        agentSignature: row.agent_signature,
+        agentSignatureType: row.agent_signature_type,
+        agentSignedAt: row.agent_signed_at,
+        notes: row.notes,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at
+      };
+    }
+
+    values.push(id);
+    const sql = `
+      UPDATE merchant_prospects
+      SET ${sets.join(', ')}
+      WHERE id = $${paramCount}
+      RETURNING *
+    `;
+
+    const result = await pool.query(sql, values);
+    const row = result.rows[0];
+    
+    if (!row) return null;
+    
+    return {
+      id: row.id,
+      firstName: row.first_name,
+      lastName: row.last_name,
+      email: row.email,
+      agentId: row.agent_id,
+      status: row.status,
+      validationToken: row.validation_token,
+      validatedAt: row.validated_at,
+      applicationStartedAt: row.application_started_at,
+      formData: row.form_data,
+      currentStep: row.current_step,
+      agentSignature: row.agent_signature,
+      agentSignatureType: row.agent_signature_type,
+      agentSignedAt: row.agent_signed_at,
+      notes: row.notes,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at
+    };
   }
 
   async deleteMerchantProspect(id: number) {
