@@ -50,6 +50,7 @@ import ActionTemplates from "@/pages/action-templates";
 import ApiDocumentation from "@/pages/api-documentation";
 import TestingUtilities from "@/pages/testing-utilities";
 import AlertsPage from "@/pages/AlertsPage";
+import ProfilePage from "@/pages/profile";
 import NotFound from "@/pages/not-found";
 import Landing from "@/pages/landing";
 import Auth from "@/pages/auth";
@@ -191,6 +192,11 @@ function AuthenticatedApp() {
         return {
           title: "Notifications",
           subtitle: "Manage your alerts and notifications"
+        };
+      case "/profile":
+        return {
+          title: "Profile Settings",
+          subtitle: "Manage your account information and preferences"
         };
       default:
         return {
@@ -660,6 +666,25 @@ function AuthenticatedApp() {
                   />
                   <main className="flex-1 overflow-auto bg-gray-50">
                     <AlertsPage />
+                  </main>
+                </>
+              );
+            }}
+          </Route>
+
+          <Route path="/profile">
+            {() => {
+              const pageInfo = getPageInfo("/profile");
+              return (
+                <>
+                  <Header 
+                    title={pageInfo.title} 
+                    onSearch={setGlobalSearch}
+                  />
+                  <main className="flex-1 overflow-auto bg-gray-50">
+                    <div className="container mx-auto p-6">
+                      <ProfilePage />
+                    </div>
                   </main>
                 </>
               );
