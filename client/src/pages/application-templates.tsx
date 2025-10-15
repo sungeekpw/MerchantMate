@@ -1158,7 +1158,7 @@ function FieldConfigurationDialog({
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-medium">Form Sections</h3>
-              <Button onClick={addSection} data-testid="button-add-section">
+              <Button type="button" onClick={addSection} data-testid="button-add-section">
                 <Plus className="h-4 w-4 mr-2" />
                 Add Section
               </Button>
@@ -1208,6 +1208,7 @@ function FieldConfigurationDialog({
                     <div className="flex items-center justify-between">
                       <h4 className="font-medium">Fields ({section.fields?.length || 0})</h4>
                       <Button
+                        type="button"
                         variant="outline"
                         size="sm"
                         onClick={() => addField(sectionIndex)}
@@ -1283,7 +1284,7 @@ function FieldConfigurationDialog({
                   <p className="text-muted-foreground mb-4">
                     Create sections to organize your form fields
                   </p>
-                  <Button onClick={addSection}>
+                  <Button type="button" onClick={addSection}>
                     <Plus className="h-4 w-4 mr-2" />
                     Add First Section
                   </Button>
