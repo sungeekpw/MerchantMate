@@ -7696,6 +7696,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   app.delete('/api/acquirer-application-templates/:id', dbEnvironmentMiddleware, requireRole(['admin', 'super_admin']), async (req: RequestWithDB, res: Response) => {
+    console.log('🗑️ DELETE ENDPOINT REACHED for acquirer-application-templates/:id');
     try {
       const templateId = parseInt(req.params.id);
       console.log(`Deleting acquirer application template ${templateId} - Database environment: ${req.dbEnv}`);
