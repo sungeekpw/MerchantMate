@@ -7695,22 +7695,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete('/api/acquirer-application-templates/:id', (req, res, next) => {
-    console.log('🔴 DELETE ROUTE MATCHED - before middleware');
-    next();
-  }, dbEnvironmentMiddleware, (req, res, next) => {
-    console.log('🟡 After dbEnvironmentMiddleware');
-    next();
-  }, requireRole(['admin', 'super_admin']), (req, res, next) => {
-    console.log('🟢 After requireRole middleware');
-    next();
-  }, async (req: RequestWithDB, res: Response) => {
-    console.log('🗑️ DELETE ENDPOINT REACHED for acquirer-application-templates/:id');
+  // DELETE endpoint for Application Templates
+  app.delete('/api/acquirer-application-templates/:id', dbEnvironmentMiddleware, requireRole(['admin', 'super_admin']), async (req: RequestWithDB, res: Response) => {
     try {
       const templateId = parseInt(req.params.id);
-      console.log(`Deleting acquirer application template ${templateId} - Database environment: ${req.dbEnv}`);
+      console.log(`🗑️ Deleting acquirer application template ${templateId} - Database environment: ${req.dbEnv}`);
       
-      // Use the dynamic database connection
       const dbToUse = req.dynamicDB;
       if (!dbToUse) {
         return res.status(500).json({ error: "Database connection not available" });
@@ -7742,7 +7732,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Acquirer application template not found" });
       }
       
-      console.log(`Deleted acquirer application template: ${deletedTemplate.templateName} v${deletedTemplate.version}`);
+      console.log(`✅ Deleted acquirer application template: ${deletedTemplate.templateName} v${deletedTemplate.version}`);
       res.json({ success: true, message: "Template deleted successfully" });
     } catch (error) {
       console.error('Error deleting acquirer application template:', error);
