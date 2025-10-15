@@ -230,7 +230,8 @@ export default function ApplicationTemplatesPage() {
   const deleteTemplateMutation = useMutation({
     mutationFn: async (id: number) => {
       const response = await fetch(`/api/acquirer-application-templates/${id}`, {
-        method: 'DELETE'
+        method: 'DELETE',
+        credentials: 'include'
       });
       
       if (!response.ok) {
