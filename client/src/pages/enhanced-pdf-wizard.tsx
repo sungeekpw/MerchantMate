@@ -11,6 +11,9 @@ import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
 import { Building, FileText, CheckCircle, ArrowLeft, ArrowRight, Users, Upload, Signature, PenTool, Type, RotateCcw, Check, X, AlertTriangle, Monitor } from 'lucide-react';
 import { MCCSelect } from '@/components/ui/mcc-select';
+import { PhoneNumberInput } from '@/components/forms/PhoneNumberInput';
+import { EINInput } from '@/components/forms/EINInput';
+import { AddressAutocompleteInput } from '@/components/forms/AddressAutocompleteInput';
 
 interface FormField {
   id: number;
@@ -1710,7 +1713,6 @@ export default function EnhancedPdfWizard() {
     switch (field.fieldType) {
       case 'text':
       case 'email':
-      case 'phone':
         return (
           <div className="space-y-2 relative">
             <Label htmlFor={field.fieldName} className="text-sm font-medium text-gray-700">
@@ -2576,6 +2578,70 @@ export default function EnhancedPdfWizard() {
                 />
               )}
             </div>
+          </div>
+        );
+
+      case 'phone':
+        return (
+          <div className="space-y-2">
+            <Label htmlFor={field.fieldName} className="text-sm font-medium text-gray-700">
+              {field.fieldLabel}
+              {field.isRequired && <span className="text-red-500 ml-1">*</span>}
+            </Label>
+            <PhoneNumberInput
+              value={value}
+              onChange={(value) => handleFieldChange(field.fieldName, value)}
+              placeholder="(555) 555-5555"
+              dataTestId={`input-${field.fieldName}`}
+              className={hasError ? 'border-red-500' : ''}
+            />
+            {hasError && <p className="text-xs text-red-500">{hasError}</p>}
+          </div>
+        );
+
+      case 'ein':
+        return (
+          <div className="space-y-2">
+            <Label htmlFor={field.fieldName} className="text-sm font-medium text-gray-700">
+              {field.fieldLabel}
+              {field.isRequired && <span className="text-red-500 ml-1">*</span>}
+            </Label>
+            <EINInput
+              value={value}
+              onChange={(value) => handleFieldChange(field.fieldName, value)}
+              placeholder="12-3456789"
+              dataTestId={`input-${field.fieldName}`}
+              className={hasError ? 'border-red-500' : ''}
+            />
+            {hasError && <p className="text-xs text-red-500">{hasError}</p>}
+          </div>
+        );
+
+      case 'address':
+        return (
+          <div className="space-y-2">
+            <Label htmlFor={field.fieldName} className="text-sm font-medium text-gray-700">
+              {field.fieldLabel}
+              {field.isRequired && <span className="text-red-500 ml-1">*</span>}
+            </Label>
+            <AddressAutocompleteInput
+              value={value}
+              onChange={(value) => handleFieldChange(field.fieldName, value)}
+              onAddressSelect={(address) => {
+                // If there are corresponding city, state, zipCode fields in formData, populate them
+                const cityField = formData.hasOwnProperty('city');
+                const stateField = formData.hasOwnProperty('state');
+                const zipCodeField = formData.hasOwnProperty('zipCode');
+                
+                if (cityField) handleFieldChange('city', address.city);
+                if (stateField) handleFieldChange('state', address.state);
+                if (zipCodeField) handleFieldChange('zipCode', address.zipCode);
+              }}
+              placeholder="Start typing an address..."
+              dataTestId={`input-${field.fieldName}`}
+              className={hasError ? 'border-red-500' : ''}
+            />
+            {hasError && <p className="text-xs text-red-500">{hasError}</p>}
           </div>
         );
 
