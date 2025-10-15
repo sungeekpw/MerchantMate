@@ -58,7 +58,7 @@ const templateFormSchema = z.object({
       description: z.string().optional(),
       fields: z.array(z.object({
         id: z.string(),
-        type: z.enum(['text', 'email', 'tel', 'url', 'date', 'number', 'select', 'checkbox', 'textarea', 'radio', 'currency', 'zipcode']),
+        type: z.enum(['text', 'email', 'tel', 'url', 'date', 'number', 'select', 'checkbox', 'textarea', 'radio', 'currency', 'zipcode', 'phone', 'ein', 'address']),
         label: z.string(),
         required: z.boolean().optional(),
         pattern: z.string().optional(),
@@ -1064,7 +1064,10 @@ function FieldConfigurationDialog({
     { value: 'textarea', label: 'Textarea' },
     { value: 'radio', label: 'Radio' },
     { value: 'currency', label: 'Currency' },
-    { value: 'zipcode', label: 'US Zip Code' }
+    { value: 'zipcode', label: 'US Zip Code' },
+    { value: 'phone', label: 'Phone (Formatted)' },
+    { value: 'ein', label: 'EIN/Tax ID' },
+    { value: 'address', label: 'Address (Google Autocomplete)' }
   ];
 
   const addSection = () => {
