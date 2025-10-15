@@ -7695,6 +7695,51 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.delete('/api/acquirer-application-templates/:id', dbEnvironmentMiddleware, requireRole(['admin', 'super_admin']), async (req: RequestWithDB, res: Response) => {
+    try {
+      const templateId = parseInt(req.params.id);
+      console.log(`Deleting acquirer application template ${templateId} - Database environment: ${req.dbEnv}`);
+      
+      // Use the dynamic database connection
+      const dbToUse = req.dynamicDB;
+      if (!dbToUse) {
+        return res.status(500).json({ error: "Database connection not available" });
+      }
+      
+      const { acquirerApplicationTemplates, prospectApplications } = await import("@shared/schema");
+      const { eq } = await import("drizzle-orm");
+      
+      // Check if template has any applications
+      const applications = await dbToUse
+        .select()
+        .from(prospectApplications)
+        .where(eq(prospectApplications.templateId, templateId))
+        .limit(1);
+      
+      if (applications.length > 0) {
+        return res.status(400).json({ 
+          error: "Cannot delete template with existing applications. Please remove all applications using this template first." 
+        });
+      }
+      
+      // Delete the template
+      const [deletedTemplate] = await dbToUse
+        .delete(acquirerApplicationTemplates)
+        .where(eq(acquirerApplicationTemplates.id, templateId))
+        .returning();
+      
+      if (!deletedTemplate) {
+        return res.status(404).json({ error: "Acquirer application template not found" });
+      }
+      
+      console.log(`Deleted acquirer application template: ${deletedTemplate.templateName} v${deletedTemplate.version}`);
+      res.json({ success: true, message: "Template deleted successfully" });
+    } catch (error) {
+      console.error('Error deleting acquirer application template:', error);
+      res.status(500).json({ error: 'Failed to delete acquirer application template' });
+    }
+  });
+
   // PDF Upload for Application Templates
   app.post('/api/acquirer-application-templates/upload', dbEnvironmentMiddleware, requireRole(['admin', 'super_admin']), upload.single('pdf'), async (req: any, res: Response) => {
     try {
