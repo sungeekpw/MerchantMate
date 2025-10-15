@@ -786,6 +786,23 @@ function EditTemplateDialog({
   onSubmit: (data: TemplateFormData) => void;
   isLoading: boolean;
 }) {
+  // Ensure fieldConfiguration has the correct structure
+  const normalizeFieldConfiguration = (config: any) => {
+    if (!config || !config.sections || !Array.isArray(config.sections)) {
+      return { sections: [] };
+    }
+    
+    // Ensure each section has the required structure
+    return {
+      sections: config.sections.map((section: any) => ({
+        id: section.id || '',
+        title: section.title || '',
+        description: section.description || '',
+        fields: Array.isArray(section.fields) ? section.fields : []
+      }))
+    };
+  };
+
   const form = useForm<TemplateFormData>({
     resolver: zodResolver(templateFormSchema),
     defaultValues: {
@@ -793,9 +810,7 @@ function EditTemplateDialog({
       templateName: template.templateName,
       version: template.version,
       isActive: template.isActive,
-      fieldConfiguration: template.fieldConfiguration || {
-        sections: []
-      },
+      fieldConfiguration: normalizeFieldConfiguration(template.fieldConfiguration),
       requiredFields: template.requiredFields || [],
       conditionalFields: template.conditionalFields || {}
     }
