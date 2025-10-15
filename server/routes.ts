@@ -7695,7 +7695,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete('/api/acquirer-application-templates/:id', dbEnvironmentMiddleware, requireRole(['admin', 'super_admin']), async (req: RequestWithDB, res: Response) => {
+  app.delete('/api/acquirer-application-templates/:id', (req, res, next) => {
+    console.log('🔴 DELETE ROUTE MATCHED - before middleware');
+    next();
+  }, dbEnvironmentMiddleware, (req, res, next) => {
+    console.log('🟡 After dbEnvironmentMiddleware');
+    next();
+  }, requireRole(['admin', 'super_admin']), (req, res, next) => {
+    console.log('🟢 After requireRole middleware');
+    next();
+  }, async (req: RequestWithDB, res: Response) => {
     console.log('🗑️ DELETE ENDPOINT REACHED for acquirer-application-templates/:id');
     try {
       const templateId = parseInt(req.params.id);
