@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Loader2, MapPin, CheckCircle } from 'lucide-react';
+import { Loader2, MapPin, CheckCircle, Lock } from 'lucide-react';
 
 interface AddressSuggestion {
   place_id: string;
@@ -45,6 +45,7 @@ export function AddressAutocompleteInput({
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [validationStatus, setValidationStatus] = useState<'idle' | 'valid' | 'invalid'>('idle');
   const [selectedIndex, setSelectedIndex] = useState(-1);
+  const [isLocked, setIsLocked] = useState(false);
   const [addressDetails, setAddressDetails] = useState<AddressDetails>({
     street: '',
     city: '',
@@ -103,6 +104,7 @@ export function AddressAutocompleteInput({
         
         if (result.isValid) {
           setValidationStatus('valid');
+          setIsLocked(true);
           const newAddressDetails = {
             street: result.streetAddress || suggestion.description.split(',')[0].trim(),
             city: result.city || '',
@@ -128,6 +130,19 @@ export function AddressAutocompleteInput({
       console.error('Address validation error:', error);
       setValidationStatus('invalid');
     }
+  };
+
+  // Handle edit address
+  const handleEditAddress = () => {
+    setIsLocked(false);
+    setValidationStatus('idle');
+    setAddressDetails({
+      street: '',
+      city: '',
+      state: '',
+      zipCode: ''
+    });
+    onChange('');
   };
 
   // Handle individual field updates
@@ -205,73 +220,106 @@ export function AddressAutocompleteInput({
 
   return (
     <div className="space-y-4 w-full">
-      <div className="relative w-full">
-        <div className="relative">
-          <Input
-            ref={inputRef}
-            value={value}
-            onChange={handleInputChange}
-            onKeyDown={handleKeyDown}
-            placeholder={placeholder}
-            disabled={disabled}
-            data-testid={dataTestId}
-            className={`pr-8 ${
-              validationStatus === 'valid'
-                ? 'border-green-500 bg-green-50'
-                : validationStatus === 'invalid'
-                ? 'border-red-500'
-                : ''
-            } ${className}`}
-          />
-          {isLoading && (
-            <Loader2 className="absolute right-2 top-1/2 transform -translate-y-1/2 h-4 w-4 animate-spin text-gray-400" />
-          )}
-          {validationStatus === 'valid' && (
-            <CheckCircle className="absolute right-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-green-500" />
-          )}
-          {validationStatus === 'invalid' && (
-            <div className="absolute right-2 top-1/2 transform -translate-y-1/2 h-4 w-4 bg-red-500 rounded-full" />
+      {/* Street Address Input */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label htmlFor="street-address" className="text-sm font-semibold text-gray-900">
+            Street Address
+          </Label>
+          <div className="relative">
+            <Input
+              ref={inputRef}
+              id="street-address"
+              value={value}
+              onChange={handleInputChange}
+              onKeyDown={handleKeyDown}
+              placeholder={placeholder}
+              disabled={disabled || isLocked}
+              data-testid={dataTestId}
+              className={`pr-8 ${
+                validationStatus === 'valid'
+                  ? 'border-green-500 bg-green-50'
+                  : validationStatus === 'invalid'
+                  ? 'border-red-500'
+                  : ''
+              } ${className}`}
+            />
+            {isLoading && (
+              <Loader2 className="absolute right-2 top-1/2 transform -translate-y-1/2 h-4 w-4 animate-spin text-gray-400" />
+            )}
+            {validationStatus === 'valid' && (
+              <CheckCircle className="absolute right-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-green-500" />
+            )}
+            {validationStatus === 'invalid' && (
+              <div className="absolute right-2 top-1/2 transform -translate-y-1/2 h-4 w-4 bg-red-500 rounded-full" />
+            )}
+
+            {/* Address suggestions dropdown */}
+            {showSuggestions && suggestions.length > 0 && (
+              <div
+                ref={suggestionsRef}
+                className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-auto"
+              >
+                {suggestions.map((suggestion, index) => (
+                  <div
+                    key={suggestion.place_id}
+                    className={`px-4 py-2 cursor-pointer hover:bg-gray-50 ${
+                      index === selectedIndex ? 'bg-blue-50' : ''
+                    }`}
+                    onClick={() => validateAndSelectAddress(suggestion)}
+                  >
+                    <div className="flex items-center space-x-2">
+                      <MapPin className="h-4 w-4 text-gray-400" />
+                      <div>
+                        <div className="font-medium text-sm">
+                          {suggestion.structured_formatting?.main_text || suggestion.description.split(',')[0]}
+                        </div>
+                        {suggestion.structured_formatting?.secondary_text && (
+                          <div className="text-xs text-gray-500">
+                            {suggestion.structured_formatting.secondary_text}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+          
+          {/* Validation message for street address */}
+          {validationStatus === 'valid' && isLocked && (
+            <div className="flex items-center space-x-1 text-sm text-orange-600">
+              <Lock className="h-3 w-3" />
+              <span>Address validated and locked.</span>
+              <button
+                type="button"
+                onClick={handleEditAddress}
+                className="text-blue-600 hover:text-blue-700 font-medium underline"
+              >
+                Edit Address
+              </button>
+            </div>
           )}
         </div>
 
-        {/* Address suggestions dropdown */}
-        {showSuggestions && suggestions.length > 0 && (
-          <div
-            ref={suggestionsRef}
-            className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-auto"
-          >
-            {suggestions.map((suggestion, index) => (
-              <div
-                key={suggestion.place_id}
-                className={`px-4 py-2 cursor-pointer hover:bg-gray-50 ${
-                  index === selectedIndex ? 'bg-blue-50' : ''
-                }`}
-                onClick={() => validateAndSelectAddress(suggestion)}
-              >
-                <div className="flex items-center space-x-2">
-                  <MapPin className="h-4 w-4 text-gray-400" />
-                  <div>
-                    <div className="font-medium text-sm">
-                      {suggestion.structured_formatting?.main_text || suggestion.description.split(',')[0]}
-                    </div>
-                    {suggestion.structured_formatting?.secondary_text && (
-                      <div className="text-xs text-gray-500">
-                        {suggestion.structured_formatting.secondary_text}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+        <div className="space-y-2">
+          <Label htmlFor="apt-suite" className="text-sm font-semibold text-gray-900">
+            Apt/Suite <span className="text-gray-500 font-normal">(Optional)</span>
+          </Label>
+          <Input
+            id="apt-suite"
+            placeholder="Suite 100"
+            data-testid={`${dataTestId}-apt`}
+          />
+        </div>
       </div>
 
-      {/* Expanded address fields */}
-      {showExpandedFields && (addressDetails.city || addressDetails.state || addressDetails.zipCode) && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-gray-50 rounded-md border border-gray-200">
+      {/* Expanded address fields - only show when address is validated */}
+      {showExpandedFields && validationStatus === 'valid' && (addressDetails.city || addressDetails.state || addressDetails.zipCode) && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
-            <Label htmlFor="address-city" className="text-sm font-medium text-gray-700">
+            <Label htmlFor="address-city" className="text-sm font-semibold text-gray-900">
               City
             </Label>
             <Input
@@ -279,14 +327,27 @@ export function AddressAutocompleteInput({
               value={addressDetails.city}
               onChange={(e) => handleFieldChange('city', e.target.value)}
               placeholder="City"
-              disabled={disabled}
+              disabled={isLocked}
               data-testid={`${dataTestId}-city`}
-              className="bg-white"
+              className="disabled:opacity-100 disabled:cursor-not-allowed"
             />
+            {isLocked && (
+              <div className="flex items-center space-x-1 text-sm text-orange-600">
+                <Lock className="h-3 w-3" />
+                <span>Field locked after address selection.</span>
+                <button
+                  type="button"
+                  onClick={handleEditAddress}
+                  className="text-blue-600 hover:text-blue-700 font-medium underline"
+                >
+                  Edit Address
+                </button>
+              </div>
+            )}
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="address-state" className="text-sm font-medium text-gray-700">
+            <Label htmlFor="address-state" className="text-sm font-semibold text-gray-900">
               State
             </Label>
             <Input
@@ -294,25 +355,64 @@ export function AddressAutocompleteInput({
               value={addressDetails.state}
               onChange={(e) => handleFieldChange('state', e.target.value)}
               placeholder="State"
-              disabled={disabled}
+              disabled={isLocked}
               data-testid={`${dataTestId}-state`}
-              className="bg-white"
+              className="disabled:opacity-100 disabled:cursor-not-allowed"
               maxLength={2}
             />
+            {isLocked && (
+              <div className="flex items-center space-x-1 text-sm text-orange-600">
+                <Lock className="h-3 w-3" />
+                <span>Field locked after address selection.</span>
+                <button
+                  type="button"
+                  onClick={handleEditAddress}
+                  className="text-blue-600 hover:text-blue-700 font-medium underline"
+                >
+                  Edit Address
+                </button>
+              </div>
+            )}
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="address-zip" className="text-sm font-medium text-gray-700">
-              ZIP Code
+            <Label htmlFor="address-zip" className="text-sm font-semibold text-gray-900">
+              Postal Code
             </Label>
             <Input
               id="address-zip"
               value={addressDetails.zipCode}
               onChange={(e) => handleFieldChange('zipCode', e.target.value)}
               placeholder="ZIP Code"
-              disabled={disabled}
+              disabled={isLocked}
               data-testid={`${dataTestId}-zipcode`}
-              className="bg-white"
+              className="disabled:opacity-100 disabled:cursor-not-allowed"
+            />
+            {isLocked && (
+              <div className="flex items-center space-x-1 text-sm text-orange-600">
+                <Lock className="h-3 w-3" />
+                <span>Field locked after address selection.</span>
+                <button
+                  type="button"
+                  onClick={handleEditAddress}
+                  className="text-blue-600 hover:text-blue-700 font-medium underline"
+                >
+                  Edit Address
+                </button>
+              </div>
+            )}
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="address-country" className="text-sm font-semibold text-gray-900">
+              Country
+            </Label>
+            <Input
+              id="address-country"
+              value="US"
+              disabled
+              data-testid={`${dataTestId}-country`}
+              className="disabled:opacity-100 disabled:cursor-not-allowed"
             />
           </div>
         </div>
