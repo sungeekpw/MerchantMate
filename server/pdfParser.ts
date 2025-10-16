@@ -1,9 +1,10 @@
 import { PdfFormField } from '@shared/schema';
 import { getWellsFargoMPAForm } from './wellsFargoMPA';
+import { PDFDocument, PDFTextField, PDFDropdown, PDFCheckBox, PDFRadioGroup, PDFButton } from 'pdf-lib';
 
 interface ParsedFormField {
   fieldName: string;
-  fieldType: 'text' | 'number' | 'date' | 'select' | 'checkbox' | 'textarea' | 'phone' | 'email' | 'url';
+  fieldType: 'text' | 'number' | 'date' | 'select' | 'checkbox' | 'textarea' | 'phone' | 'email' | 'url' | 'mcc-select' | 'zipcode' | 'ein';
   fieldLabel: string;
   isRequired: boolean;
   options?: string[];
@@ -11,6 +12,7 @@ interface ParsedFormField {
   validation?: string;
   position: number;
   section?: string;
+  pdfFieldId?: string; // The immutable PDF field identifier (XFA/AcroForm name)
 }
 
 interface ParsedFormSection {
@@ -24,16 +26,161 @@ export class PDFFormParser {
     sections: ParsedFormSection[];
     totalFields: number;
   }> {
-    // For now, we'll use the predefined Wells Fargo MPA structure
-    // Future enhancement: actual PDF parsing with pdf-parse
-    const sections = this.parseWellsFargoMPA("");
+    try {
+      // Load the PDF document
+      const pdfDoc = await PDFDocument.load(buffer);
+      const form = pdfDoc.getForm();
+      const fields = form.getFields();
+      
+      console.log(`Extracted ${fields.length} fields from PDF`);
+      
+      if (fields.length === 0) {
+        console.warn('No form fields found in PDF. Using fallback Wells Fargo structure.');
+        const sections = this.parseWellsFargoMPA("");
+        const totalFields = sections.reduce((sum, section) => sum + section.fields.length, 0);
+        return { sections, totalFields };
+      }
+      
+      // Extract fields from the PDF
+      const parsedFields: ParsedFormField[] = [];
+      
+      fields.forEach((field, index) => {
+        const fieldName = field.getName();
+        const pdfFieldId = fieldName; // Store the original PDF field name as the immutable ID
+        
+        // Determine field type and extract metadata
+        let fieldType: ParsedFormField['fieldType'] = 'text';
+        let options: string[] | undefined = undefined;
+        let defaultValue: string | undefined = undefined;
+        
+        if (field instanceof PDFTextField) {
+          const textField = field as PDFTextField;
+          fieldType = textField.isMultiline() ? 'textarea' : 'text';
+          defaultValue = textField.getText() || undefined;
+        } else if (field instanceof PDFDropdown) {
+          const dropdown = field as PDFDropdown;
+          fieldType = 'select';
+          options = dropdown.getOptions();
+          const selected = dropdown.getSelected();
+          if (selected && selected.length > 0) {
+            defaultValue = selected[0];
+          }
+        } else if (field instanceof PDFCheckBox) {
+          fieldType = 'checkbox';
+          const checkbox = field as PDFCheckBox;
+          defaultValue = checkbox.isChecked() ? 'true' : 'false';
+        } else if (field instanceof PDFRadioGroup) {
+          const radioGroup = field as PDFRadioGroup;
+          fieldType = 'select';
+          options = radioGroup.getOptions();
+          defaultValue = radioGroup.getSelected() || undefined;
+        }
+        
+        // Generate a friendly field label from the field name
+        const fieldLabel = this.generateFieldLabel(fieldName);
+        
+        // Determine if field is required (pdf-lib doesn't always expose this, default to false)
+        const isRequired = false; // Can be configured later in the UI
+        
+        parsedFields.push({
+          fieldName,
+          pdfFieldId, // Store the immutable PDF field ID
+          fieldType,
+          fieldLabel,
+          isRequired,
+          options,
+          defaultValue,
+          position: index + 1
+        });
+      });
+      
+      // Group fields into sections based on naming patterns or use a single section
+      const sections = this.groupFieldsIntoSections(parsedFields);
+      const totalFields = parsedFields.length;
+      
+      return {
+        sections,
+        totalFields
+      };
+    } catch (error) {
+      console.error('Error parsing PDF with pdf-lib:', error);
+      console.log('Falling back to Wells Fargo MPA structure');
+      
+      // Fallback to predefined structure if PDF parsing fails
+      const sections = this.parseWellsFargoMPA("");
+      const totalFields = sections.reduce((sum, section) => sum + section.fields.length, 0);
+      return { sections, totalFields };
+    }
+  }
+
+  /**
+   * Generate a human-readable field label from a PDF field name
+   * Examples: "TaxID" -> "Tax ID", "company_email" -> "Company Email"
+   */
+  private generateFieldLabel(fieldName: string): string {
+    // Replace underscores and hyphens with spaces
+    let label = fieldName.replace(/[_-]/g, ' ');
     
-    const totalFields = sections.reduce((sum, section) => sum + section.fields.length, 0);
+    // Add spaces before capital letters (for camelCase)
+    label = label.replace(/([A-Z])/g, ' $1');
     
-    return {
-      sections,
-      totalFields
-    };
+    // Capitalize first letter of each word
+    label = label.replace(/\b\w/g, char => char.toUpperCase());
+    
+    // Clean up extra spaces
+    label = label.replace(/\s+/g, ' ').trim();
+    
+    return label;
+  }
+
+  /**
+   * Group fields into sections based on naming patterns or create a single section
+   */
+  private groupFieldsIntoSections(fields: ParsedFormField[]): ParsedFormSection[] {
+    // Try to detect sections based on field name prefixes (e.g., "merchant_", "business_", etc.)
+    const sectionMap = new Map<string, ParsedFormField[]>();
+    
+    fields.forEach(field => {
+      // Check if field name has a common prefix pattern
+      const match = field.fieldName.match(/^([a-zA-Z]+)_/);
+      
+      if (match) {
+        const sectionKey = match[1];
+        if (!sectionMap.has(sectionKey)) {
+          sectionMap.set(sectionKey, []);
+        }
+        sectionMap.get(sectionKey)!.push(field);
+      } else {
+        // No prefix, put in "General" section
+        if (!sectionMap.has('general')) {
+          sectionMap.set('general', []);
+        }
+        sectionMap.get('general')!.push(field);
+      }
+    });
+    
+    // If we only have one section or all fields are in general, use a single "Form Fields" section
+    if (sectionMap.size === 1 || (sectionMap.size === 2 && sectionMap.has('general') && sectionMap.get('general')!.length === fields.length)) {
+      return [{
+        title: 'Form Fields',
+        order: 1,
+        fields
+      }];
+    }
+    
+    // Convert map to sections array
+    const sections: ParsedFormSection[] = [];
+    let order = 1;
+    
+    sectionMap.forEach((sectionFields, sectionKey) => {
+      sections.push({
+        title: this.generateFieldLabel(sectionKey),
+        order: order++,
+        fields: sectionFields
+      });
+    });
+    
+    return sections.sort((a, b) => a.order - b.order);
   }
 
   private parseWellsFargoMPA(text: string): ParsedFormSection[] {
@@ -438,7 +585,8 @@ export class PDFFormParser {
           options: field.options || null,
           defaultValue: field.defaultValue || null,
           validation: field.validation || null,
-          position: field.position
+          position: field.position,
+          section: field.section || section.title // Use field's section or default to section title
         });
       });
     });
