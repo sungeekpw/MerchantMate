@@ -11,11 +11,29 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Plus, Pencil, Eye, Copy, Download, Upload, Trash2, Settings, Circle, CheckCircle } from 'lucide-react';
+import { Plus, Pencil, Eye, Copy, Download, Upload, Trash2, Settings, Circle, CheckCircle, ChevronDown, ChevronRight, GripVertical } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 // Types for template data
 interface AcquirerApplicationTemplate {
@@ -1032,6 +1050,274 @@ function ViewTemplateDialog({
   );
 }
 
+// Sortable Field Component
+function SortableField({
+  field,
+  sectionIndex,
+  fieldIndex,
+  requiredFields,
+  onToggleRequired,
+  onEdit,
+  onRemove
+}: {
+  field: any;
+  sectionIndex: number;
+  fieldIndex: number;
+  requiredFields: string[];
+  onToggleRequired: (fieldId: string) => void;
+  onEdit: () => void;
+  onRemove: () => void;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging
+  } = useSortable({ id: field.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className="flex items-center gap-2 p-3 border rounded-lg bg-white"
+    >
+      <div
+        {...attributes}
+        {...listeners}
+        className="cursor-grab active:cursor-grabbing touch-none"
+      >
+        <GripVertical className="h-4 w-4 text-gray-400" />
+      </div>
+      <div className="flex-1">
+        <div className="flex items-center gap-2">
+          <span className="font-medium">{field.label}</span>
+          <Badge variant="outline">{field.type}</Badge>
+          {requiredFields.includes(field.id) && (
+            <Badge variant="destructive">Required</Badge>
+          )}
+        </div>
+        {field.description && (
+          <p className="text-sm text-muted-foreground mt-1">{field.description}</p>
+        )}
+      </div>
+      <div className="flex items-center gap-1">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => onToggleRequired(field.id)}
+          data-testid={`button-toggle-required-${sectionIndex}-${fieldIndex}`}
+        >
+          {requiredFields.includes(field.id) ? (
+            <CheckCircle className="h-4 w-4 text-red-600" />
+          ) : (
+            <Circle className="h-4 w-4" />
+          )}
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={onEdit}
+          data-testid={`button-edit-field-${sectionIndex}-${fieldIndex}`}
+        >
+          <Pencil className="h-4 w-4" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={onRemove}
+          className="text-red-600 hover:text-red-700"
+          data-testid={`button-remove-field-${sectionIndex}-${fieldIndex}`}
+        >
+          <Trash2 className="h-4 w-4" />
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+// Sortable Section Component
+function SortableSection({
+  section,
+  sectionIndex,
+  isOpen,
+  onToggleOpen,
+  onUpdateTitle,
+  onUpdateDescription,
+  onRemove,
+  onAddField,
+  requiredFields,
+  onToggleRequired,
+  onEditField,
+  onRemoveField,
+  onReorderFields
+}: {
+  section: any;
+  sectionIndex: number;
+  isOpen: boolean;
+  onToggleOpen: () => void;
+  onUpdateTitle: (value: string) => void;
+  onUpdateDescription: (value: string) => void;
+  onRemove: () => void;
+  onAddField: () => void;
+  requiredFields: string[];
+  onToggleRequired: (fieldId: string) => void;
+  onEditField: (fieldIndex: number) => void;
+  onRemoveField: (fieldIndex: number) => void;
+  onReorderFields: (oldIndex: number, newIndex: number) => void;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging
+  } = useSortable({ id: section.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1
+  };
+
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates
+    })
+  );
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (over && active.id !== over.id) {
+      const oldIndex = section.fields.findIndex((f: any) => f.id === active.id);
+      const newIndex = section.fields.findIndex((f: any) => f.id === over.id);
+      onReorderFields(oldIndex, newIndex);
+    }
+  };
+
+  return (
+    <div ref={setNodeRef} style={style}>
+      <Collapsible open={isOpen} onOpenChange={onToggleOpen}>
+        <Card>
+          <CardHeader className="pb-3">
+            <div className="flex items-start gap-2">
+              <div
+                {...attributes}
+                {...listeners}
+                className="cursor-grab active:cursor-grabbing touch-none mt-1"
+              >
+                <GripVertical className="h-5 w-5 text-gray-400" />
+              </div>
+              <div className="flex-1 space-y-2">
+                <Input
+                  value={section.title}
+                  onChange={(e) => onUpdateTitle(e.target.value)}
+                  className="font-medium"
+                  placeholder="Section title"
+                  data-testid={`input-section-title-${sectionIndex}`}
+                  onClick={(e) => e.stopPropagation()}
+                />
+                <Textarea
+                  value={section.description}
+                  onChange={(e) => onUpdateDescription(e.target.value)}
+                  placeholder="Section description (optional)"
+                  data-testid={`input-section-description-${sectionIndex}`}
+                  onClick={(e) => e.stopPropagation()}
+                />
+              </div>
+              <div className="flex items-center gap-1">
+                <CollapsibleTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    data-testid={`button-toggle-section-${sectionIndex}`}
+                  >
+                    {isOpen ? (
+                      <ChevronDown className="h-4 w-4" />
+                    ) : (
+                      <ChevronRight className="h-4 w-4" />
+                    )}
+                  </Button>
+                </CollapsibleTrigger>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={onRemove}
+                  className="text-red-600 hover:text-red-700"
+                  data-testid={`button-remove-section-${sectionIndex}`}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          </CardHeader>
+          <CollapsibleContent>
+            <CardContent>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h4 className="font-medium">Fields ({section.fields?.length || 0})</h4>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={onAddField}
+                    data-testid={`button-add-field-${sectionIndex}`}
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Field
+                  </Button>
+                </div>
+
+                {section.fields && section.fields.length > 0 ? (
+                  <DndContext
+                    sensors={sensors}
+                    collisionDetection={closestCenter}
+                    onDragEnd={handleDragEnd}
+                  >
+                    <SortableContext
+                      items={section.fields.map((f: any) => f.id)}
+                      strategy={verticalListSortingStrategy}
+                    >
+                      <div className="space-y-2">
+                        {section.fields.map((field: any, fieldIndex: number) => (
+                          <SortableField
+                            key={field.id}
+                            field={field}
+                            sectionIndex={sectionIndex}
+                            fieldIndex={fieldIndex}
+                            requiredFields={requiredFields}
+                            onToggleRequired={onToggleRequired}
+                            onEdit={() => onEditField(fieldIndex)}
+                            onRemove={() => onRemoveField(fieldIndex)}
+                          />
+                        ))}
+                      </div>
+                    </SortableContext>
+                  </DndContext>
+                ) : (
+                  <div className="text-center py-8 text-muted-foreground">
+                    No fields in this section. Click "Add Field" to get started.
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </CollapsibleContent>
+        </Card>
+      </Collapsible>
+    </div>
+  );
+}
+
 // Field Configuration Dialog Component
 function FieldConfigurationDialog({
   isOpen,
@@ -1051,6 +1337,7 @@ function FieldConfigurationDialog({
   const [editingField, setEditingField] = useState<any>(null);
   const [editingSectionIndex, setEditingSectionIndex] = useState<number>(-1);
   const [editingFieldIndex, setEditingFieldIndex] = useState<number>(-1);
+  const [openSections, setOpenSections] = useState<Set<string>>(new Set(sections.map((s: any) => s.id)));
 
   const fieldTypes = [
     { value: 'text', label: 'Text' },
@@ -1070,6 +1357,23 @@ function FieldConfigurationDialog({
     { value: 'address', label: 'Address (Google Autocomplete)' }
   ];
 
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates
+    })
+  );
+
+  const toggleSection = (sectionId: string) => {
+    const newOpenSections = new Set(openSections);
+    if (newOpenSections.has(sectionId)) {
+      newOpenSections.delete(sectionId);
+    } else {
+      newOpenSections.add(sectionId);
+    }
+    setOpenSections(newOpenSections);
+  };
+
   const addSection = () => {
     const newSection = {
       id: `section_${Date.now()}`,
@@ -1078,6 +1382,7 @@ function FieldConfigurationDialog({
       fields: []
     };
     setSections([...sections, newSection]);
+    setOpenSections(new Set([...openSections, newSection.id]));
   };
 
   const removeSection = (index: number) => {
@@ -1113,6 +1418,26 @@ function FieldConfigurationDialog({
       // Remove field from section
       newSections[sectionIndex].fields.splice(fieldIndex, 1);
       setSections(newSections);
+    }
+  };
+
+  const reorderFields = (sectionIndex: number, oldIndex: number, newIndex: number) => {
+    const newSections = [...sections];
+    newSections[sectionIndex].fields = arrayMove(
+      newSections[sectionIndex].fields,
+      oldIndex,
+      newIndex
+    );
+    setSections(newSections);
+  };
+
+  const handleSectionDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (over && active.id !== over.id) {
+      const oldIndex = sections.findIndex((s: any) => s.id === active.id);
+      const newIndex = sections.findIndex((s: any) => s.id === over.id);
+      setSections(arrayMove(sections, oldIndex, newIndex));
     }
   };
 
@@ -1167,118 +1492,43 @@ function FieldConfigurationDialog({
               </Button>
             </div>
 
-            {sections.map((section: any, sectionIndex: number) => (
-              <Card key={section.id}>
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <div className="flex-1">
-                      <Input
-                        value={section.title}
-                        onChange={(e) => {
-                          const newSections = [...sections];
-                          newSections[sectionIndex].title = e.target.value;
-                          setSections(newSections);
-                        }}
-                        className="font-medium"
-                        placeholder="Section title"
-                        data-testid={`input-section-title-${sectionIndex}`}
-                      />
-                      <Textarea
-                        value={section.description}
-                        onChange={(e) => {
-                          const newSections = [...sections];
-                          newSections[sectionIndex].description = e.target.value;
-                          setSections(newSections);
-                        }}
-                        placeholder="Section description (optional)"
-                        className="mt-2"
-                        data-testid={`input-section-description-${sectionIndex}`}
-                      />
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => removeSection(sectionIndex)}
-                      className="text-red-600 hover:text-red-700"
-                      data-testid={`button-remove-section-${sectionIndex}`}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <h4 className="font-medium">Fields ({section.fields?.length || 0})</h4>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => addField(sectionIndex)}
-                        data-testid={`button-add-field-${sectionIndex}`}
-                      >
-                        <Plus className="h-4 w-4 mr-2" />
-                        Add Field
-                      </Button>
-                    </div>
-
-                    {section.fields?.map((field: any, fieldIndex: number) => (
-                      <div key={field.id} className="flex items-center justify-between p-3 border rounded-lg">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2">
-                            <span className="font-medium">{field.label}</span>
-                            <Badge variant="outline">{field.type}</Badge>
-                            {requiredFields.includes(field.id) && (
-                              <Badge variant="destructive">Required</Badge>
-                            )}
-                          </div>
-                          {field.description && (
-                            <p className="text-sm text-muted-foreground mt-1">{field.description}</p>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => toggleRequiredField(field.id)}
-                            data-testid={`button-toggle-required-${sectionIndex}-${fieldIndex}`}
-                          >
-                            {requiredFields.includes(field.id) ? (
-                              <CheckCircle className="h-4 w-4 text-red-600" />
-                            ) : (
-                              <Circle className="h-4 w-4" />
-                            )}
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => openFieldEditor(sectionIndex, fieldIndex)}
-                            data-testid={`button-edit-field-${sectionIndex}-${fieldIndex}`}
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => removeField(sectionIndex, fieldIndex)}
-                            className="text-red-600 hover:text-red-700"
-                            data-testid={`button-remove-field-${sectionIndex}-${fieldIndex}`}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
-
-                    {(!section.fields || section.fields.length === 0) && (
-                      <div className="text-center py-8 text-muted-foreground">
-                        No fields in this section. Click "Add Field" to get started.
-                      </div>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleSectionDragEnd}
+            >
+              <SortableContext
+                items={sections.map((s: any) => s.id)}
+                strategy={verticalListSortingStrategy}
+              >
+                {sections.map((section: any, sectionIndex: number) => (
+                  <SortableSection
+                    key={section.id}
+                    section={section}
+                    sectionIndex={sectionIndex}
+                    isOpen={openSections.has(section.id)}
+                    onToggleOpen={() => toggleSection(section.id)}
+                    onUpdateTitle={(value) => {
+                      const newSections = [...sections];
+                      newSections[sectionIndex].title = value;
+                      setSections(newSections);
+                    }}
+                    onUpdateDescription={(value) => {
+                      const newSections = [...sections];
+                      newSections[sectionIndex].description = value;
+                      setSections(newSections);
+                    }}
+                    onRemove={() => removeSection(sectionIndex)}
+                    onAddField={() => addField(sectionIndex)}
+                    requiredFields={requiredFields}
+                    onToggleRequired={toggleRequiredField}
+                    onEditField={(fieldIndex) => openFieldEditor(sectionIndex, fieldIndex)}
+                    onRemoveField={(fieldIndex) => removeField(sectionIndex, fieldIndex)}
+                    onReorderFields={(oldIndex, newIndex) => reorderFields(sectionIndex, oldIndex, newIndex)}
+                  />
+                ))}
+              </SortableContext>
+            </DndContext>
 
             {sections.length === 0 && (
               <Card>
