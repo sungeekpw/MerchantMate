@@ -586,7 +586,8 @@ export class PDFFormParser {
           defaultValue: field.defaultValue || null,
           validation: field.validation || null,
           position: field.position,
-          section: field.section || section.title // Use field's section or default to section title
+          section: field.section || section.title, // Use field's section or default to section title
+          pdfFieldId: field.pdfFieldId || null // Store the immutable PDF field ID for binding
         });
       });
     });

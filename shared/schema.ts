@@ -614,6 +614,7 @@ export const pdfFormFields = pgTable("pdf_form_fields", {
   validation: text("validation"), // JSON string for validation rules
   position: integer("position").notNull(), // field order
   section: text("section"), // section grouping for fields
+  pdfFieldId: text("pdf_field_id"), // Immutable PDF field identifier (XFA/AcroForm name) for field binding
   createdAt: timestamp("created_at").defaultNow()
 });
 
