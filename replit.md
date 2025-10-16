@@ -114,6 +114,32 @@ Preferred communication style: Simple, everyday language.
 - Schema validation: ✅ Verified in database
 - Ready for manual/automated testing
 
+### Application Template Configuration UI Enhancements
+**Status**: ✅ Complete (Oct 16, 2025)
+
+**Implemented Features**:
+1. **Drag-and-Drop Section Reordering**: Sections can be reordered by dragging the GripVertical handle icon in the section header
+2. **Drag-and-Drop Field Reordering**: Fields within sections can be reordered by dragging the GripVertical handle icon on each field
+3. **Collapsible Sections**: Sections can be collapsed/expanded using chevron buttons to improve organization and reduce clutter
+4. **Visual Drag Indicators**: GripVertical icons (⋮⋮) clearly indicate draggable elements
+
+**Technical Implementation**:
+- Uses @dnd-kit library (core, sortable, utilities) for drag-and-drop functionality
+- PointerSensor configured with `activationConstraint: { distance: 0 }` for immediate drag activation
+- Radix UI Collapsible component for expand/collapse functionality
+- Nested DndContext: outer context for sections, inner contexts for fields within each section
+- Order changes persist immediately in state and save to database on "Save Configuration"
+
+**UI Components**:
+- **SortableSection**: Wrapper component for sections with drag-and-drop and collapsible functionality
+- **SortableField**: Wrapper component for fields with drag-and-drop capability
+- GripVertical icons serve as drag handles for intuitive interaction
+
+**Known Limitations**:
+- Playwright automated testing has limitations with @dnd-kit pointer events in modal dialogs
+- Drag-and-drop functionality works correctly in manual browser testing
+- Recommended to test drag-and-drop features manually rather than relying solely on automated tests
+
 ## External Dependencies
 - **pg**: Native PostgreSQL driver.
 - **drizzle-orm**: Type-safe ORM for PostgreSQL.
