@@ -7774,42 +7774,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Convert PDF fields to template field configuration
       const fieldConfiguration = {
-        sections: parseResult.sections.map(section => ({
-          id: section.id,
+        sections: parseResult.sections.map((section: any) => ({
+          id: `section_${section.title.toLowerCase().replace(/\s+/g, '_')}`,
           title: section.title,
           description: section.description || '',
-          fields: section.fields.map(field => ({
-            id: field.id,
-            type: field.type,
-            label: field.label,
-            required: field.required || false,
+          fields: section.fields.map((field: any) => ({
+            id: field.fieldName,
+            type: field.fieldType,
+            label: field.fieldLabel,
+            required: field.isRequired || false,
             placeholder: field.placeholder || '',
             description: field.description || '',
             options: field.options || undefined,
             pattern: field.pattern || undefined,
             min: field.min || undefined,
             max: field.max || undefined,
-            sensitive: field.sensitive || false
+            sensitive: field.sensitive || false,
+            pdfFieldId: field.pdfFieldId,
+            pdfFieldIds: field.pdfFieldIds
           }))
         }))
       };
 
       // Extract required fields from parsed PDF
       const requiredFields = parseResult.sections
-        .flatMap(section => section.fields)
-        .filter(field => field.required)
-        .map(field => field.id);
+        .flatMap((section: any) => section.fields)
+        .filter((field: any) => field.isRequired)
+        .map((field: any) => field.fieldName);
 
       // Create PDF mapping configuration
       const pdfMappingConfiguration = {
         originalFileName: originalname,
         uploadedAt: new Date().toISOString(),
         totalFields: parseResult.totalFields,
-        sectionsMapping: parseResult.sections.map(section => ({
-          sectionId: section.id,
-          fieldMappings: section.fields.map(field => ({
-            fieldId: field.id,
-            pdfFieldName: field.id,
+        sectionsMapping: parseResult.sections.map((section: any) => ({
+          sectionId: `section_${section.title.toLowerCase().replace(/\s+/g, '_')}`,
+          fieldMappings: section.fields.map((field: any) => ({
+            fieldId: field.fieldName,
+            pdfFieldName: field.pdfFieldId || field.pdfFieldIds?.[0] || field.fieldName,
+            pdfFieldIds: field.pdfFieldIds,
             extractionMethod: 'auto'
           }))
         }))
