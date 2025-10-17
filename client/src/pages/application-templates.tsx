@@ -278,17 +278,19 @@ export default function ApplicationTemplatesPage() {
 
   // Update field configuration mutation
   const updateFieldConfigMutation = useMutation({
-    mutationFn: async ({ id, fieldConfiguration, requiredFields }: { 
+    mutationFn: async ({ id, fieldConfiguration, requiredFields, conditionalFields }: { 
       id: number; 
       fieldConfiguration: any; 
-      requiredFields: string[] 
+      requiredFields: string[];
+      conditionalFields?: Record<string, any>
     }) => {
       const response = await fetch(`/api/acquirer-application-templates/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           fieldConfiguration, 
-          requiredFields 
+          requiredFields,
+          conditionalFields
         }),
         credentials: 'include'
       });
@@ -542,11 +544,12 @@ export default function ApplicationTemplatesPage() {
           isOpen={isFieldConfigOpen}
           onClose={() => setIsFieldConfigOpen(false)}
           template={selectedTemplate}
-          onSave={(fieldConfiguration, requiredFields) => {
+          onSave={(fieldConfiguration, requiredFields, conditionalFields) => {
             updateFieldConfigMutation.mutate({
               id: selectedTemplate.id,
               fieldConfiguration,
-              requiredFields
+              requiredFields,
+              conditionalFields
             });
           }}
           isLoading={updateFieldConfigMutation.isPending}
@@ -1333,7 +1336,7 @@ function FieldConfigurationDialog({
   isOpen: boolean;
   onClose: () => void;
   template: AcquirerApplicationTemplate;
-  onSave: (fieldConfiguration: any, requiredFields: string[]) => void;
+  onSave: (fieldConfiguration: any, requiredFields: string[], conditionalFields: Record<string, any>) => void;
   isLoading: boolean;
 }) {
   const [sections, setSections] = useState(template.fieldConfiguration?.sections || []);
@@ -1390,7 +1393,7 @@ function FieldConfigurationDialog({
       fields: []
     };
     setSections([...sections, newSection]);
-    setOpenSections(new Set([...openSections, newSection.id]));
+    setOpenSections(new Set([...Array.from(openSections), newSection.id]));
   };
 
   const removeSection = (index: number) => {
@@ -1476,7 +1479,18 @@ function FieldConfigurationDialog({
 
   const handleSave = () => {
     const fieldConfiguration = { sections };
-    onSave(fieldConfiguration, requiredFields);
+    
+    // Extract conditional rules from fields
+    const conditionalFields: Record<string, any> = {};
+    sections.forEach((section: any) => {
+      section.fields.forEach((field: any) => {
+        if (field.conditional) {
+          conditionalFields[field.id] = field.conditional;
+        }
+      });
+    });
+    
+    onSave(fieldConfiguration, requiredFields, conditionalFields);
   };
 
   return (
@@ -1624,6 +1638,153 @@ function FieldConfigurationDialog({
                     placeholder="Field description or help text"
                     data-testid="textarea-edit-field-description"
                   />
+                </div>
+
+                {/* Conditional Visibility Section */}
+                <div className="border-t pt-4">
+                  <label className="text-sm font-medium mb-2 block">Conditional Visibility</label>
+                  <p className="text-xs text-muted-foreground mb-3">
+                    Show this field only when certain conditions are met
+                  </p>
+                  
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2">
+                      <Switch
+                        checked={!!editingField.conditional}
+                        onCheckedChange={(checked) => {
+                          if (checked) {
+                            setEditingField({
+                              ...editingField,
+                              conditional: {
+                                action: 'show',
+                                when: {
+                                  field: '',
+                                  operator: 'equals',
+                                  value: ''
+                                }
+                              }
+                            });
+                          } else {
+                            const { conditional, ...rest } = editingField;
+                            setEditingField(rest);
+                          }
+                        }}
+                        data-testid="switch-conditional-visibility"
+                      />
+                      <span className="text-sm">Enable conditional visibility</span>
+                    </div>
+
+                    {editingField.conditional && (
+                      <div className="ml-6 space-y-3 p-3 bg-muted/50 rounded-md">
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <label className="text-xs text-muted-foreground">Action</label>
+                            <Select
+                              value={editingField.conditional.action}
+                              onValueChange={(value) => setEditingField({
+                                ...editingField,
+                                conditional: { ...editingField.conditional, action: value }
+                              })}
+                            >
+                              <SelectTrigger className="h-8">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="show">Show</SelectItem>
+                                <SelectItem value="hide">Hide</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="text-xs text-muted-foreground">When Field</label>
+                          <Select
+                            value={editingField.conditional.when?.field || ''}
+                            onValueChange={(value) => setEditingField({
+                              ...editingField,
+                              conditional: {
+                                ...editingField.conditional,
+                                when: { ...editingField.conditional.when, field: value }
+                              }
+                            })}
+                          >
+                            <SelectTrigger className="h-8" data-testid="select-conditional-field">
+                              <SelectValue placeholder="Select field..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {sections.flatMap((section: any) => 
+                                section.fields
+                                  .filter((f: any) => f.id !== editingField.id)
+                                  .map((field: any) => (
+                                    <SelectItem key={field.id} value={field.id}>
+                                      {field.label} ({section.title})
+                                    </SelectItem>
+                                  ))
+                              )}
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <label className="text-xs text-muted-foreground">Operator</label>
+                            <Select
+                              value={editingField.conditional.when?.operator || 'equals'}
+                              onValueChange={(value) => setEditingField({
+                                ...editingField,
+                                conditional: {
+                                  ...editingField.conditional,
+                                  when: { ...editingField.conditional.when, operator: value }
+                                }
+                              })}
+                            >
+                              <SelectTrigger className="h-8">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="equals">Equals</SelectItem>
+                                <SelectItem value="not_equals">Not Equals</SelectItem>
+                                <SelectItem value="contains">Contains</SelectItem>
+                                <SelectItem value="is_checked">Is Checked</SelectItem>
+                                <SelectItem value="is_not_checked">Is Not Checked</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+
+                          <div>
+                            <label className="text-xs text-muted-foreground">Value</label>
+                            <Input
+                              value={editingField.conditional.when?.value || ''}
+                              onChange={(e) => setEditingField({
+                                ...editingField,
+                                conditional: {
+                                  ...editingField.conditional,
+                                  when: { ...editingField.conditional.when, value: e.target.value }
+                                }
+                              })}
+                              placeholder="Enter value..."
+                              className="h-8"
+                              data-testid="input-conditional-value"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="text-xs text-muted-foreground bg-background p-2 rounded border">
+                          <strong>Preview:</strong> {editingField.conditional.action === 'show' ? 'Show' : 'Hide'} this field when{' '}
+                          <strong>{editingField.conditional.when?.field ? 
+                            sections.flatMap((s: any) => s.fields).find((f: any) => f.id === editingField.conditional.when?.field)?.label || editingField.conditional.when?.field
+                            : '(select field)'}</strong>{' '}
+                          {editingField.conditional.when?.operator === 'equals' && 'equals'}
+                          {editingField.conditional.when?.operator === 'not_equals' && 'does not equal'}
+                          {editingField.conditional.when?.operator === 'contains' && 'contains'}
+                          {editingField.conditional.when?.operator === 'is_checked' && 'is checked'}
+                          {editingField.conditional.when?.operator === 'is_not_checked' && 'is not checked'}
+                          {' '}<strong>"{editingField.conditional.when?.value || '(enter value)'}"</strong>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 {/* Show options for select, radio, checkbox, boolean fields */}
