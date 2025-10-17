@@ -70,8 +70,8 @@ export class PDFFormParser {
     }
     
     // Check if this follows our convention
-    // Look for known option types: radio, checkbox, select, boolean, text
-    const knownTypes = ['radio', 'checkbox', 'select', 'boolean', 'text', 'textarea', 'email', 'phone', 'zipcode', 'ein'];
+    // Look for known option types: radio, checkbox, select, bool, boolean, text
+    const knownTypes = ['radio', 'checkbox', 'select', 'bool', 'boolean', 'text', 'textarea', 'email', 'phone', 'zipcode', 'ein', 'date'];
     let optionTypeIndex = -1;
     
     for (let i = 0; i < parts.length; i++) {
@@ -171,9 +171,15 @@ export class PDFFormParser {
             pdfFieldId: item.pdfFieldId
           }));
           
+          // Normalize 'bool' to 'boolean' field type
+          let fieldType = parsedName.optionType as ParsedFormField['fieldType'];
+          if (parsedName.optionType === 'bool') {
+            fieldType = 'boolean';
+          }
+          
           parsedFields.push({
             fieldName: `${parsedName.section}_${parsedName.fieldName}`,
-            fieldType: parsedName.optionType as ParsedFormField['fieldType'],
+            fieldType,
             fieldLabel: this.generateFieldLabel(parsedName.fieldName),
             isRequired: false,
             options,
@@ -189,6 +195,10 @@ export class PDFFormParser {
           // Detect type from PDF field or from naming convention
           if (parsedName.isStructured && parsedName.optionType) {
             fieldType = parsedName.optionType as ParsedFormField['fieldType'];
+            // Normalize 'bool' to 'boolean' field type
+            if (parsedName.optionType === 'bool') {
+              fieldType = 'boolean';
+            }
           } else if (first.pdfField instanceof PDFTextField) {
             const textField = first.pdfField as PDFTextField;
             fieldType = textField.isMultiline() ? 'textarea' : 'text';
