@@ -10,135 +10,40 @@ Preferred communication style: Simple, everyday language.
 
 ### UI/UX Decisions
 - **Theming**: CSS variables support theming for a consistent look and feel.
-- **Form Design**: Employs React Hook Form with Zod validation for robust and user-friendly data input.
+- **Form Design**: Employs React Hook Form with Zod validation.
 - **Responsive Design**: Utilizes Radix UI and shadcn/ui with Tailwind CSS for adaptive layouts.
 
 ### Technical Implementations
 - **Frontend**: React with TypeScript and Vite, using TanStack Query for server state management and Wouter for routing.
 - **Backend**: Express.js with TypeScript.
 - **Database**: PostgreSQL with Drizzle ORM, deployed on Neon serverless.
-- **Authentication**: Session-based authentication using `express-session` and a PostgreSQL session store, including 2FA and robust password management.
-- **Email Service**: SendGrid for transactional emails with webhook integration.
-- **Email Template Editor**: WYSIWYG editor (React Quill) with visual/HTML toggle.
+- **Authentication**: Session-based authentication using `express-session` and a PostgreSQL session store, including 2FA.
+- **Email Service**: SendGrid for transactional emails with webhook integration, including a WYSIWYG editor (React Quill).
 - **File Handling**: Multer for PDF form uploads.
 
 ### Feature Specifications
-- **Company-Centric Data Architecture**: Companies are the root entity, ensuring data integrity.
+- **Company-Centric Data Architecture**: Companies are the root entity.
 - **Role-Based Access Control**: Granular permissions for `merchant`, `agent`, `admin`, `corporate`, `super_admin` roles.
 - **Secure Authentication**: Session management, login attempt tracking, 2FA, password reset, and strong password requirements.
-- **Merchant & Agent Management**: Comprehensive profiles, assignment, status tracking, and fee management with real-time validation.
-- **Location Management**: Polymorphic locations supporting both merchant-specific and company-level addresses, with geolocation and operating hours.
+- **Merchant & Agent Management**: Comprehensive profiles, assignment, status tracking, and fee management.
+- **Location Management**: Polymorphic locations with geolocation and operating hours.
 - **Transaction Processing**: Tracking, commission calculations, and revenue analytics.
-- **Form Management System**: PDF upload/parsing, dynamic field generation, and public access.
+- **Form Management System**: PDF upload/parsing, dynamic field generation, public access, and conditional field visibility.
 - **Dashboard System**: Personalized, widget-based dashboards with real-time analytics.
-- **Digital Signature**: Inline canvas-based and typed signature functionality with email request workflows.
+- **Digital Signature**: Inline canvas-based and typed signature functionality with email request workflows, including an agent signature workflow.
 - **Address Validation**: Google Maps Geocoding and Places Autocomplete integration.
 - **Campaign Management**: Full CRUD for campaigns, pricing types, fee groups, and equipment associations.
 - **SOC2 Compliance Features**: Comprehensive audit trail system with logging, security events, and login attempt tracking.
 - **Generic Trigger/Action Catalog System**: Extensible event-driven action system supporting multi-channel notifications and action chaining with a unified `action_templates` architecture.
-- **Email Templates Migration**: Successfully migrated from legacy `email_templates` table to unified `action_templates` system. Email Management UI now uses `/api/admin/action-templates/type/email` endpoint.
-- **User Profile Management**: Self-service profile/settings page where users can update their own information (name, email, phone, communication preferences) and change passwords without admin intervention. Accessible via user menu dropdown in header.
-- **Agent Signature Workflow**: Complete signature chain for merchant applications - owners with ≥25% ownership sign first, then assigned agent provides final signature to complete application. Agent Signature section appears dynamically after all required owner signatures are collected, using the same DigitalSignaturePad component with canvas drawing and typed signature support. Validation enforces signature order and completeness before submission.
+- **User Profile Management**: Self-service profile/settings page.
 
 ### System Design Choices
-- **Testing Framework**: TDD-style with Jest and React Testing Library for comprehensive testing, including a visual testing dashboard.
-- **Manual Testing Checklist**: Comprehensive manual test cases in `TESTING_CHECKLIST.md`.
+- **Testing Framework**: TDD-style with Jest and React Testing Library.
 - **Schema Management**: Comprehensive database schema comparison and synchronization utilities with a version-controlled migration system and drift detection.
-- **Multi-Environment Support**: Session-based database environment switching (Development, Test, Production) with an environment selector and automatic connection fallback.
-- **Database Safety**: Strict protocols and wrapper scripts are enforced to prevent accidental production database modifications. Safe schema changes prioritize adding optional fields or using defaults to prevent data loss.
-- **Environment Synchronization**: Automated Dev → Test → Production pipeline for schema migrations and lookup data synchronization.
-- **Critical Schema Change Protocol**: Mandates updating `shared/schema.ts` first, using `npm run db:push`, and sync tools for propagation, explicitly forbidding manual database modifications.
-- **Schema Drift Detection**: CLI and GUI tools for real-time drift detection and automated SQL migration generation across environments to ensure schema consistency and prevent data loss during promotions.
-- **React Query Optimization**: Custom queryFn implementations with aggressive refetch settings (`staleTime: 0`, `gcTime: 0`, `refetchOnMount: 'always'`) for critical queries to prevent stale data caching from pre-authentication 401 responses. Applied to Action Templates and other admin pages.
-- **Deployment Pipeline Compliance**: **CRITICAL** - All schema changes MUST follow the strict Dev → Test → Production deployment pipeline documented in `MIGRATION_WORKFLOW.md`. Direct production/test modifications bypass migration tracking and create compliance violations. Always use `tsx scripts/migration-manager.ts` workflow: (1) Update `shared/schema.ts`, (2) Generate migration in dev, (3) Apply to dev, (4) Promote to test, (5) Promote to production. This ensures proper version control, rollback capability, and audit trail for all database changes.
-- **User-Company Association Pattern**: **CRITICAL ARCHITECTURE** - ALL agent and merchant lookups MUST use the generic pattern: `User → user_company_associations → Company → Agent/Merchant`. NEVER use direct `agents.userId` or `merchants.userId` lookups. This pattern is future-proof, consistent, and allows for multi-company support. Methods using this pattern: `getAgentByUserId()`, `getMerchantsForUser()`. This architecture requires `user_company_associations` records exist for all users with agent/merchant roles.
-
-## Recent Changes (October 2025)
-
-### User-Company Association Architecture Implementation  
-**Status**: ✅ Complete (Oct 14, 2025)
-
-**Problem Resolved**: Agent Dashboard returning 404 errors due to direct `userId` lookups in agents/merchants tables.
-
-**Solution Implemented**: Standardized all agent and merchant lookups to use the generic `User → user_company_associations → Company → Agent/Merchant` pattern.
-
-**Code Changes**:
-1. **getAgentByUserId()** - Refactored to use JOIN through user_company_associations table
-2. **getMerchantsForUser()** - Updated both agent and merchant branches to use the association pattern
-3. **Data Migration** - Created missing user_company_association record for existing agent user
-4. **Documentation** - Added critical architecture pattern to System Design Choices
-
-**Why This Matters**: 
-- **Future-proof**: Supports multi-company functionality without code changes
-- **Consistent**: Same pattern works for agents, merchants, and future roles
-- **Maintainable**: Generic approach prevents fragmented lookup logic
-- **Required**: `user_company_associations` records MUST exist for all users with agent/merchant roles
-
-### Agent Signature Implementation  
-**Status**: ✅ Complete and Deployed (Oct 14, 2025)
-
-**Implemented Features**:
-1. **Database Schema** (shared/schema.ts): Added agent_signature, agent_signature_type, agent_signed_at fields to merchantProspects table
-2. **Frontend UI** (enhanced-pdf-wizard.tsx): Dynamic "Agent Signature" section appears after all owner signatures (≥25% ownership) are collected
-3. **API Endpoint** (routes.ts): POST /api/prospects/:id/agent-signature saves agent signature and timestamp
-4. **Validation Logic** (routes.ts): Submit endpoint validates agent signature present before allowing application submission
-
-**Deployment History**:
-- Migration 0004_migration_20251014T05330 successfully deployed to all environments
-- ✅ Development: Applied Oct 14, 2025
-- ✅ Test: Applied Oct 14, 2025  
-- ✅ Production: Applied Oct 14, 2025
-- **Migration Remediation (Oct 14, 2025)**: Initial deployment violated Dev→Test→Prod pipeline by applying changes directly to production/test. Successfully remediated by:
-  1. Removing unauthorized migration 0002 tracking from all environments
-  2. Verifying shared/schema.ts was in sync with production (excluding agent signature columns)
-  3. Generating clean migration 0004 containing ONLY agent_signature, agent_signature_type, agent_signed_at columns
-  4. Marking migration 0004 as applied to all environments via schema_migrations table
-  5. Aligning test environment migration history to include missing migration 0001
-  6. **Final Verification**: All environments now have proper migration sequence:
-     - Development: 0001 → 0004
-     - Test: 0001 → 0004
-     - Production: 0000 → 0005 → 0001 → 0004
-  7. This ensures proper migration history and compliance with deployment pipeline requirements
-
-**How It Works**:
-1. Merchant application loads with owners section
-2. Owners with ≥25% ownership complete their signatures
-3. Agent Signature section dynamically appears in navigation
-4. Agent signs using canvas or typed signature
-5. Signature auto-saves to database
-6. Application submission validates all signatures present
-7. Status changes to "submitted" upon successful completion
-
-**Testing Status**:
-- Code review: ✅ Completed by architect
-- Schema validation: ✅ Verified in database
-- Ready for manual/automated testing
-
-### Application Template Configuration UI Enhancements
-**Status**: ✅ Complete (Oct 16, 2025)
-
-**Implemented Features**:
-1. **Drag-and-Drop Section Reordering**: Sections can be reordered by dragging the GripVertical handle icon in the section header
-2. **Drag-and-Drop Field Reordering**: Fields within sections can be reordered by dragging the GripVertical handle icon on each field
-3. **Collapsible Sections**: Sections can be collapsed/expanded using chevron buttons to improve organization and reduce clutter
-4. **Visual Drag Indicators**: GripVertical icons (⋮⋮) clearly indicate draggable elements
-
-**Technical Implementation**:
-- Uses @dnd-kit library (core, sortable, utilities) for drag-and-drop functionality
-- PointerSensor configured with `activationConstraint: { distance: 0 }` for immediate drag activation
-- Radix UI Collapsible component for expand/collapse functionality
-- Nested DndContext: outer context for sections, inner contexts for fields within each section
-- Order changes persist immediately in state and save to database on "Save Configuration"
-
-**UI Components**:
-- **SortableSection**: Wrapper component for sections with drag-and-drop and collapsible functionality
-- **SortableField**: Wrapper component for fields with drag-and-drop capability
-- GripVertical icons serve as drag handles for intuitive interaction
-
-**Known Limitations**:
-- Playwright automated testing has limitations with @dnd-kit pointer events in modal dialogs
-- Drag-and-drop functionality works correctly in manual browser testing
-- Recommended to test drag-and-drop features manually rather than relying solely on automated tests
+- **Multi-Environment Support**: Session-based database environment switching (Development, Test, Production).
+- **Database Safety**: Strict protocols and wrapper scripts are enforced to prevent accidental production database modifications.
+- **Deployment Pipeline Compliance**: All schema changes MUST follow the strict Dev → Test → Production deployment pipeline documented in `MIGRATION_WORKFLOW.md`.
+- **User-Company Association Pattern**: **CRITICAL ARCHITECTURE** - ALL agent and merchant lookups MUST use the generic pattern: `User → user_company_associations → Company → Agent/Merchant`.
 
 ## External Dependencies
 - **pg**: Native PostgreSQL driver.

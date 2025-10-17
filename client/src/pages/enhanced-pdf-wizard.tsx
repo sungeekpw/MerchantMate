@@ -455,7 +455,7 @@ export default function EnhancedPdfWizard() {
 
   // Navigation handlers that save form data before moving between sections
   const handleNext = () => {
-    const nextStep = Math.min(sections.length - 1, currentStep + 1);
+    const nextStep = Math.min(filteredSections.length - 1, currentStep + 1);
     
     console.log(`Navigating from step ${currentStep} to step ${nextStep}`);
     
@@ -921,6 +921,115 @@ export default function EnhancedPdfWizard() {
     ];
   }
 
+  // Function to evaluate if a field should be visible based on conditional rules
+  const shouldShowField = (fieldId: string): boolean => {
+    if (!isProspectMode || !prospectData?.applicationTemplate) {
+      return true; // Show all fields if no template
+    }
+
+    let finalVisibility = true;
+
+    // Check field-level conditional rules
+    const conditionalFields = prospectData.applicationTemplate.conditionalFields;
+    if (conditionalFields && conditionalFields[fieldId]) {
+      const fieldCondition = conditionalFields[fieldId];
+      const { action, when } = fieldCondition;
+      
+      if (when && when.field) {
+        const dependentFieldValue = formData[when.field];
+        let conditionMet = false;
+
+        // Evaluate the condition based on operator (handle both single values and arrays)
+        switch (when.operator) {
+          case 'equals':
+            if (Array.isArray(dependentFieldValue)) {
+              conditionMet = dependentFieldValue.includes(when.value);
+            } else {
+              conditionMet = dependentFieldValue === when.value;
+            }
+            break;
+          case 'not_equals':
+            if (Array.isArray(dependentFieldValue)) {
+              conditionMet = !dependentFieldValue.includes(when.value);
+            } else {
+              conditionMet = dependentFieldValue !== when.value;
+            }
+            break;
+          case 'contains':
+            if (Array.isArray(dependentFieldValue)) {
+              conditionMet = dependentFieldValue.some(val => String(val).includes(when.value));
+            } else {
+              conditionMet = dependentFieldValue && String(dependentFieldValue).includes(when.value);
+            }
+            break;
+          case 'is_checked':
+            // For boolean/checkbox fields
+            if (Array.isArray(dependentFieldValue)) {
+              conditionMet = dependentFieldValue.length > 0;
+            } else {
+              conditionMet = dependentFieldValue === true || dependentFieldValue === 'true' || dependentFieldValue === 'yes' || dependentFieldValue === 'Yes';
+            }
+            break;
+          case 'is_not_checked':
+            if (Array.isArray(dependentFieldValue)) {
+              conditionMet = dependentFieldValue.length === 0;
+            } else {
+              conditionMet = !dependentFieldValue || dependentFieldValue === false || dependentFieldValue === 'false' || dependentFieldValue === 'no' || dependentFieldValue === 'No';
+            }
+            break;
+          default:
+            conditionMet = false;
+        }
+
+        // Update visibility based on action and whether condition is met
+        if (action === 'show') {
+          finalVisibility = conditionMet; // Show only when condition is met
+        } else {
+          finalVisibility = !conditionMet; // Hide when condition is met
+        }
+      }
+    }
+
+    // Check option-level conditional rules from all fields
+    const fieldConfiguration = prospectData.applicationTemplate.fieldConfiguration;
+    if (fieldConfiguration?.sections) {
+      for (const section of fieldConfiguration.sections) {
+        for (const field of section.fields) {
+          // Check if this field has options with conditionals
+          if (field.options && Array.isArray(field.options)) {
+            for (const option of field.options) {
+              // Check if option has a conditional targeting our fieldId
+              if (option.conditional && option.conditional.targetField === fieldId) {
+                const selectedValue = formData[field.id];
+                // Handle both single values (radio, select) and arrays (checkbox)
+                const isOptionSelected = Array.isArray(selectedValue) 
+                  ? selectedValue.includes(option.value)
+                  : selectedValue === option.value;
+                
+                if (isOptionSelected) {
+                  // This option is selected and has a conditional for our field
+                  if (option.conditional.action === 'show') {
+                    finalVisibility = true;
+                  } else if (option.conditional.action === 'hide') {
+                    finalVisibility = false;
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+
+    return finalVisibility;
+  };
+
+  // Filter fields based on conditional visibility
+  const filteredSections = sections.map(section => ({
+    ...section,
+    fields: section.fields.filter(field => shouldShowField(field.fieldName))
+  }));
+
   // Add agent signature section if all owner signatures are collected
   if (isProspectMode) {
     const owners = formData.owners || [];
@@ -928,7 +1037,7 @@ export default function EnhancedPdfWizard() {
     const allOwnersSigned = ownersNeedingSignatures.length > 0 && ownersNeedingSignatures.every((owner: any) => owner.signature);
     
     if (allOwnersSigned) {
-      sections.push({
+      filteredSections.push({
         name: 'Agent Signature',
         description: 'Final approval signature from assigned agent',
         icon: Signature,
@@ -1190,7 +1299,7 @@ export default function EnhancedPdfWizard() {
     setFormData(newFormData);
 
     // Validate the field and update errors
-    const currentField = sections[currentStep]?.fields.find(f => f.fieldName === fieldName);
+    const currentField = filteredSections[currentStep]?.fields.find(f => f.fieldName === fieldName);
     if (currentField) {
       const error = validateField(currentField, value);
       setValidationErrors(prev => ({
@@ -2675,7 +2784,7 @@ export default function EnhancedPdfWizard() {
             <div className="text-right">
               <div className="text-xs font-medium text-gray-500 uppercase tracking-wide">Progress</div>
               <div className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-blue-700 bg-clip-text text-transparent">
-                {Math.round(((currentStep + 1) / sections.length) * 100)}%
+                {Math.round(((currentStep + 1) / filteredSections.length) * 100)}%
               </div>
             </div>
           </div>
@@ -2684,14 +2793,14 @@ export default function EnhancedPdfWizard() {
           <div className="mt-6">
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs font-medium text-gray-600">
-                Step {currentStep + 1} of {sections.length}
+                Step {currentStep + 1} of {filteredSections.length}
               </span>
               <span className="text-xs text-gray-500">
-                {sections[currentStep]?.name}
+                {filteredSections[currentStep]?.name}
               </span>
             </div>
             <Progress 
-              value={((currentStep + 1) / sections.length) * 100} 
+              value={((currentStep + 1) / filteredSections.length) * 100} 
               className="h-3 bg-gray-200"
             />
           </div>
@@ -2707,7 +2816,7 @@ export default function EnhancedPdfWizard() {
               <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6 h-fit sticky top-28">
                 <h3 className="text-lg font-semibold text-gray-900 mb-6">Application Sections</h3>
                 <nav className="space-y-3">
-                  {sections.map((section, index) => {
+                  {filteredSections.map((section, index) => {
                     const IconComponent = section.icon;
                     const isActive = currentStep === index;
                     const isCompleted = index < currentStep;
@@ -2816,13 +2925,13 @@ export default function EnhancedPdfWizard() {
                 <div className="bg-gradient-to-r from-blue-50 to-blue-100 px-8 py-6 border-b border-blue-200">
                   <div className="flex items-center space-x-4">
                     <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center shadow-sm">
-                      {React.createElement(sections[currentStep]?.icon || FileText, {
+                      {React.createElement(filteredSections[currentStep]?.icon || FileText, {
                         className: "w-6 h-6 text-blue-600"
                       })}
                     </div>
                     <div>
-                      <h2 className="text-xl font-bold text-blue-900">{sections[currentStep]?.name}</h2>
-                      <p className="text-blue-700 text-sm mt-1">{sections[currentStep]?.description}</p>
+                      <h2 className="text-xl font-bold text-blue-900">{filteredSections[currentStep]?.name}</h2>
+                      <p className="text-blue-700 text-sm mt-1">{filteredSections[currentStep]?.description}</p>
                     </div>
                   </div>
                 </div>
@@ -2830,7 +2939,7 @@ export default function EnhancedPdfWizard() {
                 {/* Form Fields */}
                 <div className="p-8">
                   <div className="space-y-6">
-                    {sections[currentStep]?.fields.map((field) => (
+                    {filteredSections[currentStep]?.fields.map((field) => (
                       <div key={field.id}>
                         {renderField(field)}
                       </div>
@@ -2853,7 +2962,7 @@ export default function EnhancedPdfWizard() {
                     </div>
                     
                     <div className="flex items-center space-x-4">
-                      {currentStep < sections.length - 1 ? (
+                      {currentStep < filteredSections.length - 1 ? (
                         <Button
                           onClick={handleNext}
                           className="flex items-center space-x-2 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800"
