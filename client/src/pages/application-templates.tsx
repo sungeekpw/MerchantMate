@@ -1800,53 +1800,151 @@ function FieldConfigurationDialog({
                           const optionValue = isStructured ? option.value : option.toLowerCase().replace(/\s+/g, '_');
                           const pdfFieldId = isStructured ? option.pdfFieldId : undefined;
                           
+                          const optionConditional = isStructured ? option.conditional : undefined;
+                          
                           return (
-                            <div key={index} className="grid grid-cols-2 gap-2 items-center p-2 bg-muted/50 rounded">
-                              <div>
-                                <label className="text-xs text-muted-foreground">Label</label>
-                                <Input
-                                  value={optionLabel}
-                                  onChange={(e) => {
-                                    const newOptions = [...editingField.options];
-                                    if (isStructured) {
-                                      newOptions[index] = { ...option, label: e.target.value };
-                                    } else {
-                                      newOptions[index] = e.target.value;
-                                    }
-                                    setEditingField({ ...editingField, options: newOptions });
-                                  }}
-                                  className="h-8"
-                                  data-testid={`input-option-label-${index}`}
-                                />
-                              </div>
-                              <div>
-                                <label className="text-xs text-muted-foreground">Value</label>
-                                <Input
-                                  value={optionValue}
-                                  onChange={(e) => {
-                                    const newOptions = [...editingField.options];
-                                    if (isStructured) {
-                                      newOptions[index] = { ...option, value: e.target.value };
-                                    } else {
-                                      newOptions[index] = e.target.value;
-                                    }
-                                    setEditingField({ ...editingField, options: newOptions });
-                                  }}
-                                  className="h-8"
-                                  data-testid={`input-option-value-${index}`}
-                                />
-                              </div>
-                              {pdfFieldId && (
-                                <div className="col-span-2">
-                                  <label className="text-xs text-muted-foreground">PDF Field ID (read-only)</label>
+                            <div key={index} className="p-3 bg-muted/50 rounded border border-border">
+                              <div className="grid grid-cols-2 gap-2 items-center mb-2">
+                                <div>
+                                  <label className="text-xs text-muted-foreground">Label</label>
                                   <Input
-                                    value={pdfFieldId}
-                                    disabled
-                                    className="h-7 text-xs bg-muted"
-                                    title="PDF field binding - cannot be modified"
+                                    value={optionLabel}
+                                    onChange={(e) => {
+                                      const newOptions = [...editingField.options];
+                                      if (isStructured) {
+                                        newOptions[index] = { ...option, label: e.target.value };
+                                      } else {
+                                        newOptions[index] = e.target.value;
+                                      }
+                                      setEditingField({ ...editingField, options: newOptions });
+                                    }}
+                                    className="h-8"
+                                    data-testid={`input-option-label-${index}`}
                                   />
                                 </div>
-                              )}
+                                <div>
+                                  <label className="text-xs text-muted-foreground">Value</label>
+                                  <Input
+                                    value={optionValue}
+                                    onChange={(e) => {
+                                      const newOptions = [...editingField.options];
+                                      if (isStructured) {
+                                        newOptions[index] = { ...option, value: e.target.value };
+                                      } else {
+                                        newOptions[index] = e.target.value;
+                                      }
+                                      setEditingField({ ...editingField, options: newOptions });
+                                    }}
+                                    className="h-8"
+                                    data-testid={`input-option-value-${index}`}
+                                  />
+                                </div>
+                                {pdfFieldId && (
+                                  <div className="col-span-2">
+                                    <label className="text-xs text-muted-foreground">PDF Field ID (read-only)</label>
+                                    <Input
+                                      value={pdfFieldId}
+                                      disabled
+                                      className="h-7 text-xs bg-muted"
+                                      title="PDF field binding - cannot be modified"
+                                    />
+                                  </div>
+                                )}
+                              </div>
+                              
+                              {/* Per-option conditional trigger */}
+                              <div className="mt-2 pt-2 border-t border-border/50">
+                                <div className="flex items-center gap-2 mb-2">
+                                  <Switch
+                                    checked={!!optionConditional}
+                                    onCheckedChange={(checked) => {
+                                      const newOptions = [...editingField.options];
+                                      if (checked) {
+                                        newOptions[index] = {
+                                          ...option,
+                                          conditional: {
+                                            action: 'show',
+                                            targetField: '',
+                                          }
+                                        };
+                                      } else {
+                                        const { conditional, ...rest } = option;
+                                        newOptions[index] = rest;
+                                      }
+                                      setEditingField({ ...editingField, options: newOptions });
+                                    }}
+                                    data-testid={`switch-option-conditional-${index}`}
+                                  />
+                                  <span className="text-xs text-muted-foreground">Trigger field when selected</span>
+                                </div>
+                                
+                                {optionConditional && (
+                                  <div className="ml-6 space-y-2 p-2 bg-background rounded">
+                                    <div className="grid grid-cols-2 gap-2">
+                                      <div>
+                                        <label className="text-xs text-muted-foreground">Action</label>
+                                        <Select
+                                          value={optionConditional.action}
+                                          onValueChange={(value) => {
+                                            const newOptions = [...editingField.options];
+                                            newOptions[index] = {
+                                              ...option,
+                                              conditional: { ...optionConditional, action: value }
+                                            };
+                                            setEditingField({ ...editingField, options: newOptions });
+                                          }}
+                                        >
+                                          <SelectTrigger className="h-7 text-xs">
+                                            <SelectValue />
+                                          </SelectTrigger>
+                                          <SelectContent>
+                                            <SelectItem value="show">Show</SelectItem>
+                                            <SelectItem value="hide">Hide</SelectItem>
+                                          </SelectContent>
+                                        </Select>
+                                      </div>
+                                      <div>
+                                        <label className="text-xs text-muted-foreground">Target Field</label>
+                                        <Select
+                                          value={optionConditional.targetField || ''}
+                                          onValueChange={(value) => {
+                                            const newOptions = [...editingField.options];
+                                            newOptions[index] = {
+                                              ...option,
+                                              conditional: { ...optionConditional, targetField: value }
+                                            };
+                                            setEditingField({ ...editingField, options: newOptions });
+                                          }}
+                                        >
+                                          <SelectTrigger className="h-7 text-xs">
+                                            <SelectValue placeholder="Select field" />
+                                          </SelectTrigger>
+                                          <SelectContent>
+                                            {sections.flatMap((s: any) => 
+                                              s.fields
+                                                .filter((f: any) => f.id !== editingField.id)
+                                                .map((f: any) => (
+                                                  <SelectItem key={f.id} value={f.id}>
+                                                    {f.label} ({s.title})
+                                                  </SelectItem>
+                                                ))
+                                            )}
+                                          </SelectContent>
+                                        </Select>
+                                      </div>
+                                    </div>
+                                    <div className="text-xs text-muted-foreground bg-muted/50 p-1 rounded">
+                                      {optionConditional.action === 'show' ? 'Show' : 'Hide'}{' '}
+                                      <strong>
+                                        {optionConditional.targetField ? 
+                                          sections.flatMap((s: any) => s.fields).find((f: any) => f.id === optionConditional.targetField)?.label || optionConditional.targetField
+                                          : '(select field)'}
+                                      </strong>{' '}
+                                      when this option is selected
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
                             </div>
                           );
                         })
