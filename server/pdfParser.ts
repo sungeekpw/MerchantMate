@@ -4,15 +4,28 @@ import { PDFDocument, PDFTextField, PDFDropdown, PDFCheckBox, PDFRadioGroup, PDF
 
 interface ParsedFormField {
   fieldName: string;
-  fieldType: 'text' | 'number' | 'date' | 'select' | 'checkbox' | 'textarea' | 'phone' | 'email' | 'url' | 'mcc-select' | 'zipcode' | 'ein';
+  fieldType: 'text' | 'number' | 'date' | 'select' | 'checkbox' | 'textarea' | 'phone' | 'email' | 'url' | 'mcc-select' | 'zipcode' | 'ein' | 'radio' | 'boolean';
   fieldLabel: string;
   isRequired: boolean;
-  options?: string[];
+  options?: Array<{
+    label: string;
+    value: string;
+    pdfFieldId: string;
+  }>;
   defaultValue?: string;
   validation?: string;
   position: number;
   section?: string;
-  pdfFieldId?: string; // The immutable PDF field identifier (XFA/AcroForm name)
+  pdfFieldId?: string; // The immutable PDF field identifier (for simple fields)
+  pdfFieldIds?: string[]; // Array of PDF field IDs (for grouped fields like radio buttons)
+}
+
+interface FieldNameParts {
+  section: string;
+  fieldName: string;
+  optionType: string | null;
+  optionValue: string | null;
+  isStructured: boolean; // Whether it follows the convention
 }
 
 interface ParsedFormSection {
@@ -22,6 +35,78 @@ interface ParsedFormSection {
 }
 
 export class PDFFormParser {
+  /**
+   * Convert legacy string[] options to new structured format
+   */
+  private convertOptionsToStructured(options: string[] | undefined, fieldName: string): ParsedFormField['options'] {
+    if (!options || options.length === 0) return undefined;
+    
+    return options.map(opt => ({
+      label: opt,
+      value: opt.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, ''),
+      pdfFieldId: `${fieldName}_${opt.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '')}`
+    }));
+  }
+
+  /**
+   * Parse field name according to convention: section_fieldname_optiontype_optionvalue
+   * Examples:
+   * - merchant_business_entity_radio_partnership
+   * - merchant_company_email_text
+   * - agent_name_text
+   */
+  private parseFieldName(fieldName: string): FieldNameParts {
+    const parts = fieldName.split('_');
+    
+    // Need at least section_fieldname for structured fields
+    if (parts.length < 2) {
+      return {
+        section: 'general',
+        fieldName: fieldName,
+        optionType: null,
+        optionValue: null,
+        isStructured: false
+      };
+    }
+    
+    // Check if this follows our convention
+    // Look for known option types: radio, checkbox, select, boolean, text
+    const knownTypes = ['radio', 'checkbox', 'select', 'boolean', 'text', 'textarea', 'email', 'phone', 'zipcode', 'ein'];
+    let optionTypeIndex = -1;
+    
+    for (let i = 0; i < parts.length; i++) {
+      if (knownTypes.includes(parts[i])) {
+        optionTypeIndex = i;
+        break;
+      }
+    }
+    
+    if (optionTypeIndex > 0) {
+      // Structured field: section_fieldname_optiontype_optionvalue
+      const section = parts[0];
+      const fieldName = parts.slice(1, optionTypeIndex).join('_');
+      const optionType = parts[optionTypeIndex];
+      const optionValue = optionTypeIndex + 1 < parts.length ? parts.slice(optionTypeIndex + 1).join('_') : null;
+      
+      return {
+        section,
+        fieldName,
+        optionType,
+        optionValue,
+        isStructured: true
+      };
+    } else {
+      // Legacy format: just section_fieldname
+      return {
+        section: parts[0],
+        fieldName: parts.slice(1).join('_'),
+        optionType: null,
+        optionValue: null,
+        isStructured: false
+      };
+    }
+  }
+
   async parsePDF(buffer: Buffer): Promise<{
     sections: ParsedFormSection[];
     totalFields: number;
@@ -41,62 +126,103 @@ export class PDFFormParser {
         return { sections, totalFields };
       }
       
-      // Extract fields from the PDF
-      const parsedFields: ParsedFormField[] = [];
+      // Group fields by their base name (section_fieldname_optiontype)
+      const fieldGroups = new Map<string, Array<{
+        pdfFieldId: string;
+        parsedName: FieldNameParts;
+        pdfField: any;
+        position: number;
+      }>>();
       
       fields.forEach((field, index) => {
-        const fieldName = field.getName();
-        const pdfFieldId = fieldName; // Store the original PDF field name as the immutable ID
+        const pdfFieldId = field.getName();
+        const parsedName = this.parseFieldName(pdfFieldId);
         
-        // Determine field type and extract metadata
-        let fieldType: ParsedFormField['fieldType'] = 'text';
-        let options: string[] | undefined = undefined;
-        let defaultValue: string | undefined = undefined;
+        // Create a group key based on section, fieldname, and optiontype
+        const groupKey = parsedName.optionType 
+          ? `${parsedName.section}_${parsedName.fieldName}_${parsedName.optionType}`
+          : `${parsedName.section}_${parsedName.fieldName}`;
         
-        if (field instanceof PDFTextField) {
-          const textField = field as PDFTextField;
-          fieldType = textField.isMultiline() ? 'textarea' : 'text';
-          defaultValue = textField.getText() || undefined;
-        } else if (field instanceof PDFDropdown) {
-          const dropdown = field as PDFDropdown;
-          fieldType = 'select';
-          options = dropdown.getOptions();
-          const selected = dropdown.getSelected();
-          if (selected && selected.length > 0) {
-            defaultValue = selected[0];
-          }
-        } else if (field instanceof PDFCheckBox) {
-          fieldType = 'checkbox';
-          const checkbox = field as PDFCheckBox;
-          defaultValue = checkbox.isChecked() ? 'true' : 'false';
-        } else if (field instanceof PDFRadioGroup) {
-          const radioGroup = field as PDFRadioGroup;
-          fieldType = 'select';
-          options = radioGroup.getOptions();
-          defaultValue = radioGroup.getSelected() || undefined;
+        if (!fieldGroups.has(groupKey)) {
+          fieldGroups.set(groupKey, []);
         }
         
-        // Generate a friendly field label from the field name
-        const fieldLabel = this.generateFieldLabel(fieldName);
-        
-        // Determine if field is required (pdf-lib doesn't always expose this, default to false)
-        const isRequired = false; // Can be configured later in the UI
-        
-        parsedFields.push({
-          fieldName,
-          pdfFieldId, // Store the immutable PDF field ID
-          fieldType,
-          fieldLabel,
-          isRequired,
-          options,
-          defaultValue,
+        fieldGroups.get(groupKey)!.push({
+          pdfFieldId,
+          parsedName,
+          pdfField: field,
           position: index + 1
         });
       });
       
-      // Group fields into sections based on naming patterns or use a single section
+      // Convert field groups to ParsedFormField objects
+      const parsedFields: ParsedFormField[] = [];
+      
+      fieldGroups.forEach((group, groupKey) => {
+        const first = group[0];
+        const parsedName = first.parsedName;
+        
+        // Determine if this is a grouped field (radio, checkbox group, etc.)
+        if (parsedName.isStructured && group.length > 1 && parsedName.optionType) {
+          // Grouped field with options
+          const options = group.map(item => ({
+            label: this.generateFieldLabel(item.parsedName.optionValue || ''),
+            value: item.parsedName.optionValue || '',
+            pdfFieldId: item.pdfFieldId
+          }));
+          
+          parsedFields.push({
+            fieldName: `${parsedName.section}_${parsedName.fieldName}`,
+            fieldType: parsedName.optionType as ParsedFormField['fieldType'],
+            fieldLabel: this.generateFieldLabel(parsedName.fieldName),
+            isRequired: false,
+            options,
+            pdfFieldIds: group.map(item => item.pdfFieldId),
+            position: first.position,
+            section: parsedName.section
+          });
+        } else {
+          // Simple field or single option
+          let fieldType: ParsedFormField['fieldType'] = 'text';
+          let defaultValue: string | undefined = undefined;
+          
+          // Detect type from PDF field or from naming convention
+          if (parsedName.isStructured && parsedName.optionType) {
+            fieldType = parsedName.optionType as ParsedFormField['fieldType'];
+          } else if (first.pdfField instanceof PDFTextField) {
+            const textField = first.pdfField as PDFTextField;
+            fieldType = textField.isMultiline() ? 'textarea' : 'text';
+            defaultValue = textField.getText() || undefined;
+            
+            // Enhanced type detection for text fields
+            const fieldNameLower = parsedName.fieldName.toLowerCase();
+            if (fieldNameLower.includes('email')) fieldType = 'email';
+            else if (fieldNameLower.includes('phone')) fieldType = 'phone';
+            else if (fieldNameLower.includes('zip') || fieldNameLower.includes('postal')) fieldType = 'zipcode';
+            else if (fieldNameLower.includes('taxid') || fieldNameLower.includes('ein')) fieldType = 'ein';
+          } else if (first.pdfField instanceof PDFCheckBox) {
+            fieldType = 'checkbox';
+            defaultValue = (first.pdfField as PDFCheckBox).isChecked() ? 'true' : 'false';
+          }
+          
+          parsedFields.push({
+            fieldName: `${parsedName.section}_${parsedName.fieldName}`,
+            fieldType,
+            fieldLabel: this.generateFieldLabel(parsedName.fieldName),
+            isRequired: false,
+            pdfFieldId: first.pdfFieldId,
+            defaultValue,
+            position: first.position,
+            section: parsedName.section
+          });
+        }
+      });
+      
+      // Group fields into sections
       const sections = this.groupFieldsIntoSections(parsedFields);
       const totalFields = parsedFields.length;
+      
+      console.log(`Created ${totalFields} logical fields from ${fields.length} PDF fields`);
       
       return {
         sections,
@@ -187,7 +313,7 @@ export class PDFFormParser {
     // Use the enhanced Wells Fargo form structure
     const enhancedSections = getWellsFargoMPAForm();
     
-    // Convert enhanced sections to ParsedFormSection format
+    // Convert enhanced sections to ParsedFormSection format with new options structure
     return enhancedSections.map(section => ({
       title: section.title,
       order: section.order,
@@ -196,7 +322,12 @@ export class PDFFormParser {
         fieldType: field.fieldType,
         fieldLabel: field.fieldLabel,
         isRequired: field.isRequired,
-        options: field.options,
+        // Convert old string[] options to new structured format
+        options: field.options ? field.options.map(opt => ({
+          label: opt,
+          value: opt.toLowerCase().replace(/\s+/g, '_'),
+          pdfFieldId: `${field.fieldName}_${opt.toLowerCase().replace(/\s+/g, '_')}`
+        })) : undefined,
         defaultValue: field.defaultValue,
         validation: field.validation,
         position: field.position,
@@ -206,7 +337,8 @@ export class PDFFormParser {
   }
 
   private parseWellsFargoMPALegacy(text: string): ParsedFormSection[] {
-    const sections: ParsedFormSection[] = [
+    // Define fields with legacy string[] options format for simplicity
+    const legacySections: any[] = [
       {
         title: "Merchant Information",
         order: 1,
@@ -568,7 +700,15 @@ export class PDFFormParser {
       }
     ];
 
-    return sections;
+    // Convert legacy sections to new ParsedFormSection format with structured options
+    return legacySections.map(section => ({
+      title: section.title,
+      order: section.order,
+      fields: section.fields.map((field: any) => ({
+        ...field,
+        options: this.convertOptionsToStructured(field.options, field.fieldName)
+      }))
+    }));
   }
 
   convertToDbFields(sections: ParsedFormSection[], formId: number): Omit<PdfFormField, 'id' | 'createdAt'>[] {
@@ -576,18 +716,23 @@ export class PDFFormParser {
     
     sections.forEach(section => {
       section.fields.forEach(field => {
+        // Convert structured options back to string[] for database storage
+        const optionsArray = field.options 
+          ? field.options.map(opt => opt.label)
+          : null;
+        
         fields.push({
           formId,
           fieldName: field.fieldName,
           fieldType: field.fieldType,
           fieldLabel: field.fieldLabel,
           isRequired: field.isRequired,
-          options: field.options || null,
+          options: optionsArray,
           defaultValue: field.defaultValue || null,
           validation: field.validation || null,
           position: field.position,
           section: field.section || section.title, // Use field's section or default to section title
-          pdfFieldId: field.pdfFieldId || null // Store the immutable PDF field ID for binding
+          pdfFieldId: field.pdfFieldId || (field.pdfFieldIds && field.pdfFieldIds.length > 0 ? JSON.stringify(field.pdfFieldIds) : null) // Store single pdfFieldId or array as JSON
         });
       });
     });
