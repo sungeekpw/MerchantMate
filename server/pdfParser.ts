@@ -196,7 +196,8 @@ export class PDFFormParser {
             
             // Enhanced type detection for text fields
             const fieldNameLower = parsedName.fieldName.toLowerCase();
-            if (fieldNameLower.includes('email')) fieldType = 'email';
+            if (fieldNameLower.includes('date')) fieldType = 'date';
+            else if (fieldNameLower.includes('email')) fieldType = 'email';
             else if (fieldNameLower.includes('phone')) fieldType = 'phone';
             else if (fieldNameLower.includes('zip') || fieldNameLower.includes('postal')) fieldType = 'zipcode';
             else if (fieldNameLower.includes('taxid') || fieldNameLower.includes('ein')) fieldType = 'ein';
