@@ -1626,18 +1626,75 @@ function FieldConfigurationDialog({
                   />
                 </div>
 
-                {editingField.type === 'select' && (
+                {/* Show options for select, radio, checkbox, boolean fields */}
+                {(editingField.type === 'select' || editingField.type === 'radio' || editingField.type === 'checkbox' || editingField.type === 'boolean') && (
                   <div>
-                    <label className="text-sm font-medium">Options (one per line)</label>
-                    <Textarea
-                      value={(editingField.options || []).join('\n')}
-                      onChange={(e) => setEditingField({
-                        ...editingField,
-                        options: e.target.value.split('\n').filter(opt => opt.trim())
-                      })}
-                      placeholder="Option 1&#10;Option 2&#10;Option 3"
-                      data-testid="textarea-edit-field-options"
-                    />
+                    <label className="text-sm font-medium mb-2 block">Options</label>
+                    <div className="space-y-2 max-h-60 overflow-y-auto border rounded-md p-3">
+                      {editingField.options && Array.isArray(editingField.options) && editingField.options.length > 0 ? (
+                        editingField.options.map((option: any, index: number) => {
+                          // Check if option is structured (object) or simple (string)
+                          const isStructured = typeof option === 'object' && option !== null;
+                          const optionLabel = isStructured ? option.label : option;
+                          const optionValue = isStructured ? option.value : option.toLowerCase().replace(/\s+/g, '_');
+                          const pdfFieldId = isStructured ? option.pdfFieldId : undefined;
+                          
+                          return (
+                            <div key={index} className="grid grid-cols-2 gap-2 items-center p-2 bg-muted/50 rounded">
+                              <div>
+                                <label className="text-xs text-muted-foreground">Label</label>
+                                <Input
+                                  value={optionLabel}
+                                  onChange={(e) => {
+                                    const newOptions = [...editingField.options];
+                                    if (isStructured) {
+                                      newOptions[index] = { ...option, label: e.target.value };
+                                    } else {
+                                      newOptions[index] = e.target.value;
+                                    }
+                                    setEditingField({ ...editingField, options: newOptions });
+                                  }}
+                                  className="h-8"
+                                  data-testid={`input-option-label-${index}`}
+                                />
+                              </div>
+                              <div>
+                                <label className="text-xs text-muted-foreground">Value</label>
+                                <Input
+                                  value={optionValue}
+                                  onChange={(e) => {
+                                    const newOptions = [...editingField.options];
+                                    if (isStructured) {
+                                      newOptions[index] = { ...option, value: e.target.value };
+                                    } else {
+                                      newOptions[index] = e.target.value;
+                                    }
+                                    setEditingField({ ...editingField, options: newOptions });
+                                  }}
+                                  className="h-8"
+                                  data-testid={`input-option-value-${index}`}
+                                />
+                              </div>
+                              {pdfFieldId && (
+                                <div className="col-span-2">
+                                  <label className="text-xs text-muted-foreground">PDF Field ID (read-only)</label>
+                                  <Input
+                                    value={pdfFieldId}
+                                    disabled
+                                    className="h-7 text-xs bg-muted"
+                                    title="PDF field binding - cannot be modified"
+                                  />
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })
+                      ) : (
+                        <p className="text-sm text-muted-foreground text-center py-2">
+                          No options defined
+                        </p>
+                      )}
+                    </div>
                   </div>
                 )}
               </div>
