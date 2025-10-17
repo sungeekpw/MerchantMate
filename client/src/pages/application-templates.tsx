@@ -1856,6 +1856,30 @@ function FieldConfigurationDialog({
                         </p>
                       )}
                     </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        const currentOptions = editingField.options || [];
+                        // Always use structured format for consistency
+                        const isStructured = currentOptions.length === 0 || typeof currentOptions[0] === 'object';
+                        const newOptions = [...currentOptions];
+                        
+                        if (isStructured) {
+                          newOptions.push({ label: '', value: '', pdfFieldId: '' });
+                        } else {
+                          // Convert old string format to structured format
+                          newOptions.push('');
+                        }
+                        setEditingField({ ...editingField, options: newOptions });
+                      }}
+                      className="mt-2"
+                      data-testid="button-add-option"
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Add Option
+                    </Button>
                   </div>
                 )}
               </div>
