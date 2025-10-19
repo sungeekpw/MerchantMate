@@ -4,7 +4,7 @@ import { PDFDocument, PDFTextField, PDFDropdown, PDFCheckBox, PDFRadioGroup, PDF
 
 interface ParsedFormField {
   fieldName: string;
-  fieldType: 'text' | 'number' | 'date' | 'select' | 'checkbox' | 'textarea' | 'phone' | 'email' | 'url' | 'mcc-select' | 'zipcode' | 'ein' | 'radio' | 'boolean';
+  fieldType: 'text' | 'number' | 'date' | 'select' | 'checkbox' | 'textarea' | 'phone' | 'email' | 'url' | 'mcc-select' | 'zipcode' | 'ein' | 'radio' | 'boolean' | 'address';
   fieldLabel: string;
   isRequired: boolean;
   options?: Array<{
@@ -71,7 +71,7 @@ export class PDFFormParser {
     
     // Check if this follows our convention
     // Look for known option types: radio, checkbox, select, bool, boolean, text
-    const knownTypes = ['radio', 'checkbox', 'select', 'bool', 'boolean', 'text', 'textarea', 'email', 'phone', 'zipcode', 'ein', 'date'];
+    const knownTypes = ['radio', 'checkbox', 'select', 'bool', 'boolean', 'text', 'textarea', 'email', 'phone', 'zipcode', 'ein', 'date', 'address'];
     let optionTypeIndex = -1;
     
     for (let i = 0; i < parts.length; i++) {
@@ -211,6 +211,7 @@ export class PDFFormParser {
             else if (fieldNameLower.includes('phone')) fieldType = 'phone';
             else if (fieldNameLower.includes('zip') || fieldNameLower.includes('postal')) fieldType = 'zipcode';
             else if (fieldNameLower.includes('taxid') || fieldNameLower.includes('ein')) fieldType = 'ein';
+            else if (fieldNameLower.includes('address') || fieldNameLower.includes('street')) fieldType = 'address';
           } else if (first.pdfField instanceof PDFCheckBox) {
             fieldType = 'checkbox';
             defaultValue = (first.pdfField as PDFCheckBox).isChecked() ? 'true' : 'false';
