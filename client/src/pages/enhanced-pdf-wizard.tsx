@@ -2737,18 +2737,53 @@ export default function EnhancedPdfWizard() {
               value={value}
               onChange={(value) => handleFieldChange(field.fieldName, value)}
               onAddressSelect={(address) => {
-                // If there are corresponding city, state, zipCode fields in formData, populate them
-                const cityField = formData.hasOwnProperty('city');
-                const stateField = formData.hasOwnProperty('state');
-                const zipCodeField = formData.hasOwnProperty('zipCode');
+                // Try to find related city, state, zipCode fields based on naming patterns
+                // Examples: businessAddress -> businessCity, businessState, businessZipCode
+                //           mailingAddress -> mailingCity, mailingState, mailingZipCode
+                //           address -> city, state, zipCode (fallback)
                 
-                if (cityField) handleFieldChange('city', address.city);
-                if (stateField) handleFieldChange('state', address.state);
-                if (zipCodeField) handleFieldChange('zipCode', address.zipCode);
+                const baseFieldName = field.fieldName
+                  .replace(/address/i, '')
+                  .replace(/street/i, '')
+                  .replace(/Address/g, '')
+                  .replace(/Street/g, '');
+                
+                // Generate possible field name variations
+                const possibleCityFields = [
+                  `${baseFieldName}city`,
+                  `${baseFieldName}City`,
+                  'city'
+                ];
+                const possibleStateFields = [
+                  `${baseFieldName}state`,
+                  `${baseFieldName}State`,
+                  'state'
+                ];
+                const possibleZipFields = [
+                  `${baseFieldName}zipCode`,
+                  `${baseFieldName}ZipCode`,
+                  `${baseFieldName}zip`,
+                  `${baseFieldName}Zip`,
+                  `${baseFieldName}postalCode`,
+                  `${baseFieldName}PostalCode`,
+                  'zipCode',
+                  'zip',
+                  'postalCode'
+                ];
+                
+                // Find and populate matching fields
+                const cityField = possibleCityFields.find(f => formData.hasOwnProperty(f));
+                const stateField = possibleStateFields.find(f => formData.hasOwnProperty(f));
+                const zipField = possibleZipFields.find(f => formData.hasOwnProperty(f));
+                
+                if (cityField) handleFieldChange(cityField, address.city);
+                if (stateField) handleFieldChange(stateField, address.state);
+                if (zipField) handleFieldChange(zipField, address.zipCode);
               }}
               placeholder="Start typing an address..."
               dataTestId={`input-${field.fieldName}`}
               className={hasError ? 'border-red-500' : ''}
+              showExpandedFields={false}
             />
             {hasError && <p className="text-xs text-red-500">{hasError}</p>}
           </div>
