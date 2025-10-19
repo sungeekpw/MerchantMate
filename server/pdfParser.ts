@@ -216,7 +216,7 @@ export class PDFFormParser {
             else if (fieldNameLower.includes('taxid') || fieldNameLower.includes('ein')) fieldType = 'ein';
             else if (fieldNameLower.includes('address') || fieldNameLower.includes('street')) {
               fieldType = 'address';
-              console.log(`✅ Detected address field: ${pdfFieldId} → fieldName: ${parsedName.fieldName} → type: address`);
+              console.log(`✅ Detected address field: ${first.pdfFieldId} → fieldName: ${parsedName.fieldName} → type: address`);
             }
           } else if (first.pdfField instanceof PDFCheckBox) {
             fieldType = 'checkbox';
