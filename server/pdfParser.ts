@@ -162,6 +162,8 @@ export class PDFFormParser {
         const first = group[0];
         const parsedName = first.parsedName;
         
+        console.log(`📋 Processing field: ${first.pdfFieldId} | section: ${parsedName.section} | fieldName: ${parsedName.fieldName} | optionType: ${parsedName.optionType} | isStructured: ${parsedName.isStructured}`);
+        
         // Determine if this is a grouped field (radio, checkbox group, etc.)
         if (parsedName.isStructured && group.length > 1 && parsedName.optionType) {
           // Grouped field with options
@@ -195,6 +197,7 @@ export class PDFFormParser {
           // Detect type from PDF field or from naming convention
           if (parsedName.isStructured && parsedName.optionType) {
             fieldType = parsedName.optionType as ParsedFormField['fieldType'];
+            console.log(`  → Using structured type from naming convention: ${parsedName.optionType} → ${fieldType}`);
             // Normalize 'bool' to 'boolean' field type
             if (parsedName.optionType === 'bool') {
               fieldType = 'boolean';
