@@ -28,10 +28,10 @@ Preferred communication style: Simple, everyday language.
 - **Merchant & Agent Management**: Comprehensive profiles, assignment, status tracking, and fee management.
 - **Location Management**: Polymorphic locations with geolocation and operating hours.
 - **Transaction Processing**: Tracking, commission calculations, and revenue analytics.
-- **Form Management System**: PDF upload/parsing, dynamic field generation, public access, and conditional field visibility.
+- **Form Management System**: PDF upload/parsing, dynamic field generation, public access, and conditional field visibility with both field-level and option-level triggers supporting real-time evaluation.
 - **Dashboard System**: Personalized, widget-based dashboards with real-time analytics.
 - **Digital Signature**: Inline canvas-based and typed signature functionality with email request workflows, including an agent signature workflow.
-- **Address Validation**: Google Maps Geocoding and Places Autocomplete integration.
+- **Address Validation & Autocomplete**: Google Maps Geocoding and Places Autocomplete integration with smart field detection - automatically populates related city, state, and zip code fields for multiple addresses (business, mailing, etc.).
 - **Campaign Management**: Full CRUD for campaigns, pricing types, fee groups, and equipment associations.
 - **SOC2 Compliance Features**: Comprehensive audit trail system with logging, security events, and login attempt tracking.
 - **Generic Trigger/Action Catalog System**: Extensible event-driven action system supporting multi-channel notifications and action chaining with a unified `action_templates` architecture.
