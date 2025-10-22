@@ -3088,6 +3088,16 @@ export default function EnhancedPdfWizard() {
                     ))}
                   </div>
 
+                  {/* Required Field Legend */}
+                  {filteredSections[currentStep]?.fields.some(f => f.isRequired) && (
+                    <div className="mt-6 pt-4 border-t border-gray-100">
+                      <p className="text-sm text-gray-500 flex items-center">
+                        <span className="text-red-500 font-bold mr-1">*</span>
+                        <span>indicates required field</span>
+                      </p>
+                    </div>
+                  )}
+
                   {/* Navigation Buttons */}
                   <div className="flex items-center justify-between mt-12 pt-8 border-t border-gray-200">
                     <div>
