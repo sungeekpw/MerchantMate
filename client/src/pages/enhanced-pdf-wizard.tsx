@@ -1106,12 +1106,16 @@ export default function EnhancedPdfWizard() {
     }
   };
 
+  // Track current address field being edited for smart field population
+  const [currentAddressField, setCurrentAddressField] = useState<string | null>(null);
+
   // Select address suggestion and validate
   const selectAddressSuggestion = async (suggestion: any) => {
     const mainText = suggestion.structured_formatting?.main_text || suggestion.description.split(',')[0];
     
     console.log('Selecting address suggestion:', suggestion);
     console.log('Previous form data before selection:', formData);
+    console.log('Current address field being edited:', currentAddressField);
     
     // Hide suggestions immediately
     setShowSuggestions(false);
@@ -1119,6 +1123,23 @@ export default function EnhancedPdfWizard() {
     
     // Set addressOverrideActive to prevent browser cache interference
     setAddressOverrideActive(true);
+    
+    // Determine field prefix from the current address field being edited
+    // If currentAddressField is not set, try to find it from the current section's fields
+    let addressFieldName = currentAddressField;
+    if (!addressFieldName) {
+      const currentFields = filteredSections[currentStep]?.fields || [];
+      const addressField = currentFields.find(f => f.fieldName.endsWith('Address'));
+      addressFieldName = addressField?.fieldName || 'address';
+      console.log('Fallback: detected address field from current section:', addressFieldName);
+    }
+    
+    // Extract prefix: e.g., "merchant_businessAddress" -> "merchant_business"
+    const match = addressFieldName.match(/^(.+?)Address$/);
+    const fieldPrefix = match ? match[1] : '';
+    
+    console.log('Detected address field:', addressFieldName);
+    console.log('Detected field prefix:', fieldPrefix);
     
     // Validate the address with Google Maps API for complete information
     try {
@@ -1144,32 +1165,47 @@ export default function EnhancedPdfWizard() {
             zipCode: result.zipCode
           });
           
+          // Construct field names based on the detected prefix
+          const addressFieldName = fieldPrefix ? `${fieldPrefix}Address` : 'address';
+          const cityFieldName = fieldPrefix ? `${fieldPrefix}City` : 'city';
+          const stateFieldName = fieldPrefix ? `${fieldPrefix}State` : 'state';
+          const zipCodeFieldName = fieldPrefix ? `${fieldPrefix}ZipCode` : 'zipCode';
+          
+          console.log('Populating fields:', {
+            address: addressFieldName,
+            city: cityFieldName,
+            state: stateFieldName,
+            zipCode: zipCodeFieldName
+          });
+          
+          console.log('API Result values:', {
+            streetAddress: result.streetAddress,
+            city: result.city,
+            state: result.state,
+            zipCode: result.zipCode
+          });
+          
           // Create final validated address data - this OVERWRITES any previous data
           const overwrittenFormData = {
             ...formData,  // Keep all existing form data
-            address: result.streetAddress || mainText,  // OVERWRITE address
-            city: result.city || '',                    // OVERWRITE city
-            state: result.state || '',                  // OVERWRITE state
-            zipCode: result.zipCode || ''               // OVERWRITE zipCode
+            [addressFieldName]: result.streetAddress || mainText,  // OVERWRITE address
+            [cityFieldName]: result.city || '',                     // OVERWRITE city
+            [stateFieldName]: result.state || '',                   // OVERWRITE state
+            [zipCodeFieldName]: result.zipCode || ''                // OVERWRITE zipCode
           };
           
-          console.log('OVERWRITING previous address data with selection:', {
-            previous: {
-              address: formData.address,
-              city: formData.city,
-              state: formData.state,
-              zipCode: formData.zipCode
-            },
-            new: {
-              address: overwrittenFormData.address,
-              city: overwrittenFormData.city,
-              state: overwrittenFormData.state,
-              zipCode: overwrittenFormData.zipCode
-            }
+          console.log('Form Data BEFORE update:', formData);
+          console.log('Form Data AFTER construction:', overwrittenFormData);
+          console.log('New field values being set:', {
+            [addressFieldName]: overwrittenFormData[addressFieldName],
+            [cityFieldName]: overwrittenFormData[cityFieldName],
+            [stateFieldName]: overwrittenFormData[stateFieldName],
+            [zipCodeFieldName]: overwrittenFormData[zipCodeFieldName]
           });
           
           // IMMEDIATELY update form data with the new address - this overwrites any previous data
           setFormData(overwrittenFormData);
+          console.log('✓ setFormData called with updated address fields');
           
           // Clear browser cache and storage that might interfere
           const addressKeys = ['address', 'city', 'state', 'zipCode'];
@@ -1279,9 +1315,14 @@ export default function EnhancedPdfWizard() {
 
   // Handle field changes with auto-save and address override protection
   const handleFieldChange = (fieldName: string, value: any) => {
+    // Check if this is a city, state, or zipCode field (with any prefix)
+    const isCityField = fieldName.endsWith('City');
+    const isStateField = fieldName.endsWith('State');
+    const isZipCodeField = fieldName.endsWith('ZipCode') || fieldName.endsWith('zipCode');
+    
     // Prevent address field changes if addressOverrideActive and fields are locked
     if (addressOverrideActive && addressFieldsLocked && 
-        (fieldName === 'city' || fieldName === 'state' || fieldName === 'zipCode')) {
+        (isCityField || isStateField || isZipCodeField)) {
       console.log(`Blocking change to ${fieldName} due to address override protection`);
       return;
     }
@@ -1323,10 +1364,21 @@ export default function EnhancedPdfWizard() {
     // Track field interaction for prospect status update
     handleFieldInteraction(fieldName, value);
     
-    // Trigger address autocomplete for address field - allow even when locked to enable new selections
-    if (fieldName === 'address') {
+    // Trigger address autocomplete for any field ending with "Address"
+    const isAddressField = fieldName.endsWith('Address');
+    if (isAddressField) {
+      // Track which address field is being edited for smart population
+      setCurrentAddressField(fieldName);
+      
+      // Extract field prefix to determine which city/state/zip fields to clear
+      const match = fieldName.match(/^(.+?)Address$/);
+      const fieldPrefix = match ? match[1] : '';
+      const cityFieldName = fieldPrefix ? `${fieldPrefix}City` : 'city';
+      const stateFieldName = fieldPrefix ? `${fieldPrefix}State` : 'state';
+      const zipCodeFieldName = fieldPrefix ? `${fieldPrefix}ZipCode` : 'zipCode';
+      
       // If user starts typing in a locked address field, unlock it for new selection
-      if (addressFieldsLocked && value !== formData.address) {
+      if (addressFieldsLocked && value !== formData[fieldName]) {
         console.log('User typing new address - unlocking fields for new selection');
         setAddressFieldsLocked(false);
         setAddressOverrideActive(false);
@@ -1345,9 +1397,9 @@ export default function EnhancedPdfWizard() {
         if (value.length === 0 && !addressFieldsLocked) {
           console.log('Address field completely cleared - clearing dependent fields');
           const clearedFormData = { ...newFormData };
-          clearedFormData.city = '';
-          clearedFormData.state = '';
-          clearedFormData.zipCode = '';
+          clearedFormData[cityFieldName] = '';
+          clearedFormData[stateFieldName] = '';
+          clearedFormData[zipCodeFieldName] = '';
           setFormData(clearedFormData);
         }
       }
@@ -1844,8 +1896,10 @@ export default function EnhancedPdfWizard() {
   // Helper to check if field is read-only
   const isFieldReadOnly = (fieldName: string): boolean => {
     const isAgent = isProspectMode && isAgentField(fieldName);
+    const isCityField = fieldName.endsWith('City');
+    const isZipCodeField = fieldName.endsWith('ZipCode') || fieldName.endsWith('zipCode');
     return (isProspectMode && (fieldName === 'companyEmail' || isAgent)) ||
-           (addressFieldsLocked && (fieldName === 'city' || fieldName === 'zipCode'));
+           (addressFieldsLocked && (isCityField || isZipCodeField));
   };
 
   // Render form field based on type
@@ -1921,7 +1975,7 @@ export default function EnhancedPdfWizard() {
               />
               
               {/* Address autocomplete suggestions */}
-              {field.fieldName === 'address' && showSuggestions && (
+              {field.fieldName.endsWith('Address') && showSuggestions && (
                 <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-auto">
                   {isLoadingSuggestions ? (
                     <div className="p-3 text-center text-gray-500">
@@ -1961,25 +2015,25 @@ export default function EnhancedPdfWizard() {
                 </div>
               )}
               
-              {field.fieldName === 'address' && (addressValidationStatus === 'validating' || isLoadingSuggestions) && (
+              {field.fieldName.endsWith('Address') && (addressValidationStatus === 'validating' || isLoadingSuggestions) && (
                 <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
                 </div>
               )}
-              {field.fieldName === 'address' && addressValidationStatus === 'valid' && !isLoadingSuggestions && (
+              {field.fieldName.endsWith('Address') && addressValidationStatus === 'valid' && !isLoadingSuggestions && (
                 <div className="absolute right-3 top-1/2 transform -translate-y-1/2 text-green-600">
                   ✓
                 </div>
               )}
-              {field.fieldName === 'address' && addressValidationStatus === 'invalid' && !isLoadingSuggestions && (
+              {field.fieldName.endsWith('Address') && addressValidationStatus === 'invalid' && !isLoadingSuggestions && (
                 <div className="absolute right-3 top-1/2 transform -translate-y-1/2 text-red-600">
                   ⚠
                 </div>
               )}
             </div>
-            {field.fieldName === 'address' && addressValidationStatus === 'valid' && (
+            {field.fieldName.endsWith('Address') && addressValidationStatus === 'valid' && (
               <div className="flex items-center justify-between">
-                <p className="text-xs text-green-600">✓ Street address validated and auto-populated city, state, and ZIP</p>
+                <p className="text-xs text-green-600">✓ Address validated and locked. Edit Address</p>
                 {addressFieldsLocked && (
                   <button
                     type="button"
@@ -1989,16 +2043,17 @@ export default function EnhancedPdfWizard() {
                       setAddressOverrideActive(false);
                     }}
                     className="text-xs text-blue-600 hover:text-blue-800 underline"
+                    data-testid="button-edit-address"
                   >
                     Edit Address
                   </button>
                 )}
               </div>
             )}
-            {field.fieldName === 'address' && addressValidationStatus === 'invalid' && (
+            {field.fieldName.endsWith('Address') && addressValidationStatus === 'invalid' && (
               <p className="text-xs text-red-600">⚠ Please enter a valid address</p>
             )}
-            {addressFieldsLocked && (field.fieldName === 'city' || field.fieldName === 'state' || field.fieldName === 'zipCode') && (
+            {addressFieldsLocked && (field.fieldName.endsWith('City') || field.fieldName.endsWith('State') || field.fieldName.endsWith('ZipCode') || field.fieldName.endsWith('zipCode')) && (
               <p className="text-xs text-gray-500">
                 🔒 Field locked after address autocomplete selection. 
                 <button 
