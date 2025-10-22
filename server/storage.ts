@@ -1,4 +1,4 @@
-import { companies, merchants, agents, transactions, users, loginAttempts, twoFactorCodes, userDashboardPreferences, agentMerchants, locations, addresses, pdfForms, pdfFormFields, pdfFormSubmissions, merchantProspects, prospectOwners, prospectSignatures, feeGroups, feeItemGroups, feeItems, pricingTypes, pricingTypeFeeItems, campaigns, campaignFeeValues, campaignAssignments, equipmentItems, campaignEquipment, apiKeys, apiRequestLogs, emailWrappers, emailTemplates, emailActivity, emailTriggers, actionTemplates, triggerCatalog, triggerActions, userAlerts, acquirers, type Merchant, type Agent, type Transaction, type User, type InsertMerchant, type InsertAgent, type InsertTransaction, type UpsertUser, type MerchantWithAgent, type TransactionWithMerchant, type LoginAttempt, type TwoFactorCode, type UserDashboardPreference, type InsertUserDashboardPreference, type AgentMerchant, type InsertAgentMerchant, type Location, type InsertLocation, type Address, type InsertAddress, type LocationWithAddresses, type MerchantWithLocations, type PdfForm, type InsertPdfForm, type PdfFormField, type InsertPdfFormField, type PdfFormSubmission, type InsertPdfFormSubmission, type PdfFormWithFields, type MerchantProspect, type InsertMerchantProspect, type MerchantProspectWithAgent, type ProspectOwner, type InsertProspectOwner, type ProspectSignature, type InsertProspectSignature, type FeeGroup, type InsertFeeGroup, type FeeItemGroup, type InsertFeeItemGroup, type FeeItem, type InsertFeeItem, type PricingType, type InsertPricingType, type PricingTypeFeeItem, type InsertPricingTypeFeeItem, type Campaign, type InsertCampaign, type CampaignFeeValue, type InsertCampaignFeeValue, type CampaignAssignment, type InsertCampaignAssignment, type EquipmentItem, type InsertEquipmentItem, type CampaignEquipment, type InsertCampaignEquipment, type FeeGroupWithItems, type FeeItemGroupWithItems, type FeeGroupWithItemGroups, type PricingTypeWithFeeItems, type CampaignWithDetails, type ApiKey, type InsertApiKey, type ApiRequestLog, type InsertApiRequestLog, type EmailWrapper, type InsertEmailWrapper, type EmailTemplate, type InsertEmailTemplate, type EmailActivity, type InsertEmailActivity, type EmailTrigger, type InsertEmailTrigger, type ActionTemplate, type InsertActionTemplate, type TriggerCatalog, type InsertTriggerCatalog, type TriggerAction, type InsertTriggerAction, type UserAlert, type InsertUserAlert } from "@shared/schema";
+import { companies, merchants, agents, transactions, users, loginAttempts, twoFactorCodes, userDashboardPreferences, agentMerchants, locations, addresses, pdfForms, pdfFormFields, pdfFormSubmissions, merchantProspects, prospectOwners, prospectSignatures, feeGroups, feeItemGroups, feeItems, pricingTypes, pricingTypeFeeItems, campaigns, campaignFeeValues, campaignAssignments, equipmentItems, campaignEquipment, campaignApplicationTemplates, acquirerApplicationTemplates, apiKeys, apiRequestLogs, emailWrappers, emailTemplates, emailActivity, emailTriggers, actionTemplates, triggerCatalog, triggerActions, userAlerts, acquirers, type Merchant, type Agent, type Transaction, type User, type InsertMerchant, type InsertAgent, type InsertTransaction, type UpsertUser, type MerchantWithAgent, type TransactionWithMerchant, type LoginAttempt, type TwoFactorCode, type UserDashboardPreference, type InsertUserDashboardPreference, type AgentMerchant, type InsertAgentMerchant, type Location, type InsertLocation, type Address, type InsertAddress, type LocationWithAddresses, type MerchantWithLocations, type PdfForm, type InsertPdfForm, type PdfFormField, type InsertPdfFormField, type PdfFormSubmission, type InsertPdfFormSubmission, type PdfFormWithFields, type MerchantProspect, type InsertMerchantProspect, type MerchantProspectWithAgent, type ProspectOwner, type InsertProspectOwner, type ProspectSignature, type InsertProspectSignature, type FeeGroup, type InsertFeeGroup, type FeeItemGroup, type InsertFeeItemGroup, type FeeItem, type InsertFeeItem, type PricingType, type InsertPricingType, type PricingTypeFeeItem, type InsertPricingTypeFeeItem, type Campaign, type InsertCampaign, type CampaignFeeValue, type InsertCampaignFeeValue, type CampaignAssignment, type InsertCampaignAssignment, type EquipmentItem, type InsertEquipmentItem, type CampaignEquipment, type InsertCampaignEquipment, type CampaignApplicationTemplate, type InsertCampaignApplicationTemplate, type AcquirerApplicationTemplate, type FeeGroupWithItems, type FeeItemGroupWithItems, type FeeGroupWithItemGroups, type PricingTypeWithFeeItems, type CampaignWithDetails, type ApiKey, type InsertApiKey, type ApiRequestLog, type InsertApiRequestLog, type EmailWrapper, type InsertEmailWrapper, type EmailTemplate, type InsertEmailTemplate, type EmailActivity, type InsertEmailActivity, type EmailTrigger, type InsertEmailTrigger, type ActionTemplate, type InsertActionTemplate, type TriggerCatalog, type InsertTriggerCatalog, type TriggerAction, type InsertTriggerAction, type UserAlert, type InsertUserAlert } from "@shared/schema";
 import { db, pool } from "./db";
 import { eq, or, and, gte, sql, desc, inArray, like, ilike, not } from "drizzle-orm";
 
@@ -321,8 +321,8 @@ export interface IStorage {
   getCampaign(id: number): Promise<Campaign | undefined>;
   getCampaignWithDetails(id: number): Promise<CampaignWithDetails | undefined>;
   getCampaignsByAcquirer(acquirer: string): Promise<CampaignWithDetails[]>;
-  createCampaign(campaign: InsertCampaign, feeValues?: InsertCampaignFeeValue[], equipmentIds?: number[]): Promise<Campaign>;
-  updateCampaign(id: number, updates: Partial<InsertCampaign>, feeValues?: InsertCampaignFeeValue[], equipmentIds?: number[]): Promise<Campaign | undefined>;
+  createCampaign(campaign: InsertCampaign, feeValues?: InsertCampaignFeeValue[], equipmentIds?: number[], templateIds?: number[]): Promise<Campaign>;
+  updateCampaign(id: number, updates: Partial<InsertCampaign>, feeValues?: InsertCampaignFeeValue[], equipmentIds?: number[], templateIds?: number[]): Promise<Campaign | undefined>;
   deactivateCampaign(id: number): Promise<boolean>;
   searchCampaigns(query: string): Promise<CampaignWithDetails[]>;
   
@@ -348,6 +348,12 @@ export interface IStorage {
   addEquipmentToCampaign(campaignId: number, equipmentItemId: number, isRequired?: boolean, displayOrder?: number): Promise<CampaignEquipment>;
   removeEquipmentFromCampaign(campaignId: number, equipmentItemId: number): Promise<boolean>;
   updateCampaignEquipment(campaignId: number, equipmentItemId: number, updates: Partial<InsertCampaignEquipment>): Promise<CampaignEquipment | undefined>;
+
+  // Campaign Application Template operations
+  getCampaignTemplates(campaignId: number): Promise<(CampaignApplicationTemplate & { template: AcquirerApplicationTemplate })[]>;
+  addTemplateToCampaign(campaignId: number, templateId: number, isPrimary?: boolean, displayOrder?: number): Promise<CampaignApplicationTemplate>;
+  removeTemplateFromCampaign(campaignId: number, templateId: number): Promise<boolean>;
+  updateCampaignTemplate(campaignId: number, templateId: number, updates: Partial<InsertCampaignApplicationTemplate>): Promise<CampaignApplicationTemplate | undefined>;
 
   // API Key operations
   getAllApiKeys(): Promise<ApiKey[]>;
@@ -1031,6 +1037,54 @@ export class DatabaseStorage implements IStorage {
     return updated || undefined;
   }
 
+  // Campaign Application Template implementation
+  async getCampaignTemplates(campaignId: number): Promise<(CampaignApplicationTemplate & { template: AcquirerApplicationTemplate })[]> {
+    const result = await db
+      .select({
+        campaignTemplate: campaignApplicationTemplates,
+        template: acquirerApplicationTemplates,
+      })
+      .from(campaignApplicationTemplates)
+      .innerJoin(acquirerApplicationTemplates, eq(campaignApplicationTemplates.templateId, acquirerApplicationTemplates.id))
+      .where(eq(campaignApplicationTemplates.campaignId, campaignId))
+      .orderBy(campaignApplicationTemplates.displayOrder);
+
+    return result.map(row => ({
+      ...row.campaignTemplate,
+      template: row.template,
+    }));
+  }
+
+  async addTemplateToCampaign(campaignId: number, templateId: number, isPrimary: boolean = false, displayOrder: number = 0): Promise<CampaignApplicationTemplate> {
+    const [created] = await db.insert(campaignApplicationTemplates).values({
+      campaignId,
+      templateId,
+      isPrimary,
+      displayOrder,
+    }).returning();
+    return created;
+  }
+
+  async removeTemplateFromCampaign(campaignId: number, templateId: number): Promise<boolean> {
+    const result = await db.delete(campaignApplicationTemplates)
+      .where(and(
+        eq(campaignApplicationTemplates.campaignId, campaignId),
+        eq(campaignApplicationTemplates.templateId, templateId)
+      ));
+    return result.rowCount > 0;
+  }
+
+  async updateCampaignTemplate(campaignId: number, templateId: number, updates: Partial<InsertCampaignApplicationTemplate>): Promise<CampaignApplicationTemplate | undefined> {
+    const [updated] = await db.update(campaignApplicationTemplates)
+      .set(updates)
+      .where(and(
+        eq(campaignApplicationTemplates.campaignId, campaignId),
+        eq(campaignApplicationTemplates.templateId, templateId)
+      ))
+      .returning();
+    return updated || undefined;
+  }
+
   // Merchant operations
   async getMerchant(id: number): Promise<Merchant | undefined> {
     const [merchant] = await db.select().from(merchants).where(eq(merchants.id, id));
@@ -1417,8 +1471,25 @@ export class DatabaseStorage implements IStorage {
     return updated || undefined;
   }
 
-  async createCampaign(campaign: InsertCampaign): Promise<Campaign> {
+  async createCampaign(campaign: InsertCampaign, feeValues?: InsertCampaignFeeValue[], equipmentIds?: number[], templateIds?: number[]): Promise<Campaign> {
     const [created] = await db.insert(campaigns).values(campaign).returning();
+    
+    // Associate equipment if provided
+    if (equipmentIds && equipmentIds.length > 0) {
+      for (const equipmentId of equipmentIds) {
+        await this.addEquipmentToCampaign(created.id, equipmentId);
+      }
+    }
+    
+    // Associate templates if provided
+    if (templateIds && templateIds.length > 0) {
+      for (let i = 0; i < templateIds.length; i++) {
+        const templateId = templateIds[i];
+        const isPrimary = i === 0; // First template is primary
+        await this.addTemplateToCampaign(created.id, templateId, isPrimary, i);
+      }
+    }
+    
     return created;
   }
 
@@ -1427,9 +1498,34 @@ export class DatabaseStorage implements IStorage {
     return form || undefined;
   }
 
-  async updateCampaign(id: number, updates: Partial<InsertCampaign>): Promise<Campaign | undefined> {
+  async updateCampaign(id: number, updates: Partial<InsertCampaign>, feeValues?: InsertCampaignFeeValue[], equipmentIds?: number[], templateIds?: number[]): Promise<Campaign | undefined> {
     const [updated] = await db.update(campaigns).set(updates).where(eq(campaigns.id, id)).returning();
-    return updated || undefined;
+    
+    if (!updated) return undefined;
+    
+    // Update equipment associations if provided
+    if (equipmentIds !== undefined) {
+      // Remove existing equipment
+      await db.delete(campaignEquipment).where(eq(campaignEquipment.campaignId, id));
+      // Add new equipment
+      for (const equipmentId of equipmentIds) {
+        await this.addEquipmentToCampaign(id, equipmentId);
+      }
+    }
+    
+    // Update template associations if provided
+    if (templateIds !== undefined) {
+      // Remove existing templates
+      await db.delete(campaignApplicationTemplates).where(eq(campaignApplicationTemplates.campaignId, id));
+      // Add new templates
+      for (let i = 0; i < templateIds.length; i++) {
+        const templateId = templateIds[i];
+        const isPrimary = i === 0; // First template is primary
+        await this.addTemplateToCampaign(id, templateId, isPrimary, i);
+      }
+    }
+    
+    return updated;
   }
 
   async getPricingTypeFeeItems(pricingTypeId: number) {
