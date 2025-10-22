@@ -870,6 +870,18 @@ export const campaignEquipment = pgTable("campaign_equipment", {
   uniqueCampaignEquipment: unique().on(table.campaignId, table.equipmentItemId),
 }));
 
+// Campaign Application Templates junction table - links campaigns to multiple application templates
+export const campaignApplicationTemplates = pgTable("campaign_application_templates", {
+  id: serial("id").primaryKey(),
+  campaignId: integer("campaign_id").notNull().references(() => campaigns.id, { onDelete: "cascade" }),
+  templateId: integer("template_id").notNull().references(() => acquirerApplicationTemplates.id, { onDelete: "cascade" }),
+  isPrimary: boolean("is_primary").notNull().default(false), // Mark one template as primary for initial applications
+  displayOrder: integer("display_order").notNull().default(0),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => ({
+  uniqueCampaignTemplate: unique().on(table.campaignId, table.templateId),
+}));
+
 // Campaigns table - pricing plans that can be assigned to merchant applications
 export const campaigns = pgTable("campaigns", {
   id: serial("id").primaryKey(),
@@ -975,6 +987,11 @@ export const insertCampaignEquipmentSchema = createInsertSchema(campaignEquipmen
   createdAt: true,
 });
 
+export const insertCampaignApplicationTemplateSchema = createInsertSchema(campaignApplicationTemplates).omit({
+  id: true,
+  createdAt: true,
+});
+
 // Acquirer management insert schemas
 export const insertAcquirerSchema = createInsertSchema(acquirers).omit({
   id: true,
@@ -999,6 +1016,9 @@ export type EquipmentItem = typeof equipmentItems.$inferSelect;
 export type InsertEquipmentItem = z.infer<typeof insertEquipmentItemSchema>;
 export type CampaignEquipment = typeof campaignEquipment.$inferSelect;
 export type InsertCampaignEquipment = z.infer<typeof insertCampaignEquipmentSchema>;
+
+export type CampaignApplicationTemplate = typeof campaignApplicationTemplates.$inferSelect;
+export type InsertCampaignApplicationTemplate = z.infer<typeof insertCampaignApplicationTemplateSchema>;
 
 // Campaign management types
 export type FeeGroup = typeof feeGroups.$inferSelect;
