@@ -1111,6 +1111,9 @@ export default function EnhancedPdfWizard() {
 
   // Select address suggestion and validate
   const selectAddressSuggestion = async (suggestion: any) => {
+    console.log('🚀🚀🚀 SELECT ADDRESS SUGGESTION FUNCTION CALLED! 🚀🚀🚀');
+    console.log('Suggestion received:', suggestion);
+    
     const mainText = suggestion.structured_formatting?.main_text || suggestion.description.split(',')[0];
     
     console.log('Selecting address suggestion:', suggestion);
