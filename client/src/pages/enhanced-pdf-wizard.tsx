@@ -889,6 +889,9 @@ export default function EnhancedPdfWizard() {
       'Transaction Information': ArrowRight,
     };
     
+    // Get the list of required field names from the template
+    const requiredFieldNames = template.requiredFields || [];
+    
     return template.fieldConfiguration.sections.map((section: any, sectionIndex: number) => ({
       name: section.title,
       description: section.description || '',
@@ -898,7 +901,7 @@ export default function EnhancedPdfWizard() {
         fieldName: field.id,
         fieldType: field.type,
         fieldLabel: field.label,
-        isRequired: field.required || false,
+        isRequired: requiredFieldNames.includes(field.id),
         options: field.options || null,
         defaultValue: null,
         validation: field.pattern || null,
