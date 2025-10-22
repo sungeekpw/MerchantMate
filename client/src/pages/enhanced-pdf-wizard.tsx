@@ -904,6 +904,7 @@ export default function EnhancedPdfWizard() {
         validation: field.pattern || null,
         position: sectionIndex * 100 + fieldIndex,
         section: section.title,
+        description: field.description || null,
       }))
     }));
   };
