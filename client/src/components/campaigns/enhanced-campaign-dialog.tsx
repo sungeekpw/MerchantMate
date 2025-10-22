@@ -396,17 +396,19 @@ export function EnhancedCampaignDialog({
         const equipmentIds = editCampaignData.equipmentAssociations.map(assoc => assoc.equipmentItem.id);
         setSelectedEquipment(equipmentIds);
       }
-      
-      // Set selected templates - always set to reflect current state (empty or with items)
-      if (campaignTemplates) {
-        const templateIds = campaignTemplates.map(ct => ct.templateId);
-        setSelectedTemplates(templateIds);
-      }
     } else if (!editCampaignData && open) {
       // Reset form when opening for creation
       resetForm();
     }
-  }, [editCampaignData, open, campaignTemplates]);
+  }, [editCampaignData, open]);
+
+  // Separate effect to load campaign templates when editing
+  useEffect(() => {
+    if (editCampaignId && campaignTemplates && open) {
+      const templateIds = campaignTemplates.map(ct => ct.templateId);
+      setSelectedTemplates(templateIds);
+    }
+  }, [campaignTemplates, editCampaignId, open]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
