@@ -1991,11 +1991,19 @@ export default function EnhancedPdfWizard() {
                             ? 'bg-blue-50 border-blue-200' 
                             : 'hover:bg-gray-100'
                         }`}
-                        onMouseDown={(e) => {
+                        onClick={(e) => {
+                          console.log('🖱️ Suggestion clicked!', suggestion.description);
+                          e.stopPropagation();
                           e.preventDefault();
                           selectAddressSuggestion(suggestion);
                         }}
+                        onMouseDown={(e) => {
+                          console.log('👇 Suggestion mousedown!', suggestion.description);
+                          e.preventDefault();
+                          e.stopPropagation();
+                        }}
                         onMouseEnter={() => setSelectedSuggestionIndex(index)}
+                        data-testid={`suggestion-${index}`}
                       >
                         <div className={`font-medium ${
                           index === selectedSuggestionIndex ? 'text-blue-900' : 'text-gray-900'
