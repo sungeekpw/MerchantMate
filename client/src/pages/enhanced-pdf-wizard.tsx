@@ -2070,10 +2070,24 @@ export default function EnhancedPdfWizard() {
       case 'mcc-select':
         return (
           <div className="space-y-2">
-            <Label htmlFor={field.fieldName} className="text-sm font-medium text-gray-700">
-              {field.fieldLabel}
-              {field.isRequired && <span className="text-red-500 ml-1">*</span>}
-            </Label>
+            <div className="flex items-center gap-1">
+              <Label htmlFor={field.fieldName} className="text-sm font-medium text-gray-700">
+                {field.fieldLabel}
+                {field.isRequired && <span className="text-red-500 ml-1">*</span>}
+              </Label>
+              {field.description && (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Info className="h-4 w-4 text-gray-400 hover:text-gray-600 cursor-help" />
+                    </TooltipTrigger>
+                    <TooltipContent className="max-w-xs">
+                      <p className="text-sm">{field.description}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
+            </div>
             <MCCSelect
               value={value}
               onValueChange={(value) => handleFieldChange(field.fieldName, value)}
@@ -2081,9 +2095,6 @@ export default function EnhancedPdfWizard() {
               required={field.isRequired}
               className={hasError ? 'border-red-500' : ''}
             />
-            {field.helpText && (
-              <p className="text-xs text-gray-500">{field.helpText}</p>
-            )}
             {hasError && <p className="text-xs text-red-500">{hasError}</p>}
           </div>
         );
@@ -2668,7 +2679,7 @@ export default function EnhancedPdfWizard() {
       case 'agent-signature':
         const agentSignature = formData.agentSignature;
         const agentSignatureType = formData.agentSignatureType;
-        const agentName = prospectData?.agent ? `${prospectData.agent.firstName} ${prospectData.agent.lastName}` : '';
+        const assignedAgentName = prospectData?.agent ? `${prospectData.agent.firstName} ${prospectData.agent.lastName}` : '';
 
         return (
           <div className="space-y-4">
@@ -2685,7 +2696,7 @@ export default function EnhancedPdfWizard() {
               
               <div className="mb-4 p-3 bg-white rounded border border-blue-100">
                 <p className="text-sm text-gray-600">
-                  <span className="font-medium">Assigned Agent:</span> {agentName}
+                  <span className="font-medium">Assigned Agent:</span> {assignedAgentName}
                 </p>
               </div>
 
@@ -2720,7 +2731,7 @@ export default function EnhancedPdfWizard() {
               ) : (
                 <DigitalSignaturePad
                   ownerIndex={-1}
-                  owner={{ name: agentName }}
+                  owner={{ name: assignedAgentName }}
                   onSignatureChange={async (_, signature, type) => {
                     handleFieldChange('agentSignature', signature);
                     handleFieldChange('agentSignatureType', type);
