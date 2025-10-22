@@ -1831,8 +1831,15 @@ export default function EnhancedPdfWizard() {
     return `${prospectData.agent.firstName} ${prospectData.agent.lastName}`;
   };
 
+  // Helper to check if field is read-only
+  const isFieldReadOnly = (fieldName: string): boolean => {
+    const isAgent = isProspectMode && isAgentField(fieldName);
+    return (isProspectMode && (fieldName === 'companyEmail' || isAgent)) ||
+           (addressFieldsLocked && (fieldName === 'city' || fieldName === 'zipCode'));
+  };
+
   // Render form field based on type
-  const renderField = (field: FormField) => {
+  const renderField = (field: FormField, fieldIndex: number = 0) => {
     // Check if this is an agent field in prospect mode
     const isAgentFieldInProspectMode = isProspectMode && isAgentField(field.fieldName);
     const agentName = isAgentFieldInProspectMode ? getAgentName() : '';
@@ -1840,6 +1847,14 @@ export default function EnhancedPdfWizard() {
     // Use agent name if this is an agent field, otherwise use existing value
     const value = isAgentFieldInProspectMode && agentName ? agentName : (formData[field.fieldName] || '');
     const hasError = validationErrors[field.fieldName];
+    
+    // Determine if field is read-only
+    const isReadOnly = isFieldReadOnly(field.fieldName);
+    
+    // Auto-focus first editable field in first section
+    const currentFields = filteredSections[currentStep]?.fields || [];
+    const firstEditableIndex = currentFields.findIndex(f => !isFieldReadOnly(f.fieldName));
+    const shouldAutoFocus = currentStep === 0 && fieldIndex === firstEditableIndex && firstEditableIndex >= 0;
 
     switch (field.fieldType) {
       case 'text':
@@ -1891,10 +1906,10 @@ export default function EnhancedPdfWizard() {
                             ['monthlyVolume', 'averageTicket', 'highestTicket', 'avgMonthlyVolume', 'avgTicketAmount', 'highestTicketAmount'].includes(field.fieldName) ? 
                               `Enter amount (e.g., 10000.00)` :
                             `Enter ${field.fieldLabel.toLowerCase()}`}
-                readOnly={
-                  (isProspectMode && (field.fieldName === 'companyEmail' || isAgentFieldInProspectMode)) ||
-                  (addressFieldsLocked && (field.fieldName === 'city' || field.fieldName === 'zipCode'))
-                }
+                readOnly={isReadOnly}
+                tabIndex={isReadOnly ? -1 : undefined}
+                autoFocus={shouldAutoFocus}
+                data-testid={`input-${field.fieldName}`}
               />
               
               {/* Address autocomplete suggestions */}
@@ -3066,9 +3081,9 @@ export default function EnhancedPdfWizard() {
                 {/* Form Fields */}
                 <div className="p-8">
                   <div className="space-y-6">
-                    {filteredSections[currentStep]?.fields.map((field) => (
+                    {filteredSections[currentStep]?.fields.map((field, index) => (
                       <div key={field.id}>
-                        {renderField(field)}
+                        {renderField(field, index)}
                       </div>
                     ))}
                   </div>
