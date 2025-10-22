@@ -8493,8 +8493,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/campaigns", requireRole(['admin', 'super_admin']), async (req: Request, res: Response) => {
     try {
-      const { equipmentIds = [], feeValues = [], ...campaignData } = req.body;
-      const campaign = await storage.createCampaign(campaignData, feeValues, equipmentIds);
+      const { equipmentIds = [], feeValues = [], templateIds = [], ...campaignData } = req.body;
+      const campaign = await storage.createCampaign(campaignData, feeValues, equipmentIds, templateIds);
       res.status(201).json(campaign);
     } catch (error) {
       console.error("Error creating campaign:", error);
@@ -8520,6 +8520,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching campaign equipment:", error);
       res.status(500).json({ message: "Failed to fetch campaign equipment" });
+    }
+  });
+
+  app.get("/api/campaigns/:id/templates", requireRole(['admin', 'super_admin']), async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const templates = await storage.getCampaignTemplates(id);
+      res.json(templates);
+    } catch (error) {
+      console.error("Error fetching campaign templates:", error);
+      res.status(500).json({ message: "Failed to fetch campaign templates" });
     }
   });
 
