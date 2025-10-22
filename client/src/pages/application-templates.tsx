@@ -360,15 +360,15 @@ export default function ApplicationTemplatesPage() {
 
   if (templatesLoading || acquirersLoading) {
     return (
-      <div data-testid="page-application-templates" className="container mx-auto py-6">
+      <div data-testid="page-application-templates" className="container mx-auto p-6 space-y-6">
         <div className="text-center">Loading application templates...</div>
       </div>
     );
   }
 
   return (
-    <div data-testid="page-application-templates" className="container mx-auto py-6">
-      <div className="flex items-center justify-between mb-6">
+    <div data-testid="page-application-templates" className="container mx-auto p-6 space-y-6">
+      <div className="flex items-center justify-between">
         <div>
           <h1 data-testid="text-page-title" className="text-3xl font-bold">Application Templates</h1>
           <p className="text-muted-foreground mt-2">
