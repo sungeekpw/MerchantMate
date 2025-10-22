@@ -1814,9 +1814,29 @@ export default function EnhancedPdfWizard() {
     }
   }
 
+  // Helper function to detect if a field is an agent field
+  const isAgentField = (fieldName: string): boolean => {
+    const lowerFieldName = fieldName.toLowerCase();
+    return lowerFieldName.includes('agent') || 
+           lowerFieldName === 'salesrep' || 
+           lowerFieldName === 'sales_rep' ||
+           lowerFieldName === 'representative';
+  };
+
+  // Get agent name for pre-population
+  const getAgentName = (): string => {
+    if (!prospectData?.agent) return '';
+    return `${prospectData.agent.firstName} ${prospectData.agent.lastName}`;
+  };
+
   // Render form field based on type
   const renderField = (field: FormField) => {
-    const value = formData[field.fieldName] || '';
+    // Check if this is an agent field in prospect mode
+    const isAgentFieldInProspectMode = isProspectMode && isAgentField(field.fieldName);
+    const agentName = isAgentFieldInProspectMode ? getAgentName() : '';
+    
+    // Use agent name if this is an agent field, otherwise use existing value
+    const value = isAgentFieldInProspectMode && agentName ? agentName : (formData[field.fieldName] || '');
     const hasError = validationErrors[field.fieldName];
 
     switch (field.fieldType) {
@@ -1839,7 +1859,7 @@ export default function EnhancedPdfWizard() {
                   handleEINBlur(field.fieldName, e.target.value);
                 }}
                 className={`${hasError ? 'border-red-500' : ''} ${
-                  isProspectMode && field.fieldName === 'companyEmail' ? 'bg-gray-50 cursor-not-allowed' : ''
+                  isProspectMode && (field.fieldName === 'companyEmail' || isAgentFieldInProspectMode) ? 'bg-gray-50 cursor-not-allowed' : ''
                 } ${
                   field.fieldName === 'address' && addressValidationStatus === 'valid' ? 'border-green-500' : ''
                 } ${
@@ -1856,7 +1876,7 @@ export default function EnhancedPdfWizard() {
                               `Enter amount (e.g., 10000.00)` :
                             `Enter ${field.fieldLabel.toLowerCase()}`}
                 readOnly={
-                  (isProspectMode && field.fieldName === 'companyEmail') ||
+                  (isProspectMode && (field.fieldName === 'companyEmail' || isAgentFieldInProspectMode)) ||
                   (addressFieldsLocked && (field.fieldName === 'city' || field.fieldName === 'zipCode'))
                 }
               />
@@ -1953,6 +1973,9 @@ export default function EnhancedPdfWizard() {
                   Edit Address
                 </button>
               </p>
+            )}
+            {isAgentFieldInProspectMode && agentName && (
+              <p className="text-xs text-gray-500">✓ Auto-populated from assigned agent</p>
             )}
             {hasError && <p className="text-xs text-red-500">{hasError}</p>}
           </div>
