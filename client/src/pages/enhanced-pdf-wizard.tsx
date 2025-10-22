@@ -57,6 +57,7 @@ export default function EnhancedPdfWizard() {
   const [visitedSections, setVisitedSections] = useState(new Set<number>());
   const [initialDataLoaded, setInitialDataLoaded] = useState(false);
   const [addressFieldsLocked, setAddressFieldsLocked] = useState(false);
+  const [isInitialRender, setIsInitialRender] = useState(true);
   const [addressValidationStatus, setAddressValidationStatus] = useState<'idle' | 'validating' | 'valid' | 'invalid'>('idle');
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [addressSuggestions, setAddressSuggestions] = useState<any[]>([]);
@@ -759,6 +760,11 @@ export default function EnhancedPdfWizard() {
       
       console.log('Setting starting step:', startingStep);
       setCurrentStep(startingStep);
+      
+      // Mark as no longer initial render after a short delay to allow focus
+      setTimeout(() => {
+        setIsInitialRender(false);
+      }, 500);
     }
   }, [prospectData, isProspectMode, initialDataLoaded]);
 
@@ -1851,10 +1857,10 @@ export default function EnhancedPdfWizard() {
     // Determine if field is read-only
     const isReadOnly = isFieldReadOnly(field.fieldName);
     
-    // Auto-focus first editable field in first section
+    // Auto-focus first editable field on initial render only
     const currentFields = filteredSections[currentStep]?.fields || [];
     const firstEditableIndex = currentFields.findIndex(f => !isFieldReadOnly(f.fieldName));
-    const shouldAutoFocus = currentStep === 0 && fieldIndex === firstEditableIndex && firstEditableIndex >= 0;
+    const shouldAutoFocus = isInitialRender && fieldIndex === firstEditableIndex && firstEditableIndex >= 0;
 
     switch (field.fieldType) {
       case 'text':
