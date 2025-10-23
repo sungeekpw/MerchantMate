@@ -45,6 +45,44 @@ Preferred communication style: Simple, everyday language.
 - **Deployment Pipeline Compliance**: All schema changes MUST follow the strict Dev → Test → Production deployment pipeline documented in `MIGRATION_WORKFLOW.md`.
 - **User-Company Association Pattern**: **CRITICAL ARCHITECTURE** - ALL agent and merchant lookups MUST use the generic pattern: `User → user_company_associations → Company → Agent/Merchant`.
 
+## Known Issues & Limitations
+
+### Database Environment Isolation (CRITICAL)
+**Status**: Active - Blocking end-to-end testing  
+**Identified**: October 23, 2025
+
+**Issue**: Neon database branching causes data inconsistency between application runtime and maintenance tooling despite both using `DEV_DATABASE_URL`.
+
+**Evidence**:
+- Application's static `db` connection: uses DEV_DATABASE_URL (npg_rFZgSQ9wa7vf@ep-spring-mouse)
+- execute_sql_tool: also uses DEV_DATABASE_URL (same connection string pattern)
+- Despite identical URL patterns, they terminate on different Neon branches with:
+  - Different data for identical primary key values (e.g., prospect ID 7)
+  - Different schema states (e.g., `campaign_application_templates` table exists in SQL tool's branch but not in app's branch)
+
+**Root Cause**: The 60-character preview masks URL differences. Neon branches can share credentials (user/password) but diverge by host suffix or query parameters, causing silent tooling drift.
+
+**Impact**:
+- End-to-end testing blocked - cannot seed test data visible to application
+- Schema synchronization unreliable between environments
+- Violates "environment isolation is paramount" requirement
+
+**Workarounds**:
+1. Seed test data via running API endpoints (not SQL tools) to ensure data lives in app's branch
+2. Create dedicated seed endpoints for test data creation
+3. Verify all operations through application APIs rather than direct SQL queries
+
+**Permanent Solution Required**:
+1. Coordinate infrastructure to align development Neon branch across all tooling
+2. OR expose branch selection controls in application configuration
+3. Refactor maintenance scripts (e.g., `scripts/execute-sql.ts`) to import and use `getDatabaseUrl()` helper from `server/db.ts` to ensure consistent connection string resolution
+4. Add integration tests to guard against environment drift
+
+**Related Files**:
+- `server/db.ts`: Database connection management and `getDatabaseUrl()` helper
+- `scripts/execute-sql.ts`: Maintenance script requiring alignment
+- Migration workflow documentation: `MIGRATION_WORKFLOW.md`
+
 ## External Dependencies
 - **pg**: Native PostgreSQL driver.
 - **drizzle-orm**: Type-safe ORM for PostgreSQL.
