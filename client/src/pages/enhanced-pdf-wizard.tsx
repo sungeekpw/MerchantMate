@@ -1991,7 +1991,7 @@ export default function EnhancedPdfWizard() {
               />
               
               {/* Address autocomplete suggestions */}
-              {field.fieldName.endsWith('Address') && showSuggestions && (
+              {field.fieldName.endsWith('Address') && showSuggestions && currentAddressField === field.fieldName && (
                 <div className="absolute z-[9999] w-full mt-1 bg-white border-4 border-blue-600 rounded-md shadow-2xl max-h-60 overflow-auto" style={{ border: '4px solid #0000FF', backgroundColor: '#FFFFFF' }}>
                   {isLoadingSuggestions ? (
                     <div className="p-3 text-center text-gray-500">
