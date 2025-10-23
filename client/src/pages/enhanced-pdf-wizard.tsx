@@ -1073,13 +1073,17 @@ export default function EnhancedPdfWizard() {
 
   // Fetch address suggestions using Google Places Autocomplete API
   const fetchAddressSuggestions = async (input: string) => {
+    console.log('🌐 fetchAddressSuggestions CALLED with input:', input, 'length:', input.length);
+    
     if (input.length < 4) {
+      console.log('❌ Input too short, aborting');
       setAddressSuggestions([]);
       setShowSuggestions(false);
       setSelectedSuggestionIndex(-1);
       return;
     }
 
+    console.log('✨ Fetching suggestions from API...');
     setIsLoadingSuggestions(true);
     
     try {
@@ -1393,8 +1397,10 @@ export default function EnhancedPdfWizard() {
       setAddressValidationStatus('idle');
       // Clear city, state, zip when manually typing new address (if not locked or being unlocked)
       if (value && value.length >= 4) {
+        console.log('📞 Calling fetchAddressSuggestions with value:', value, 'length:', value.length);
         fetchAddressSuggestions(value);
       } else {
+        console.log('⏸️ NOT calling fetchAddressSuggestions - value length too short:', value?.length);
         setShowSuggestions(false);
         setAddressSuggestions([]);
         setSelectedSuggestionIndex(-1);
