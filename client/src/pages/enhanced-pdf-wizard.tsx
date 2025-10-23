@@ -1369,7 +1369,9 @@ export default function EnhancedPdfWizard() {
     
     // Trigger address autocomplete for any field ending with "Address"
     const isAddressField = fieldName.endsWith('Address');
+    console.log('🔍 Field change detected:', fieldName, 'isAddressField:', isAddressField, 'value length:', value?.length);
     if (isAddressField) {
+      console.log('✅ This is an address field! fieldName:', fieldName);
       // Track which address field is being edited for smart population
       setCurrentAddressField(fieldName);
       
