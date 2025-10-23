@@ -1095,18 +1095,23 @@ export default function EnhancedPdfWizard() {
         body: JSON.stringify({ input }),
       });
       
+      console.log('📡 API Response status:', response.status, response.ok);
+      
       if (response.ok) {
         const result = await response.json();
+        console.log('✅ API Success! Received suggestions:', result.suggestions?.length || 0, result);
         setAddressSuggestions(result.suggestions || []);
         setShowSuggestions(true);
         setSelectedSuggestionIndex(-1);
+        console.log('🎯 State updated - showSuggestions:', true, 'suggestions count:', result.suggestions?.length);
       } else {
-        console.error('Address suggestions API error:', response.status);
+        console.error('❌ Address suggestions API error:', response.status);
       }
     } catch (error) {
-      console.error('Address suggestions network error:', error);
+      console.error('💥 Address suggestions network error:', error);
     } finally {
       setIsLoadingSuggestions(false);
+      console.log('🏁 Fetch complete, loading state set to false');
     }
   };
 
