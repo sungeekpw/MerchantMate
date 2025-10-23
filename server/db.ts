@@ -56,15 +56,6 @@ export function getDatabaseUrl(environment?: string): string | null {
 const environment = process.env.DEFAULT_DB_ENV || 'development';
 const databaseUrl = getDatabaseUrl(environment);
 
-console.log('🔍 DB INIT DEBUG:', {
-  environment,
-  hasDEV_DATABASE_URL: !!process.env.DEV_DATABASE_URL,
-  hasDATABASE_URL: !!process.env.DATABASE_URL,
-  selectedUrl: databaseUrl ? databaseUrl.substring(0, 60) + '...' : 'NULL',
-  DEV_URL_preview: process.env.DEV_DATABASE_URL ? process.env.DEV_DATABASE_URL.substring(0, 60) + '...' : 'not set',
-  PROD_URL_preview: process.env.DATABASE_URL ? process.env.DATABASE_URL.substring(0, 60) + '...' : 'not set'
-});
-
 if (!databaseUrl) {
   throw new Error(
     `DATABASE_URL must be set for environment: ${environment}. ` +

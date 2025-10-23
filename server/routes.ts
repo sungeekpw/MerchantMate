@@ -19,7 +19,7 @@ import { dbEnvironmentMiddleware, adminDbMiddleware, getRequestDB, type RequestW
 import { globalEnvironmentMiddleware, adminEnvironmentMiddleware, type RequestWithGlobalDB } from "./globalEnvironmentMiddleware";
 import { setupEnvironmentRoutes } from "./environmentRoutes";
 import { getDynamicDatabase, db } from "./db";
-import { users, agents, merchants, agentMerchants, companies, addresses, companyAddresses, acquirerApplicationTemplates, merchantProspects } from "@shared/schema";
+import { users, agents, merchants, agentMerchants, companies, addresses, companyAddresses, acquirerApplicationTemplates, merchantProspects, campaignApplicationTemplates } from "@shared/schema";
 import crypto from "crypto";
 import { eq, or, ilike, sql, inArray } from "drizzle-orm";
 
