@@ -1932,6 +1932,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           email: prospect.email,
           validationToken: prospect.validationToken,
           agentName: `${agent.firstName} ${agent.lastName}`,
+          dbEnv: req.dbEnv,
         });
         
         if (emailSent) {

@@ -98,6 +98,18 @@ export default function Prospects() {
     },
   });
 
+  // Fetch current database environment for link generation
+  const { data: dbEnvironment } = useQuery({
+    queryKey: ['/api/environment'],
+    queryFn: async () => {
+      const response = await fetch('/api/environment', {
+        credentials: 'include'
+      });
+      if (!response.ok) return { environment: 'production' };
+      return response.json();
+    },
+  });
+
   const deleteMutation = useMutation({
     mutationFn: async (id: number) => {
       const response = await fetch(`/api/prospects/${id}`, { method: 'DELETE' });
@@ -342,7 +354,13 @@ export default function Prospects() {
   };
 
   const copyProspectLink = (prospect: MerchantProspectWithAgent) => {
-    const link = `${window.location.origin}/prospect-validation?token=${prospect.validationToken}`;
+    let link = `${window.location.origin}/prospect-validation?token=${prospect.validationToken}`;
+    
+    // Add database environment parameter for non-production environments
+    if (dbEnvironment && dbEnvironment.environment !== 'production') {
+      link += `&db=${dbEnvironment.environment}`;
+    }
+    
     navigator.clipboard.writeText(link);
     toast({
       title: "Link Copied",
