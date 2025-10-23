@@ -47,41 +47,20 @@ Preferred communication style: Simple, everyday language.
 
 ## Known Issues & Limitations
 
-### Database Environment Isolation (CRITICAL)
-**Status**: Active - Blocking end-to-end testing  
-**Identified**: October 23, 2025
+### Schema Migration Pending
+**Status**: Active - October 23, 2025
 
-**Issue**: Neon database branching causes data inconsistency between application runtime and maintenance tooling despite both using `DEV_DATABASE_URL`.
+**Issue**: The `campaign_application_templates` junction table exists in schema definition but hasn't been deployed to development database yet.
 
-**Evidence**:
-- Application's static `db` connection: uses DEV_DATABASE_URL (npg_rFZgSQ9wa7vf@ep-spring-mouse)
-- execute_sql_tool: also uses DEV_DATABASE_URL (same connection string pattern)
-- Despite identical URL patterns, they terminate on different Neon branches with:
-  - Different data for identical primary key values (e.g., prospect ID 7)
-  - Different schema states (e.g., `campaign_application_templates` table exists in SQL tool's branch but not in app's branch)
+**Impact**: 
+- `/api/prospects/token/:token` endpoint returns 500 error when trying to load application templates
+- Address mapper functionality cannot be tested end-to-end
 
-**Root Cause**: The 60-character preview masks URL differences. Neon branches can share credentials (user/password) but diverge by host suffix or query parameters, causing silent tooling drift.
-
-**Impact**:
-- End-to-end testing blocked - cannot seed test data visible to application
-- Schema synchronization unreliable between environments
-- Violates "environment isolation is paramount" requirement
-
-**Workarounds**:
-1. Seed test data via running API endpoints (not SQL tools) to ensure data lives in app's branch
-2. Create dedicated seed endpoints for test data creation
-3. Verify all operations through application APIs rather than direct SQL queries
-
-**Permanent Solution Required**:
-1. Coordinate infrastructure to align development Neon branch across all tooling
-2. OR expose branch selection controls in application configuration
-3. Refactor maintenance scripts (e.g., `scripts/execute-sql.ts`) to import and use `getDatabaseUrl()` helper from `server/db.ts` to ensure consistent connection string resolution
-4. Add integration tests to guard against environment drift
+**Resolution**: Deploy schema using established migration process following Dev → Test → Production pipeline as documented in `MIGRATION_WORKFLOW.md`.
 
 **Related Files**:
-- `server/db.ts`: Database connection management and `getDatabaseUrl()` helper
-- `scripts/execute-sql.ts`: Maintenance script requiring alignment
-- Migration workflow documentation: `MIGRATION_WORKFLOW.md`
+- `shared/schema.ts`: Contains `campaignApplicationTemplates` table definition (line 875)
+- `server/routes.ts`: Token endpoint now correctly uses dbMiddleware for environment-specific connections (line 2276-2317)
 
 ## External Dependencies
 - **pg**: Native PostgreSQL driver.
