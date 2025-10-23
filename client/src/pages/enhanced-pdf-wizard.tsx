@@ -892,24 +892,60 @@ export default function EnhancedPdfWizard() {
     // Get the list of required field names from the template
     const requiredFieldNames = template.requiredFields || [];
     
-    return template.fieldConfiguration.sections.map((section: any, sectionIndex: number) => ({
-      name: section.title,
-      description: section.description || '',
-      icon: iconMap[section.title] || FileText,
-      fields: section.fields.map((field: any, fieldIndex: number) => ({
-        id: sectionIndex * 100 + fieldIndex,
-        fieldName: field.id,
-        fieldType: field.type,
-        fieldLabel: field.label,
-        isRequired: requiredFieldNames.includes(field.id),
-        options: field.options || null,
-        defaultValue: null,
-        validation: field.pattern || null,
-        position: sectionIndex * 100 + fieldIndex,
-        section: section.title,
-        description: field.description || null,
-      }))
-    }));
+    // Process address groups if they exist
+    const addressGroups = template.addressGroups || [];
+    const addressFieldNames = new Set<string>();
+    
+    // Collect all individual address field names that are part of groups
+    addressGroups.forEach((group: any) => {
+      if (group.fieldMappings) {
+        Object.values(group.fieldMappings).forEach((fieldName: any) => {
+          if (typeof fieldName === 'string') {
+            addressFieldNames.add(fieldName);
+          }
+        });
+      }
+    });
+    
+    return template.fieldConfiguration.sections.map((section: any, sectionIndex: number) => {
+      // Filter out individual address fields that are part of groups
+      const filteredFields = section.fields.filter((field: any) => 
+        !addressFieldNames.has(field.id)
+      );
+      
+      // Add address group pseudo-fields to appropriate sections
+      const fieldsWithGroups = [...filteredFields];
+      if (section.title === 'Merchant Information' && addressGroups.length > 0) {
+        addressGroups.forEach((group: any, groupIndex: number) => {
+          fieldsWithGroups.push({
+            id: `addressGroup_${group.type}`,
+            label: group.label || `${group.type.charAt(0).toUpperCase() + group.type.slice(1)} Address`,
+            type: 'addressGroup',
+            addressGroupConfig: group,
+          });
+        });
+      }
+      
+      return {
+        name: section.title,
+        description: section.description || '',
+        icon: iconMap[section.title] || FileText,
+        fields: fieldsWithGroups.map((field: any, fieldIndex: number) => ({
+          id: sectionIndex * 100 + fieldIndex,
+          fieldName: field.id,
+          fieldType: field.type,
+          fieldLabel: field.label,
+          isRequired: requiredFieldNames.includes(field.id),
+          options: field.options || null,
+          defaultValue: null,
+          validation: field.pattern || null,
+          position: sectionIndex * 100 + fieldIndex,
+          section: section.title,
+          description: field.description || null,
+          addressGroupConfig: field.addressGroupConfig || null,
+        }))
+      };
+    });
   };
 
   // Create enhanced sections with descriptions and icons
@@ -2970,6 +3006,51 @@ export default function EnhancedPdfWizard() {
               showExpandedFields={false}
             />
             {hasError && <p className="text-xs text-red-500">{hasError}</p>}
+          </div>
+        );
+
+      case 'addressGroup':
+        // Render address group with canonical field names
+        const groupConfig = (field as any).addressGroupConfig;
+        if (!groupConfig) return null;
+        
+        const groupType = groupConfig.type;
+        const canonicalPrefix = `${groupType}Address`;
+        
+        // Get canonical field values
+        const streetValue = formData[`${canonicalPrefix}.street1`] || '';
+        const street2Val = formData[`${canonicalPrefix}.street2`] || '';
+        const cityVal = formData[`${canonicalPrefix}.city`] || '';
+        const stateVal = formData[`${canonicalPrefix}.state`] || '';
+        const zipCodeVal = formData[`${canonicalPrefix}.postalCode`] || '';
+        
+        return (
+          <div className="space-y-2" key={field.fieldName}>
+            <Label className="text-sm font-medium text-gray-700">
+              {field.fieldLabel}
+              {field.isRequired && <span className="text-red-500 ml-1">*</span>}
+            </Label>
+            <AddressAutocompleteInput
+              value={streetValue}
+              onChange={(value) => handleFieldChange(`${canonicalPrefix}.street1`, value)}
+              initialValues={{
+                city: cityVal,
+                state: stateVal,
+                zipCode: zipCodeVal,
+                street2: street2Val
+              }}
+              onAddressSelect={(address) => {
+                // Store with canonical field names
+                handleFieldChange(`${canonicalPrefix}.street1`, address.street || '');
+                handleFieldChange(`${canonicalPrefix}.street2`, address.street2 || '');
+                handleFieldChange(`${canonicalPrefix}.city`, address.city || '');
+                handleFieldChange(`${canonicalPrefix}.state`, address.state || '');
+                handleFieldChange(`${canonicalPrefix}.postalCode`, address.zipCode || '');
+                handleFieldChange(`${canonicalPrefix}.country`, 'US');
+              }}
+              placeholder="Start typing an address..."
+              dataTestId={`addressgroup-${groupType}`}
+            />
           </div>
         );
 
