@@ -2270,9 +2270,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get prospect by token (for starting application)
-  app.get("/api/prospects/token/:token", async (req, res) => {
+  app.get("/api/prospects/token/:token", async (req: RequestWithDB, res) => {
     try {
       const { token} = req.params;
+      
+      // Get environment-specific database connection
+      const dynamicDB = getRequestDB(req);
       
       // Use storage method (uses the same DB connection as other operations)
       const prospect = await storage.getMerchantProspectByToken(token);
@@ -2297,15 +2300,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Get equipment associated with this campaign
         campaignEquipment = await storage.getCampaignEquipment(campaignAssignment.campaignId);
         
-        // Get the specific template assigned to this campaign
-        const campaignTemplates = await db
+        // Get the specific template assigned to this campaign using environment-specific DB
+        const campaignTemplates = await dynamicDB
           .select()
           .from(campaignApplicationTemplates)
           .where(eq(campaignApplicationTemplates.campaignId, campaignAssignment.campaignId));
         
         if (campaignTemplates && campaignTemplates.length > 0) {
           const templateId = campaignTemplates[0].templateId;
-          const templates = await db.select()
+          const templates = await dynamicDB.select()
             .from(acquirerApplicationTemplates)
             .where(eq(acquirerApplicationTemplates.id, templateId));
           applicationTemplate = templates[0] || null;
