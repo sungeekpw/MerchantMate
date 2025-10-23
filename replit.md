@@ -69,6 +69,11 @@ Preferred communication style: Simple, everyday language.
    - Created `campaign_application_templates` junction table
    - Added `pdf_field_id` column to `pdf_form_fields`
 
+**Environment-Aware Prospect Links**:
+- Email links automatically include `?db=` parameter for non-production environments (via `sendProspectValidationEmail`)
+- Frontend copy-to-clipboard function includes environment parameter (via `/api/environment` endpoint)
+- Ensures prospects always access the correct database environment where their data was created
+
 **Testing Requirements**:
 To test the address mapper end-to-end:
 1. Assign a template with `addressGroups` configuration to a campaign via `campaign_application_templates` junction table
