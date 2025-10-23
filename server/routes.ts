@@ -19,7 +19,7 @@ import { dbEnvironmentMiddleware, adminDbMiddleware, getRequestDB, type RequestW
 import { globalEnvironmentMiddleware, adminEnvironmentMiddleware, type RequestWithGlobalDB } from "./globalEnvironmentMiddleware";
 import { setupEnvironmentRoutes } from "./environmentRoutes";
 import { getDynamicDatabase, db } from "./db";
-import { users, agents, merchants, agentMerchants, companies, addresses, companyAddresses, acquirerApplicationTemplates } from "@shared/schema";
+import { users, agents, merchants, agentMerchants, companies, addresses, companyAddresses, acquirerApplicationTemplates, merchantProspects } from "@shared/schema";
 import crypto from "crypto";
 import { eq, or, ilike, sql, inArray } from "drizzle-orm";
 
@@ -2272,7 +2272,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get prospect by token (for starting application)
   app.get("/api/prospects/token/:token", async (req, res) => {
     try {
-      const { token } = req.params;
+      const { token} = req.params;
+      
+      // Use storage method (uses the same DB connection as other operations)
       const prospect = await storage.getMerchantProspectByToken(token);
       
       if (!prospect) {
@@ -2292,11 +2294,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Get campaign details
         campaign = await storage.getCampaignWithDetails(campaignAssignment.campaignId);
         
-        // Get equipment associated with this campaign using the correct method
+        // Get equipment associated with this campaign
         campaignEquipment = await storage.getCampaignEquipment(campaignAssignment.campaignId);
         
         // Get the specific template assigned to this campaign
-        const { campaignApplicationTemplates } = await import('@shared/schema');
         const campaignTemplates = await db
           .select()
           .from(campaignApplicationTemplates)
