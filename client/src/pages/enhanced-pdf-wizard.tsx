@@ -1136,22 +1136,38 @@ export default function EnhancedPdfWizard() {
     // Set addressOverrideActive to prevent browser cache interference
     setAddressOverrideActive(true);
     
-    // Determine field prefix from the current address field being edited
-    // If currentAddressField is not set, try to find it from the current section's fields
-    let addressFieldName = currentAddressField;
-    if (!addressFieldName) {
-      const currentFields = filteredSections[currentStep]?.fields || [];
-      const addressField = currentFields.find(f => f.fieldName.endsWith('Address'));
-      addressFieldName = addressField?.fieldName || 'address';
-      console.log('Fallback: detected address field from current section:', addressFieldName);
-    }
+    // Find the actual field names from the current section instead of constructing them
+    const currentFields = filteredSections[currentStep]?.fields || [];
     
-    // Extract prefix: e.g., "merchant_businessAddress" -> "merchant_business"
-    const match = addressFieldName.match(/^(.+?)Address$/);
-    const fieldPrefix = match ? match[1] : '';
+    console.log('🔍 DEBUG: Current step:', currentStep);
+    console.log('🔍 DEBUG: Total sections:', filteredSections.length);
+    console.log('🔍 DEBUG: Current section name:', filteredSections[currentStep]?.name);
+    console.log('🔍 DEBUG: All field names in current section:', currentFields.map(f => f.fieldName));
     
-    console.log('Detected address field:', addressFieldName);
-    console.log('Detected field prefix:', fieldPrefix);
+    // Find the actual address, city, state, and zipCode field names from the form definition
+    const addressField = currentFields.find(f => f.fieldName.toLowerCase().includes('address') && !f.fieldName.toLowerCase().includes('line2'));
+    const cityField = currentFields.find(f => f.fieldName.toLowerCase().includes('city'));
+    const stateField = currentFields.find(f => f.fieldName.toLowerCase().includes('state') && !f.fieldName.toLowerCase().includes('filed'));
+    const zipField = currentFields.find(f => f.fieldName.toLowerCase().includes('zip'));
+    
+    console.log('🔍 DEBUG: Field lookup results:', {
+      addressField: addressField?.fieldName,
+      cityField: cityField?.fieldName,
+      stateField: stateField?.fieldName,
+      zipField: zipField?.fieldName
+    });
+    
+    const addressFieldName = addressField?.fieldName || 'address';
+    const cityFieldName = cityField?.fieldName || 'city';
+    const stateFieldName = stateField?.fieldName || 'state';
+    const zipCodeFieldName = zipField?.fieldName || 'zipCode';
+    
+    console.log('✅ Final field names to populate:', {
+      address: addressFieldName,
+      city: cityFieldName,
+      state: stateFieldName,
+      zipCode: zipCodeFieldName
+    });
     
     // Validate the address with Google Maps API for complete information
     try {
@@ -1177,24 +1193,11 @@ export default function EnhancedPdfWizard() {
             zipCode: result.zipCode
           });
           
-          // Construct field names based on the detected prefix
-          const addressFieldName = fieldPrefix ? `${fieldPrefix}Address` : 'address';
-          const cityFieldName = fieldPrefix ? `${fieldPrefix}City` : 'city';
-          const stateFieldName = fieldPrefix ? `${fieldPrefix}State` : 'state';
-          const zipCodeFieldName = fieldPrefix ? `${fieldPrefix}ZipCode` : 'zipCode';
-          
-          console.log('Populating fields:', {
+          console.log('Will populate these actual form fields:', {
             address: addressFieldName,
             city: cityFieldName,
             state: stateFieldName,
             zipCode: zipCodeFieldName
-          });
-          
-          console.log('API Result values:', {
-            streetAddress: result.streetAddress,
-            city: result.city,
-            state: result.state,
-            zipCode: result.zipCode
           });
           
           // Create final validated address data - this OVERWRITES any previous data
