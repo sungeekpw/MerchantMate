@@ -17,6 +17,7 @@ interface AddressDetails {
   city: string;
   state: string;
   zipCode: string;
+  street2?: string;
 }
 
 interface AddressAutocompleteInputProps {
@@ -28,6 +29,14 @@ interface AddressAutocompleteInputProps {
   dataTestId?: string;
   className?: string;
   showExpandedFields?: boolean;
+  initialValues?: {
+    city?: string;
+    state?: string;
+    zipCode?: string;
+    street2?: string;
+  };
+  street2Value?: string;
+  onStreet2Change?: (value: string) => void;
 }
 
 export function AddressAutocompleteInput({
@@ -38,7 +47,10 @@ export function AddressAutocompleteInput({
   disabled = false,
   dataTestId,
   className = "",
-  showExpandedFields = true
+  showExpandedFields = true,
+  initialValues = {},
+  street2Value = '',
+  onStreet2Change
 }: AddressAutocompleteInputProps) {
   const [suggestions, setSuggestions] = useState<AddressSuggestion[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -47,13 +59,25 @@ export function AddressAutocompleteInput({
   const [selectedIndex, setSelectedIndex] = useState(-1);
   const [isLocked, setIsLocked] = useState(false);
   const [addressDetails, setAddressDetails] = useState<AddressDetails>({
-    street: '',
-    city: '',
-    state: '',
-    zipCode: ''
+    street: value || '',
+    city: initialValues.city || '',
+    state: initialValues.state || '',
+    zipCode: initialValues.zipCode || '',
+    street2: initialValues.street2 || street2Value || ''
   });
   const inputRef = useRef<HTMLInputElement>(null);
   const suggestionsRef = useRef<HTMLDivElement>(null);
+  
+  // Update addressDetails when initialValues change
+  useEffect(() => {
+    setAddressDetails(prev => ({
+      ...prev,
+      city: initialValues.city ?? prev.city,
+      state: initialValues.state ?? prev.state,
+      zipCode: initialValues.zipCode ?? prev.zipCode,
+      street2: initialValues.street2 ?? street2Value ?? prev.street2
+    }));
+  }, [initialValues.city, initialValues.state, initialValues.zipCode, initialValues.street2, street2Value]);
 
   // Fetch address suggestions
   const fetchSuggestions = async (input: string) => {
@@ -109,7 +133,8 @@ export function AddressAutocompleteInput({
             street: result.streetAddress || suggestion.description.split(',')[0].trim(),
             city: result.city || '',
             state: result.state || '',
-            zipCode: result.zipCode || ''
+            zipCode: result.zipCode || '',
+            street2: addressDetails.street2 || ''
           };
           
           onChange(newAddressDetails.street);
@@ -266,7 +291,12 @@ export function AddressAutocompleteInput({
                     className={`px-4 py-2 cursor-pointer hover:bg-gray-50 ${
                       index === selectedIndex ? 'bg-blue-50' : ''
                     }`}
-                    onClick={() => validateAndSelectAddress(suggestion)}
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      validateAndSelectAddress(suggestion);
+                    }}
+                    onMouseEnter={() => setSelectedIndex(index)}
                   >
                     <div className="flex items-center space-x-2">
                       <MapPin className="h-4 w-4 text-gray-400" />
@@ -310,13 +340,28 @@ export function AddressAutocompleteInput({
           <Input
             id="apt-suite"
             placeholder="Suite 100"
+            value={addressDetails.street2 || ''}
+            onChange={(e) => {
+              const newStreet2 = e.target.value;
+              setAddressDetails(prev => {
+                const updated = { ...prev, street2: newStreet2 };
+                // Call callbacks with fresh data
+                if (onStreet2Change) {
+                  onStreet2Change(newStreet2);
+                }
+                if (onAddressSelect) {
+                  onAddressSelect(updated);
+                }
+                return updated;
+              });
+            }}
             data-testid={`${dataTestId}-apt`}
           />
         </div>
       </div>
 
-      {/* Expanded address fields - only show when address is validated */}
-      {showExpandedFields && validationStatus === 'valid' && (addressDetails.city || addressDetails.state || addressDetails.zipCode) && (
+      {/* Expanded address fields - show when address is validated OR has initial values */}
+      {showExpandedFields && (validationStatus === 'valid' || addressDetails.city || addressDetails.state || addressDetails.zipCode) && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
             <Label htmlFor="address-city" className="text-sm font-semibold text-gray-900">
