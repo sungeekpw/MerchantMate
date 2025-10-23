@@ -2010,16 +2010,11 @@ export default function EnhancedPdfWizard() {
                             ? 'bg-blue-50 border-blue-200' 
                             : 'hover:bg-gray-100'
                         }`}
-                        onClick={(e) => {
-                          console.log('🖱️ Suggestion clicked!', suggestion.description);
-                          e.stopPropagation();
-                          e.preventDefault();
-                          selectAddressSuggestion(suggestion);
-                        }}
                         onMouseDown={(e) => {
-                          console.log('👇 Suggestion mousedown!', suggestion.description);
+                          console.log('👇 Suggestion mousedown! Selecting:', suggestion.description);
                           e.preventDefault();
                           e.stopPropagation();
+                          selectAddressSuggestion(suggestion);
                         }}
                         onMouseEnter={() => setSelectedSuggestionIndex(index)}
                         data-testid={`suggestion-${index}`}
