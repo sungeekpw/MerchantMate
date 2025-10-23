@@ -45,22 +45,35 @@ Preferred communication style: Simple, everyday language.
 - **Deployment Pipeline Compliance**: All schema changes MUST follow the strict Dev → Test → Production deployment pipeline documented in `MIGRATION_WORKFLOW.md`.
 - **User-Company Association Pattern**: **CRITICAL ARCHITECTURE** - ALL agent and merchant lookups MUST use the generic pattern: `User → user_company_associations → Company → Agent/Merchant`.
 
-## Known Issues & Limitations
+## Recent Changes
 
-### Schema Migration Pending
-**Status**: Active - October 23, 2025
+### Address Mapper System Implementation
+**Completed**: October 23, 2025
 
-**Issue**: The `campaign_application_templates` junction table exists in schema definition but hasn't been deployed to development database yet.
+**Changes Made**:
+1. **Backend Mapper Services** (server/routes.ts):
+   - `mapCanonicalAddressesToTemplate()`: Converts canonical address fields (businessAddress.street1, etc.) to template-specific field names during form submission
+   - `mapTemplateAddressesToCanonical()`: Reverse mapping for loading saved data back into canonical format
+   - Both mappers use `addressGroups` metadata from templates to determine field mappings
 
-**Impact**: 
-- `/api/prospects/token/:token` endpoint returns 500 error when trying to load application templates
-- Address mapper functionality cannot be tested end-to-end
+2. **Environment-Specific Database Connections**:
+   - Fixed `/api/prospects/token/:token` endpoint to use dbMiddleware pattern (lines 2276-2317)
+   - Now correctly respects 3-environment architecture (Dev/Test/Production)
+   - Uses `getRequestDB(req)` for environment-specific connections instead of static `db` import
+   - Added missing `campaignApplicationTemplates` import (line 25)
 
-**Resolution**: Deploy schema using established migration process following Dev → Test → Production pipeline as documented in `MIGRATION_WORKFLOW.md`.
+3. **Schema Synchronization**:
+   - Applied comprehensive migration to DEV and TEST environments
+   - Migration file: `migrations/comprehensive-dev-sync-2025-10-23.sql`
+   - Added `address_groups` column to `acquirer_application_templates`
+   - Created `campaign_application_templates` junction table
+   - Added `pdf_field_id` column to `pdf_form_fields`
 
-**Related Files**:
-- `shared/schema.ts`: Contains `campaignApplicationTemplates` table definition (line 875)
-- `server/routes.ts`: Token endpoint now correctly uses dbMiddleware for environment-specific connections (line 2276-2317)
+**Testing Requirements**:
+To test the address mapper end-to-end:
+1. Assign a template with `addressGroups` configuration to a campaign via `campaign_application_templates` junction table
+2. Create or load a prospect application linked to that campaign
+3. Verify addresses are properly mapped both ways (canonical ↔ template-specific)
 
 ## External Dependencies
 - **pg**: Native PostgreSQL driver.
