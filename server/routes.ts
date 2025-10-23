@@ -63,6 +63,60 @@ function generateTemporaryPassword(): string {
   return password;
 }
 
+// Address mapper: translates canonical address field names to template-specific names
+function mapCanonicalAddressesToTemplate(formData: Record<string, any>, addressGroups: any[]): Record<string, any> {
+  if (!addressGroups || addressGroups.length === 0) {
+    return formData;
+  }
+
+  const mappedData = { ...formData };
+
+  addressGroups.forEach((group: any) => {
+    const groupType = group.type; // 'business', 'mailing', 'shipping', etc.
+    const canonicalPrefix = `${groupType}Address`;
+    const fieldMappings = group.fieldMappings || {};
+
+    // Map canonical fields to template-specific fields
+    Object.entries(fieldMappings).forEach(([canonicalKey, templateFieldName]: [string, any]) => {
+      const canonicalFieldName = `${canonicalPrefix}.${canonicalKey}`;
+      
+      if (mappedData[canonicalFieldName] !== undefined) {
+        mappedData[templateFieldName] = mappedData[canonicalFieldName];
+        delete mappedData[canonicalFieldName];
+      }
+    });
+  });
+
+  return mappedData;
+}
+
+// Reverse mapper: translates template-specific field names to canonical names (for loading saved data)
+function mapTemplateAddressesToCanonical(formData: Record<string, any>, addressGroups: any[]): Record<string, any> {
+  if (!addressGroups || addressGroups.length === 0) {
+    return formData;
+  }
+
+  const mappedData = { ...formData };
+
+  addressGroups.forEach((group: any) => {
+    const groupType = group.type; // 'business', 'mailing', 'shipping', etc.
+    const canonicalPrefix = `${groupType}Address`;
+    const fieldMappings = group.fieldMappings || {};
+
+    // Map template-specific fields to canonical fields
+    Object.entries(fieldMappings).forEach(([canonicalKey, templateFieldName]: [string, any]) => {
+      const canonicalFieldName = `${canonicalPrefix}.${canonicalKey}`;
+      
+      if (mappedData[templateFieldName] !== undefined) {
+        mappedData[canonicalFieldName] = mappedData[templateFieldName];
+        delete mappedData[templateFieldName];
+      }
+    });
+  });
+
+  return mappedData;
+}
+
 // Function to reset testing data using dynamic database connection
 async function resetTestingDataWithDB(db: any, options: Record<string, boolean>) {
   const result: any = { cleared: [], counts: {} };
@@ -2241,17 +2295,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Get equipment associated with this campaign using the correct method
         campaignEquipment = await storage.getCampaignEquipment(campaignAssignment.campaignId);
         
-        // Get the active application template for this acquirer
-        if (campaign?.acquirerId) {
+        // Get the specific template assigned to this campaign
+        const { campaignApplicationTemplates } = await import('@shared/schema');
+        const campaignTemplates = await db
+          .select()
+          .from(campaignApplicationTemplates)
+          .where(eq(campaignApplicationTemplates.campaignId, campaignAssignment.campaignId));
+        
+        if (campaignTemplates && campaignTemplates.length > 0) {
+          const templateId = campaignTemplates[0].templateId;
           const templates = await db.select()
             .from(acquirerApplicationTemplates)
-            .where(eq(acquirerApplicationTemplates.acquirerId, campaign.acquirerId));
-          applicationTemplate = templates.find(t => t.isActive) || templates[0] || null;
+            .where(eq(acquirerApplicationTemplates.id, templateId));
+          applicationTemplate = templates[0] || null;
+        }
+      }
+
+      // Reverse-map template-specific address fields to canonical names for loading
+      let prospectWithMappedData = prospect;
+      if (prospect.formData && applicationTemplate?.addressGroups) {
+        try {
+          const parsedFormData = JSON.parse(prospect.formData);
+          const canonicalFormData = mapTemplateAddressesToCanonical(parsedFormData, applicationTemplate.addressGroups);
+          prospectWithMappedData = {
+            ...prospect,
+            formData: JSON.stringify(canonicalFormData)
+          };
+          console.log('Reverse-mapped template addresses to canonical fields:', {
+            templateId: applicationTemplate.id,
+            templateName: applicationTemplate.templateName,
+            originalFields: Object.keys(parsedFormData).filter(k => k.includes('merchant_')),
+            canonicalFields: Object.keys(canonicalFormData).filter(k => k.includes('Address.'))
+          });
+        } catch (err) {
+          console.error('Error reverse-mapping addresses:', err);
+          // Continue with original data on error
         }
       }
 
       res.json({
-        prospect,
+        prospect: prospectWithMappedData,
         agent,
         campaign,
         campaignEquipment,
@@ -3551,9 +3634,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Agent not found" });
       }
 
+      // Get template configuration for address mapping
+      let mappedFormData = formData;
+      let templateForMapping = null;
+      
+      if (prospect.campaignId) {
+        // Get the specific template(s) assigned to this campaign
+        const dynamicDB = await getDynamicDatabase((req as any).dbEnv);
+        const { campaignApplicationTemplates } = await import('@shared/schema');
+        
+        const campaignTemplates = await dynamicDB
+          .select()
+          .from(campaignApplicationTemplates)
+          .where(eq(campaignApplicationTemplates.campaignId, prospect.campaignId));
+        
+        if (campaignTemplates && campaignTemplates.length > 0) {
+          // Get the first template for this campaign
+          const templateId = campaignTemplates[0].templateId;
+          const templates = await storage.getAcquirerApplicationTemplates();
+          templateForMapping = templates.find(t => t.id === templateId);
+          
+          if (templateForMapping && templateForMapping.addressGroups) {
+            mappedFormData = mapCanonicalAddressesToTemplate(formData, templateForMapping.addressGroups);
+            console.log('Mapped canonical addresses to template fields:', {
+              templateId: templateForMapping.id,
+              templateName: templateForMapping.templateName,
+              originalFields: Object.keys(formData).filter(k => k.includes('Address.')),
+              mappedFields: Object.keys(mappedFormData).filter(k => k.includes('merchant_'))
+            });
+          }
+        }
+      }
+
       // Update prospect with final form data and status
       const updatedProspect = await storage.updateMerchantProspect(prospectId, {
-        formData: JSON.stringify(formData),
+        formData: JSON.stringify(mappedFormData),
         status: 'submitted'
       });
 
