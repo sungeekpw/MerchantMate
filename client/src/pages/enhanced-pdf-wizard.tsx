@@ -158,6 +158,10 @@ export default function EnhancedPdfWizard() {
   const urlParams = new URLSearchParams(window.location.search);
   const prospectToken = urlParams.get('token');
   const isProspectMode = !!prospectToken;
+  
+  // Check for preview mode with templateId
+  const isPreviewMode = urlParams.get('preview') === 'true';
+  const previewTemplateId = urlParams.get('templateId');
 
   // Fetch prospect data if token is present
   const { data: prospectData } = useQuery({
@@ -169,6 +173,20 @@ export default function EnhancedPdfWizard() {
       return response.json();
     },
     enabled: !!prospectToken,
+  });
+
+  // Fetch template data for preview mode
+  const { data: previewTemplate } = useQuery({
+    queryKey: ['/api/acquirer-application-templates', previewTemplateId],
+    queryFn: async () => {
+      if (!previewTemplateId) return null;
+      const response = await fetch(`/api/acquirer-application-templates/${previewTemplateId}`, {
+        credentials: 'include'
+      });
+      if (!response.ok) throw new Error('Failed to fetch template');
+      return response.json();
+    },
+    enabled: isPreviewMode && !!previewTemplateId,
   });
 
   // Mutation to update prospect status to "in progress"
@@ -3061,6 +3079,22 @@ export default function EnhancedPdfWizard() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
+      {/* Preview Mode Banner */}
+      {isPreviewMode && previewTemplate && (
+        <div className="bg-green-600 text-white px-4 py-3 shadow-md">
+          <div className="max-w-7xl mx-auto flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <Monitor className="w-5 h-5" />
+              <div>
+                <p className="font-semibold">Test/Preview Mode</p>
+                <p className="text-xs opacity-90">Testing template: {previewTemplate.templateName} v{previewTemplate.version}</p>
+              </div>
+            </div>
+            <p className="text-xs opacity-90">Data will not be saved</p>
+          </div>
+        </div>
+      )}
+      
       {/* Header - Fixed */}
       <div className="bg-white/95 backdrop-blur-sm border-b border-gray-200 px-4 py-6 sticky top-0 z-50 shadow-sm">
         <div className="max-w-4xl mx-auto">
