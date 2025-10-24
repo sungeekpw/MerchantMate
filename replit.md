@@ -51,6 +51,20 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+### Campaign Selector Display Enhancement
+**Completed**: October 24, 2025
+
+**Changes Made**:
+1. **Backend Enhancement** (server/routes.ts):
+   - Modified `/api/campaigns` endpoint to include first application template for each campaign
+   - Added query to fetch template data from `campaign_application_templates` junction table
+   - Response now includes `firstTemplate` object with template ID and name
+
+2. **Frontend Update** (client/src/pages/prospects.tsx):
+   - Changed campaign selector display from `{{campaign_name}} - {{acquirer}}` to `{{campaign_name}} - {{template_name}}`
+   - Shows "No Template" fallback when campaign has no templates assigned
+   - Provides clearer context about which application form prospects will complete
+
 ### Address Mapper System Implementation
 **Completed**: October 23, 2025
 
