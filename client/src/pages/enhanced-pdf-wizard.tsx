@@ -969,7 +969,10 @@ export default function EnhancedPdfWizard() {
   // Create enhanced sections with descriptions and icons
   let sections: FormSection[] = [];
   
-  if (isProspectMode) {
+  if (isPreviewMode && previewTemplate) {
+    // Preview mode: use template configuration
+    sections = createSectionsFromTemplate(previewTemplate);
+  } else if (isProspectMode) {
     // Use template fields if available, otherwise use hardcoded sections
     if (prospectData?.applicationTemplate) {
       sections = createSectionsFromTemplate(prospectData.applicationTemplate);
@@ -989,14 +992,17 @@ export default function EnhancedPdfWizard() {
 
   // Function to evaluate if a field should be visible based on conditional rules
   const shouldShowField = (fieldId: string): boolean => {
-    if (!isProspectMode || !prospectData?.applicationTemplate) {
+    // Get the active template (preview or prospect mode)
+    const activeTemplate = isPreviewMode ? previewTemplate : prospectData?.applicationTemplate;
+    
+    if (!activeTemplate) {
       return true; // Show all fields if no template
     }
 
     let finalVisibility = true;
 
     // Check field-level conditional rules
-    const conditionalFields = prospectData.applicationTemplate.conditionalFields;
+    const conditionalFields = activeTemplate.conditionalFields;
     if (conditionalFields && conditionalFields[fieldId]) {
       const fieldCondition = conditionalFields[fieldId];
       const { action, when } = fieldCondition;
@@ -1057,7 +1063,7 @@ export default function EnhancedPdfWizard() {
     }
 
     // Check option-level conditional rules from all fields
-    const fieldConfiguration = prospectData.applicationTemplate.fieldConfiguration;
+    const fieldConfiguration = activeTemplate.fieldConfiguration;
     if (fieldConfiguration?.sections) {
       for (const section of fieldConfiguration.sections) {
         for (const field of section.fields) {
@@ -1914,6 +1920,18 @@ export default function EnhancedPdfWizard() {
     return null;
   };
 
+  // For preview mode, show loading if template data isn't loaded yet
+  if (isPreviewMode && !previewTemplate) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading template preview...</p>
+        </div>
+      </div>
+    );
+  }
+
   // For prospect mode, show loading if prospect data isn't loaded yet
   if (isProspectMode && !prospectData) {
     return (
@@ -1926,8 +1944,8 @@ export default function EnhancedPdfWizard() {
     );
   }
 
-  // For authenticated mode, show loading and error states for PDF form
-  if (!isProspectMode) {
+  // For authenticated mode (not preview or prospect), show loading and error states for PDF form
+  if (!isProspectMode && !isPreviewMode) {
     if (isLoading) {
       return (
         <div className="min-h-screen bg-gray-50 flex items-center justify-center">
