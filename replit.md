@@ -51,19 +51,25 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
-### Campaign Selector Display Enhancement
+### Campaign Assignment Persistence Fix
 **Completed**: October 24, 2025
 
-**Changes Made**:
-1. **Backend Enhancement** (server/routes.ts):
-   - Modified `/api/campaigns` endpoint to include first application template for each campaign
-   - Added query to fetch template data from `campaign_application_templates` junction table
-   - Response now includes `firstTemplate` object with template ID and name
+**Issue**: Campaign selections were not being saved when editing prospects. The selected campaign would reset to empty every time the prospect was edited.
 
-2. **Frontend Update** (client/src/pages/prospects.tsx):
-   - Changed campaign selector display from `{{campaign_name}} - {{acquirer}}` to `{{campaign_name}} - {{template_name}}`
-   - Shows "No Template" fallback when campaign has no templates assigned
-   - Provides clearer context about which application form prospects will complete
+**Root Cause**: 
+- Campaign assignments are stored in the separate `campaign_assignments` table
+- The `/api/prospects` endpoint did not include `campaignId` in the response
+- Frontend form reset logic hardcoded `campaignId: 0` when editing
+
+**Changes Made**:
+1. **Backend Enhancement** (server/routes.ts line 1871-1880):
+   - Modified `/api/prospects` endpoint to include campaign assignment for each prospect
+   - Added `Promise.all` to fetch campaign assignment via `storage.getProspectCampaignAssignment()`
+   - Response now includes `campaignId` field from the `campaign_assignments` table
+
+2. **Frontend Fix** (client/src/pages/prospects.tsx line 823):
+   - Changed form reset logic from hardcoded `campaignId: 0` to `(prospect as any).campaignId || 0`
+   - Form now preserves the selected campaign when editing existing prospects
 
 ### Address Mapper System Implementation
 **Completed**: October 23, 2025

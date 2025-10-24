@@ -817,7 +817,7 @@ function ProspectModal({ isOpen, onClose, prospect }: ProspectModalProps) {
         agentId: prospect.agentId,
         status: prospect.status,
         notes: prospect.notes || "",
-        campaignId: 0, // Default to 0 when editing existing prospects
+        campaignId: (prospect as any).campaignId || 0,
       });
     } else {
       form.reset({
