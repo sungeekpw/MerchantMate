@@ -15,8 +15,9 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Plus, Pencil, Eye, Copy, Download, Upload, Trash2, Settings, Circle, CheckCircle, ChevronDown, ChevronRight, GripVertical } from 'lucide-react';
+import { Plus, Pencil, Eye, Copy, Download, Upload, Trash2, Settings, Circle, CheckCircle, ChevronDown, ChevronRight, GripVertical, FlaskConical } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useLocation } from 'wouter';
 import {
   DndContext,
   closestCenter,
@@ -102,6 +103,7 @@ export default function ApplicationTemplatesPage() {
   const [isViewOpen, setIsViewOpen] = useState(false);
   const [isFieldConfigOpen, setIsFieldConfigOpen] = useState(false);
   const { toast } = useToast();
+  const [, setLocation] = useLocation();
 
   // Fetch application templates
   const { data: templates = [], isLoading: templatesLoading } = useQuery<AcquirerApplicationTemplate[]>({
@@ -340,6 +342,17 @@ export default function ApplicationTemplatesPage() {
     setIsFieldConfigOpen(true);
   };
 
+  const openTestPreview = (template: AcquirerApplicationTemplate) => {
+    // Open the form in preview mode with the template ID
+    const previewUrl = `/enhanced-pdf-wizard/1?preview=true&templateId=${template.id}`;
+    window.open(previewUrl, '_blank');
+    
+    toast({
+      title: 'Preview Opened',
+      description: 'The application template has been opened in a new tab for testing.',
+    });
+  };
+
   const duplicateTemplate = async (template: AcquirerApplicationTemplate) => {
     const duplicateData: TemplateFormData = {
       acquirerId: template.acquirerId,
@@ -432,6 +445,16 @@ export default function ApplicationTemplatesPage() {
                     data-testid={`button-view-template-${template.id}`}
                   >
                     <Eye className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => openTestPreview(template)}
+                    data-testid={`button-test-template-${template.id}`}
+                    className="text-green-600 hover:text-green-700 hover:bg-green-50"
+                    title="Test this template"
+                  >
+                    <FlaskConical className="h-4 w-4" />
                   </Button>
                   <Button
                     variant="ghost"
