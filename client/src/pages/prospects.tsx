@@ -1056,7 +1056,7 @@ function ProspectModal({ isOpen, onClose, prospect }: ProspectModalProps) {
                         .filter((campaign: any) => campaign.isActive)
                         .map((campaign: any) => (
                           <SelectItem key={campaign.id} value={campaign.id.toString()}>
-                            {campaign.name} - {campaign.firstTemplate?.name || 'No Template'}
+                            {campaign.name}
                           </SelectItem>
                         ))}
                     </SelectContent>
