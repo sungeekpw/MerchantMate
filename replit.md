@@ -12,6 +12,10 @@ Preferred communication style: Simple, everyday language.
 - **Theming**: CSS variables support theming for a consistent look and feel.
 - **Form Design**: Employs React Hook Form with Zod validation.
 - **Responsive Design**: Utilizes Radix UI and shadcn/ui with Tailwind CSS for adaptive layouts.
+- **Icon Color Coding**: Visual differentiation by user type:
+  - Agents: Blue (`bg-blue-100`, `text-blue-600`)
+  - Merchants: Green (`bg-green-100`, `text-green-600`)
+  - Prospects: Yellow (`bg-yellow-100`, `text-yellow-600`)
 
 ### Technical Implementations
 - **Frontend**: React with TypeScript and Vite, using TanStack Query for server state management and Wouter for routing.
