@@ -6600,7 +6600,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .leftJoin(acquirers, eq(campaigns.acquirerId, acquirers.id));
       
       console.log(`Found ${allCampaigns.length} campaigns in ${req.dbEnv} database`);
-      res.json(allCampaigns);
+      
+      // Fetch templates for each campaign
+      const campaignsWithTemplates = await Promise.all(
+        allCampaigns.map(async (campaign) => {
+          const templates = await storage.getCampaignTemplates(campaign.id);
+          return {
+            ...campaign,
+            templates: templates
+          };
+        })
+      );
+      
+      res.json(campaignsWithTemplates);
     } catch (error) {
       console.error('Error fetching campaigns:', error);
       res.status(500).json({ error: 'Failed to fetch campaigns' });
