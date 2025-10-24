@@ -6959,9 +6959,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.put('/api/campaigns/:id', dbEnvironmentMiddleware, requireRole(['admin', 'super_admin']), async (req: RequestWithDB, res: Response) => {
     try {
       const id = parseInt(req.params.id);
-      const { feeValues, equipmentIds, pricingTypeIds, ...campaignData } = req.body;
+      const { feeValues, equipmentIds, templateIds, pricingTypeIds, ...campaignData } = req.body;
       
-      console.log('Campaign update request:', { id, campaignData, feeValues, equipmentIds, pricingTypeIds });
+      console.log('Campaign update request:', { id, campaignData, feeValues, equipmentIds, templateIds, pricingTypeIds });
       console.log(`Updating campaign ${id} - Database environment: ${req.dbEnv}`);
       
       // Use the dynamic database connection
@@ -6970,7 +6970,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(500).json({ error: "Database connection not available" });
       }
       
-      const { campaigns, pricingTypes, campaignFeeValues, campaignEquipment, feeItems, feeGroups, equipmentItems, feeItemGroups, feeGroupFeeItems } = await import("@shared/schema");
+      const { campaigns, pricingTypes, campaignFeeValues, campaignEquipment, campaignApplicationTemplates, feeItems, feeGroups, equipmentItems, feeItemGroups, feeGroupFeeItems } = await import("@shared/schema");
       const { eq } = await import("drizzle-orm");
       
       // Get current user from session
@@ -7055,6 +7055,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
             isRequired: false,
             displayOrder: i,
           });
+        }
+      }
+      
+      // Handle template associations if provided
+      if (templateIds !== undefined) {
+        // Delete existing template associations
+        await dbToUse
+          .delete(campaignApplicationTemplates)
+          .where(eq(campaignApplicationTemplates.campaignId, id));
+        
+        // Insert new template associations if any are selected
+        if (templateIds.length > 0) {
+          for (const templateId of templateIds) {
+            await dbToUse.insert(campaignApplicationTemplates).values({
+              campaignId: id,
+              templateId: templateId,
+            });
+          }
         }
       }
       
