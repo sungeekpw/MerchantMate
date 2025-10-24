@@ -1865,7 +1865,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Access denied" });
       }
       
-      res.json(prospects);
+      // Include campaign assignment for each prospect
+      const prospectsWithCampaign = await Promise.all(
+        prospects.map(async (prospect) => {
+          const campaignAssignment = await storage.getProspectCampaignAssignment(prospect.id);
+          return {
+            ...prospect,
+            campaignId: campaignAssignment?.campaignId || null,
+          };
+        })
+      );
+      
+      res.json(prospectsWithCampaign);
     } catch (error) {
       console.error("Error fetching prospects:", error);
       res.status(500).json({ message: "Failed to fetch prospects" });
