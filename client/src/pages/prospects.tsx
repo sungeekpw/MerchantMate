@@ -1054,11 +1054,14 @@ function ProspectModal({ isOpen, onClose, prospect }: ProspectModalProps) {
                     <SelectContent>
                       {campaigns
                         .filter((campaign: any) => campaign.isActive)
-                        .map((campaign: any) => (
-                          <SelectItem key={campaign.id} value={campaign.id.toString()}>
-                            {campaign.name}
-                          </SelectItem>
-                        ))}
+                        .map((campaign: any) => {
+                          const templateNames = campaign.templates?.map((t: any) => t.template.templateName).join(', ') || 'No template';
+                          return (
+                            <SelectItem key={campaign.id} value={campaign.id.toString()}>
+                              {campaign.name} {templateNames !== 'No template' && `(${templateNames})`}
+                            </SelectItem>
+                          );
+                        })}
                     </SelectContent>
                   </Select>
                   <FormMessage />

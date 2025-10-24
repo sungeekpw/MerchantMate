@@ -51,6 +51,34 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+### Campaign Selector Enhancement
+**Completed**: October 24, 2025
+
+**Enhancement**: Campaign dropdown in prospect form now displays associated application template names alongside campaign names.
+
+**Changes Made**:
+1. **Backend Enhancement** (server/routes.ts line 8636-8656):
+   - Modified `/api/campaigns` endpoint to include template information for each campaign
+   - Uses `storage.getCampaignTemplates()` to fetch associated templates with full template details
+   - Each campaign now returns a `templates` array containing template names
+
+2. **Frontend Enhancement** (client/src/pages/prospects.tsx line 1060-1067):
+   - Campaign selector dropdown now displays format: "Campaign Name (Template Name)"
+   - Multiple templates are comma-separated
+   - Campaigns without templates show just the campaign name
+
+### Campaign Template Persistence Fix
+**Completed**: October 24, 2025
+
+**Issue**: Application template selections in the campaign edit UI were not being saved. When editing a campaign, the template checkboxes would reset to unchecked.
+
+**Root Cause**: The PUT endpoint for `/api/campaigns/:id` was not extracting or processing `templateIds` from the request body.
+
+**Changes Made** (server/routes.ts):
+1. **Line 6965**: Added `templateIds` to destructured request body parameters
+2. **Line 6976**: Added `campaignApplicationTemplates` to schema imports
+3. **Lines 7064-7080**: Added template handling logic that deletes existing associations and inserts new ones
+
 ### Campaign Assignment Persistence Fix
 **Completed**: October 24, 2025
 
