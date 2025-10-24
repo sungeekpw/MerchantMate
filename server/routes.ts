@@ -6553,7 +6553,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(500).json({ error: "Database connection not available" });
       }
       
-      const { campaigns, pricingTypes, acquirers, eq } = await import("@shared/schema");
+      const { campaigns, pricingTypes, acquirers, campaignApplicationTemplates, acquirerApplicationTemplates, eq } = await import("@shared/schema");
       
       // Join campaigns with pricing types and acquirers to get full data
       const allCampaigns = await dbToUse
@@ -6588,8 +6588,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .leftJoin(pricingTypes, eq(campaigns.pricingTypeId, pricingTypes.id))
         .leftJoin(acquirers, eq(campaigns.acquirerId, acquirers.id));
       
-      console.log(`Found ${allCampaigns.length} campaigns in ${req.dbEnv} database`);
-      res.json(allCampaigns);
+      // Fetch first application template for each campaign
+      const campaignsWithTemplates = await Promise.all(
+        allCampaigns.map(async (campaign) => {
+          const [firstTemplate] = await dbToUse
+            .select({
+              templateId: campaignApplicationTemplates.templateId,
+              templateName: acquirerApplicationTemplates.name,
+            })
+            .from(campaignApplicationTemplates)
+            .leftJoin(acquirerApplicationTemplates, eq(campaignApplicationTemplates.templateId, acquirerApplicationTemplates.id))
+            .where(eq(campaignApplicationTemplates.campaignId, campaign.id))
+            .limit(1);
+          
+          return {
+            ...campaign,
+            firstTemplate: firstTemplate ? {
+              id: firstTemplate.templateId,
+              name: firstTemplate.templateName,
+            } : null,
+          };
+        })
+      );
+      
+      console.log(`Found ${campaignsWithTemplates.length} campaigns in ${req.dbEnv} database`);
+      res.json(campaignsWithTemplates);
     } catch (error) {
       console.error('Error fetching campaigns:', error);
       res.status(500).json({ error: 'Failed to fetch campaigns' });
