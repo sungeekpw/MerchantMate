@@ -8633,7 +8633,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/campaigns", requireRole(['admin', 'super_admin']), async (req: Request, res: Response) => {
     try {
       const campaigns = await storage.getAllCampaigns();
-      res.json(campaigns);
+      
+      // Fetch templates for each campaign
+      const campaignsWithTemplates = await Promise.all(
+        campaigns.map(async (campaign) => {
+          const templates = await storage.getCampaignTemplates(campaign.id);
+          return {
+            ...campaign,
+            templates: templates
+          };
+        })
+      );
+      
+      res.json(campaignsWithTemplates);
     } catch (error) {
       console.error("Error fetching campaigns:", error);
       res.status(500).json({ error: "Failed to fetch campaigns" });
