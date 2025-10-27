@@ -51,6 +51,40 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+### Address Field Population Fix
+**Completed**: October 27, 2025
+
+**Issue**: In prospect applications, when selecting an address from the autocomplete dropdown, only the street address field was being populated. The City, State, and ZIP fields were not appearing.
+
+**Root Cause**: The address field was being rendered as an old-style 'address' type field with `showExpandedFields={false}`, which prevented the expanded address fields (city, state, zip) from displaying.
+
+**Changes Made** (client/src/pages/enhanced-pdf-wizard.tsx line 3045):
+- Changed `showExpandedFields={false}` to `showExpandedFields={true}` for address-type fields
+- Added extensive logging to help debug address field rendering and data storage
+- City, State, and ZIP fields now appear automatically after address selection
+
+**Note**: This fix applies to templates using the old-style 'address' field type. Templates using the new 'addressGroup' type already had this functionality working correctly.
+
+### Template Test/Preview Functionality
+**Completed**: October 27, 2025
+
+**Feature**: Added ability to test application templates in preview mode without creating prospect data.
+
+**Changes Made**:
+1. **Frontend Enhancement** (client/src/pages/application-templates.tsx):
+   - Added green Flask icon button next to View button in templates grid
+   - Opens template in new tab with preview mode enabled
+   - Uses URL parameter `preview=true&templateId=X`
+
+2. **Preview Mode Implementation** (client/src/pages/enhanced-pdf-wizard.tsx):
+   - Added green banner at top showing "Test/Preview Mode" with template name and version
+   - Displays "Data will not be saved" message
+   - Loads form using template's `fieldConfiguration` instead of requiring PDF form
+   - Supports all form features including conditional fields and address autocomplete
+   - No data is persisted to database in preview mode
+
+**Benefit**: Administrators can now quickly test and verify template configurations before assigning them to campaigns and sending to prospects.
+
 ### Campaign Selector Enhancement
 **Completed**: October 24, 2025
 
