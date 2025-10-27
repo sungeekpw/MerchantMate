@@ -70,16 +70,25 @@ export function AddressAutocompleteInput({
   
   // Update addressDetails when initialValues change
   useEffect(() => {
-    setAddressDetails(prev => ({
-      ...prev,
-      city: initialValues.city ?? prev.city,
-      state: initialValues.state ?? prev.state,
-      zipCode: initialValues.zipCode ?? prev.zipCode,
-      street2: initialValues.street2 ?? street2Value ?? prev.street2
-    }));
+    console.log('AddressAutocompleteInput useEffect triggered:', {
+      value,
+      initialValues,
+      currentAddressDetails: addressDetails
+    });
+    
+    const newDetails = {
+      ...addressDetails,
+      city: initialValues.city ?? addressDetails.city,
+      state: initialValues.state ?? addressDetails.state,
+      zipCode: initialValues.zipCode ?? addressDetails.zipCode,
+      street2: initialValues.street2 ?? street2Value ?? addressDetails.street2
+    };
+    
+    setAddressDetails(newDetails);
     
     // Auto-lock if we have complete address data from initialValues
     if (value && initialValues.city && initialValues.state && initialValues.zipCode) {
+      console.log('Auto-locking address field - complete data detected');
       setIsLocked(true);
       setValidationStatus('valid');
     }
@@ -367,7 +376,16 @@ export function AddressAutocompleteInput({
       </div>
 
       {/* Expanded address fields - show when address is validated OR has initial values */}
-      {showExpandedFields && (validationStatus === 'valid' || addressDetails.city || addressDetails.state || addressDetails.zipCode) && (
+      {(() => {
+        const shouldShow = showExpandedFields && (validationStatus === 'valid' || addressDetails.city || addressDetails.state || addressDetails.zipCode);
+        console.log('Should show expanded fields?', {
+          showExpandedFields,
+          validationStatus,
+          addressDetails,
+          shouldShow
+        });
+        return shouldShow;
+      })() && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
             <Label htmlFor="address-city" className="text-sm font-semibold text-gray-900">
