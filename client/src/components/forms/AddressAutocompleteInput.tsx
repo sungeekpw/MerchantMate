@@ -77,7 +77,13 @@ export function AddressAutocompleteInput({
       zipCode: initialValues.zipCode ?? prev.zipCode,
       street2: initialValues.street2 ?? street2Value ?? prev.street2
     }));
-  }, [initialValues.city, initialValues.state, initialValues.zipCode, initialValues.street2, street2Value]);
+    
+    // Auto-lock if we have complete address data from initialValues
+    if (value && initialValues.city && initialValues.state && initialValues.zipCode) {
+      setIsLocked(true);
+      setValidationStatus('valid');
+    }
+  }, [initialValues.city, initialValues.state, initialValues.zipCode, initialValues.street2, street2Value, value]);
 
   // Fetch address suggestions
   const fetchSuggestions = async (input: string) => {
