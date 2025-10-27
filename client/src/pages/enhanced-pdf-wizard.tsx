@@ -3060,6 +3060,16 @@ export default function EnhancedPdfWizard() {
         const stateVal = formData[`${canonicalPrefix}.state`] || '';
         const zipCodeVal = formData[`${canonicalPrefix}.postalCode`] || '';
         
+        console.log('AddressGroup render:', {
+          groupType,
+          canonicalPrefix,
+          formDataKeys: Object.keys(formData).filter(k => k.includes('Address')),
+          streetValue,
+          cityVal,
+          stateVal,
+          zipCodeVal
+        });
+        
         return (
           <div className="space-y-2" key={field.fieldName}>
             <Label className="text-sm font-medium text-gray-700">
@@ -3067,8 +3077,12 @@ export default function EnhancedPdfWizard() {
               {field.isRequired && <span className="text-red-500 ml-1">*</span>}
             </Label>
             <AddressAutocompleteInput
+              key={`${canonicalPrefix}-${streetValue}-${cityVal}-${stateVal}-${zipCodeVal}`}
               value={streetValue}
-              onChange={(value) => handleFieldChange(`${canonicalPrefix}.street1`, value)}
+              onChange={(value) => {
+                console.log('Street address changed:', value);
+                handleFieldChange(`${canonicalPrefix}.street1`, value);
+              }}
               initialValues={{
                 city: cityVal,
                 state: stateVal,
@@ -3077,13 +3091,19 @@ export default function EnhancedPdfWizard() {
               }}
               onAddressSelect={(address) => {
                 console.log('Address selected in form:', address);
-                // Store with canonical field names
-                handleFieldChange(`${canonicalPrefix}.street1`, address.street || '');
-                handleFieldChange(`${canonicalPrefix}.street2`, address.street2 || '');
-                handleFieldChange(`${canonicalPrefix}.city`, address.city || '');
-                handleFieldChange(`${canonicalPrefix}.state`, address.state || '');
-                handleFieldChange(`${canonicalPrefix}.postalCode`, address.zipCode || '');
-                handleFieldChange(`${canonicalPrefix}.country`, 'US');
+                // Store with canonical field names - all at once
+                const updates = {
+                  [`${canonicalPrefix}.street1`]: address.street || '',
+                  [`${canonicalPrefix}.street2`]: address.street2 || '',
+                  [`${canonicalPrefix}.city`]: address.city || '',
+                  [`${canonicalPrefix}.state`]: address.state || '',
+                  [`${canonicalPrefix}.postalCode`]: address.zipCode || '',
+                  [`${canonicalPrefix}.country`]: 'US'
+                };
+                console.log('Storing address updates:', updates);
+                Object.entries(updates).forEach(([key, val]) => {
+                  handleFieldChange(key, val);
+                });
               }}
               placeholder="Start typing an address..."
               dataTestId={`addressgroup-${groupType}`}
