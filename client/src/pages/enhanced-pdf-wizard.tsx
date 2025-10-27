@@ -3107,7 +3107,7 @@ export default function EnhancedPdfWizard() {
               {field.isRequired && <span className="text-red-500 ml-1">*</span>}
             </Label>
             <AddressAutocompleteInput
-              key={`${canonicalPrefix}-${streetValue}-${cityVal}-${stateVal}-${zipCodeVal}`}
+              key={`addressgroup-${canonicalPrefix}`}
               value={streetValue}
               onChange={(value) => {
                 console.log('Street address changed:', value);
