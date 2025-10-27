@@ -90,6 +90,16 @@ export const getRequestDB = (req: RequestWithDB) => {
 };
 
 /**
+ * Helper function to create an environment-aware storage instance for a request
+ * Uses the request's dynamic database connection to ensure data goes to the correct environment
+ */
+export const createStorageForRequest = (req: RequestWithDB) => {
+  const { createStorage } = require('./storage');
+  const dynamicDB = getRequestDB(req);
+  return createStorage(dynamicDB);
+};
+
+/**
  * Middleware specifically for admin routes that allows database switching for super_admin users
  */
 export const adminDbMiddleware = (req: RequestWithDB, res: Response, next: NextFunction) => {
