@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { getDynamicDatabase, extractDbEnv } from './db';
+import { createStorage } from './storage';
 
 // Extend the Request interface to include database environment info
 export interface RequestWithDB extends Request {
@@ -94,7 +95,6 @@ export const getRequestDB = (req: RequestWithDB) => {
  * Uses the request's dynamic database connection to ensure data goes to the correct environment
  */
 export const createStorageForRequest = (req: RequestWithDB) => {
-  const { createStorage } = require('./storage');
   const dynamicDB = getRequestDB(req);
   return createStorage(dynamicDB);
 };
