@@ -3076,6 +3076,7 @@ export default function EnhancedPdfWizard() {
                 street2: street2Val
               }}
               onAddressSelect={(address) => {
+                console.log('Address selected in form:', address);
                 // Store with canonical field names
                 handleFieldChange(`${canonicalPrefix}.street1`, address.street || '');
                 handleFieldChange(`${canonicalPrefix}.street2`, address.street2 || '');
@@ -3086,6 +3087,7 @@ export default function EnhancedPdfWizard() {
               }}
               placeholder="Start typing an address..."
               dataTestId={`addressgroup-${groupType}`}
+              showExpandedFields={true}
             />
           </div>
         );
