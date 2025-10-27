@@ -3039,7 +3039,7 @@ export default function EnhancedPdfWizard() {
               placeholder="Start typing an address..."
               dataTestId={`input-${field.fieldName}`}
               className={hasError ? 'border-red-500' : ''}
-              showExpandedFields={false}
+              showExpandedFields={true}
             />
             {hasError && <p className="text-xs text-red-500">{hasError}</p>}
           </div>
