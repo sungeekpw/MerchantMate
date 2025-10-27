@@ -170,7 +170,19 @@ export default function EnhancedPdfWizard() {
       if (!prospectToken) return null;
       const response = await fetch(`/api/prospects/token/${prospectToken}`);
       if (!response.ok) throw new Error('Invalid prospect token');
-      return response.json();
+      const data = await response.json();
+      console.log('📍 Prospect data loaded:', data);
+      console.log('📍 Has applicationTemplate?', !!data?.applicationTemplate);
+      if (data?.applicationTemplate) {
+        console.log('📍 Template details:', {
+          id: data.applicationTemplate.id,
+          name: data.applicationTemplate.templateName,
+          hasAddressGroups: !!data.applicationTemplate.addressGroups,
+          addressGroupsCount: data.applicationTemplate.addressGroups?.length || 0,
+          addressGroups: data.applicationTemplate.addressGroups
+        });
+      }
+      return data;
     },
     enabled: !!prospectToken,
   });
