@@ -9,162 +9,42 @@ Preferred communication style: Simple, everyday language.
 ## System Architecture
 
 ### UI/UX Decisions
-- **Theming**: CSS variables support theming for a consistent look and feel.
-- **Form Design**: Employs React Hook Form with Zod validation.
-- **Responsive Design**: Utilizes Radix UI and shadcn/ui with Tailwind CSS for adaptive layouts.
-- **Icon Color Coding**: Visual differentiation by user type:
-  - Agents: Blue (`bg-blue-100`, `text-blue-600`)
-  - Merchants: Green (`bg-green-100`, `text-green-600`)
-  - Prospects: Yellow (`bg-yellow-100`, `text-yellow-600`)
+- **Theming**: CSS variables for consistent look and feel.
+- **Form Design**: React Hook Form with Zod validation.
+- **Responsive Design**: Radix UI and shadcn/ui with Tailwind CSS.
+- **Icon Color Coding**: Visual differentiation by user type (Agents: Blue, Merchants: Green, Prospects: Yellow).
 
 ### Technical Implementations
-- **Frontend**: React with TypeScript and Vite, using TanStack Query for server state management and Wouter for routing.
+- **Frontend**: React with TypeScript and Vite, TanStack Query, Wouter for routing.
 - **Backend**: Express.js with TypeScript.
-- **Database**: PostgreSQL with Drizzle ORM, deployed on Neon serverless.
-- **Authentication**: Session-based authentication using `express-session` and a PostgreSQL session store, including 2FA.
+- **Database**: PostgreSQL with Drizzle ORM on Neon serverless.
+- **Authentication**: Session-based with `express-session`, PostgreSQL session store, and 2FA.
 - **Email Service**: SendGrid for transactional emails with webhook integration, including a WYSIWYG editor (React Quill).
 - **File Handling**: Multer for PDF form uploads.
 
 ### Feature Specifications
-- **Company-Centric Data Architecture**: Companies are the root entity.
-- **Role-Based Access Control**: Granular permissions for `merchant`, `agent`, `admin`, `corporate`, `super_admin` roles.
-- **Secure Authentication**: Session management, login attempt tracking, 2FA, password reset, and strong password requirements.
-- **Merchant & Agent Management**: Comprehensive profiles, assignment, status tracking, and fee management.
+- **Company-Centric Data Architecture**: Companies as the root entity.
+- **Role-Based Access Control**: Granular permissions for multiple roles.
+- **Secure Authentication**: Session management, 2FA, password reset, strong password requirements.
+- **Merchant & Agent Management**: Comprehensive profiles, assignment, status, fee management.
 - **Location Management**: Polymorphic locations with geolocation and operating hours.
-- **Transaction Processing**: Tracking, commission calculations, and revenue analytics.
-- **Form Management System**: PDF upload/parsing, dynamic field generation, public access, and conditional field visibility with both field-level and option-level triggers supporting real-time evaluation.
+- **Transaction Processing**: Tracking, commission calculations, revenue analytics.
+- **Form Management System**: PDF upload/parsing, dynamic field generation, public access, conditional fields with real-time evaluation.
 - **Dashboard System**: Personalized, widget-based dashboards with real-time analytics.
-- **Digital Signature**: Inline canvas-based and typed signature functionality with email request workflows, including an agent signature workflow.
-- **Address Validation & Autocomplete**: Google Maps Geocoding and Places Autocomplete integration using a standardized `AddressAutocompleteInput` component. Templates define address groups with canonical-to-template field mappings. Backend mapper translates canonical fields (street1, city, state, postalCode) to template-specific names during form submission.
-- **Campaign Management**: Full CRUD for campaigns, pricing types, fee groups, and equipment associations.
-- **SOC2 Compliance Features**: Comprehensive audit trail system with logging, security events, and login attempt tracking.
-- **Generic Trigger/Action Catalog System**: Extensible event-driven action system supporting multi-channel notifications and action chaining with a unified `action_templates` architecture.
+- **Digital Signature**: Inline canvas-based and typed signature with email request workflows.
+- **Address Validation & Autocomplete**: Google Maps Geocoding and Places Autocomplete integration with standardized components and backend mapping.
+- **Campaign Management**: Full CRUD for campaigns, pricing types, fee groups, equipment associations.
+- **SOC2 Compliance Features**: Comprehensive audit trail, logging, security events, login attempt tracking.
+- **Generic Trigger/Action Catalog System**: Extensible event-driven action system supporting multi-channel notifications and action chaining.
 - **User Profile Management**: Self-service profile/settings page.
 
 ### System Design Choices
 - **Testing Framework**: TDD-style with Jest and React Testing Library.
-- **Schema Management**: Comprehensive database schema comparison and synchronization utilities with a version-controlled migration system and drift detection.
+- **Schema Management**: Comprehensive database schema comparison, synchronization, version-controlled migration system, and drift detection.
 - **Multi-Environment Support**: Session-based database environment switching (Development, Test, Production).
-- **Database Safety**: Strict protocols and wrapper scripts are enforced to prevent accidental production database modifications.
-- **Deployment Pipeline Compliance**: All schema changes MUST follow the strict Dev → Test → Production deployment pipeline documented in `MIGRATION_WORKFLOW.md`.
-- **User-Company Association Pattern**: **CRITICAL ARCHITECTURE** - ALL agent and merchant lookups MUST use the generic pattern: `User → user_company_associations → Company → Agent/Merchant`.
-
-## Recent Changes
-
-### Address Field Population Fix
-**Completed**: October 27, 2025
-
-**Issue**: In prospect applications, when selecting an address from the autocomplete dropdown, only the street address field was being populated. The City, State, and ZIP fields were not appearing.
-
-**Root Cause**: The address field was being rendered as an old-style 'address' type field with `showExpandedFields={false}`, which prevented the expanded address fields (city, state, zip) from displaying.
-
-**Changes Made** (client/src/pages/enhanced-pdf-wizard.tsx line 3045):
-- Changed `showExpandedFields={false}` to `showExpandedFields={true}` for address-type fields
-- Added extensive logging to help debug address field rendering and data storage
-- City, State, and ZIP fields now appear automatically after address selection
-
-**Note**: This fix applies to templates using the old-style 'address' field type. Templates using the new 'addressGroup' type already had this functionality working correctly.
-
-### Template Test/Preview Functionality
-**Completed**: October 27, 2025
-
-**Feature**: Added ability to test application templates in preview mode without creating prospect data.
-
-**Changes Made**:
-1. **Frontend Enhancement** (client/src/pages/application-templates.tsx):
-   - Added green Flask icon button next to View button in templates grid
-   - Opens template in new tab with preview mode enabled
-   - Uses URL parameter `preview=true&templateId=X`
-
-2. **Preview Mode Implementation** (client/src/pages/enhanced-pdf-wizard.tsx):
-   - Added green banner at top showing "Test/Preview Mode" with template name and version
-   - Displays "Data will not be saved" message
-   - Loads form using template's `fieldConfiguration` instead of requiring PDF form
-   - Supports all form features including conditional fields and address autocomplete
-   - No data is persisted to database in preview mode
-
-**Benefit**: Administrators can now quickly test and verify template configurations before assigning them to campaigns and sending to prospects.
-
-### Campaign Selector Enhancement
-**Completed**: October 24, 2025
-
-**Enhancement**: Campaign dropdown in prospect form now displays associated application template names alongside campaign names.
-
-**Changes Made**:
-1. **Backend Enhancement** (server/routes.ts line 8636-8656):
-   - Modified `/api/campaigns` endpoint to include template information for each campaign
-   - Uses `storage.getCampaignTemplates()` to fetch associated templates with full template details
-   - Each campaign now returns a `templates` array containing template names
-
-2. **Frontend Enhancement** (client/src/pages/prospects.tsx line 1060-1067):
-   - Campaign selector dropdown now displays format: "Campaign Name (Template Name)"
-   - Multiple templates are comma-separated
-   - Campaigns without templates show just the campaign name
-
-### Campaign Template Persistence Fix
-**Completed**: October 24, 2025
-
-**Issue**: Application template selections in the campaign edit UI were not being saved. When editing a campaign, the template checkboxes would reset to unchecked.
-
-**Root Cause**: The PUT endpoint for `/api/campaigns/:id` was not extracting or processing `templateIds` from the request body.
-
-**Changes Made** (server/routes.ts):
-1. **Line 6965**: Added `templateIds` to destructured request body parameters
-2. **Line 6976**: Added `campaignApplicationTemplates` to schema imports
-3. **Lines 7064-7080**: Added template handling logic that deletes existing associations and inserts new ones
-
-### Campaign Assignment Persistence Fix
-**Completed**: October 24, 2025
-
-**Issue**: Campaign selections were not being saved when editing prospects. The selected campaign would reset to empty every time the prospect was edited.
-
-**Root Cause**: 
-- Campaign assignments are stored in the separate `campaign_assignments` table
-- The `/api/prospects` endpoint did not include `campaignId` in the response
-- Frontend form reset logic hardcoded `campaignId: 0` when editing
-
-**Changes Made**:
-1. **Backend Enhancement** (server/routes.ts line 1871-1880):
-   - Modified `/api/prospects` endpoint to include campaign assignment for each prospect
-   - Added `Promise.all` to fetch campaign assignment via `storage.getProspectCampaignAssignment()`
-   - Response now includes `campaignId` field from the `campaign_assignments` table
-
-2. **Frontend Fix** (client/src/pages/prospects.tsx line 823):
-   - Changed form reset logic from hardcoded `campaignId: 0` to `(prospect as any).campaignId || 0`
-   - Form now preserves the selected campaign when editing existing prospects
-
-### Address Mapper System Implementation
-**Completed**: October 23, 2025
-
-**Changes Made**:
-1. **Backend Mapper Services** (server/routes.ts):
-   - `mapCanonicalAddressesToTemplate()`: Converts canonical address fields (businessAddress.street1, etc.) to template-specific field names during form submission
-   - `mapTemplateAddressesToCanonical()`: Reverse mapping for loading saved data back into canonical format
-   - Both mappers use `addressGroups` metadata from templates to determine field mappings
-
-2. **Environment-Specific Database Connections**:
-   - Fixed `/api/prospects/token/:token` endpoint to use dbMiddleware pattern (lines 2276-2317)
-   - Now correctly respects 3-environment architecture (Dev/Test/Production)
-   - Uses `getRequestDB(req)` for environment-specific connections instead of static `db` import
-   - Added missing `campaignApplicationTemplates` import (line 25)
-
-3. **Schema Synchronization**:
-   - Applied comprehensive migration to DEV and TEST environments
-   - Migration file: `migrations/comprehensive-dev-sync-2025-10-23.sql`
-   - Added `address_groups` column to `acquirer_application_templates`
-   - Created `campaign_application_templates` junction table
-   - Added `pdf_field_id` column to `pdf_form_fields`
-
-**Environment-Aware Prospect Links**:
-- Email links automatically include `?db=` parameter for non-production environments (via `sendProspectValidationEmail`)
-- Frontend copy-to-clipboard function includes environment parameter (via `/api/environment` endpoint)
-- Ensures prospects always access the correct database environment where their data was created
-
-**Testing Requirements**:
-To test the address mapper end-to-end:
-1. Assign a template with `addressGroups` configuration to a campaign via `campaign_application_templates` junction table
-2. Create or load a prospect application linked to that campaign
-3. Verify addresses are properly mapped both ways (canonical ↔ template-specific)
+- **Database Safety**: Strict protocols and wrapper scripts to prevent accidental production database modifications.
+- **Deployment Pipeline Compliance**: All schema changes must follow Dev → Test → Production pipeline.
+- **User-Company Association Pattern**: **CRITICAL ARCHITECTURE** - All agent and merchant lookups MUST use the generic pattern: `User → user_company_associations → Company → Agent/Merchant`.
 
 ## External Dependencies
 - **pg**: Native PostgreSQL driver.
