@@ -914,6 +914,8 @@ export default function EnhancedPdfWizard() {
     const addressGroups = template.addressGroups || [];
     const addressFieldNames = new Set<string>();
     
+    console.log('📍 AddressGroups from template:', addressGroups);
+    
     // Collect all individual address field names that are part of groups
     addressGroups.forEach((group: any) => {
       if (group.fieldMappings) {
@@ -925,11 +927,21 @@ export default function EnhancedPdfWizard() {
       }
     });
     
+    console.log('📍 Address field names to filter out:', Array.from(addressFieldNames));
+    
     return template.fieldConfiguration.sections.map((section: any, sectionIndex: number) => {
+      console.log(`📍 Processing section: ${section.title}, fields before filter:`, section.fields.length);
+      
       // Filter out individual address fields that are part of groups
-      const filteredFields = section.fields.filter((field: any) => 
-        !addressFieldNames.has(field.id)
-      );
+      const filteredFields = section.fields.filter((field: any) => {
+        const shouldFilter = addressFieldNames.has(field.id);
+        if (shouldFilter) {
+          console.log(`📍 Filtering out field: ${field.id} (${field.label})`);
+        }
+        return !shouldFilter;
+      });
+      
+      console.log(`📍 Section ${section.title}: ${filteredFields.length} fields after filtering`);
       
       // Add address group pseudo-fields to appropriate sections
       const fieldsWithGroups = [...filteredFields];
@@ -937,6 +949,7 @@ export default function EnhancedPdfWizard() {
         addressGroups.forEach((group: any, groupIndex: number) => {
           // Add addressGroup to its configured section, or to all sections if no sectionName specified
           if (!group.sectionName || group.sectionName === section.title) {
+            console.log(`📍 Adding addressGroup "${group.label}" to section "${section.title}"`);
             fieldsWithGroups.push({
               id: `addressGroup_${group.type}`,
               label: group.label || `${group.type.charAt(0).toUpperCase() + group.type.slice(1)} Address`,
@@ -946,6 +959,8 @@ export default function EnhancedPdfWizard() {
           }
         });
       }
+      
+      console.log(`📍 Section ${section.title}: ${fieldsWithGroups.length} fields total (with addressGroups)`);
       
       return {
         name: section.title,
