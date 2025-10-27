@@ -3128,20 +3128,31 @@ export default function EnhancedPdfWizard() {
                 street2: street2Val
               }}
               onAddressSelect={(address) => {
-                console.log('Address selected in form:', address);
-                // Store with canonical field names - all at once
-                const updates = {
-                  [`${canonicalPrefix}.street1`]: address.street || '',
-                  [`${canonicalPrefix}.street2`]: address.street2 || '',
-                  [`${canonicalPrefix}.city`]: address.city || '',
-                  [`${canonicalPrefix}.state`]: address.state || '',
-                  [`${canonicalPrefix}.postalCode`]: address.zipCode || '',
-                  [`${canonicalPrefix}.country`]: 'US'
-                };
-                console.log('Storing address updates:', updates);
-                Object.entries(updates).forEach(([key, val]) => {
-                  handleFieldChange(key, val);
-                });
+                try {
+                  console.log('🎯 onAddressSelect FIRED! Address:', address);
+                  console.log('🎯 canonicalPrefix:', canonicalPrefix);
+                  
+                  // Store with canonical field names - all at once
+                  const updates = {
+                    [`${canonicalPrefix}.street1`]: address.street || '',
+                    [`${canonicalPrefix}.street2`]: address.street2 || '',
+                    [`${canonicalPrefix}.city`]: address.city || '',
+                    [`${canonicalPrefix}.state`]: address.state || '',
+                    [`${canonicalPrefix}.postalCode`]: address.zipCode || '',
+                    [`${canonicalPrefix}.country`]: 'US'
+                  };
+                  console.log('🎯 Updates object created:', updates);
+                  console.log('🎯 About to call handleFieldChange for each update...');
+                  
+                  Object.entries(updates).forEach(([key, val]) => {
+                    console.log(`🎯 Calling handleFieldChange('${key}', '${val}')`);
+                    handleFieldChange(key, val);
+                  });
+                  
+                  console.log('🎯 All handleFieldChange calls completed!');
+                } catch (error) {
+                  console.error('❌ ERROR in onAddressSelect:', error);
+                }
               }}
               placeholder="Start typing an address..."
               dataTestId={`addressgroup-${groupType}`}
