@@ -3090,14 +3090,16 @@ export default function EnhancedPdfWizard() {
         const stateVal = formData[`${canonicalPrefix}.state`] || '';
         const zipCodeVal = formData[`${canonicalPrefix}.postalCode`] || '';
         
-        console.log('AddressGroup render:', {
+        console.log('🏠 AddressGroup render:', {
           groupType,
           canonicalPrefix,
-          formDataKeys: Object.keys(formData).filter(k => k.includes('Address')),
-          streetValue,
-          cityVal,
-          stateVal,
-          zipCodeVal
+          allFormDataKeys: Object.keys(formData),
+          addressKeys: Object.keys(formData).filter(k => k.includes('Address')),
+          streetValue: streetValue,
+          cityVal: cityVal,
+          stateVal: stateVal,
+          zipCodeVal: zipCodeVal,
+          fullFormData: formData
         });
         
         return (
