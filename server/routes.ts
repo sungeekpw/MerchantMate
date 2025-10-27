@@ -14,7 +14,7 @@ import { pdfFormParser } from "./pdfParser";
 import { emailService } from "./emailService";
 import { v4 as uuidv4 } from "uuid";
 // Legacy import kept for gradual migration
-import { dbEnvironmentMiddleware, adminDbMiddleware, getRequestDB, type RequestWithDB } from "./dbMiddleware";
+import { dbEnvironmentMiddleware, adminDbMiddleware, getRequestDB, createStorageForRequest, type RequestWithDB } from "./dbMiddleware";
 // New global environment system
 import { globalEnvironmentMiddleware, adminEnvironmentMiddleware, type RequestWithGlobalDB } from "./globalEnvironmentMiddleware";
 import { setupEnvironmentRoutes } from "./environmentRoutes";
@@ -3405,19 +3405,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Update prospect status to "in progress" when they start filling out the form
-  app.post("/api/prospects/:id/start-application", async (req, res) => {
+  app.post("/api/prospects/:id/start-application", async (req: RequestWithDB, res) => {
     try {
       const { id } = req.params;
       const prospectId = parseInt(id);
       
-      const prospect = await storage.getMerchantProspect(prospectId);
+      // Use environment-aware storage
+      const envStorage = createStorageForRequest(req);
+      
+      const prospect = await envStorage.getMerchantProspect(prospectId);
       if (!prospect) {
         return res.status(404).json({ message: "Prospect not found" });
       }
 
       // Only update if status is 'contacted' (validated email)
       if (prospect.status === 'contacted') {
-        const updatedProspect = await storage.updateMerchantProspect(prospectId, {
+        const updatedProspect = await envStorage.updateMerchantProspect(prospectId, {
           status: 'in_progress',
           applicationStartedAt: new Date(),
         });
@@ -3432,10 +3435,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Clear address data from cached form data
-  app.post("/api/prospects/:id/clear-address-data", async (req, res) => {
+  app.post("/api/prospects/:id/clear-address-data", async (req: RequestWithDB, res) => {
     try {
       const prospectId = parseInt(req.params.id);
-      const prospect = await storage.getMerchantProspect(prospectId);
+      
+      // Use environment-aware storage
+      const envStorage = createStorageForRequest(req);
+      
+      const prospect = await envStorage.getMerchantProspect(prospectId);
       
       if (!prospect || !prospect.formData) {
         return res.json({ success: true, message: "No cached data to clear" });
@@ -3453,7 +3460,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       delete existingFormData.zipCode;
       
       // Save cleaned form data back
-      await storage.updateMerchantProspect(prospectId, {
+      await envStorage.updateMerchantProspect(prospectId, {
         formData: JSON.stringify(existingFormData)
       });
 
@@ -3465,24 +3472,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Save form data for prospects
-  app.post("/api/prospects/:id/save-form-data", async (req, res) => {
+  app.post("/api/prospects/:id/save-form-data", async (req: RequestWithDB, res) => {
     try {
       const { id } = req.params;
       const { formData, currentStep } = req.body;
       const prospectId = parseInt(id);
 
-      const prospect = await storage.getMerchantProspect(prospectId);
+      // Use environment-aware storage
+      const envStorage = createStorageForRequest(req);
+
+      const prospect = await envStorage.getMerchantProspect(prospectId);
       if (!prospect) {
         return res.status(404).json({ message: "Prospect not found" });
       }
 
       // Save the form data and current step
-      await storage.updateMerchantProspect(prospectId, {
+      await envStorage.updateMerchantProspect(prospectId, {
         formData: JSON.stringify(formData),
         currentStep: currentStep
       });
 
-      console.log(`Form data saved for prospect ${prospectId}, step ${currentStep}`);
+      console.log(`Form data saved for prospect ${prospectId}, step ${currentStep} to ${req.dbEnv || 'development'} database`);
       res.json({ success: true, message: "Form data saved successfully" });
     } catch (error) {
       console.error("Error saving prospect form data:", error);
