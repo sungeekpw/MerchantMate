@@ -933,14 +933,17 @@ export default function EnhancedPdfWizard() {
       
       // Add address group pseudo-fields to appropriate sections
       const fieldsWithGroups = [...filteredFields];
-      if (section.title === 'Merchant Information' && addressGroups.length > 0) {
+      if (addressGroups.length > 0) {
         addressGroups.forEach((group: any, groupIndex: number) => {
-          fieldsWithGroups.push({
-            id: `addressGroup_${group.type}`,
-            label: group.label || `${group.type.charAt(0).toUpperCase() + group.type.slice(1)} Address`,
-            type: 'addressGroup',
-            addressGroupConfig: group,
-          });
+          // Add addressGroup to its configured section, or to all sections if no sectionName specified
+          if (!group.sectionName || group.sectionName === section.title) {
+            fieldsWithGroups.push({
+              id: `addressGroup_${group.type}`,
+              label: group.label || `${group.type.charAt(0).toUpperCase() + group.type.slice(1)} Address`,
+              type: 'addressGroup',
+              addressGroupConfig: group,
+            });
+          }
         });
       }
       
