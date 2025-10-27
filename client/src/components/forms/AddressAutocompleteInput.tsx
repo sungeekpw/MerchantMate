@@ -70,9 +70,12 @@ export function AddressAutocompleteInput({
   
   // Update addressDetails when initialValues change
   useEffect(() => {
-    console.log('AddressAutocompleteInput useEffect triggered:', {
-      value,
-      initialValues,
+    console.log('🔄 AddressAutocompleteInput useEffect:', {
+      value: value,
+      'initialValues.city': initialValues.city,
+      'initialValues.state': initialValues.state,
+      'initialValues.zipCode': initialValues.zipCode,
+      'initialValues.street2': initialValues.street2,
       currentAddressDetails: addressDetails
     });
     
@@ -88,9 +91,16 @@ export function AddressAutocompleteInput({
     
     // Auto-lock if we have complete address data from initialValues
     if (value && initialValues.city && initialValues.state && initialValues.zipCode) {
-      console.log('Auto-locking address field - complete data detected');
+      console.log('✅ Auto-locking address field - complete data detected');
       setIsLocked(true);
       setValidationStatus('valid');
+    } else {
+      console.log('❌ NOT auto-locking:', {
+        hasValue: !!value,
+        hasCity: !!initialValues.city,
+        hasState: !!initialValues.state,
+        hasZipCode: !!initialValues.zipCode
+      });
     }
   }, [initialValues.city, initialValues.state, initialValues.zipCode, initialValues.street2, street2Value, value]);
 
@@ -378,11 +388,13 @@ export function AddressAutocompleteInput({
       {/* Expanded address fields - show when address is validated OR has initial values */}
       {(() => {
         const shouldShow = showExpandedFields && (validationStatus === 'valid' || addressDetails.city || addressDetails.state || addressDetails.zipCode);
-        console.log('Should show expanded fields?', {
-          showExpandedFields,
-          validationStatus,
-          addressDetails,
-          shouldShow
+        console.log('👁️ Should show expanded fields?', {
+          showExpandedFields: showExpandedFields,
+          validationStatus: validationStatus,
+          'addressDetails.city': addressDetails.city,
+          'addressDetails.state': addressDetails.state,
+          'addressDetails.zipCode': addressDetails.zipCode,
+          shouldShow: shouldShow
         });
         return shouldShow;
       })() && (
