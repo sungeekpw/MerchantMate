@@ -3090,17 +3090,23 @@ export default function EnhancedPdfWizard() {
         const stateVal = formData[`${canonicalPrefix}.state`] || '';
         const zipCodeVal = formData[`${canonicalPrefix}.postalCode`] || '';
         
-        console.log('🏠 AddressGroup render:', {
-          groupType,
-          canonicalPrefix,
-          allFormDataKeys: Object.keys(formData),
-          addressKeys: Object.keys(formData).filter(k => k.includes('Address')),
-          streetValue: streetValue,
-          cityVal: cityVal,
-          stateVal: stateVal,
-          zipCodeVal: zipCodeVal,
-          fullFormData: formData
-        });
+        // Log each address field separately to avoid console truncation
+        console.log('🏠 AddressGroup render for', groupType);
+        console.log('  📍 Canonical Prefix:', canonicalPrefix);
+        console.log('  📍 All formData keys:', Object.keys(formData));
+        console.log('  📍 Address-related keys:', Object.keys(formData).filter(k => k.includes('Address')));
+        console.log('  📍 Looking for keys:', [
+          `${canonicalPrefix}.street1`,
+          `${canonicalPrefix}.street2`,
+          `${canonicalPrefix}.city`,
+          `${canonicalPrefix}.state`,
+          `${canonicalPrefix}.postalCode`
+        ]);
+        console.log('  📍 streetValue:', streetValue);
+        console.log('  📍 cityVal:', cityVal);
+        console.log('  📍 stateVal:', stateVal);
+        console.log('  📍 zipCodeVal:', zipCodeVal);
+        console.log('  📍 street2Val:', street2Val);
         
         return (
           <div className="space-y-2" key={field.fieldName}>
