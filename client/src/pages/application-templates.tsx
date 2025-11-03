@@ -1457,12 +1457,17 @@ function FieldConfigurationDialog({
   };
 
   const reorderFields = (sectionIndex: number, oldIndex: number, newIndex: number) => {
-    const newSections = [...sections];
-    newSections[sectionIndex].fields = arrayMove(
-      newSections[sectionIndex].fields,
-      oldIndex,
-      newIndex
-    );
+    // Create deep copy to avoid mutation
+    const newSections = sections.map((section, idx) => {
+      if (idx === sectionIndex) {
+        // Clone the section and its fields array
+        return {
+          ...section,
+          fields: arrayMove([...section.fields], oldIndex, newIndex)
+        };
+      }
+      return section;
+    });
     setSections(newSections);
   };
 
