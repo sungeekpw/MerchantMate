@@ -37,6 +37,9 @@ interface AddressAutocompleteInputProps {
   };
   street2Value?: string;
   onStreet2Change?: (value: string) => void;
+  onCityChange?: (value: string) => void;
+  onStateChange?: (value: string) => void;
+  onZipCodeChange?: (value: string) => void;
 }
 
 export function AddressAutocompleteInput({
@@ -50,7 +53,10 @@ export function AddressAutocompleteInput({
   showExpandedFields = true,
   initialValues = {},
   street2Value = '',
-  onStreet2Change
+  onStreet2Change,
+  onCityChange,
+  onStateChange,
+  onZipCodeChange
 }: AddressAutocompleteInputProps) {
   const [suggestions, setSuggestions] = useState<AddressSuggestion[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -103,6 +109,19 @@ export function AddressAutocompleteInput({
       });
     }
   }, [initialValues.city, initialValues.state, initialValues.zipCode, initialValues.street2, street2Value, value]);
+  
+  // Sync internal addressDetails changes back to parent via onChange callbacks
+  useEffect(() => {
+    if (onCityChange && addressDetails.city !== initialValues.city) {
+      onCityChange(addressDetails.city);
+    }
+    if (onStateChange && addressDetails.state !== initialValues.state) {
+      onStateChange(addressDetails.state);
+    }
+    if (onZipCodeChange && addressDetails.zipCode !== initialValues.zipCode) {
+      onZipCodeChange(addressDetails.zipCode);
+    }
+  }, [addressDetails.city, addressDetails.state, addressDetails.zipCode]);
 
   // Fetch address suggestions
   const fetchSuggestions = async (input: string) => {

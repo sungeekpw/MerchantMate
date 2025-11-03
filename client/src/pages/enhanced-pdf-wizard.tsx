@@ -3153,6 +3153,18 @@ export default function EnhancedPdfWizard() {
                 if (postalCodeFieldId) handleFieldChange(postalCodeFieldId, address.zipCode || '');
                 if (countryFieldId) handleFieldChange(countryFieldId, 'US');
               }}
+              onCityChange={(value) => {
+                if (cityFieldId) handleFieldChange(cityFieldId, value);
+              }}
+              onStateChange={(value) => {
+                if (stateFieldId) handleFieldChange(stateFieldId, value);
+              }}
+              onZipCodeChange={(value) => {
+                if (postalCodeFieldId) handleFieldChange(postalCodeFieldId, value);
+              }}
+              onStreet2Change={(value) => {
+                if (street2FieldId) handleFieldChange(street2FieldId, value);
+              }}
               placeholder="Start typing an address..."
               dataTestId={`addressgroup-${groupType}`}
               showExpandedFields={true}
