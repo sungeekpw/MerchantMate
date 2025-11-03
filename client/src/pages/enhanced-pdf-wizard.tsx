@@ -922,24 +922,38 @@ export default function EnhancedPdfWizard() {
     // Get the list of required field names from the template
     const requiredFieldNames = template.requiredFields || [];
     
-    // Process address groups if they exist
-    const addressGroups = template.addressGroups || [];
+    // Auto-detect address groups from field naming patterns
+    // Pattern: {prefix}.{canonicalField} where canonicalField is address1/street1/city/state/zipcode/postalCode/country
+    const autoDetectedGroups: Record<string, any> = {};
     const addressFieldIdsToFilter = new Set<string>();
     
-    console.log('📍 AddressGroups from template:', addressGroups);
-    
-    // Collect field IDs that should be filtered out
-    // fieldMappings contains canonical field names mapped to template field IDs
-    addressGroups.forEach((group: any) => {
-      if (group.fieldMappings) {
-        Object.values(group.fieldMappings).forEach((fieldId: any) => {
-          if (typeof fieldId === 'string') {
-            addressFieldIdsToFilter.add(fieldId);
+    // First pass: detect address group prefixes
+    template.fieldConfiguration.sections.forEach((section: any) => {
+      section.fields.forEach((field: any) => {
+        const match = field.id?.match(/^(.+)\.(address1|street1|city|state|zipcode|postalCode|country)$/i);
+        if (match) {
+          const [, prefix, canonicalField] = match;
+          if (!autoDetectedGroups[prefix]) {
+            autoDetectedGroups[prefix] = {
+              type: prefix.split('_').pop()?.replace(/Address$/, '') || 'location',
+              label: field.label?.split('.')[0] || prefix,
+              sectionName: section.title,
+              fieldMappings: {}
+            };
           }
-        });
-      }
+          
+          // Map canonical names to field IDs
+          const canonical = canonicalField.toLowerCase() === 'address1' ? 'street1' : 
+                           canonicalField.toLowerCase() === 'zipcode' ? 'postalCode' : 
+                           canonicalField.toLowerCase();
+          autoDetectedGroups[prefix].fieldMappings[canonical] = field.id;
+          addressFieldIdsToFilter.add(field.id);
+        }
+      });
     });
     
+    const addressGroups = Object.values(autoDetectedGroups);
+    console.log('📍 Auto-detected address groups:', addressGroups);
     console.log('📍 Address field IDs to filter out:', Array.from(addressFieldIdsToFilter));
     
     return template.fieldConfiguration.sections.map((section: any, sectionIndex: number) => {
@@ -3083,32 +3097,29 @@ export default function EnhancedPdfWizard() {
         if (!groupConfig) return null;
         
         const groupType = groupConfig.type;
-        const canonicalPrefix = `${groupType}Address`;
+        const fieldMappings = groupConfig.fieldMappings || {};
         
-        // Get canonical field values
-        const streetValue = formData[`${canonicalPrefix}.street1`] || '';
-        const street2Val = formData[`${canonicalPrefix}.street2`] || '';
-        const cityVal = formData[`${canonicalPrefix}.city`] || '';
-        const stateVal = formData[`${canonicalPrefix}.state`] || '';
-        const zipCodeVal = formData[`${canonicalPrefix}.postalCode`] || '';
+        // Get actual field IDs from mappings
+        const street1FieldId = fieldMappings.street1 || '';
+        const street2FieldId = fieldMappings.street2 || '';
+        const cityFieldId = fieldMappings.city || '';
+        const stateFieldId = fieldMappings.state || '';
+        const postalCodeFieldId = fieldMappings.postalCode || '';
+        const countryFieldId = fieldMappings.country || '';
         
-        // Log each address field separately to avoid console truncation
-        console.log('🏠 AddressGroup render for', groupType);
-        console.log('  📍 Canonical Prefix:', canonicalPrefix);
-        console.log('  📍 All formData keys:', Object.keys(formData));
-        console.log('  📍 Address-related keys:', Object.keys(formData).filter(k => k.includes('Address')));
-        console.log('  📍 Looking for keys:', [
-          `${canonicalPrefix}.street1`,
-          `${canonicalPrefix}.street2`,
-          `${canonicalPrefix}.city`,
-          `${canonicalPrefix}.state`,
-          `${canonicalPrefix}.postalCode`
-        ]);
-        console.log('  📍 streetValue:', streetValue);
-        console.log('  📍 cityVal:', cityVal);
-        console.log('  📍 stateVal:', stateVal);
-        console.log('  📍 zipCodeVal:', zipCodeVal);
-        console.log('  📍 street2Val:', street2Val);
+        // Get values from formData using actual field IDs
+        const streetValue = formData[street1FieldId] || '';
+        const street2Val = formData[street2FieldId] || '';
+        const cityVal = formData[cityFieldId] || '';
+        const stateVal = formData[stateFieldId] || '';
+        const zipCodeVal = formData[postalCodeFieldId] || '';
+        
+        console.log('🏠 AddressGroup render:', {
+          groupType,
+          label: groupConfig.label,
+          fieldMappings,
+          values: { streetValue, street2Val, cityVal, stateVal, zipCodeVal }
+        });
         
         return (
           <div className="space-y-2" key={field.fieldName}>
@@ -3117,11 +3128,10 @@ export default function EnhancedPdfWizard() {
               {field.isRequired && <span className="text-red-500 ml-1">*</span>}
             </Label>
             <AddressAutocompleteInput
-              key={`addressgroup-${canonicalPrefix}`}
+              key={`addressgroup-${groupType}`}
               value={streetValue}
               onChange={(value) => {
-                console.log('Street address changed:', value);
-                handleFieldChange(`${canonicalPrefix}.street1`, value);
+                handleFieldChange(street1FieldId, value);
               }}
               initialValues={{
                 city: cityVal,
@@ -3130,31 +3140,13 @@ export default function EnhancedPdfWizard() {
                 street2: street2Val
               }}
               onAddressSelect={(address) => {
-                try {
-                  console.log('🎯 onAddressSelect FIRED! Address:', address);
-                  console.log('🎯 canonicalPrefix:', canonicalPrefix);
-                  
-                  // Store with canonical field names - all at once
-                  const updates = {
-                    [`${canonicalPrefix}.street1`]: address.street || '',
-                    [`${canonicalPrefix}.street2`]: address.street2 || '',
-                    [`${canonicalPrefix}.city`]: address.city || '',
-                    [`${canonicalPrefix}.state`]: address.state || '',
-                    [`${canonicalPrefix}.postalCode`]: address.zipCode || '',
-                    [`${canonicalPrefix}.country`]: 'US'
-                  };
-                  console.log('🎯 Updates object created:', updates);
-                  console.log('🎯 About to call handleFieldChange for each update...');
-                  
-                  Object.entries(updates).forEach(([key, val]) => {
-                    console.log(`🎯 Calling handleFieldChange('${key}', '${val}')`);
-                    handleFieldChange(key, val);
-                  });
-                  
-                  console.log('🎯 All handleFieldChange calls completed!');
-                } catch (error) {
-                  console.error('❌ ERROR in onAddressSelect:', error);
-                }
+                // Update all address fields using their actual field IDs
+                if (street1FieldId) handleFieldChange(street1FieldId, address.street || '');
+                if (street2FieldId) handleFieldChange(street2FieldId, address.street2 || '');
+                if (cityFieldId) handleFieldChange(cityFieldId, address.city || '');
+                if (stateFieldId) handleFieldChange(stateFieldId, address.state || '');
+                if (postalCodeFieldId) handleFieldChange(postalCodeFieldId, address.zipCode || '');
+                if (countryFieldId) handleFieldChange(countryFieldId, 'US');
               }}
               placeholder="Start typing an address..."
               dataTestId={`addressgroup-${groupType}`}
