@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { queryClient, apiRequest } from '@/lib/queryClient';
 import { Button } from '@/components/ui/button';
@@ -1363,12 +1363,43 @@ function FieldConfigurationDialog({
   onSave: (fieldConfiguration: any, requiredFields: string[], conditionalFields: Record<string, any>) => void;
   isLoading: boolean;
 }) {
-  const [sections, setSections] = useState(template.fieldConfiguration?.sections || []);
+  // Normalize sections to ensure all fields have unique, stable IDs
+  const normalizeFieldIds = (sectionsData: any[]) => {
+    const seenIds = new Set<string>();
+    return sectionsData.map((section: any) => ({
+      ...section,
+      fields: (section.fields || []).map((field: any) => {
+        // If field has no ID or ID is duplicate, generate a new unique one
+        let fieldId = field.id;
+        if (!fieldId || seenIds.has(fieldId)) {
+          fieldId = `field_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        }
+        seenIds.add(fieldId);
+        return {
+          ...field,
+          id: fieldId
+        };
+      })
+    }));
+  };
+
+  const [sections, setSections] = useState(() => 
+    normalizeFieldIds(template.fieldConfiguration?.sections || [])
+  );
   const [requiredFields, setRequiredFields] = useState<string[]>(template.requiredFields || []);
   const [editingField, setEditingField] = useState<any>(null);
   const [editingSectionIndex, setEditingSectionIndex] = useState<number>(-1);
   const [editingFieldIndex, setEditingFieldIndex] = useState<number>(-1);
-  const [openSections, setOpenSections] = useState<Set<string>>(new Set(sections.map((s: any) => s.id)));
+  const [openSections, setOpenSections] = useState<Set<string>>(() => 
+    new Set(normalizeFieldIds(template.fieldConfiguration?.sections || []).map((s: any) => s.id))
+  );
+
+  // Re-normalize when template changes
+  useEffect(() => {
+    const normalized = normalizeFieldIds(template.fieldConfiguration?.sections || []);
+    setSections(normalized);
+    setOpenSections(new Set(normalized.map((s: any) => s.id)));
+  }, [template.id]);
 
   const fieldTypes = [
     { value: 'text', label: 'Text' },
