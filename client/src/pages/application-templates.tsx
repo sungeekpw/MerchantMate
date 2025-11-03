@@ -25,8 +25,7 @@ import {
   PointerSensor,
   useSensor,
   useSensors,
-  DragEndEvent,
-  MeasuringStrategy
+  DragEndEvent
 } from '@dnd-kit/core';
 import {
   arrayMove,
@@ -1107,15 +1106,14 @@ function SortableField({
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
-    opacity: isDragging ? 0.5 : 1,
-    zIndex: isDragging ? 1 : 0
+    zIndex: isDragging ? 999 : 1
   };
 
   return (
     <div
       ref={setNodeRef}
       style={style}
-      className="flex items-center gap-2 p-3 border rounded-lg bg-white"
+      className={`flex items-center gap-2 p-3 border rounded-lg bg-white transition-opacity ${isDragging ? 'opacity-30' : 'opacity-100'}`}
     >
       <div
         {...attributes}
@@ -1316,17 +1314,12 @@ function SortableSection({
                     sensors={sensors}
                     collisionDetection={closestCenter}
                     onDragEnd={handleDragEnd}
-                    measuring={{
-                      droppable: {
-                        strategy: MeasuringStrategy.Always
-                      }
-                    }}
                   >
                     <SortableContext
                       items={section.fields.map((f: any) => f.id)}
                       strategy={verticalListSortingStrategy}
                     >
-                      <div className="flex flex-col gap-2">
+                      <div className="space-y-2">
                         {section.fields.map((field: any, fieldIndex: number) => (
                           <SortableField
                             key={field.id}
@@ -1549,11 +1542,6 @@ function FieldConfigurationDialog({
               sensors={sensors}
               collisionDetection={closestCenter}
               onDragEnd={handleSectionDragEnd}
-              measuring={{
-                droppable: {
-                  strategy: MeasuringStrategy.Always
-                }
-              }}
             >
               <SortableContext
                 items={sections.map((s: any) => s.id)}
