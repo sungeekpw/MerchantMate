@@ -1106,7 +1106,18 @@ function SortableField({
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
-    opacity: isDragging ? 0.5 : 1
+    opacity: isDragging ? 0.5 : 1,
+    // Remove the item from layout flow while dragging to prevent gaps
+    ...(isDragging && {
+      position: 'relative' as const,
+      zIndex: 1,
+      height: 0,
+      overflow: 'hidden',
+      marginBottom: 0,
+      paddingTop: 0,
+      paddingBottom: 0,
+      borderColor: 'transparent'
+    })
   };
 
   return (
@@ -1211,7 +1222,15 @@ function SortableSection({
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
-    opacity: isDragging ? 0.5 : 1
+    opacity: isDragging ? 0.5 : 1,
+    // Remove the item from layout flow while dragging to prevent gaps
+    ...(isDragging && {
+      position: 'relative' as const,
+      zIndex: 1,
+      height: 0,
+      overflow: 'hidden',
+      marginBottom: 0
+    })
   };
 
   const sensors = useSensors(
