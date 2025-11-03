@@ -3244,7 +3244,20 @@ export default function EnhancedPdfWizard() {
             <div className="text-right">
               <div className="text-xs font-medium text-gray-500 uppercase tracking-wide">Progress</div>
               <div className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-blue-700 bg-clip-text text-transparent">
-                {Math.round(((currentStep + 1) / filteredSections.length) * 100)}%
+                {(() => {
+                  // Calculate progress based on completed required fields
+                  const allRequiredFields = filteredSections.flatMap(section => 
+                    section.fields.filter(field => field.isRequired)
+                  );
+                  const completedRequiredFields = allRequiredFields.filter(field => {
+                    const value = formData[field.fieldName];
+                    return value !== null && value !== undefined && value !== '';
+                  });
+                  const progressPercent = allRequiredFields.length > 0 
+                    ? Math.round((completedRequiredFields.length / allRequiredFields.length) * 100)
+                    : 0;
+                  return `${progressPercent}%`;
+                })()}
               </div>
             </div>
           </div>
@@ -3253,14 +3266,34 @@ export default function EnhancedPdfWizard() {
           <div className="mt-6">
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs font-medium text-gray-600">
-                Step {currentStep + 1} of {filteredSections.length}
+                {(() => {
+                  const allRequiredFields = filteredSections.flatMap(section => 
+                    section.fields.filter(field => field.isRequired)
+                  );
+                  const completedRequiredFields = allRequiredFields.filter(field => {
+                    const value = formData[field.fieldName];
+                    return value !== null && value !== undefined && value !== '';
+                  });
+                  return `${completedRequiredFields.length} of ${allRequiredFields.length} required fields completed`;
+                })()}
               </span>
               <span className="text-xs text-gray-500">
                 {filteredSections[currentStep]?.name}
               </span>
             </div>
             <Progress 
-              value={((currentStep + 1) / filteredSections.length) * 100} 
+              value={(() => {
+                const allRequiredFields = filteredSections.flatMap(section => 
+                  section.fields.filter(field => field.isRequired)
+                );
+                const completedRequiredFields = allRequiredFields.filter(field => {
+                  const value = formData[field.fieldName];
+                  return value !== null && value !== undefined && value !== '';
+                });
+                return allRequiredFields.length > 0 
+                  ? (completedRequiredFields.length / allRequiredFields.length) * 100
+                  : 0;
+              })()} 
               className="h-3 bg-gray-200"
             />
           </div>
