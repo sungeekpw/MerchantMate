@@ -924,29 +924,31 @@ export default function EnhancedPdfWizard() {
     
     // Process address groups if they exist
     const addressGroups = template.addressGroups || [];
-    const addressFieldNames = new Set<string>();
+    const addressFieldIdsToFilter = new Set<string>();
     
     console.log('📍 AddressGroups from template:', addressGroups);
     
-    // Collect all individual address field names that are part of groups
+    // Collect field IDs that should be filtered out
+    // fieldMappings contains canonical field names mapped to template field IDs
     addressGroups.forEach((group: any) => {
       if (group.fieldMappings) {
-        Object.values(group.fieldMappings).forEach((fieldName: any) => {
-          if (typeof fieldName === 'string') {
-            addressFieldNames.add(fieldName);
+        Object.values(group.fieldMappings).forEach((fieldId: any) => {
+          if (typeof fieldId === 'string') {
+            addressFieldIdsToFilter.add(fieldId);
           }
         });
       }
     });
     
-    console.log('📍 Address field names to filter out:', Array.from(addressFieldNames));
+    console.log('📍 Address field IDs to filter out:', Array.from(addressFieldIdsToFilter));
     
     return template.fieldConfiguration.sections.map((section: any, sectionIndex: number) => {
       console.log(`📍 Processing section: ${section.title}, fields before filter:`, section.fields.length);
       
       // Filter out individual address fields that are part of groups
       const filteredFields = section.fields.filter((field: any) => {
-        const shouldFilter = addressFieldNames.has(field.id);
+        // Check if this field's ID is in the address group mappings
+        const shouldFilter = addressFieldIdsToFilter.has(field.id);
         if (shouldFilter) {
           console.log(`📍 Filtering out field: ${field.id} (${field.label})`);
         }
