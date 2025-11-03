@@ -980,41 +980,48 @@ export default function EnhancedPdfWizard() {
       // Add address group pseudo-fields at their original positions
       const fieldsWithGroups = [...filteredFields];
       if (addressGroups.length > 0) {
-        // Build a list of address groups for this section with their positions
-        const groupsForSection: Array<{ group: any, position: number, originalPosition: number }> = [];
+        // Build a list of address groups for this section with their original positions
+        const groupsForSection: Array<{ group: any, originalPosition: number }> = [];
         
         Object.entries(autoDetectedGroups).forEach(([prefix, group]) => {
           const posInfo = addressGroupPositions[prefix];
           if (posInfo && posInfo.sectionTitle === section.title) {
-            // Find the insertion position by counting non-address fields before this position
-            let insertPosition = 0;
-            for (let i = 0; i < posInfo.position; i++) {
-              const fieldId = section.fields[i]?.id;
-              if (fieldId && !addressFieldIdsToFilter.has(fieldId)) {
-                insertPosition++;
-              }
-            }
-            
-            console.log(`📍 Address group "${prefix}" first field at original position ${posInfo.position}, calculated insert position: ${insertPosition}`);
-            
             groupsForSection.push({
               group,
-              position: insertPosition,
               originalPosition: posInfo.position
             });
           }
         });
         
-        // Sort by position (descending) and insert from the end to preserve positions
-        groupsForSection.sort((a, b) => b.position - a.position);
-        groupsForSection.forEach(({ group, position, originalPosition }) => {
-          console.log(`📍 Inserting addressGroup "${group.label}" at position ${position} (original: ${originalPosition}) in section "${section.title}"`);
-          fieldsWithGroups.splice(position, 0, {
+        // Sort by original position (ascending) - groups with lower positions come first
+        groupsForSection.sort((a, b) => a.originalPosition - b.originalPosition);
+        
+        // Insert each group in order, adjusting position for previously inserted groups
+        let insertionOffset = 0;
+        groupsForSection.forEach(({ group, originalPosition }) => {
+          // Calculate insertion position: count non-address fields before this group's original position
+          let insertPosition = 0;
+          for (let i = 0; i < originalPosition; i++) {
+            const fieldId = section.fields[i]?.id;
+            if (fieldId && !addressFieldIdsToFilter.has(fieldId)) {
+              insertPosition++;
+            }
+          }
+          
+          // Add the offset from previously inserted groups
+          const finalPosition = insertPosition + insertionOffset;
+          
+          console.log(`📍 Inserting addressGroup "${group.label}" at position ${finalPosition} (original: ${originalPosition}, offset: ${insertionOffset}) in section "${section.title}"`);
+          
+          fieldsWithGroups.splice(finalPosition, 0, {
             id: `addressGroup_${group.type}`,
             label: group.label || `${group.type.charAt(0).toUpperCase() + group.type.slice(1)} Address`,
             type: 'addressGroup',
             addressGroupConfig: group,
           });
+          
+          // Increment offset since we just added a group
+          insertionOffset++;
         });
       }
       
