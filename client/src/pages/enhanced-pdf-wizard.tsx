@@ -926,10 +926,11 @@ export default function EnhancedPdfWizard() {
     // Pattern: {prefix}.{canonicalField} where canonicalField is address1/street1/city/state/zipcode/postalCode/country
     const autoDetectedGroups: Record<string, any> = {};
     const addressFieldIdsToFilter = new Set<string>();
+    const addressGroupPositions: Record<string, { sectionTitle: string, position: number }> = {};
     
-    // First pass: detect address group prefixes
+    // First pass: detect address group prefixes and track their positions
     template.fieldConfiguration.sections.forEach((section: any) => {
-      section.fields.forEach((field: any) => {
+      section.fields.forEach((field: any, fieldIndex: number) => {
         const match = field.id?.match(/^(.+)\.(address1|street1|city|state|zipcode|postalCode|country)$/i);
         if (match) {
           const [, prefix, canonicalField] = match;
@@ -939,6 +940,11 @@ export default function EnhancedPdfWizard() {
               label: field.label?.split('.')[0] || prefix,
               sectionName: section.title,
               fieldMappings: {}
+            };
+            // Track the position of the first field in this address group
+            addressGroupPositions[prefix] = {
+              sectionTitle: section.title,
+              position: fieldIndex
             };
           }
           
@@ -971,20 +977,40 @@ export default function EnhancedPdfWizard() {
       
       console.log(`📍 Section ${section.title}: ${filteredFields.length} fields after filtering`);
       
-      // Add address group pseudo-fields to appropriate sections
+      // Add address group pseudo-fields at their original positions
       const fieldsWithGroups = [...filteredFields];
       if (addressGroups.length > 0) {
-        addressGroups.forEach((group: any, groupIndex: number) => {
-          // Add addressGroup to its configured section, or to all sections if no sectionName specified
-          if (!group.sectionName || group.sectionName === section.title) {
-            console.log(`📍 Adding addressGroup "${group.label}" to section "${section.title}"`);
-            fieldsWithGroups.push({
-              id: `addressGroup_${group.type}`,
-              label: group.label || `${group.type.charAt(0).toUpperCase() + group.type.slice(1)} Address`,
-              type: 'addressGroup',
-              addressGroupConfig: group,
+        // Build a list of address groups for this section with their positions
+        const groupsForSection: Array<{ group: any, position: number }> = [];
+        
+        Object.entries(autoDetectedGroups).forEach(([prefix, group]) => {
+          const posInfo = addressGroupPositions[prefix];
+          if (posInfo && posInfo.sectionTitle === section.title) {
+            // Calculate insertion position (accounting for filtered fields)
+            let insertPosition = 0;
+            for (let i = 0; i < posInfo.position && insertPosition < fieldsWithGroups.length; i++) {
+              if (!addressFieldIdsToFilter.has(section.fields[i]?.id)) {
+                insertPosition++;
+              }
+            }
+            
+            groupsForSection.push({
+              group,
+              position: insertPosition
             });
           }
+        });
+        
+        // Sort by position (descending) and insert from the end to preserve positions
+        groupsForSection.sort((a, b) => b.position - a.position);
+        groupsForSection.forEach(({ group, position }) => {
+          console.log(`📍 Inserting addressGroup "${group.label}" at position ${position} in section "${section.title}"`);
+          fieldsWithGroups.splice(position, 0, {
+            id: `addressGroup_${group.type}`,
+            label: group.label || `${group.type.charAt(0).toUpperCase() + group.type.slice(1)} Address`,
+            type: 'addressGroup',
+            addressGroupConfig: group,
+          });
         });
       }
       
