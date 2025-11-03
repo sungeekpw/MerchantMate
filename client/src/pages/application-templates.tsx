@@ -25,7 +25,8 @@ import {
   PointerSensor,
   useSensor,
   useSensors,
-  DragEndEvent
+  DragEndEvent,
+  MeasuringStrategy
 } from '@dnd-kit/core';
 import {
   arrayMove,
@@ -1107,17 +1108,7 @@ function SortableField({
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.5 : 1,
-    // Remove the item from layout flow while dragging to prevent gaps
-    ...(isDragging && {
-      position: 'relative' as const,
-      zIndex: 1,
-      height: 0,
-      overflow: 'hidden',
-      marginBottom: 0,
-      paddingTop: 0,
-      paddingBottom: 0,
-      borderColor: 'transparent'
-    })
+    zIndex: isDragging ? 1 : 0
   };
 
   return (
@@ -1223,14 +1214,7 @@ function SortableSection({
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.5 : 1,
-    // Remove the item from layout flow while dragging to prevent gaps
-    ...(isDragging && {
-      position: 'relative' as const,
-      zIndex: 1,
-      height: 0,
-      overflow: 'hidden',
-      marginBottom: 0
-    })
+    zIndex: isDragging ? 1 : 0
   };
 
   const sensors = useSensors(
@@ -1332,12 +1316,17 @@ function SortableSection({
                     sensors={sensors}
                     collisionDetection={closestCenter}
                     onDragEnd={handleDragEnd}
+                    measuring={{
+                      droppable: {
+                        strategy: MeasuringStrategy.Always
+                      }
+                    }}
                   >
                     <SortableContext
                       items={section.fields.map((f: any) => f.id)}
                       strategy={verticalListSortingStrategy}
                     >
-                      <div className="space-y-2">
+                      <div className="flex flex-col gap-2">
                         {section.fields.map((field: any, fieldIndex: number) => (
                           <SortableField
                             key={field.id}
@@ -1560,6 +1549,11 @@ function FieldConfigurationDialog({
               sensors={sensors}
               collisionDetection={closestCenter}
               onDragEnd={handleSectionDragEnd}
+              measuring={{
+                droppable: {
+                  strategy: MeasuringStrategy.Always
+                }
+              }}
             >
               <SortableContext
                 items={sections.map((s: any) => s.id)}
