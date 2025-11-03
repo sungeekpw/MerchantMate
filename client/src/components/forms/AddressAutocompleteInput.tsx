@@ -87,12 +87,13 @@ export function AddressAutocompleteInput({
     
     const newDetails = {
       ...addressDetails,
-      city: initialValues.city ?? addressDetails.city,
-      state: initialValues.state ?? addressDetails.state,
-      zipCode: initialValues.zipCode ?? addressDetails.zipCode,
-      street2: initialValues.street2 ?? street2Value ?? addressDetails.street2
+      city: initialValues.city || addressDetails.city,
+      state: initialValues.state || addressDetails.state,
+      zipCode: initialValues.zipCode || addressDetails.zipCode,
+      street2: initialValues.street2 || street2Value || addressDetails.street2
     };
     
+    console.log('📝 Setting addressDetails to:', newDetails);
     setAddressDetails(newDetails);
     
     // Auto-lock if we have complete address data from initialValues
