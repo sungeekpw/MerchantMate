@@ -1232,6 +1232,16 @@ function SortableSection({
     if (over && active.id !== over.id) {
       const oldIndex = section.fields.findIndex((f: any) => f.id === active.id);
       const newIndex = section.fields.findIndex((f: any) => f.id === over.id);
+      
+      console.log('🔴 DRAG END:', {
+        activeId: active.id,
+        overId: over.id,
+        oldIndex,
+        newIndex,
+        sectionId: section.id,
+        fieldsBefore: section.fields.map((f: any) => ({ id: f.id, label: f.label })),
+      });
+      
       onReorderFields(oldIndex, newIndex);
     }
   };
@@ -1472,17 +1482,45 @@ function FieldConfigurationDialog({
   };
 
   const reorderFields = (sectionIndex: number, oldIndex: number, newIndex: number) => {
+    console.log('🟢 REORDER FIELDS CALLED:', {
+      sectionIndex,
+      oldIndex,
+      newIndex,
+      sectionsLength: sections.length,
+      fieldsLength: sections[sectionIndex]?.fields?.length
+    });
+    
     // Create deep copy to avoid mutation
     const newSections = sections.map((section, idx) => {
       if (idx === sectionIndex) {
+        const oldFields = [...section.fields];
+        const newFields = arrayMove(oldFields, oldIndex, newIndex);
+        
+        console.log('🟡 ARRAY MOVE RESULT:', {
+          oldFieldsIds: oldFields.map((f: any) => f.id),
+          newFieldsIds: newFields.map((f: any) => f.id),
+          oldFieldsLabels: oldFields.map((f: any) => f.label),
+          newFieldsLabels: newFields.map((f: any) => f.label)
+        });
+        
         // Clone the section and its fields array
         return {
           ...section,
-          fields: arrayMove([...section.fields], oldIndex, newIndex)
+          fields: newFields
         };
       }
       return section;
     });
+    
+    console.log('🔵 SET SECTIONS:', {
+      newSectionsLength: newSections.length,
+      allFields: newSections.map((s: any, idx: number) => ({
+        sectionIdx: idx,
+        fieldCount: s.fields.length,
+        fields: s.fields.map((f: any) => ({ id: f.id, label: f.label }))
+      }))
+    });
+    
     setSections(newSections);
   };
 
