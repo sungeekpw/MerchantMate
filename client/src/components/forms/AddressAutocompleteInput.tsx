@@ -109,19 +109,6 @@ export function AddressAutocompleteInput({
       });
     }
   }, [initialValues.city, initialValues.state, initialValues.zipCode, initialValues.street2, street2Value, value]);
-  
-  // Sync internal addressDetails changes back to parent via onChange callbacks
-  useEffect(() => {
-    if (onCityChange && addressDetails.city !== initialValues.city) {
-      onCityChange(addressDetails.city);
-    }
-    if (onStateChange && addressDetails.state !== initialValues.state) {
-      onStateChange(addressDetails.state);
-    }
-    if (onZipCodeChange && addressDetails.zipCode !== initialValues.zipCode) {
-      onZipCodeChange(addressDetails.zipCode);
-    }
-  }, [addressDetails.city, addressDetails.state, addressDetails.zipCode]);
 
   // Fetch address suggestions
   const fetchSuggestions = async (input: string) => {
@@ -222,12 +209,17 @@ export function AddressAutocompleteInput({
     };
     setAddressDetails(updatedDetails);
     
+    // Call specific onChange handlers based on which field changed
     if (field === 'street') {
       onChange(value);
-    }
-    
-    if (onAddressSelect) {
-      onAddressSelect(updatedDetails);
+    } else if (field === 'city' && onCityChange) {
+      onCityChange(value);
+    } else if (field === 'state' && onStateChange) {
+      onStateChange(value);
+    } else if (field === 'zipCode' && onZipCodeChange) {
+      onZipCodeChange(value);
+    } else if (field === 'street2' && onStreet2Change) {
+      onStreet2Change(value);
     }
   };
 
@@ -387,17 +379,11 @@ export function AddressAutocompleteInput({
             value={addressDetails.street2 || ''}
             onChange={(e) => {
               const newStreet2 = e.target.value;
-              setAddressDetails(prev => {
-                const updated = { ...prev, street2: newStreet2 };
-                // Call callbacks with fresh data
-                if (onStreet2Change) {
-                  onStreet2Change(newStreet2);
-                }
-                if (onAddressSelect) {
-                  onAddressSelect(updated);
-                }
-                return updated;
-              });
+              setAddressDetails(prev => ({ ...prev, street2: newStreet2 }));
+              // Only call the specific field onChange handler
+              if (onStreet2Change) {
+                onStreet2Change(newStreet2);
+              }
             }}
             data-testid={`${dataTestId}-apt`}
           />
