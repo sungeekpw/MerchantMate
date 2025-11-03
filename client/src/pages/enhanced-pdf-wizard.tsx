@@ -3114,11 +3114,16 @@ export default function EnhancedPdfWizard() {
         const stateVal = formData[stateFieldId] || '';
         const zipCodeVal = formData[postalCodeFieldId] || '';
         
-        console.log('🏠 AddressGroup render:', {
-          groupType,
-          label: groupConfig.label,
-          fieldMappings,
-          values: { streetValue, street2Val, cityVal, stateVal, zipCodeVal }
+        console.log('🏠 AddressGroup render for', groupType);
+        console.log('  Field mappings:', fieldMappings);
+        console.log('  Field IDs:', { street1FieldId, cityFieldId, stateFieldId, postalCodeFieldId });
+        console.log('  formData keys containing address:', Object.keys(formData).filter(k => k.toLowerCase().includes('address')));
+        console.log('  Values retrieved:', { streetValue, cityVal, stateVal, zipCodeVal });
+        console.log('  Raw formData lookups:', {
+          [street1FieldId]: formData[street1FieldId],
+          [cityFieldId]: formData[cityFieldId],
+          [stateFieldId]: formData[stateFieldId],
+          [postalCodeFieldId]: formData[postalCodeFieldId]
         });
         
         return (
