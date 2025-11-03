@@ -981,30 +981,34 @@ export default function EnhancedPdfWizard() {
       const fieldsWithGroups = [...filteredFields];
       if (addressGroups.length > 0) {
         // Build a list of address groups for this section with their positions
-        const groupsForSection: Array<{ group: any, position: number }> = [];
+        const groupsForSection: Array<{ group: any, position: number, originalPosition: number }> = [];
         
         Object.entries(autoDetectedGroups).forEach(([prefix, group]) => {
           const posInfo = addressGroupPositions[prefix];
           if (posInfo && posInfo.sectionTitle === section.title) {
-            // Calculate insertion position (accounting for filtered fields)
+            // Find the insertion position by counting non-address fields before this position
             let insertPosition = 0;
-            for (let i = 0; i < posInfo.position && insertPosition < fieldsWithGroups.length; i++) {
-              if (!addressFieldIdsToFilter.has(section.fields[i]?.id)) {
+            for (let i = 0; i < posInfo.position; i++) {
+              const fieldId = section.fields[i]?.id;
+              if (fieldId && !addressFieldIdsToFilter.has(fieldId)) {
                 insertPosition++;
               }
             }
             
+            console.log(`📍 Address group "${prefix}" first field at original position ${posInfo.position}, calculated insert position: ${insertPosition}`);
+            
             groupsForSection.push({
               group,
-              position: insertPosition
+              position: insertPosition,
+              originalPosition: posInfo.position
             });
           }
         });
         
         // Sort by position (descending) and insert from the end to preserve positions
         groupsForSection.sort((a, b) => b.position - a.position);
-        groupsForSection.forEach(({ group, position }) => {
-          console.log(`📍 Inserting addressGroup "${group.label}" at position ${position} in section "${section.title}"`);
+        groupsForSection.forEach(({ group, position, originalPosition }) => {
+          console.log(`📍 Inserting addressGroup "${group.label}" at position ${position} (original: ${originalPosition}) in section "${section.title}"`);
           fieldsWithGroups.splice(position, 0, {
             id: `addressGroup_${group.type}`,
             label: group.label || `${group.type.charAt(0).toUpperCase() + group.type.slice(1)} Address`,
