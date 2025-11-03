@@ -1437,21 +1437,36 @@ function FieldConfigurationDialog({
       description: ''
     };
     
-    const newSections = [...sections];
-    newSections[sectionIndex].fields.push(newField);
+    // Create deep copy to avoid mutation
+    const newSections = sections.map((section, idx) => {
+      if (idx === sectionIndex) {
+        return {
+          ...section,
+          fields: [...section.fields, newField]
+        };
+      }
+      return section;
+    });
     setSections(newSections);
   };
 
   const removeField = (sectionIndex: number, fieldIndex: number) => {
     if (confirm('Are you sure you want to remove this field?')) {
-      const newSections = [...sections];
-      const fieldId = newSections[sectionIndex].fields[fieldIndex].id;
+      const fieldId = sections[sectionIndex].fields[fieldIndex].id;
       
       // Remove from required fields if present
       setRequiredFields(requiredFields.filter(id => id !== fieldId));
       
-      // Remove field from section
-      newSections[sectionIndex].fields.splice(fieldIndex, 1);
+      // Create deep copy to avoid mutation
+      const newSections = sections.map((section, idx) => {
+        if (idx === sectionIndex) {
+          return {
+            ...section,
+            fields: section.fields.filter((_: any, fIdx: number) => fIdx !== fieldIndex)
+          };
+        }
+        return section;
+      });
       setSections(newSections);
     }
   };
@@ -1489,8 +1504,18 @@ function FieldConfigurationDialog({
 
   const saveFieldEdit = () => {
     if (editingSectionIndex >= 0 && editingFieldIndex >= 0 && editingField) {
-      const newSections = [...sections];
-      newSections[editingSectionIndex].fields[editingFieldIndex] = { ...editingField };
+      // Create deep copy to avoid mutation
+      const newSections = sections.map((section, idx) => {
+        if (idx === editingSectionIndex) {
+          return {
+            ...section,
+            fields: section.fields.map((field: any, fIdx: number) => 
+              fIdx === editingFieldIndex ? { ...editingField } : field
+            )
+          };
+        }
+        return section;
+      });
       setSections(newSections);
       setEditingField(null);
       setEditingSectionIndex(-1);
