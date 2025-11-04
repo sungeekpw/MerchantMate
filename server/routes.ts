@@ -10732,6 +10732,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ownershipPercentage: ownershipPercentage || null,
       });
 
+      // Get application/prospect data for email context
+      let companyName = 'Merchant Application';
+      if (applicationId) {
+        const application = await storage.getApplication(applicationId);
+        if (application?.businessName) {
+          companyName = application.businessName;
+        }
+      } else if (prospectId) {
+        const prospect = await storage.getProspectById(prospectId);
+        if (prospect?.businessName) {
+          companyName = prospect.businessName;
+        }
+      }
+      
       // Send signature request email
       const { emailService } = await import('./emailService');
       const currentUser = req.user;
@@ -10739,7 +10753,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const emailSent = await emailService.sendSignatureRequestEmail({
         ownerName: signerName,
         ownerEmail: signerEmail,
-        companyName: 'Merchant Application', // TODO: Get from application/prospect
+        companyName,
         ownershipPercentage: ownershipPercentage ? `${ownershipPercentage}%` : 'N/A',
         signatureToken: requestToken,
         requesterName: currentUser?.username || 'System',
@@ -10760,6 +10774,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
           message: 'Failed to send signature request email. Please try again.',
           signature: { ...signature, status: 'pending' }
         });
+      }
+
+      // Fire signature_requested trigger for audit trail after successful email send
+      try {
+        const agentName = currentUser?.firstName && currentUser?.lastName 
+          ? `${currentUser.firstName} ${currentUser.lastName}` 
+          : currentUser?.username || 'Agent';
+          
+        const { TriggerService } = await import('./triggerService');
+        const triggerService = new TriggerService();
+        await triggerService.fireTrigger('signature_requested', {
+          ownerName: signerName,
+          ownerEmail: signerEmail,
+          companyName,
+          ownershipPercentage: ownershipPercentage ? `${ownershipPercentage}%` : 'N/A',
+          signatureUrl: `${process.env.REPLIT_DEV_DOMAIN || 'http://localhost:5000'}/sign/${requestToken}`,
+          signatureToken: requestToken,
+          requesterName: currentUser?.username || 'System',
+          agentName
+        }, {
+          triggerSource: 'signature_request',
+          dbEnv: req.dbEnv
+        });
+      } catch (triggerError) {
+        console.error('Error firing signature_requested trigger:', triggerError);
+        // Don't fail the request if trigger fails
       }
 
       res.json({ 
@@ -10829,6 +10869,61 @@ export async function registerRoutes(app: Express): Promise<Server> {
         dateSigned: new Date(),
         status: 'signed',
       });
+
+      // Fire signature_captured trigger for automated email notification
+      try {
+        // Get application/prospect data for trigger context
+        let companyName = 'Merchant Application';
+        let agentName = 'Agent';
+        
+        if (updated.applicationId) {
+          const application = await storage.getApplication(updated.applicationId);
+          if (application?.businessName) {
+            companyName = application.businessName;
+          }
+          // Try to get agent info from application if available
+          if (application?.createdBy) {
+            const creator = await storage.getUserByIdOrUsername(application.createdBy);
+            if (creator && creator.firstName && creator.lastName) {
+              agentName = `${creator.firstName} ${creator.lastName}`;
+            } else if (creator && creator.username) {
+              agentName = creator.username;
+            }
+          }
+        } else if (updated.prospectId) {
+          const prospect = await storage.getProspectById(updated.prospectId);
+          if (prospect?.businessName) {
+            companyName = prospect.businessName;
+          }
+          // Try to get agent info from prospect if available
+          if (prospect?.createdBy) {
+            const creator = await storage.getUserByIdOrUsername(prospect.createdBy);
+            if (creator && creator.firstName && creator.lastName) {
+              agentName = `${creator.firstName} ${creator.lastName}`;
+            } else if (creator && creator.username) {
+              agentName = creator.username;
+            }
+          }
+        }
+        
+        const { TriggerService } = await import('./triggerService');
+        const triggerService = new TriggerService();
+        await triggerService.fireTrigger('signature_captured', {
+          ownerName: updated.signerName || 'Owner',
+          ownerEmail: updated.signerEmail,
+          companyName,
+          roleKey: updated.roleKey,
+          signatureType: updated.signatureType,
+          dateSigned: updated.dateSigned?.toISOString().split('T')[0] || new Date().toISOString().split('T')[0],
+          agentName
+        }, {
+          triggerSource: 'signature_capture',
+          dbEnv: req.dbEnv
+        });
+      } catch (triggerError) {
+        console.error('Error firing signature_captured trigger:', triggerError);
+        // Don't fail the request if trigger fails
+      }
 
       res.json({ 
         success: true, 
