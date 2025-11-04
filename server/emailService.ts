@@ -244,7 +244,7 @@ This is an automated message. Please do not reply to this email.
                 If you have questions about this application, contact your agent ${data.agentName} directly.
               </div>
               
-              <p><strong>Security Note:</strong> This link is personalized and secure. It will expire in 30 days for your protection.</p>
+              <p><strong>Security Note:</strong> This link is personalized and secure. It will expire in 7 days for your protection.</p>
               
               <hr style="margin: 30px 0; border: none; border-top: 1px solid #ddd;">
               
@@ -277,7 +277,7 @@ Agent: ${data.agentName}
 Please click the link below to provide your digital signature:
 ${signatureUrl}
 
-This link is secure and personalized for you. It will expire in 30 days for your protection.
+This link is secure and personalized for you. It will expire in 7 days for your protection.
 
 By signing, you acknowledge your ownership percentage and authorize the application on behalf of ${data.companyName}.
 
@@ -293,12 +293,49 @@ This email was sent to ${data.ownerEmail}
         html: htmlContent,
       });
 
+      // Log email activity
+      await this.logEmailActivity(
+        'signature_request',
+        data.ownerEmail,
+        `Signature Required: ${data.companyName} Merchant Application`,
+        'sent',
+        undefined,
+        'signature_workflow',
+        {
+          companyName: data.companyName,
+          ownerName: data.ownerName,
+          ownershipPercentage: data.ownershipPercentage,
+          requesterName: data.requesterName,
+          agentName: data.agentName,
+          signatureToken: data.signatureToken
+        }
+      );
+
+      console.log(`Signature request email sent successfully to ${data.ownerEmail}`);
       return true;
     } catch (error: any) {
       console.error('Error sending signature request email:', error);
       if (error.response?.body?.errors) {
         console.error('SendGrid error details:', JSON.stringify(error.response.body.errors, null, 2));
       }
+      
+      // Log failed email activity
+      await this.logEmailActivity(
+        'signature_request',
+        data.ownerEmail,
+        `Signature Required: ${data.companyName} Merchant Application`,
+        'failed',
+        error.message || 'Unknown error',
+        'signature_workflow',
+        {
+          companyName: data.companyName,
+          ownerName: data.ownerName,
+          ownershipPercentage: data.ownershipPercentage,
+          requesterName: data.requesterName,
+          agentName: data.agentName
+        }
+      );
+      
       return false;
     }
   }
