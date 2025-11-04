@@ -3372,12 +3372,94 @@ export default function EnhancedPdfWizard() {
               dataTestId={`signaturegroup-${sigGroupConfig.roleKey}`}
               isRequired={field.isRequired}
               onRequestSignature={async (roleKey, email) => {
-                // TODO: Implement signature request API call
-                console.log('Request signature for', roleKey, 'to', email);
+                try {
+                  const currentSignatureData = formData[`_signatureGroup_${sigGroupConfig.groupKey}`];
+                  let signatureInfo: any = {};
+                  
+                  if (currentSignatureData && typeof currentSignatureData === 'string') {
+                    try {
+                      signatureInfo = JSON.parse(currentSignatureData);
+                    } catch {
+                      // Ignore parse errors
+                    }
+                  }
+                  
+                  const response = await fetch('/api/signature-requests', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({
+                      applicationId: null, // TODO: Add application ID when available
+                      prospectId: isProspectMode ? prospectData?.prospect?.id : null,
+                      roleKey,
+                      signerType: sigGroupConfig.prefix || 'owner',
+                      signerName: signatureInfo.signerName || '',
+                      signerEmail: email,
+                      ownershipPercentage: null
+                    })
+                  });
+                  
+                  const result = await response.json();
+                  
+                  if (result.success) {
+                    // Update signature data with 'requested' status
+                    const updatedData = {
+                      ...signatureInfo,
+                      signerEmail: email,
+                      status: 'requested',
+                      timestampRequested: new Date(),
+                      timestampExpires: new Date(result.expiresAt)
+                    };
+                    handleFieldChange(`_signatureGroup_${sigGroupConfig.groupKey}`, JSON.stringify(updatedData));
+                    
+                    toast({ 
+                      title: 'Signature request sent',
+                      description: `Email sent to ${email}`
+                    });
+                  } else {
+                    toast({ 
+                      title: 'Failed to send request',
+                      description: result.message || 'Please try again',
+                      variant: 'destructive'
+                    });
+                  }
+                } catch (error) {
+                  console.error('Error requesting signature:', error);
+                  toast({ 
+                    title: 'Error',
+                    description: 'Failed to send signature request',
+                    variant: 'destructive'
+                  });
+                }
               }}
               onResendRequest={async (roleKey) => {
-                // TODO: Implement resend signature request API call
-                console.log('Resend signature request for', roleKey);
+                try {
+                  const currentSignatureData = formData[`_signatureGroup_${sigGroupConfig.groupKey}`];
+                  let signatureInfo: any = {};
+                  
+                  if (currentSignatureData && typeof currentSignatureData === 'string') {
+                    try {
+                      signatureInfo = JSON.parse(currentSignatureData);
+                    } catch {
+                      // Ignore parse errors
+                    }
+                  }
+                  
+                  // TODO: Get the actual token from the signature data
+                  // For now, show a message that resend is not yet implemented
+                  toast({ 
+                    title: 'Resend not yet available',
+                    description: 'Please use the "Request Signature" button to send a new request',
+                    variant: 'default'
+                  });
+                } catch (error) {
+                  console.error('Error resending signature request:', error);
+                  toast({ 
+                    title: 'Error',
+                    description: 'Failed to resend signature request',
+                    variant: 'destructive'
+                  });
+                }
               }}
             />
           </div>
