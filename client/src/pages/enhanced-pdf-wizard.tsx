@@ -14,6 +14,7 @@ import { MCCSelect } from '@/components/ui/mcc-select';
 import { PhoneNumberInput } from '@/components/forms/PhoneNumberInput';
 import { EINInput } from '@/components/forms/EINInput';
 import { AddressAutocompleteInput } from '@/components/forms/AddressAutocompleteInput';
+import { SignatureGroupInput } from '@/components/forms/SignatureGroupInput';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface FormField {
@@ -3318,6 +3319,66 @@ export default function EnhancedPdfWizard() {
               placeholder="Start typing an address..."
               dataTestId={`addressgroup-${groupType}`}
               showExpandedFields={true}
+            />
+          </div>
+        );
+
+      case 'signatureGroup':
+        // Render signature group with field mappings
+        const sigGroupConfig = (field as any).signatureGroupConfig;
+        if (!sigGroupConfig) return null;
+        
+        const sigFieldMappings = sigGroupConfig.fieldMappings || {};
+        
+        // Get actual field IDs from mappings
+        const signerNameFieldId = sigFieldMappings.signername || '';
+        const signerEmailFieldId = sigFieldMappings.email || '';
+        const signatureFieldId = sigFieldMappings.signature || '';
+        const initialsFieldId = sigFieldMappings.initials || '';
+        const dateSignedFieldId = sigFieldMappings.datesigned || '';
+        
+        // Get current signature data from formData (stored as JSON string)
+        const signatureDataStr = formData[`_signatureGroup_${sigGroupConfig.groupKey}`];
+        let signatureData;
+        try {
+          signatureData = signatureDataStr ? JSON.parse(signatureDataStr) : undefined;
+        } catch (e) {
+          // Handle malformed data from legacy cache or previous bugs
+          console.warn(`✍️ Failed to parse signature data for ${sigGroupConfig.groupKey}:`, e);
+          console.warn(`  Raw value: "${signatureDataStr}"`);
+          signatureData = undefined;
+        }
+        
+        console.log('✍️ SignatureGroup render for', sigGroupConfig.roleKey);
+        console.log('  Field mappings:', sigFieldMappings);
+        console.log('  Current signature data:', signatureData);
+        
+        return (
+          <div className="space-y-2" key={field.fieldName}>
+            <SignatureGroupInput
+              config={sigGroupConfig}
+              value={signatureData}
+              onChange={(data) => {
+                // Store the complete signature data as JSON string (handleFieldChange expects scalars)
+                handleFieldChange(`_signatureGroup_${sigGroupConfig.groupKey}`, JSON.stringify(data));
+                
+                // Also update individual fields if they exist for backward compatibility
+                if (signerNameFieldId) handleFieldChange(signerNameFieldId, data.signerName);
+                if (signerEmailFieldId) handleFieldChange(signerEmailFieldId, data.signerEmail);
+                if (signatureFieldId) handleFieldChange(signatureFieldId, data.signature);
+                if (initialsFieldId) handleFieldChange(initialsFieldId, data.initials || '');
+                if (dateSignedFieldId) handleFieldChange(dateSignedFieldId, data.dateSigned || '');
+              }}
+              dataTestId={`signaturegroup-${sigGroupConfig.roleKey}`}
+              isRequired={field.isRequired}
+              onRequestSignature={async (roleKey, email) => {
+                // TODO: Implement signature request API call
+                console.log('Request signature for', roleKey, 'to', email);
+              }}
+              onResendRequest={async (roleKey) => {
+                // TODO: Implement resend signature request API call
+                console.log('Resend signature request for', roleKey);
+              }}
             />
           </div>
         );
