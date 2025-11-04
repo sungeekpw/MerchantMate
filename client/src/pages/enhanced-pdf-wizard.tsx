@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useLocation } from 'wouter';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { apiRequest } from '@/lib/queryClient';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -260,6 +261,87 @@ export default function EnhancedPdfWizard() {
       }
       
       return response.json();
+    },
+  });
+
+  // Signature request mutation
+  const signatureRequestMutation = useMutation({
+    mutationFn: async (requestData: {
+      applicationId: number | null;
+      prospectId: number | null;
+      roleKey: string;
+      signerType: string;
+      signerName: string;
+      signerEmail: string;
+      ownershipPercentage: number | null;
+    }) => {
+      return await apiRequest('/api/signature-requests', {
+        method: 'POST',
+        body: JSON.stringify(requestData),
+      });
+    },
+    onSuccess: (result, variables) => {
+      if (result.success) {
+        toast({
+          title: 'Signature request sent',
+          description: `Email sent to ${variables.signerEmail}`,
+        });
+        // Invalidate related queries
+        queryClient.invalidateQueries({ queryKey: ['/api/signatures'] });
+        if (variables.prospectId) {
+          queryClient.invalidateQueries({ queryKey: [`/api/prospects/${variables.prospectId}`] });
+        }
+        if (variables.applicationId) {
+          queryClient.invalidateQueries({ queryKey: [`/api/applications/${variables.applicationId}`] });
+        }
+      } else {
+        toast({
+          title: 'Failed to send request',
+          description: result.message || 'Please try again',
+          variant: 'destructive',
+        });
+      }
+    },
+    onError: (error: any) => {
+      console.error('Error requesting signature:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to send signature request',
+        variant: 'destructive',
+      });
+    },
+  });
+
+  // Resend signature request mutation
+  const resendSignatureRequestMutation = useMutation({
+    mutationFn: async ({ token }: { token: string }) => {
+      return await apiRequest(`/api/signatures/${token}/resend`, {
+        method: 'POST',
+      });
+    },
+    onSuccess: (result) => {
+      if (result.success) {
+        toast({
+          title: 'Signature request resent',
+          description: 'A new email has been sent with an updated link',
+        });
+        // Invalidate related queries
+        queryClient.invalidateQueries({ queryKey: ['/api/signatures'] });
+      } else {
+        toast({
+          title: 'Failed to resend request',
+          description: result.message || 'Please try again',
+          variant: 'destructive',
+        });
+      }
+    },
+    onError: (error: any) => {
+      console.error('Error resending signature request:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to resend signature request',
+        variant: 'destructive',
+      });
     },
   });
 
@@ -3372,93 +3454,79 @@ export default function EnhancedPdfWizard() {
               dataTestId={`signaturegroup-${sigGroupConfig.roleKey}`}
               isRequired={field.isRequired}
               onRequestSignature={async (roleKey, email) => {
-                try {
-                  const currentSignatureData = formData[`_signatureGroup_${sigGroupConfig.groupKey}`];
-                  let signatureInfo: any = {};
-                  
-                  if (currentSignatureData && typeof currentSignatureData === 'string') {
-                    try {
-                      signatureInfo = JSON.parse(currentSignatureData);
-                    } catch {
-                      // Ignore parse errors
-                    }
+                const currentSignatureData = formData[`_signatureGroup_${sigGroupConfig.groupKey}`];
+                let signatureInfo: any = {};
+                
+                if (currentSignatureData && typeof currentSignatureData === 'string') {
+                  try {
+                    signatureInfo = JSON.parse(currentSignatureData);
+                  } catch {
+                    // Ignore parse errors
                   }
-                  
-                  const response = await fetch('/api/signature-requests', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    credentials: 'include',
-                    body: JSON.stringify({
-                      applicationId: null, // TODO: Add application ID when available
-                      prospectId: isProspectMode ? prospectData?.prospect?.id : null,
-                      roleKey,
-                      signerType: sigGroupConfig.prefix || 'owner',
-                      signerName: signatureInfo.signerName || '',
-                      signerEmail: email,
-                      ownershipPercentage: null
-                    })
-                  });
-                  
-                  const result = await response.json();
-                  
-                  if (result.success) {
-                    // Update signature data with 'requested' status
-                    const updatedData = {
-                      ...signatureInfo,
-                      signerEmail: email,
-                      status: 'requested',
-                      timestampRequested: new Date(),
-                      timestampExpires: new Date(result.expiresAt)
-                    };
-                    handleFieldChange(`_signatureGroup_${sigGroupConfig.groupKey}`, JSON.stringify(updatedData));
-                    
-                    toast({ 
-                      title: 'Signature request sent',
-                      description: `Email sent to ${email}`
-                    });
-                  } else {
-                    toast({ 
-                      title: 'Failed to send request',
-                      description: result.message || 'Please try again',
-                      variant: 'destructive'
-                    });
-                  }
-                } catch (error) {
-                  console.error('Error requesting signature:', error);
-                  toast({ 
-                    title: 'Error',
-                    description: 'Failed to send signature request',
-                    variant: 'destructive'
-                  });
+                }
+                
+                // Call the mutation
+                const result = await signatureRequestMutation.mutateAsync({
+                  applicationId: null, // TODO: Add application ID when available
+                  prospectId: isProspectMode ? prospectData?.prospect?.id : null,
+                  roleKey,
+                  signerType: sigGroupConfig.prefix || 'owner',
+                  signerName: signatureInfo.signerName || '',
+                  signerEmail: email,
+                  ownershipPercentage: null,
+                });
+                
+                // Update local state if successful
+                if (result.success && result.signature) {
+                  const updatedData = {
+                    ...signatureInfo,
+                    signerName: signatureInfo.signerName || '',
+                    signerEmail: email,
+                    status: 'requested' as const,
+                    timestampRequested: new Date(),
+                    timestampExpires: new Date(result.expiresAt),
+                    requestToken: result.signature.requestToken,
+                  };
+                  handleFieldChange(`_signatureGroup_${sigGroupConfig.groupKey}`, JSON.stringify(updatedData));
                 }
               }}
               onResendRequest={async (roleKey) => {
-                try {
-                  const currentSignatureData = formData[`_signatureGroup_${sigGroupConfig.groupKey}`];
-                  let signatureInfo: any = {};
-                  
-                  if (currentSignatureData && typeof currentSignatureData === 'string') {
-                    try {
-                      signatureInfo = JSON.parse(currentSignatureData);
-                    } catch {
-                      // Ignore parse errors
-                    }
+                const currentSignatureData = formData[`_signatureGroup_${sigGroupConfig.groupKey}`];
+                let signatureInfo: any = {};
+                
+                if (currentSignatureData && typeof currentSignatureData === 'string') {
+                  try {
+                    signatureInfo = JSON.parse(currentSignatureData);
+                  } catch {
+                    // Ignore parse errors
                   }
-                  
-                  // TODO: Get the actual token from the signature data
-                  // For now, show a message that resend is not yet implemented
+                }
+                
+                // Check if we have a token to resend
+                if (!signatureInfo.requestToken) {
                   toast({ 
-                    title: 'Resend not yet available',
-                    description: 'Please use the "Request Signature" button to send a new request',
-                    variant: 'default'
+                    title: 'Cannot resend',
+                    description: 'No signature request token found. Please send a new request.',
+                    variant: 'destructive',
                   });
-                } catch (error) {
-                  console.error('Error resending signature request:', error);
-                  toast({ 
-                    title: 'Error',
-                    description: 'Failed to resend signature request',
-                    variant: 'destructive'
-                  });
+                  return;
+                }
+                
+                // Call the resend mutation
+                const result = await resendSignatureRequestMutation.mutateAsync({
+                  token: signatureInfo.requestToken,
+                });
+                
+                // Update local state if successful
+                if (result.success && result.signature) {
+                  const updatedData = {
+                    ...signatureInfo,
+                    status: 'requested',
+                    timestampRequested: new Date(),
+                    timestampExpires: new Date(result.signature.timestampExpires),
+                    requestToken: result.signature.requestToken,
+                  };
+                  handleFieldChange(`_signatureGroup_${sigGroupConfig.groupKey}`, JSON.stringify(updatedData));
                 }
               }}
             />
