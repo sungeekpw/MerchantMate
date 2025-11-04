@@ -31,7 +31,14 @@ Preferred communication style: Simple, everyday language.
 - **Transaction Processing**: Tracking, commission calculations, revenue analytics.
 - **Form Management System**: PDF upload/parsing, dynamic field generation, public access, conditional fields with real-time evaluation.
 - **Dashboard System**: Personalized, widget-based dashboards with real-time analytics.
-- **Digital Signature**: Inline canvas-based and typed signature with email request workflows.
+- **Digital Signature System**: Comprehensive signature capture and management:
+  - **Multi-Role Signatures**: Support for owner, agent, guarantor, witness, and acknowledgement signatures
+  - **Auto-Detection**: PDF field pattern detection using `{prefix}_signature_{role}.{fieldType}` convention
+  - **Capture Methods**: Canvas-based drawing and typed signature input
+  - **Email Workflows**: Automated signature request emails with 7-day expiration
+  - **Trigger Integration**: signature_requested, signature_captured, signature_expired events
+  - **Status Tracking**: pending, requested, signed, expired states with timestamp tracking
+  - **Security**: Token-based authentication, expiration validation, audit trail logging
 - **Address Validation & Autocomplete**: Google Maps Geocoding and Places Autocomplete integration with standardized components and backend mapping.
 - **Campaign Management**: Full CRUD for campaigns, pricing types, fee groups, equipment associations.
 - **SOC2 Compliance Features**: Comprehensive audit trail, logging, security events, login attempt tracking.
@@ -45,6 +52,47 @@ Preferred communication style: Simple, everyday language.
 - **Database Safety**: Strict protocols and wrapper scripts to prevent accidental production database modifications.
 - **Deployment Pipeline Compliance**: All schema changes must follow Dev → Test → Production pipeline.
 - **User-Company Association Pattern**: **CRITICAL ARCHITECTURE** - All agent and merchant lookups MUST use the generic pattern: `User → user_company_associations → Company → Agent/Merchant`.
+
+## Signature System Architecture
+
+### Database Schema
+- **signature_captures**: Stores all signature data with fields:
+  - `id`, `applicationId`, `prospectId`, `roleKey`, `signerType`, `signerName`, `signerEmail`
+  - `signature` (base64), `signatureType` (canvas/typed), `initials`, `dateSigned`
+  - `timestampSigned`, `timestampRequested`, `timestampExpires`, `requestToken`
+  - `status` (pending/requested/signed/expired), `notes`, `ownershipPercentage`
+
+### Field Naming Conventions
+Signature groups use a strict naming pattern for PDF field detection:
+- **Pattern**: `{prefix}_signature_{role}.{fieldType}`
+- **Example**: `owner1_signature_owner.signername`, `owner1_signature_owner.signature`, `owner1_signature_owner.email`
+- **Field Types**: `signername`, `signature`, `initials`, `email`, `datesigned`
+- **Role Prefixes**: `owner1`, `owner2`, `guarantor`, `agent`, `witness`
+
+### API Endpoints
+- `POST /api/signature-requests` - Request signature from signer (authenticated)
+- `POST /api/signatures/capture` - Submit signature (public, token-validated)
+- `GET /api/signatures/:token/status` - Check signature status (public)
+- `POST /api/signatures/:token/resend` - Resend expired request (authenticated)
+- `GET /api/signatures/application/:applicationId` - Get all signatures for application
+- `GET /api/signatures/prospect/:prospectId` - Get all signatures for prospect
+
+### Workflow States
+1. **Pending**: Initial state, signature not yet requested
+2. **Requested**: Email sent to signer with token link (7-day expiration)
+3. **Signed**: Signature captured and stored
+4. **Expired**: Request token expired after 7 days
+
+### Trigger/Action Integration
+- **signature_requested**: Fires after successful email send, creates audit trail
+- **signature_captured**: Fires when signature is submitted, sends confirmation email
+- **signature_expired**: Fires when signature expires (requires scheduled job)
+- **Email Templates**: Request, Confirmation, 3-Day Reminder, 1-Day Reminder, Expiration Notice
+
+### Frontend Components
+- **SignatureGroupInput**: Reusable component with canvas/typed signature capture
+- **Enhanced PDF Wizard**: Auto-detects signature groups and renders signature controls
+- **Status Indicators**: Visual feedback for pending, requested, signed, expired states
 
 ## External Dependencies
 - **pg**: Native PostgreSQL driver.
