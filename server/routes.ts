@@ -10687,6 +10687,332 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ============================================================================
+  // Signature Capture API Endpoints
+  // ============================================================================
+
+  // POST /api/signature-requests - Request signature from a signer
+  app.post('/api/signature-requests', dbEnvironmentMiddleware, isAuthenticated, async (req: any, res) => {
+    try {
+      const { applicationId, prospectId, roleKey, signerType, signerName, signerEmail, ownershipPercentage } = req.body;
+      
+      // Validation
+      if (!signerEmail || !roleKey || !signerType) {
+        return res.status(400).json({ 
+          success: false, 
+          message: 'Missing required fields: signerEmail, roleKey, signerType' 
+        });
+      }
+
+      // Generate secure token
+      const requestToken = crypto.randomBytes(32).toString('hex');
+      
+      // Calculate expiration (7 days from now)
+      const expiresAt = new Date();
+      expiresAt.setDate(expiresAt.getDate() + 7);
+
+      // Create signature capture record
+      const signature = await storage.createSignatureCapture({
+        applicationId: applicationId || null,
+        prospectId: prospectId || null,
+        roleKey,
+        signerType,
+        signerName: signerName || null,
+        signerEmail,
+        signature: null,
+        signatureType: null,
+        initials: null,
+        dateSigned: null,
+        timestampSigned: null,
+        timestampRequested: new Date(),
+        timestampExpires: expiresAt,
+        requestToken,
+        status: 'requested',
+        notes: null,
+        ownershipPercentage: ownershipPercentage || null,
+      });
+
+      // Send signature request email
+      const { emailService } = await import('./emailService');
+      const currentUser = req.user;
+      
+      const emailSent = await emailService.sendSignatureRequestEmail({
+        ownerName: signerName,
+        ownerEmail: signerEmail,
+        companyName: 'Merchant Application', // TODO: Get from application/prospect
+        ownershipPercentage: ownershipPercentage ? `${ownershipPercentage}%` : 'N/A',
+        signatureToken: requestToken,
+        requesterName: currentUser?.username || 'System',
+        agentName: currentUser?.firstName && currentUser?.lastName 
+          ? `${currentUser.firstName} ${currentUser.lastName}` 
+          : currentUser?.username || 'Agent',
+        dbEnv: req.dbEnv,
+      });
+
+      // If email failed, update status and return error
+      if (!emailSent) {
+        await storage.updateSignatureCapture(signature.id, { 
+          status: 'pending',
+          notes: 'Email delivery failed - request not sent'
+        });
+        return res.status(500).json({ 
+          success: false, 
+          message: 'Failed to send signature request email. Please try again.',
+          signature: { ...signature, status: 'pending' }
+        });
+      }
+
+      res.json({ 
+        success: true, 
+        message: 'Signature request sent successfully',
+        signature,
+        expiresAt
+      });
+    } catch (error) {
+      console.error('Signature request error:', error);
+      res.status(500).json({ 
+        success: false, 
+        message: 'Failed to send signature request',
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
+  // POST /api/signatures/capture - Submit a signature (public endpoint with token validation)
+  app.post('/api/signatures/capture', dbEnvironmentMiddleware, async (req: RequestWithDB, res) => {
+    try {
+      const { token, signature, signatureType, initials, signerName, signerEmail } = req.body;
+      
+      // Validation
+      if (!token || !signature || !signatureType) {
+        return res.status(400).json({ 
+          success: false, 
+          message: 'Missing required fields: token, signature, signatureType' 
+        });
+      }
+
+      // Find signature capture by token
+      const capture = await storage.getSignatureCaptureByToken(token);
+      
+      if (!capture) {
+        return res.status(404).json({ 
+          success: false, 
+          message: 'Invalid or expired signature request' 
+        });
+      }
+
+      // Check if already signed
+      if (capture.status === 'signed') {
+        return res.status(400).json({ 
+          success: false, 
+          message: 'This signature has already been submitted' 
+        });
+      }
+
+      // Check if expired
+      if (capture.timestampExpires && capture.timestampExpires < new Date()) {
+        await storage.updateSignatureCapture(capture.id, { status: 'expired' });
+        return res.status(400).json({ 
+          success: false, 
+          message: 'This signature request has expired' 
+        });
+      }
+
+      // Update signature capture
+      const updated = await storage.updateSignatureCapture(capture.id, {
+        signature,
+        signatureType,
+        initials: initials || null,
+        signerName: signerName || capture.signerName,
+        signerEmail: signerEmail || capture.signerEmail,
+        timestampSigned: new Date(),
+        dateSigned: new Date(),
+        status: 'signed',
+      });
+
+      res.json({ 
+        success: true, 
+        message: 'Signature captured successfully',
+        signature: updated
+      });
+    } catch (error) {
+      console.error('Signature capture error:', error);
+      res.status(500).json({ 
+        success: false, 
+        message: 'Failed to capture signature',
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
+  // GET /api/signatures/:token/status - Check signature status (public endpoint)
+  app.get('/api/signatures/:token/status', dbEnvironmentMiddleware, async (req: RequestWithDB, res) => {
+    try {
+      const { token } = req.params;
+      
+      const capture = await storage.getSignatureCaptureByToken(token);
+      
+      if (!capture) {
+        return res.status(404).json({ 
+          success: false, 
+          message: 'Signature request not found' 
+        });
+      }
+
+      // Check if expired
+      const isExpired = capture.timestampExpires && capture.timestampExpires < new Date();
+      if (isExpired && capture.status !== 'expired') {
+        await storage.updateSignatureCapture(capture.id, { status: 'expired' });
+      }
+
+      res.json({ 
+        success: true, 
+        status: isExpired ? 'expired' : capture.status,
+        roleKey: capture.roleKey,
+        signerType: capture.signerType,
+        signerName: capture.signerName,
+        signerEmail: capture.signerEmail,
+        timestampRequested: capture.timestampRequested,
+        timestampExpires: capture.timestampExpires,
+        timestampSigned: capture.timestampSigned,
+        ownershipPercentage: capture.ownershipPercentage
+      });
+    } catch (error) {
+      console.error('Signature status check error:', error);
+      res.status(500).json({ 
+        success: false, 
+        message: 'Failed to check signature status',
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
+  // POST /api/signatures/:token/resend - Resend signature request (authenticated)
+  app.post('/api/signatures/:token/resend', dbEnvironmentMiddleware, isAuthenticated, async (req: any, res) => {
+    try {
+      const { token } = req.params;
+      
+      const capture = await storage.getSignatureCaptureByToken(token);
+      
+      if (!capture) {
+        return res.status(404).json({ 
+          success: false, 
+          message: 'Signature request not found' 
+        });
+      }
+
+      // Check if already signed
+      if (capture.status === 'signed') {
+        return res.status(400).json({ 
+          success: false, 
+          message: 'This signature has already been submitted' 
+        });
+      }
+
+      // Generate new token and expiration
+      const newToken = crypto.randomBytes(32).toString('hex');
+      const expiresAt = new Date();
+      expiresAt.setDate(expiresAt.getDate() + 7);
+
+      // Update signature capture
+      const updated = await storage.updateSignatureCapture(capture.id, {
+        requestToken: newToken,
+        timestampRequested: new Date(),
+        timestampExpires: expiresAt,
+        status: 'requested',
+      });
+
+      // Resend email
+      const { emailService } = await import('./emailService');
+      const currentUser = req.user;
+      
+      const emailSent = await emailService.sendSignatureRequestEmail({
+        ownerName: capture.signerName || 'Owner',
+        ownerEmail: capture.signerEmail,
+        companyName: 'Merchant Application',
+        ownershipPercentage: capture.ownershipPercentage ? `${capture.ownershipPercentage}%` : 'N/A',
+        signatureToken: newToken,
+        requesterName: currentUser?.username || 'System',
+        agentName: currentUser?.firstName && currentUser?.lastName 
+          ? `${currentUser.firstName} ${currentUser.lastName}` 
+          : currentUser?.username || 'Agent',
+        dbEnv: req.dbEnv,
+      });
+
+      // If email failed, revert status and return error
+      if (!emailSent) {
+        await storage.updateSignatureCapture(capture.id, { 
+          requestToken: token, // Revert to old token
+          timestampRequested: capture.timestampRequested, // Revert timestamp
+          timestampExpires: capture.timestampExpires, // Revert expiration
+          status: capture.status, // Revert status
+          notes: 'Resend email delivery failed'
+        });
+        return res.status(500).json({ 
+          success: false, 
+          message: 'Failed to resend signature request email. Please try again.'
+        });
+      }
+
+      res.json({ 
+        success: true, 
+        message: 'Signature request resent successfully',
+        signature: updated,
+        newToken,
+        expiresAt
+      });
+    } catch (error) {
+      console.error('Signature resend error:', error);
+      res.status(500).json({ 
+        success: false, 
+        message: 'Failed to resend signature request',
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
+  // GET /api/signatures/application/:applicationId - Get all signatures for an application (authenticated)
+  app.get('/api/signatures/application/:applicationId', dbEnvironmentMiddleware, isAuthenticated, async (req: any, res) => {
+    try {
+      const { applicationId } = req.params;
+      
+      const signatures = await storage.getSignatureCapturesByApplication(parseInt(applicationId));
+      
+      res.json({ 
+        success: true, 
+        signatures
+      });
+    } catch (error) {
+      console.error('Get application signatures error:', error);
+      res.status(500).json({ 
+        success: false, 
+        message: 'Failed to retrieve signatures',
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
+  // GET /api/signatures/prospect/:prospectId - Get all signatures for a prospect (authenticated)
+  app.get('/api/signatures/prospect/:prospectId', dbEnvironmentMiddleware, isAuthenticated, async (req: any, res) => {
+    try {
+      const { prospectId } = req.params;
+      
+      const signatures = await storage.getSignatureCapturesByProspect(parseInt(prospectId));
+      
+      res.json({ 
+        success: true, 
+        signatures
+      });
+    } catch (error) {
+      console.error('Get prospect signatures error:', error);
+      res.status(500).json({ 
+        success: false, 
+        message: 'Failed to retrieve signatures',
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
