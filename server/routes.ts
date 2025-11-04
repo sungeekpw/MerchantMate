@@ -7997,7 +7997,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         fieldConfiguration,
         pdfMappingConfiguration,
         requiredFields,
-        conditionalFields: validatedData.conditionalFields || {}
+        conditionalFields: validatedData.conditionalFields || {},
+        addressGroups: validatedData.addressGroups || [],
+        signatureGroups: validatedData.signatureGroups || []
       };
 
       const [newTemplate] = await dbToUse.insert(acquirerApplicationTemplates)
