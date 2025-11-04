@@ -962,15 +962,56 @@ export default function EnhancedPdfWizard() {
     console.log('📍 Auto-detected address groups:', addressGroups);
     console.log('📍 Address field IDs to filter out:', Array.from(addressFieldIdsToFilter));
     
+    // Auto-detect signature groups from field naming patterns
+    // Pattern: {prefix}_signature_{role}.{fieldType} where fieldType is signerName/signature/initials/email/dateSigned
+    const autoDetectedSignatureGroups: Record<string, any> = {};
+    const signatureFieldIdsToFilter = new Set<string>();
+    const signatureGroupPositions: Record<string, { sectionTitle: string, position: number }> = {};
+    
+    // First pass: detect signature group prefixes and track their positions
+    template.fieldConfiguration.sections.forEach((section: any) => {
+      section.fields.forEach((field: any, fieldIndex: number) => {
+        const match = field.id?.match(/^(.+)_signature_([^.]+)\.(signerName|signature|initials|email|dateSigned)$/i);
+        if (match) {
+          const [, prefix, role, fieldType] = match;
+          const groupKey = `${prefix}_signature_${role}`;
+          
+          if (!autoDetectedSignatureGroups[groupKey]) {
+            autoDetectedSignatureGroups[groupKey] = {
+              roleKey: role,
+              label: field.label?.split('.')[0] || `${role} Signature`,
+              sectionName: section.title,
+              fieldMappings: {}
+            };
+            // Track the position of the first field in this signature group
+            signatureGroupPositions[groupKey] = {
+              sectionTitle: section.title,
+              position: fieldIndex
+            };
+          }
+          
+          // Map field types to field IDs
+          autoDetectedSignatureGroups[groupKey].fieldMappings[fieldType.toLowerCase()] = field.id;
+          signatureFieldIdsToFilter.add(field.id);
+        }
+      });
+    });
+    
+    const signatureGroups = Object.values(autoDetectedSignatureGroups);
+    console.log('✍️ Auto-detected signature groups:', signatureGroups);
+    console.log('✍️ Signature field IDs to filter out:', Array.from(signatureFieldIdsToFilter));
+    
     return template.fieldConfiguration.sections.map((section: any, sectionIndex: number) => {
       console.log(`📍 Processing section: ${section.title}, fields before filter:`, section.fields.length);
       
-      // Filter out individual address fields that are part of groups
+      // Filter out individual address and signature fields that are part of groups
       const filteredFields = section.fields.filter((field: any) => {
-        // Check if this field's ID is in the address group mappings
-        const shouldFilter = addressFieldIdsToFilter.has(field.id);
+        // Check if this field's ID is in the address or signature group mappings
+        const isAddressField = addressFieldIdsToFilter.has(field.id);
+        const isSignatureField = signatureFieldIdsToFilter.has(field.id);
+        const shouldFilter = isAddressField || isSignatureField;
         if (shouldFilter) {
-          console.log(`📍 Filtering out field: ${field.id} (${field.label})`);
+          console.log(`📍 Filtering out field: ${field.id} (${field.label}) - ${isAddressField ? 'address' : 'signature'} group`);
         }
         return !shouldFilter;
       });
@@ -1025,7 +1066,78 @@ export default function EnhancedPdfWizard() {
         });
       }
       
-      console.log(`📍 Section ${section.title}: ${fieldsWithGroups.length} fields total (with addressGroups)`);
+      // Add signature group pseudo-fields at their original positions
+      if (signatureGroups.length > 0) {
+        // Build a list of signature groups for this section with their original positions
+        const sigGroupsForSection: Array<{ group: any, originalPosition: number, groupKey: string }> = [];
+        
+        Object.entries(autoDetectedSignatureGroups).forEach(([groupKey, group]) => {
+          const posInfo = signatureGroupPositions[groupKey];
+          // Only include groups that belong to this section
+          if (posInfo && posInfo.sectionTitle === section.title) {
+            sigGroupsForSection.push({
+              group,
+              originalPosition: posInfo.position,
+              groupKey
+            });
+          }
+        });
+        
+        // Only proceed if there are signature groups in this section
+        if (sigGroupsForSection.length > 0) {
+          // Sort by original position (ascending) - groups with lower positions come first
+          sigGroupsForSection.sort((a, b) => a.originalPosition - b.originalPosition);
+          
+          // Track how many signature groups we've inserted so far
+          let sigGroupsInsertedSoFar = 0;
+          
+          sigGroupsForSection.forEach(({ group, originalPosition, groupKey }) => {
+            // Calculate insertion position: count non-grouped fields before this group's original position
+            let insertPosition = 0;
+            for (let i = 0; i < originalPosition; i++) {
+              const fieldId = section.fields[i]?.id;
+              if (fieldId && !addressFieldIdsToFilter.has(fieldId) && !signatureFieldIdsToFilter.has(fieldId)) {
+                insertPosition++;
+              }
+            }
+            
+            // Count how many ADDRESS groups appear BEFORE this signature group's original position
+            let addressGroupsBeforeThis = 0;
+            Object.entries(autoDetectedGroups).forEach(([prefix, addrGroup]) => {
+              const addrPosInfo = addressGroupPositions[prefix];
+              if (addrPosInfo && addrPosInfo.sectionTitle === section.title && addrPosInfo.position < originalPosition) {
+                addressGroupsBeforeThis++;
+              }
+            });
+            
+            // Add the offset from address groups that appear before this signature group
+            // AND signature groups we've already inserted (to account for previously inserted groups)
+            const finalPosition = insertPosition + addressGroupsBeforeThis + sigGroupsInsertedSoFar;
+            
+            console.log(`✍️ Inserting signatureGroup "${groupKey}" at position ${finalPosition} (original: ${originalPosition}, addressBefore: ${addressGroupsBeforeThis}, sigBefore: ${sigGroupsInsertedSoFar}) in section "${section.title}"`);
+            
+            // Enrich the signature group config with metadata for downstream rendering
+            const enrichedConfig = {
+              ...group,
+              groupKey, // Unique identifier for this signature group
+              prefix: groupKey.split('_signature_')[0], // Extract prefix (e.g., merchantInformation)
+              sectionName: section.title,
+            };
+            
+            fieldsWithGroups.splice(finalPosition, 0, {
+              id: `signatureGroup_${groupKey}`, // Unique ID using full groupKey
+              label: group.label || `${group.roleKey} Signature`,
+              type: 'signatureGroup',
+              signatureGroupConfig: enrichedConfig,
+            });
+            
+            // Increment counter since we just added a signature group
+            sigGroupsInsertedSoFar++;
+          });
+        }
+      }
+      
+      console.log(`📍 Section ${section.title}: ${fieldsWithGroups.length} fields total (with address & signature groups)`);
       
       return {
         name: section.title,
@@ -1044,6 +1156,7 @@ export default function EnhancedPdfWizard() {
           section: section.title,
           description: field.description || null,
           addressGroupConfig: field.addressGroupConfig || null,
+          signatureGroupConfig: field.signatureGroupConfig || null,
         }))
       };
     });
