@@ -69,12 +69,16 @@ export function SignatureGroupInput({
   const [isDrawing, setIsDrawing] = useState(false);
   const [lastPos, setLastPos] = useState<{ x: number; y: number } | null>(null);
 
+  // Check if this is an owner signature group
+  const isOwnerGroup = config.roleKey === 'owner' || config.groupKey.includes('owner');
+
   // Sync with value prop
   useEffect(() => {
     if (value) {
       setSignerName(value.signerName || '');
       setSignerEmail(value.signerEmail || '');
       setInitials(value.initials || '');
+      setOwnershipPercentage(value.ownershipPercentage || '');
       if (value.signature) {
         if (value.signatureType === 'drawn') {
           setDrawnSignature(value.signature);
@@ -191,6 +195,7 @@ export function SignatureGroupInput({
       signatureType: signatureType === 'draw' ? 'drawn' : 'typed',
       initials,
       dateSigned: new Date().toISOString().split('T')[0],
+      ownershipPercentage,
       status: 'signed',
       timestampSigned: new Date(),
     };
@@ -260,7 +265,7 @@ export function SignatureGroupInput({
         {isSigned ? (
           // Display signed signature
           <div className="space-y-4">
-            <div className="grid grid-cols-3 gap-4">
+            <div className={`grid ${isOwnerGroup ? 'grid-cols-4' : 'grid-cols-3'} gap-4`}>
               <div>
                 <Label className="text-sm text-gray-600">Signer Name</Label>
                 <p className="font-medium">{value?.signerName}</p>
@@ -269,6 +274,12 @@ export function SignatureGroupInput({
                 <Label className="text-sm text-gray-600">Email</Label>
                 <p className="font-medium">{value?.signerEmail}</p>
               </div>
+              {isOwnerGroup && value?.ownershipPercentage && (
+                <div>
+                  <Label className="text-sm text-gray-600">Ownership %</Label>
+                  <p className="font-medium">{value.ownershipPercentage}%</p>
+                </div>
+              )}
               {value?.initials && (
                 <div>
                   <Label className="text-sm text-gray-600">Initials</Label>
@@ -297,7 +308,7 @@ export function SignatureGroupInput({
         ) : (
           // Signature capture interface
           <div className="space-y-4">
-            <div className="grid grid-cols-3 gap-4">
+            <div className={`grid ${isOwnerGroup ? 'grid-cols-4' : 'grid-cols-3'} gap-4`}>
               <div>
                 <Label htmlFor={`${config.groupKey}-name`}>
                   Signer Name {isRequired && <span className="text-red-500">*</span>}
@@ -326,6 +337,25 @@ export function SignatureGroupInput({
                   data-testid={`${dataTestId}-signer-email`}
                 />
               </div>
+              {isOwnerGroup && (
+                <div>
+                  <Label htmlFor={`${config.groupKey}-ownership`}>
+                    Ownership % {isRequired && <span className="text-red-500">*</span>}
+                  </Label>
+                  <Input
+                    id={`${config.groupKey}-ownership`}
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="0.1"
+                    value={ownershipPercentage}
+                    onChange={(e) => setOwnershipPercentage(e.target.value)}
+                    placeholder="25.0"
+                    disabled={disabled || isRequested}
+                    data-testid={`${dataTestId}-ownership`}
+                  />
+                </div>
+              )}
               <div>
                 <Label htmlFor={`${config.groupKey}-initials`}>
                   Initials
