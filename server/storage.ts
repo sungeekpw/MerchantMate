@@ -1,4 +1,4 @@
-import { companies, merchants, agents, transactions, users, loginAttempts, twoFactorCodes, userDashboardPreferences, agentMerchants, locations, addresses, pdfForms, pdfFormFields, pdfFormSubmissions, merchantProspects, prospectOwners, prospectSignatures, feeGroups, feeItemGroups, feeItems, pricingTypes, pricingTypeFeeItems, campaigns, campaignFeeValues, campaignAssignments, equipmentItems, campaignEquipment, campaignApplicationTemplates, acquirerApplicationTemplates, apiKeys, apiRequestLogs, emailWrappers, emailTemplates, emailActivity, emailTriggers, actionTemplates, triggerCatalog, triggerActions, userAlerts, acquirers, type Merchant, type Agent, type Transaction, type User, type InsertMerchant, type InsertAgent, type InsertTransaction, type UpsertUser, type MerchantWithAgent, type TransactionWithMerchant, type LoginAttempt, type TwoFactorCode, type UserDashboardPreference, type InsertUserDashboardPreference, type AgentMerchant, type InsertAgentMerchant, type Location, type InsertLocation, type Address, type InsertAddress, type LocationWithAddresses, type MerchantWithLocations, type PdfForm, type InsertPdfForm, type PdfFormField, type InsertPdfFormField, type PdfFormSubmission, type InsertPdfFormSubmission, type PdfFormWithFields, type MerchantProspect, type InsertMerchantProspect, type MerchantProspectWithAgent, type ProspectOwner, type InsertProspectOwner, type ProspectSignature, type InsertProspectSignature, type FeeGroup, type InsertFeeGroup, type FeeItemGroup, type InsertFeeItemGroup, type FeeItem, type InsertFeeItem, type PricingType, type InsertPricingType, type PricingTypeFeeItem, type InsertPricingTypeFeeItem, type Campaign, type InsertCampaign, type CampaignFeeValue, type InsertCampaignFeeValue, type CampaignAssignment, type InsertCampaignAssignment, type EquipmentItem, type InsertEquipmentItem, type CampaignEquipment, type InsertCampaignEquipment, type CampaignApplicationTemplate, type InsertCampaignApplicationTemplate, type AcquirerApplicationTemplate, type FeeGroupWithItems, type FeeItemGroupWithItems, type FeeGroupWithItemGroups, type PricingTypeWithFeeItems, type CampaignWithDetails, type ApiKey, type InsertApiKey, type ApiRequestLog, type InsertApiRequestLog, type EmailWrapper, type InsertEmailWrapper, type EmailTemplate, type InsertEmailTemplate, type EmailActivity, type InsertEmailActivity, type EmailTrigger, type InsertEmailTrigger, type ActionTemplate, type InsertActionTemplate, type TriggerCatalog, type InsertTriggerCatalog, type TriggerAction, type InsertTriggerAction, type UserAlert, type InsertUserAlert } from "@shared/schema";
+import { companies, merchants, agents, transactions, users, loginAttempts, twoFactorCodes, userDashboardPreferences, agentMerchants, locations, addresses, pdfForms, pdfFormFields, pdfFormSubmissions, merchantProspects, prospectOwners, prospectSignatures, signatureCaptures, feeGroups, feeItemGroups, feeItems, pricingTypes, pricingTypeFeeItems, campaigns, campaignFeeValues, campaignAssignments, equipmentItems, campaignEquipment, campaignApplicationTemplates, acquirerApplicationTemplates, apiKeys, apiRequestLogs, emailWrappers, emailTemplates, emailActivity, emailTriggers, actionTemplates, triggerCatalog, triggerActions, userAlerts, acquirers, type Merchant, type Agent, type Transaction, type User, type InsertMerchant, type InsertAgent, type InsertTransaction, type UpsertUser, type MerchantWithAgent, type TransactionWithMerchant, type LoginAttempt, type TwoFactorCode, type UserDashboardPreference, type InsertUserDashboardPreference, type AgentMerchant, type InsertAgentMerchant, type Location, type InsertLocation, type Address, type InsertAddress, type LocationWithAddresses, type MerchantWithLocations, type PdfForm, type InsertPdfForm, type PdfFormField, type InsertPdfFormField, type PdfFormSubmission, type InsertPdfFormSubmission, type PdfFormWithFields, type MerchantProspect, type InsertMerchantProspect, type MerchantProspectWithAgent, type ProspectOwner, type InsertProspectOwner, type ProspectSignature, type InsertProspectSignature, type SignatureCapture, type InsertSignatureCapture, type FeeGroup, type InsertFeeGroup, type FeeItemGroup, type InsertFeeItemGroup, type FeeItem, type InsertFeeItem, type PricingType, type InsertPricingType, type PricingTypeFeeItem, type InsertPricingTypeFeeItem, type Campaign, type InsertCampaign, type CampaignFeeValue, type InsertCampaignFeeValue, type CampaignAssignment, type InsertCampaignAssignment, type EquipmentItem, type InsertEquipmentItem, type CampaignEquipment, type InsertCampaignEquipment, type CampaignApplicationTemplate, type InsertCampaignApplicationTemplate, type AcquirerApplicationTemplate, type FeeGroupWithItems, type FeeItemGroupWithItems, type FeeGroupWithItemGroups, type PricingTypeWithFeeItems, type CampaignWithDetails, type ApiKey, type InsertApiKey, type ApiRequestLog, type InsertApiRequestLog, type EmailWrapper, type InsertEmailWrapper, type EmailTemplate, type InsertEmailTemplate, type EmailActivity, type InsertEmailActivity, type EmailTrigger, type InsertEmailTrigger, type ActionTemplate, type InsertActionTemplate, type TriggerCatalog, type InsertTriggerCatalog, type TriggerAction, type InsertTriggerAction, type UserAlert, type InsertUserAlert } from "@shared/schema";
 import { db, pool } from "./db";
 import { eq, or, and, gte, sql, desc, inArray, like, ilike, not } from "drizzle-orm";
 
@@ -132,6 +132,16 @@ export interface IStorage {
   getProspectSignaturesByProspect(prospectId: number): Promise<ProspectSignature[]>;
   getProspectOwnerBySignatureToken(token: string): Promise<ProspectOwner | undefined>;
   getProspectOwnerByEmailAndProspectId(email: string, prospectId: number): Promise<ProspectOwner | undefined>;
+
+  // Signature Capture operations (generic signature system)
+  createSignatureCapture(signature: InsertSignatureCapture): Promise<SignatureCapture>;
+  getSignatureCapture(id: number): Promise<SignatureCapture | undefined>;
+  getSignatureCaptureByToken(token: string): Promise<SignatureCapture | undefined>;
+  getSignatureCapturesByApplication(applicationId: number): Promise<SignatureCapture[]>;
+  getSignatureCapturesByProspect(prospectId: number): Promise<SignatureCapture[]>;
+  updateSignatureCapture(id: number, updates: Partial<InsertSignatureCapture>): Promise<SignatureCapture | undefined>;
+  getExpiredSignatureCaptures(): Promise<SignatureCapture[]>;
+  getSignatureCapturesByStatus(status: string): Promise<SignatureCapture[]>;
 
   // Email Management operations
   getAllEmailWrappers(): Promise<EmailWrapper[]>;
@@ -1411,6 +1421,47 @@ export class DatabaseStorage implements IStorage {
       .where(eq(prospectOwners.email, email));
 
     return result.map(row => row.signature);
+  }
+
+  // Signature Capture implementations
+  async createSignatureCapture(signature: InsertSignatureCapture): Promise<SignatureCapture> {
+    const [created] = await this.db.insert(signatureCaptures).values(signature).returning();
+    return created;
+  }
+
+  async getSignatureCapture(id: number): Promise<SignatureCapture | undefined> {
+    const [capture] = await this.db.select().from(signatureCaptures).where(eq(signatureCaptures.id, id));
+    return capture || undefined;
+  }
+
+  async getSignatureCaptureByToken(token: string): Promise<SignatureCapture | undefined> {
+    const [capture] = await this.db.select().from(signatureCaptures).where(eq(signatureCaptures.requestToken, token));
+    return capture || undefined;
+  }
+
+  async getSignatureCapturesByApplication(applicationId: number): Promise<SignatureCapture[]> {
+    return await this.db.select().from(signatureCaptures).where(eq(signatureCaptures.applicationId, applicationId));
+  }
+
+  async getSignatureCapturesByProspect(prospectId: number): Promise<SignatureCapture[]> {
+    return await this.db.select().from(signatureCaptures).where(eq(signatureCaptures.prospectId, prospectId));
+  }
+
+  async updateSignatureCapture(id: number, updates: Partial<InsertSignatureCapture>): Promise<SignatureCapture | undefined> {
+    const [updated] = await this.db.update(signatureCaptures).set(updates).where(eq(signatureCaptures.id, id)).returning();
+    return updated || undefined;
+  }
+
+  async getExpiredSignatureCaptures(): Promise<SignatureCapture[]> {
+    return await this.db.select().from(signatureCaptures)
+      .where(and(
+        eq(signatureCaptures.status, 'requested'),
+        sql`${signatureCaptures.timestampExpires} < NOW()`
+      ));
+  }
+
+  async getSignatureCapturesByStatus(status: string): Promise<SignatureCapture[]> {
+    return await this.db.select().from(signatureCaptures).where(eq(signatureCaptures.status, status));
   }
 
   async getAgentByUserId(userId: string): Promise<Agent | undefined> {

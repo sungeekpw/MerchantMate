@@ -558,14 +558,51 @@ export const prospectSignatures = pgTable("prospect_signatures", {
   submittedAt: timestamp("submitted_at").defaultNow(),
 });
 
+// Generic signature captures table for all signature types (owner, agent, guarantor, witness, etc.)
+export const signatureCaptures = pgTable("signature_captures", {
+  id: serial("id").primaryKey(),
+  applicationId: integer("application_id").references(() => prospectApplications.id, { onDelete: 'cascade' }),
+  prospectId: integer("prospect_id").references(() => merchantProspects.id, { onDelete: 'cascade' }),
+  roleKey: text("role_key").notNull(), // e.g., 'owner1', 'owner2', 'agent', 'guarantor', 'witness'
+  signerType: text("signer_type").notNull(), // 'owner', 'agent', 'guarantor', 'witness', 'acknowledgement'
+  signerName: text("signer_name"),
+  signerEmail: text("signer_email"),
+  signature: text("signature"), // Base64 signature data (canvas or typed)
+  signatureType: text("signature_type"), // 'canvas' or 'typed'
+  initials: text("initials"), // Signer's initials
+  dateSigned: timestamp("date_signed"),
+  timestampSigned: timestamp("timestamp_signed"),
+  timestampRequested: timestamp("timestamp_requested"),
+  timestampExpires: timestamp("timestamp_expires"),
+  requestToken: text("request_token").unique(),
+  status: text("status").notNull().default("pending"), // 'pending', 'requested', 'signed', 'expired'
+  notes: text("notes"),
+  ownershipPercentage: decimal("ownership_percentage", { precision: 5, scale: 2 }), // For owner signatures
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => ({
+  applicationIdIdx: index("signature_captures_application_id_idx").on(table.applicationId),
+  prospectIdIdx: index("signature_captures_prospect_id_idx").on(table.prospectId),
+  requestTokenIdx: index("signature_captures_request_token_idx").on(table.requestToken),
+  statusIdx: index("signature_captures_status_idx").on(table.status),
+}));
+
 export const insertProspectOwnerSchema = createInsertSchema(prospectOwners);
 
 export const insertProspectSignatureSchema = createInsertSchema(prospectSignatures);
+
+export const insertSignatureCaptureSchema = createInsertSchema(signatureCaptures).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
 
 export type InsertProspectOwner = z.infer<typeof insertProspectOwnerSchema>;
 export type ProspectOwner = typeof prospectOwners.$inferSelect;
 export type InsertProspectSignature = z.infer<typeof insertProspectSignatureSchema>;
 export type ProspectSignature = typeof prospectSignatures.$inferSelect;
+export type InsertSignatureCapture = z.infer<typeof insertSignatureCaptureSchema>;
+export type SignatureCapture = typeof signatureCaptures.$inferSelect;
 
 // API Key schemas
 export const insertApiKeySchema = createInsertSchema(apiKeys).omit({
@@ -833,6 +870,7 @@ export const acquirerApplicationTemplates = pgTable("acquirer_application_templa
   requiredFields: text("required_fields").array().notNull().default(sql`ARRAY[]::text[]`), // Array of required field names
   conditionalFields: jsonb("conditional_fields"), // JSON defining field visibility conditions
   addressGroups: jsonb("address_groups").default(sql`'[]'::jsonb`), // JSON defining address field groups: [{ type: 'business'|'mailing'|'shipping', sectionName: string, fieldMappings: { street1: 'merchant_businessAddress', street2: 'merchant_businessAddress2', city: 'merchant_businessCity', state: 'merchant_businessState', postalCode: 'merchant_businessZipCode', country: 'merchant_businessCountry' } }]
+  signatureGroups: jsonb("signature_groups").default(sql`'[]'::jsonb`), // JSON defining signature field groups: [{ roleKey: 'owner1', displayLabel: 'Owner #1', signerType: 'owner', isRequired: true, orderPriority: 1, sectionName: string, fieldMappings: { signerName: 'merchantInfo_signature_owner1.signerName', signature: 'merchantInfo_signature_owner1.signature', initials: 'merchantInfo_signature_owner1.initials', email: 'merchantInfo_signature_owner1.email', dateSigned: 'merchantInfo_signature_owner1.dateSigned' }, pdfMappings: { signature: { page: 3, x: 100, y: 200, width: 200, height: 50 }, printedName: {...}, initials: {...}, email: {...}, dateSigned: {...} } }]
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 }, (table) => ({
