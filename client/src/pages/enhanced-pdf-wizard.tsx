@@ -65,6 +65,7 @@ export default function EnhancedPdfWizard() {
   const [addressSuggestions, setAddressSuggestions] = useState<any[]>([]);
   const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState(-1);
   const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
+  const [activeOwnerSlots, setActiveOwnerSlots] = useState<Set<number>>(new Set([1])); // Start with owner1 active
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -344,6 +345,47 @@ export default function EnhancedPdfWizard() {
       });
     },
   });
+
+  // Helper function to calculate total ownership percentage from active owners
+  const calculateTotalOwnership = (): number => {
+    let total = 0;
+    activeOwnerSlots.forEach((slotNumber) => {
+      const ownerKey = `owner${slotNumber}`;
+      const ownerDataStr = formData[`_signatureGroup_${ownerKey}_signature_owner`];
+      if (ownerDataStr) {
+        try {
+          const ownerData = JSON.parse(ownerDataStr);
+          const percentage = parseFloat(ownerData.ownershipPercentage || '0');
+          if (!isNaN(percentage)) {
+            total += percentage;
+          }
+        } catch (e) {
+          // Ignore parse errors
+        }
+      }
+    });
+    return total;
+  };
+
+  // Helper function to add a new owner slot
+  const addOwnerSlot = () => {
+    const nextSlot = Math.max(...Array.from(activeOwnerSlots), 0) + 1;
+    if (nextSlot <= 5) { // Max 5 owners
+      setActiveOwnerSlots(new Set([...activeOwnerSlots, nextSlot]));
+    }
+  };
+
+  // Helper function to remove an owner slot
+  const removeOwnerSlot = (slotNumber: number) => {
+    if (slotNumber === 1) return; // Can't remove owner1
+    const newSlots = new Set(activeOwnerSlots);
+    newSlots.delete(slotNumber);
+    setActiveOwnerSlots(newSlots);
+    
+    // Clear the form data for this owner
+    const ownerKey = `owner${slotNumber}`;
+    handleFieldChange(`_signatureGroup_${ownerKey}_signature_owner`, '');
+  };
 
   // Submit application mutation
   const submitApplicationMutation = useMutation({
@@ -1156,6 +1198,18 @@ export default function EnhancedPdfWizard() {
         
         Object.entries(autoDetectedSignatureGroups).forEach(([groupKey, group]) => {
           const posInfo = signatureGroupPositions[groupKey];
+          
+          // Check if this is an owner signature group (owner1, owner2, etc.)
+          const ownerMatch = groupKey.match(/^owner(\d+)_signature_owner$/);
+          if (ownerMatch) {
+            const ownerNumber = parseInt(ownerMatch[1]);
+            // Only include this owner if it's in the active slots
+            if (!activeOwnerSlots.has(ownerNumber)) {
+              console.log(`✍️ Skipping inactive owner slot: ${groupKey}`);
+              return; // Skip this owner slot
+            }
+          }
+          
           // Only include groups that belong to this section
           if (posInfo && posInfo.sectionTitle === section.title) {
             sigGroupsForSection.push({
@@ -3435,9 +3489,55 @@ export default function EnhancedPdfWizard() {
         console.log('  Field mappings:', sigFieldMappings);
         console.log('  Current signature data:', signatureData);
         
+        // Check if this is an owner signature group
+        const ownerMatch = sigGroupConfig.groupKey.match(/^owner(\d+)_signature_owner$/);
+        const isOwnerGroup = !!ownerMatch;
+        const ownerNumber = ownerMatch ? parseInt(ownerMatch[1]) : null;
+        
         return (
           <div className="space-y-2" key={field.fieldName}>
-            <SignatureGroupInput
+            {/* Show ownership management UI for owner groups */}
+            {isOwnerGroup && ownerNumber === 1 && (
+              <Card className="mb-4 bg-blue-50 border-blue-200">
+                <CardContent className="pt-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="font-semibold text-blue-900">Business Ownership</h3>
+                      <p className="text-sm text-blue-700">
+                        Total Ownership: <span className={`font-bold ${
+                          Math.abs(calculateTotalOwnership() - 100) < 0.01 ? 'text-green-600' :
+                          calculateTotalOwnership() > 100 ? 'text-red-600' : 'text-orange-600'
+                        }`}>
+                          {calculateTotalOwnership().toFixed(1)}%
+                        </span>
+                        {Math.abs(calculateTotalOwnership() - 100) > 0.01 && (
+                          <span className="ml-2 text-sm">
+                            ({calculateTotalOwnership() < 100 ? 
+                              `${(100 - calculateTotalOwnership()).toFixed(1)}% remaining` :
+                              `${(calculateTotalOwnership() - 100).toFixed(1)}% over limit`
+                            })
+                          </span>
+                        )}
+                      </p>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={addOwnerSlot}
+                      disabled={activeOwnerSlots.size >= 5 || calculateTotalOwnership() >= 100}
+                      data-testid="add-owner-btn"
+                    >
+                      <Users className="h-4 w-4 mr-2" />
+                      Add Owner
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+            
+            <div className="relative">
+              <SignatureGroupInput
               config={sigGroupConfig}
               value={signatureData}
               onChange={(data) => {
@@ -3530,6 +3630,22 @@ export default function EnhancedPdfWizard() {
                 }
               }}
             />
+            
+            {/* Remove owner button for owners 2-5 */}
+            {isOwnerGroup && ownerNumber && ownerNumber > 1 && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => removeOwnerSlot(ownerNumber)}
+                className="mt-2 text-red-600 hover:text-red-700 hover:bg-red-50"
+                data-testid={`remove-owner${ownerNumber}-btn`}
+              >
+                <X className="h-4 w-4 mr-2" />
+                Remove This Owner
+              </Button>
+            )}
+            </div>
           </div>
         );
 

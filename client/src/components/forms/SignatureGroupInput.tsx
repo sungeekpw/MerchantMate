@@ -29,6 +29,7 @@ interface SignatureData {
   signatureType: 'drawn' | 'typed';
   initials?: string;
   dateSigned?: string;
+  ownershipPercentage?: string;
   status: 'pending' | 'requested' | 'signed' | 'expired';
   timestampSigned?: Date;
   timestampRequested?: Date;
@@ -62,6 +63,7 @@ export function SignatureGroupInput({
   const [signerName, setSignerName] = useState<string>(value?.signerName || '');
   const [signerEmail, setSignerEmail] = useState<string>(value?.signerEmail || '');
   const [initials, setInitials] = useState<string>(value?.initials || '');
+  const [ownershipPercentage, setOwnershipPercentage] = useState<string>(value?.ownershipPercentage || '');
   
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isDrawing, setIsDrawing] = useState(false);
