@@ -7877,8 +7877,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(500).json({ error: "Database connection not available" });
       }
       
-      const { acquirerApplicationTemplates, prospectApplications } = await import("@shared/schema");
-      const { eq } = await import("drizzle-orm");
+      const { 
+        acquirerApplicationTemplates, 
+        prospectApplications,
+        campaignApplicationTemplates,
+        campaignAssignments 
+      } = await import("@shared/schema");
+      const { eq, and, inArray } = await import("drizzle-orm");
       
       // Check if template has any applications
       const applications = await dbToUse
@@ -7891,6 +7896,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ 
           error: "Cannot delete template with existing applications. Please remove all applications using this template first." 
         });
+      }
+      
+      // Check if template is linked to any campaigns
+      const linkedCampaigns = await dbToUse
+        .select({ campaignId: campaignApplicationTemplates.campaignId })
+        .from(campaignApplicationTemplates)
+        .where(eq(campaignApplicationTemplates.templateId, templateId));
+      
+      if (linkedCampaigns.length > 0) {
+        const campaignIds = linkedCampaigns.map(c => c.campaignId);
+        
+        // Check if any of these campaigns have active prospects assigned
+        const activeAssignments = await dbToUse
+          .select()
+          .from(campaignAssignments)
+          .where(
+            and(
+              inArray(campaignAssignments.campaignId, campaignIds),
+              eq(campaignAssignments.isActive, true)
+            )
+          )
+          .limit(1);
+        
+        if (activeAssignments.length > 0) {
+          return res.status(400).json({ 
+            error: "Cannot delete template that is assigned to campaigns with active prospects. Please remove the template from campaigns or unassign prospects first." 
+          });
+        }
       }
       
       // Delete the template
