@@ -6,10 +6,29 @@
  * Simple command-line tool for non-technical users to safely sync environments.
  * Always follows the Dev → Test → Production pipeline.
  * 
+ * PREREQUISITE - Generate Migrations First:
+ *   Before running sync, ensure you've generated migrations in development:
+ *   1. Make changes to shared/schema.ts
+ *   2. tsx scripts/migration-manager.ts generate
+ *   3. Review generated SQL in migrations/ directory
+ *   4. NOW run this sync script
+ * 
+ * Features:
+ *   - Schema migration using migration-manager.ts (applies pending migrations)
+ *   - Lookup data export/import (pricing types, fee groups, campaigns, etc.)
+ *   - Safety confirmations for production deployments
+ *   - Automatic backup creation before migration apply
+ * 
  * Usage:
  *   tsx scripts/sync-environments.ts dev-to-test    # Sync Development to Test
  *   tsx scripts/sync-environments.ts test-to-prod   # Sync Test to Production
  *   tsx scripts/sync-environments.ts status         # Check sync status
+ * 
+ * Full Workflow Example:
+ *   1. tsx scripts/migration-manager.ts generate    # Generate migration from schema changes
+ *   2. tsx scripts/sync-environments.ts dev-to-test # Apply to test + sync data
+ *   3. tsx scripts/migration-manager.ts validate    # Verify consistency
+ *   4. tsx scripts/sync-environments.ts test-to-prod # Apply to production + sync data
  */
 
 import { exec } from 'child_process';
