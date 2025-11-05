@@ -3550,6 +3550,28 @@ export default function EnhancedPdfWizard() {
                 if (signatureFieldId) handleFieldChange(signatureFieldId, data.signature);
                 if (initialsFieldId) handleFieldChange(initialsFieldId, data.initials || '');
                 if (dateSignedFieldId) handleFieldChange(dateSignedFieldId, data.dateSigned || '');
+                
+                // Auto-add next owner slot if ownership percentage is entered and < 100%
+                const ownerMatch = sigGroupConfig.groupKey.match(/^owner(\d+)_signature_owner$/);
+                if (ownerMatch && data.ownershipPercentage) {
+                  const percentage = parseFloat(data.ownershipPercentage);
+                  if (!isNaN(percentage) && percentage > 0 && percentage < 100) {
+                    // Calculate total ownership including this change
+                    const currentTotal = calculateTotalOwnership();
+                    
+                    // Only add next slot if we haven't reached max owners and total is still < 100
+                    if (activeOwnerSlots.size < 5 && currentTotal < 100) {
+                      const currentOwnerNum = parseInt(ownerMatch[1]);
+                      const nextOwnerNum = currentOwnerNum + 1;
+                      
+                      // Only add the next sequential owner if it doesn't exist yet
+                      if (!activeOwnerSlots.has(nextOwnerNum)) {
+                        console.log(`Auto-adding owner${nextOwnerNum} slot (${percentage}% < 100%)`);
+                        setActiveOwnerSlots(new Set([...activeOwnerSlots, nextOwnerNum]));
+                      }
+                    }
+                  }
+                }
               }}
               dataTestId={`signaturegroup-${sigGroupConfig.roleKey}`}
               isRequired={field.isRequired}
