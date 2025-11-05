@@ -1151,6 +1151,19 @@ export default function EnhancedPdfWizard() {
         
         Object.entries(autoDetectedGroups).forEach(([prefix, group]) => {
           const posInfo = addressGroupPositions[prefix];
+          
+          // Check if this is an owner address group (owner1, owner2, etc.)
+          // Prefix format can be like "owner1_mailing_address" or "owners_owner2_address"
+          const ownerMatch = prefix.match(/(?:owners_)?owner(\d+)/);
+          if (ownerMatch) {
+            const ownerNumber = parseInt(ownerMatch[1]);
+            // Only include this owner if it's in the active slots
+            if (!activeOwnerSlots.has(ownerNumber)) {
+              console.log(`📍 Skipping inactive owner address group: ${prefix}`);
+              return; // Skip this owner slot
+            }
+          }
+          
           if (posInfo && posInfo.sectionTitle === section.title) {
             groupsForSection.push({
               group,
