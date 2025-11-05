@@ -1333,6 +1333,17 @@ export default function EnhancedPdfWizard() {
       return true; // Show all fields if no template
     }
 
+    // Filter owner fields based on active owner slots
+    // Check if this field belongs to an owner (owner1_, owner2_, owners_owner1_, owners_owner2_, etc.)
+    const ownerFieldMatch = fieldId.match(/^(?:owners_)?owner(\d+)_/);
+    if (ownerFieldMatch) {
+      const ownerNumber = parseInt(ownerFieldMatch[1]);
+      // Only show if this owner number is in the active slots
+      if (!activeOwnerSlots.has(ownerNumber)) {
+        return false;
+      }
+    }
+
     let finalVisibility = true;
 
     // Check field-level conditional rules
