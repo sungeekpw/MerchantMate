@@ -2671,8 +2671,44 @@ export default function EnhancedPdfWizard() {
                 placeholder="Enter percentage (0-100)"
                 data-testid={`input-${field.fieldName}`}
               />
-              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none">%</span>
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm pointer-events-none">
+                %
+              </span>
             </div>
+            {hasError && <p className="text-xs text-red-500">{hasError}</p>}
+          </div>
+        );
+
+      case 'ssn':
+        return (
+          <div className="space-y-2">
+            <Label htmlFor={field.fieldName} className="text-sm font-medium text-gray-700">
+              {field.fieldLabel}
+              {field.isRequired && <span className="text-red-500 ml-1">*</span>}
+            </Label>
+            <Input
+              id={field.fieldName}
+              type="text"
+              value={value}
+              onChange={(e) => {
+                let val = e.target.value.replace(/\D/g, ''); // Remove non-digits
+                if (val.length > 9) val = val.slice(0, 9); // Limit to 9 digits
+                
+                // Format as XXX-XX-XXXX
+                let formatted = val;
+                if (val.length > 5) {
+                  formatted = `${val.slice(0, 3)}-${val.slice(3, 5)}-${val.slice(5)}`;
+                } else if (val.length > 3) {
+                  formatted = `${val.slice(0, 3)}-${val.slice(3)}`;
+                }
+                
+                handleFieldChange(field.fieldName, formatted);
+              }}
+              className={hasError ? 'border-red-500' : ''}
+              placeholder="XXX-XX-XXXX"
+              maxLength={11}
+              data-testid={`input-${field.fieldName}`}
+            />
             {hasError && <p className="text-xs text-red-500">{hasError}</p>}
           </div>
         );

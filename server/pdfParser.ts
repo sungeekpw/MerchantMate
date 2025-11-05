@@ -4,7 +4,7 @@ import { PDFDocument, PDFTextField, PDFDropdown, PDFCheckBox, PDFRadioGroup, PDF
 
 interface ParsedFormField {
   fieldName: string;
-  fieldType: 'text' | 'number' | 'percentage' | 'date' | 'select' | 'checkbox' | 'textarea' | 'phone' | 'email' | 'url' | 'mcc-select' | 'zipcode' | 'ein' | 'radio' | 'boolean' | 'address';
+  fieldType: 'text' | 'number' | 'percentage' | 'ssn' | 'date' | 'select' | 'checkbox' | 'textarea' | 'phone' | 'email' | 'url' | 'mcc-select' | 'zipcode' | 'ein' | 'radio' | 'boolean' | 'address';
   fieldLabel: string;
   isRequired: boolean;
   options?: Array<{
@@ -214,6 +214,7 @@ export class PDFFormParser {
             else if (fieldNameLower.includes('phone')) fieldType = 'phone';
             else if (fieldNameLower.includes('zip') || fieldNameLower.includes('postal')) fieldType = 'zipcode';
             else if (fieldNameLower.includes('taxid') || fieldNameLower.includes('ein')) fieldType = 'ein';
+            else if (fieldNameLower.includes('ssn') || fieldNameLower.includes('social')) fieldType = 'ssn';
             else if (fieldNameLower.includes('percent') || fieldNameLower.includes('ownership')) fieldType = 'percentage';
             else if (fieldNameLower.includes('address') || fieldNameLower.includes('street')) {
               fieldType = 'address';
