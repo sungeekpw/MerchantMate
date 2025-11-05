@@ -12,58 +12,11 @@
  *   tsx scripts/sync-environments.ts status         # Check sync status
  */
 
-import { exec, spawn } from 'child_process';
+import { exec } from 'child_process';
 import { promisify } from 'util';
 import * as readline from 'readline';
 
 const execAsync = promisify(exec);
-
-// Helper function to run drizzle-kit push with automated prompt answers
-const runDrizzleKitPush = (databaseUrl: string): Promise<{ stdout: string, stderr: string }> => {
-  return new Promise((resolve, reject) => {
-    const child = spawn('npx', ['drizzle-kit', 'push', '--force'], {
-      env: { ...process.env, DATABASE_URL: databaseUrl },
-      stdio: ['pipe', 'pipe', 'pipe']
-    });
-
-    let stdout = '';
-    let stderr = '';
-
-    // Automatically press Enter to accept default (create table) for all prompts
-    // Drizzle-kit menu prompts need Enter key to select the highlighted option
-    const answerInterval = setInterval(() => {
-      try {
-        child.stdin.write('\n'); // Just press Enter to accept highlighted option
-      } catch (e) {
-        // Process might have ended
-      }
-    }, 1000); // Send Enter every second
-
-    child.stdout.on('data', (data) => {
-      stdout += data.toString();
-      process.stdout.write(data); // Echo to console
-    });
-
-    child.stderr.on('data', (data) => {
-      stderr += data.toString();
-      process.stderr.write(data); // Echo to console
-    });
-
-    child.on('close', (code) => {
-      clearInterval(answerInterval);
-      if (code === 0) {
-        resolve({ stdout, stderr });
-      } else {
-        reject(new Error(`drizzle-kit push exited with code ${code}`));
-      }
-    });
-
-    child.on('error', (error) => {
-      clearInterval(answerInterval);
-      reject(error);
-    });
-  });
-};
 
 interface SyncStep {
   name: string;
@@ -106,11 +59,11 @@ class EnvironmentSync {
   async syncDevToTest() {
     console.log('\n🔄 SYNC: Development → Test\n');
     console.log('This will:');
-    console.log('  1. Backup Test database schema');
-    console.log('  2. Apply schema migrations from Dev to Test');
-    console.log('  3. Export lookup data from Dev');
-    console.log('  4. Import lookup data into Test');
+    console.log('  1. Apply pending migrations to Test database');
+    console.log('  2. Export lookup data from Dev');
+    console.log('  3. Import lookup data into Test');
     console.log('\n⚠️  WARNING: This will overwrite Test data with Dev data!\n');
+    console.log('💡 Note: Generate migrations first with: tsx scripts/migration-manager.ts generate\n');
     
     if (!AUTO_CONFIRM) {
       const confirm = await ask('Do you want to continue? (yes/no): ');
@@ -123,19 +76,18 @@ class EnvironmentSync {
       console.log('✅ Auto-confirmed: Proceeding with sync...');
     }
     
-    // Push schema changes to test using drizzle-kit
-    console.log('\n[1/3] Pushing schema changes to Test database...');
+    // Apply pending migrations to test database
+    console.log('\n[1/3] Applying pending migrations to Test database...');
     try {
-      const testDbUrl = process.env.TEST_DATABASE_URL;
-      if (!testDbUrl) {
-        throw new Error('TEST_DATABASE_URL environment variable not found');
-      }
-      
-      // Use spawn-based helper to handle interactive prompts
-      await runDrizzleKitPush(testDbUrl);
-      console.log('✅ Schema pushed to Test');
+      const { stdout, stderr } = await execAsync('tsx scripts/migration-manager.ts apply test');
+      if (stdout) console.log(stdout);
+      if (stderr && !stderr.includes('warn')) console.error('⚠️  Warnings:', stderr);
+      console.log('✅ Migrations applied to Test');
     } catch (error: any) {
-      console.error('❌ Error pushing schema to Test:', error.message);
+      console.error('❌ Error applying migrations to Test:', error.message);
+      if (error.stdout) console.log(error.stdout);
+      if (error.stderr) console.error(error.stderr);
+      
       if (AUTO_CONFIRM) {
         console.log('⚠️  Error occurred in auto-confirm mode - aborting sync for safety');
         throw error;
@@ -191,11 +143,11 @@ class EnvironmentSync {
   async syncTestToProd() {
     console.log('\n🔄 SYNC: Test → Production\n');
     console.log('This will:');
-    console.log('  1. Backup Production database schema');
-    console.log('  2. Apply schema migrations from Test to Production');
-    console.log('  3. Export lookup data from Test');
-    console.log('  4. Import lookup data into Production');
+    console.log('  1. Apply pending migrations to Production database');
+    console.log('  2. Export lookup data from Test');
+    console.log('  3. Import lookup data into Production');
     console.log('\n🚨 CRITICAL WARNING: This affects PRODUCTION data!\n');
+    console.log('💡 Note: Ensure migrations are tested in Test environment first\n');
     
     if (!AUTO_CONFIRM) {
       const confirm1 = await ask('Are you ABSOLUTELY SURE you want to sync to Production? (yes/no): ');
@@ -215,19 +167,18 @@ class EnvironmentSync {
       console.log('✅ Auto-confirmed: Proceeding with PRODUCTION sync...');
     }
     
-    // Push schema changes to production using drizzle-kit
-    console.log('\n[1/3] Pushing schema changes to Production database...');
+    // Apply pending migrations to production database
+    console.log('\n[1/3] Applying pending migrations to Production database...');
     try {
-      const prodDbUrl = process.env.DATABASE_URL; // Production uses DATABASE_URL
-      if (!prodDbUrl) {
-        throw new Error('DATABASE_URL environment variable not found');
-      }
-      
-      // Use spawn-based helper to handle interactive prompts
-      await runDrizzleKitPush(prodDbUrl);
-      console.log('✅ Schema pushed to Production');
+      const { stdout, stderr } = await execAsync('tsx scripts/migration-manager.ts apply prod');
+      if (stdout) console.log(stdout);
+      if (stderr && !stderr.includes('warn')) console.error('⚠️  Warnings:', stderr);
+      console.log('✅ Migrations applied to Production');
     } catch (error: any) {
-      console.error('❌ Error pushing schema to Production:', error.message);
+      console.error('❌ Error applying migrations to Production:', error.message);
+      if (error.stdout) console.log(error.stdout);
+      if (error.stderr) console.error(error.stderr);
+      
       if (AUTO_CONFIRM) {
         console.log('⚠️  Error occurred in auto-confirm mode - aborting sync for safety');
         throw error;
