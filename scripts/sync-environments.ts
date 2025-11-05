@@ -12,11 +12,57 @@
  *   tsx scripts/sync-environments.ts status         # Check sync status
  */
 
-import { exec } from 'child_process';
+import { exec, spawn } from 'child_process';
 import { promisify } from 'util';
 import * as readline from 'readline';
 
 const execAsync = promisify(exec);
+
+// Helper function to run drizzle-kit push with automated prompt answers
+const runDrizzleKitPush = (databaseUrl: string): Promise<{ stdout: string, stderr: string }> => {
+  return new Promise((resolve, reject) => {
+    const child = spawn('npx', ['drizzle-kit', 'push', '--force'], {
+      env: { ...process.env, DATABASE_URL: databaseUrl },
+      stdio: ['pipe', 'pipe', 'pipe']
+    });
+
+    let stdout = '';
+    let stderr = '';
+
+    // Automatically answer "0" (create table) for all prompts
+    const answerInterval = setInterval(() => {
+      try {
+        child.stdin.write('0\n');
+      } catch (e) {
+        // Process might have ended
+      }
+    }, 500);
+
+    child.stdout.on('data', (data) => {
+      stdout += data.toString();
+      process.stdout.write(data); // Echo to console
+    });
+
+    child.stderr.on('data', (data) => {
+      stderr += data.toString();
+      process.stderr.write(data); // Echo to console
+    });
+
+    child.on('close', (code) => {
+      clearInterval(answerInterval);
+      if (code === 0) {
+        resolve({ stdout, stderr });
+      } else {
+        reject(new Error(`drizzle-kit push exited with code ${code}`));
+      }
+    });
+
+    child.on('error', (error) => {
+      clearInterval(answerInterval);
+      reject(error);
+    });
+  });
+};
 
 interface SyncStep {
   name: string;
@@ -84,12 +130,8 @@ class EnvironmentSync {
         throw new Error('TEST_DATABASE_URL environment variable not found');
       }
       
-      const { stdout, stderr } = await execAsync('npx drizzle-kit push --force', {
-        env: { ...process.env, DATABASE_URL: testDbUrl }
-      });
-      
-      if (stdout) console.log(stdout);
-      if (stderr && !stderr.includes('warn')) console.error('⚠️  Warnings:', stderr);
+      // Use spawn-based helper to handle interactive prompts
+      await runDrizzleKitPush(testDbUrl);
       console.log('✅ Schema pushed to Test');
     } catch (error: any) {
       console.error('❌ Error pushing schema to Test:', error.message);
@@ -180,12 +222,8 @@ class EnvironmentSync {
         throw new Error('DATABASE_URL environment variable not found');
       }
       
-      const { stdout, stderr } = await execAsync('npx drizzle-kit push --force', {
-        env: { ...process.env, DATABASE_URL: prodDbUrl }
-      });
-      
-      if (stdout) console.log(stdout);
-      if (stderr && !stderr.includes('warn')) console.error('⚠️  Warnings:', stderr);
+      // Use spawn-based helper to handle interactive prompts
+      await runDrizzleKitPush(prodDbUrl);
       console.log('✅ Schema pushed to Production');
     } catch (error: any) {
       console.error('❌ Error pushing schema to Production:', error.message);
