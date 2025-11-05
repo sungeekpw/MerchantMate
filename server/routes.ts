@@ -8031,8 +8031,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         pdfMappingConfiguration,
         requiredFields,
         conditionalFields: validatedData.conditionalFields || {},
-        addressGroups: validatedData.addressGroups || [],
-        signatureGroups: validatedData.signatureGroups || []
+        addressGroups: parseResult.addressGroups || [],
+        signatureGroups: parseResult.signatureGroups || []
       };
 
       const [newTemplate] = await dbToUse.insert(acquirerApplicationTemplates)
