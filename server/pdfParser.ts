@@ -123,7 +123,7 @@ export class PDFFormParser {
         console.warn('No form fields found in PDF. Using fallback Wells Fargo structure.');
         const sections = this.parseWellsFargoMPA("");
         const totalFields = sections.reduce((sum, section) => sum + section.fields.length, 0);
-        return { sections, totalFields };
+        return { sections, totalFields, addressGroups: [], signatureGroups: [] };
       }
       
       // Group fields by their base name (section_fieldname_optiontype)
@@ -240,11 +240,21 @@ export class PDFFormParser {
       const sections = this.groupFieldsIntoSections(parsedFields);
       const totalFields = parsedFields.length;
       
+      // Extract address groups from fields
+      const addressGroups = this.extractAddressGroups(parsedFields);
+      
+      // Extract signature groups from fields
+      const signatureGroups = this.extractSignatureGroups(parsedFields);
+      
       console.log(`Created ${totalFields} logical fields from ${fields.length} PDF fields`);
+      console.log(`✅ Extracted ${addressGroups.length} address groups`);
+      console.log(`✅ Extracted ${signatureGroups.length} signature groups`);
       
       return {
         sections,
-        totalFields
+        totalFields,
+        addressGroups,
+        signatureGroups
       };
     } catch (error) {
       console.error('Error parsing PDF with pdf-lib:', error);
@@ -253,7 +263,7 @@ export class PDFFormParser {
       // Fallback to predefined structure if PDF parsing fails
       const sections = this.parseWellsFargoMPA("");
       const totalFields = sections.reduce((sum, section) => sum + section.fields.length, 0);
-      return { sections, totalFields };
+      return { sections, totalFields, addressGroups: [], signatureGroups: [] };
     }
   }
 
@@ -325,6 +335,71 @@ export class PDFFormParser {
     });
     
     return sections.sort((a, b) => a.order - b.order);
+  }
+
+  /**
+   * Extract address groups from parsed fields
+   * Pattern: {prefix}.{canonicalField} where canonicalField = street1|city|state|postalcode|country
+   */
+  private extractAddressGroups(fields: ParsedFormField[]): any[] {
+    const addressFieldPattern = /^(.+)\.(street1|address1|city|state|postalcode|zipcode|country)$/i;
+    const groupMap = new Map<string, any>();
+    
+    fields.forEach(field => {
+      const match = field.fieldName.match(addressFieldPattern);
+      if (match) {
+        const [, prefix, canonicalField] = match;
+        
+        if (!groupMap.has(prefix)) {
+          groupMap.set(prefix, {
+            type: prefix.replace(/_/g, ''), // e.g., merchant_mailing_address -> merchantmailingaddress
+            sectionName: field.section || 'general',
+            fieldMappings: {}
+          });
+        }
+        
+        // Map canonical field to the actual PDF field name
+        const normalizedCanonical = canonicalField.toLowerCase() === 'zipcode' ? 'postalcode' : 
+                                   canonicalField.toLowerCase() === 'address1' ? 'street1' : 
+                                   canonicalField.toLowerCase();
+        groupMap.get(prefix)!.fieldMappings[normalizedCanonical] = field.fieldName;
+      }
+    });
+    
+    return Array.from(groupMap.values());
+  }
+
+  /**
+   * Extract signature groups from parsed fields
+   * Pattern: {prefix}_signature_{role}.{fieldType} where fieldType = signerName|signature|initials|email|dateSigned|ownershipPercentage
+   */
+  private extractSignatureGroups(fields: ParsedFormField[]): any[] {
+    const signatureFieldPattern = /^(.+)_signature_([^.]+)\.(.+)$/i;
+    const groupMap = new Map<string, any>();
+    
+    fields.forEach(field => {
+      const match = field.fieldName.match(signatureFieldPattern);
+      if (match) {
+        const [, prefix, role, fieldType] = match;
+        const groupKey = `${prefix}_signature_${role}`;
+        
+        if (!groupMap.has(groupKey)) {
+          groupMap.set(groupKey, {
+            roleKey: role,
+            label: this.generateFieldLabel(`${role} Signature`),
+            sectionName: field.section || 'general',
+            prefix: prefix,
+            fieldMappings: {}
+          });
+        }
+        
+        // Map field type to the actual PDF field name
+        const normalizedFieldType = fieldType.toLowerCase();
+        groupMap.get(groupKey)!.fieldMappings[normalizedFieldType] = field.fieldName;
+      }
+    });
+    
+    return Array.from(groupMap.values());
   }
 
   private parseWellsFargoMPA(text: string): ParsedFormSection[] {
