@@ -5,6 +5,38 @@ Core CRM is a comprehensive merchant payment processing management system design
 
 ## Recent Changes
 
+### Field Type Enhancements: Percentage & SSN (Nov 5, 2025)
+
+#### Percentage Field Type
+**Added comprehensive percentage field support** across all application components.
+
+**Implementation**:
+- **Template Manager**: Added "Percentage" option to field type selector in `application-templates.tsx`
+- **PDF Parser**: Auto-detection for fields containing "percent" or "ownership" in their name
+- **Enhanced Wizard**: Custom input renderer with:
+  - Number input restricted to 0-100 range
+  - Step of 0.01 for decimal percentages
+  - Visual "%" symbol on the right side
+  - Built-in validation preventing values outside 0-100
+
+**Use Cases**: Ownership percentages, commission rates, discount amounts, tax rates
+
+#### SSN (Social Security Number) Field Type
+**Added SSN field type with automatic formatting and validation**.
+
+**Implementation**:
+- **Template Manager**: Added "SSN (Social Security Number)" option to field type selector
+- **PDF Parser**: Auto-detection for fields containing "ssn" or "social" in their name
+- **Enhanced Wizard**: Custom input renderer with:
+  - Automatic formatting as XXX-XX-XXXX
+  - Only accepts numeric input (non-digits automatically removed)
+  - Maximum 9 digits enforced
+  - Progressive hyphen insertion as user types
+
+**Format**: Automatically formats raw digits `123456789` → `123-45-6789`
+
+**Security Note**: Current implementation stores SSN as formatted text. For production, consider encryption at rest and masking in display (e.g., `***-**-6789`).
+
 ### PDF Parser & Owner Field Visibility Fixes (Nov 5, 2025)
 
 #### PDF Parser Address & Signature Group Extraction
