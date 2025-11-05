@@ -1200,7 +1200,8 @@ export default function EnhancedPdfWizard() {
           const posInfo = signatureGroupPositions[groupKey];
           
           // Check if this is an owner signature group (owner1, owner2, etc.)
-          const ownerMatch = groupKey.match(/^owner(\d+)_signature_owner$/);
+          // GroupKey format is like "owners_owner1_signature_owner", so we match the number after "owner"
+          const ownerMatch = groupKey.match(/owner(\d+)_signature_owner$/);
           if (ownerMatch) {
             const ownerNumber = parseInt(ownerMatch[1]);
             // Only include this owner if it's in the active slots
@@ -3490,7 +3491,8 @@ export default function EnhancedPdfWizard() {
         console.log('  Current signature data:', signatureData);
         
         // Check if this is an owner signature group
-        const ownerMatch = sigGroupConfig.groupKey.match(/^owner(\d+)_signature_owner$/);
+        // GroupKey format is like "owners_owner1_signature_owner", so we match the number after "owner"
+        const ownerMatch = sigGroupConfig.groupKey.match(/owner(\d+)_signature_owner$/);
         const isOwnerGroup = !!ownerMatch;
         const ownerNumber = ownerMatch ? parseInt(ownerMatch[1]) : null;
         
@@ -3552,7 +3554,8 @@ export default function EnhancedPdfWizard() {
                 if (dateSignedFieldId) handleFieldChange(dateSignedFieldId, data.dateSigned || '');
                 
                 // Auto-add next owner slot if ownership percentage is entered and < 100%
-                const ownerMatch = sigGroupConfig.groupKey.match(/^owner(\d+)_signature_owner$/);
+                // GroupKey format is like "owners_owner1_signature_owner", so we match the number after "owner"
+                const ownerMatch = sigGroupConfig.groupKey.match(/owner(\d+)_signature_owner$/);
                 if (ownerMatch && data.ownershipPercentage) {
                   const percentage = parseFloat(data.ownershipPercentage);
                   if (!isNaN(percentage) && percentage > 0 && percentage < 100) {
