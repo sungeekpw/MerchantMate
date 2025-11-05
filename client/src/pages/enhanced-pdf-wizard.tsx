@@ -2645,6 +2645,38 @@ export default function EnhancedPdfWizard() {
           </div>
         );
 
+      case 'percentage':
+        return (
+          <div className="space-y-2">
+            <Label htmlFor={field.fieldName} className="text-sm font-medium text-gray-700">
+              {field.fieldLabel}
+              {field.isRequired && <span className="text-red-500 ml-1">*</span>}
+            </Label>
+            <div className="relative">
+              <Input
+                id={field.fieldName}
+                type="number"
+                min="0"
+                max="100"
+                step="0.01"
+                value={value}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  // Allow empty or valid percentage values
+                  if (val === '' || (parseFloat(val) >= 0 && parseFloat(val) <= 100)) {
+                    handleFieldChange(field.fieldName, val);
+                  }
+                }}
+                className={`pr-8 ${hasError ? 'border-red-500' : ''}`}
+                placeholder="Enter percentage (0-100)"
+                data-testid={`input-${field.fieldName}`}
+              />
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none">%</span>
+            </div>
+            {hasError && <p className="text-xs text-red-500">{hasError}</p>}
+          </div>
+        );
+
       case 'date':
         return (
           <div className="space-y-2">

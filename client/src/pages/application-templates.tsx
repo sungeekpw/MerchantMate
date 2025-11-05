@@ -1408,6 +1408,7 @@ function FieldConfigurationDialog({
     { value: 'url', label: 'URL' },
     { value: 'date', label: 'Date' },
     { value: 'number', label: 'Number' },
+    { value: 'percentage', label: 'Percentage' },
     { value: 'select', label: 'Select' },
     { value: 'checkbox', label: 'Checkbox' },
     { value: 'textarea', label: 'Textarea' },
