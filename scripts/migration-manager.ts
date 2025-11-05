@@ -4,18 +4,31 @@
  * Migration Manager - Bulletproof Database Schema Management
  * 
  * This system ensures proper development → test → production workflow:
- * 1. Changes are made in development
- * 2. Migrations are generated and tested
- * 3. Changes are pushed to test for validation
- * 4. After certification, changes are promoted to production
+ * 1. Make schema changes in shared/schema.ts
+ * 2. Generate migration from development schema
+ * 3. Apply to test for validation
+ * 4. After certification, promote to production
  * 
- * Usage:
+ * QUICK START - Development Workflow:
+ *   1. Edit shared/schema.ts with your changes
+ *   2. tsx scripts/migration-manager.ts generate        # Generate migration SQL
+ *   3. tsx scripts/migration-manager.ts apply test      # Test in Test environment
+ *   4. tsx scripts/migration-manager.ts validate        # Verify consistency
+ *   5. tsx scripts/migration-manager.ts apply prod      # Deploy to Production
+ * 
+ * AUTOMATED SYNC - For Admin Users:
+ *   tsx scripts/sync-environments.ts dev-to-test       # Promote Dev → Test
+ *   tsx scripts/sync-environments.ts test-to-prod      # Promote Test → Production
+ *   Note: sync-environments.ts uses this script under the hood
+ * 
+ * All Commands:
  *   tsx scripts/migration-manager.ts generate    # Generate migration from development schema
- *   tsx scripts/migration-manager.ts apply dev  # Apply migrations to development
- *   tsx scripts/migration-manager.ts apply test # Apply migrations to test
- *   tsx scripts/migration-manager.ts apply prod # Apply migrations to production
- *   tsx scripts/migration-manager.ts status     # Show migration status across environments
- *   tsx scripts/migration-manager.ts validate   # Validate schema consistency
+ *   tsx scripts/migration-manager.ts apply dev   # Apply migrations to development
+ *   tsx scripts/migration-manager.ts apply test  # Apply migrations to test
+ *   tsx scripts/migration-manager.ts apply prod  # Apply migrations to production
+ *   tsx scripts/migration-manager.ts status      # Show migration status across environments
+ *   tsx scripts/migration-manager.ts validate    # Validate schema consistency
+ *   tsx scripts/migration-manager.ts backup prod # Create schema backup (automatic before apply)
  */
 
 import { exec } from 'child_process';
