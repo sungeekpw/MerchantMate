@@ -3,6 +3,20 @@
 ## Overview
 Core CRM is a comprehensive merchant payment processing management system designed to streamline merchant onboarding, transaction management, location tracking, form processing, and analytics. It offers role-based access for various user types (merchants, agents, administrators, corporate users). The project aims to provide a robust, scalable, and secure platform for payment processing businesses, empowering them with efficient, transparent, and secure payment management to gain a competitive edge.
 
+## Recent Changes
+
+### PDF Parser Address & Signature Group Extraction (Nov 5, 2025)
+**Fixed critical bug**: PDF parser now correctly extracts address and signature groups from uploaded templates.
+
+**Problem**: The parser was detecting address/signature fields but not creating the addressGroups/signatureGroups arrays. The issue was that extraction methods were using normalized fieldNames (e.g., `merchant_mailing_address_street1`) instead of the original pdfFieldIds (e.g., `merchant_mailing_address.street1`) for pattern matching.
+
+**Solution**: Updated `extractAddressGroups()` and `extractSignatureGroups()` to:
+- Use original `pdfFieldId` (preserves dots) for regex pattern matching
+- Store normalized `fieldName` in `fieldMappings` for downstream consumption
+- Added debug logging to track successful matches
+
+**Impact**: Templates uploaded now properly populate addressGroups and signatureGroups JSONB columns, enabling the Enhanced PDF Wizard to auto-detect and render address/signature input components.
+
 ## User Preferences
 Preferred communication style: Simple, everyday language.
 
