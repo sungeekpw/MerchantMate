@@ -29,14 +29,15 @@ const runDrizzleKitPush = (databaseUrl: string): Promise<{ stdout: string, stder
     let stdout = '';
     let stderr = '';
 
-    // Automatically answer "0" (create table) for all prompts
+    // Automatically press Enter to accept default (create table) for all prompts
+    // Drizzle-kit menu prompts need Enter key to select the highlighted option
     const answerInterval = setInterval(() => {
       try {
-        child.stdin.write('0\n');
+        child.stdin.write('\n'); // Just press Enter to accept highlighted option
       } catch (e) {
         // Process might have ended
       }
-    }, 500);
+    }, 1000); // Send Enter every second
 
     child.stdout.on('data', (data) => {
       stdout += data.toString();
