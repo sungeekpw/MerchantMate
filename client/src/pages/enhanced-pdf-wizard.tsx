@@ -2275,6 +2275,23 @@ export default function EnhancedPdfWizard() {
       }
     }
 
+    // Validate expiration dates are in the future
+    if (field.fieldType === 'date' && value) {
+      const fieldNameLower = field.fieldName.toLowerCase();
+      const isExpirationDate = fieldNameLower.includes('exp') || 
+                              fieldNameLower.includes('expiration');
+      
+      if (isExpirationDate) {
+        const enteredDate = new Date(value);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0); // Reset time to start of day for fair comparison
+        
+        if (enteredDate < today) {
+          return 'Expiration date must be in the future';
+        }
+      }
+    }
+
     return null;
   };
 
