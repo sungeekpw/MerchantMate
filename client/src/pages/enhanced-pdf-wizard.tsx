@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
 import { Building, FileText, CheckCircle, ArrowLeft, ArrowRight, Users, Upload, Signature, PenTool, Type, RotateCcw, Check, X, AlertTriangle, Monitor, Info } from 'lucide-react';
@@ -2575,6 +2576,51 @@ export default function EnhancedPdfWizard() {
                 ))}
               </SelectContent>
             </Select>
+            {hasError && <p className="text-xs text-red-500">{hasError}</p>}
+          </div>
+        );
+
+      case 'radio':
+        return (
+          <div className="space-y-2">
+            <div className="flex items-center gap-1">
+              <Label htmlFor={field.fieldName} className="text-sm font-medium text-gray-700">
+                {field.fieldLabel}
+                {field.isRequired && <span className="text-red-500 ml-1">*</span>}
+              </Label>
+              {field.description && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Info className="h-4 w-4 text-gray-400 hover:text-gray-600 cursor-help" />
+                  </TooltipTrigger>
+                  <TooltipContent className="max-w-xs">
+                    <p className="text-sm">{field.description}</p>
+                  </TooltipContent>
+                </Tooltip>
+              )}
+            </div>
+            <RadioGroup value={value} onValueChange={(value) => handleFieldChange(field.fieldName, value)}>
+              {field.options?.map((option: any) => {
+                const optionValue = typeof option === 'string' ? option : option.value;
+                const optionLabel = typeof option === 'string' ? option : option.label;
+                
+                return (
+                  <div key={optionValue} className="flex items-center space-x-2">
+                    <RadioGroupItem
+                      value={optionValue}
+                      id={`${field.fieldName}-${optionValue}`}
+                      data-testid={`radio-${field.fieldName}-${optionValue}`}
+                    />
+                    <Label
+                      htmlFor={`${field.fieldName}-${optionValue}`}
+                      className="text-sm font-normal cursor-pointer"
+                    >
+                      {optionLabel}
+                    </Label>
+                  </div>
+                );
+              })}
+            </RadioGroup>
             {hasError && <p className="text-xs text-red-500">{hasError}</p>}
           </div>
         );
