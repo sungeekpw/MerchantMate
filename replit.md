@@ -5,7 +5,9 @@ Core CRM is a comprehensive merchant payment processing management system design
 
 ## Recent Changes
 
-### PDF Parser Address & Signature Group Extraction (Nov 5, 2025)
+### PDF Parser & Owner Field Visibility Fixes (Nov 5, 2025)
+
+#### PDF Parser Address & Signature Group Extraction
 **Fixed critical bug**: PDF parser now correctly extracts address and signature groups from uploaded templates.
 
 **Problem**: The parser was detecting address/signature fields but not creating the addressGroups/signatureGroups arrays. The issue was that extraction methods were using normalized fieldNames (e.g., `merchant_mailing_address_street1`) instead of the original pdfFieldIds (e.g., `merchant_mailing_address.street1`) for pattern matching.
@@ -16,6 +18,25 @@ Core CRM is a comprehensive merchant payment processing management system design
 - Added debug logging to track successful matches
 
 **Impact**: Templates uploaded now properly populate addressGroups and signatureGroups JSONB columns, enabling the Enhanced PDF Wizard to auto-detect and render address/signature input components.
+
+#### Owner Field Visibility & Progressive Disclosure
+**Fixed critical bug**: Enhanced PDF Wizard now correctly filters all owner 2-5 fields based on ownership percentage logic.
+
+**Problem**: All 5 owner data entry blocks (regular fields, address groups, and signature groups) were always visible, overwhelming users even when only 1 owner was needed.
+
+**Solution**: Implemented comprehensive filtering across three rendering paths:
+1. **Regular Fields**: Added owner pattern matching in `shouldShowField()` to filter fields starting with `owner2_`, `owner3_`, etc.
+2. **Address Groups**: Added owner filtering in address group insertion logic to skip `owner2_mailing_address`, etc.
+3. **Signature Groups**: Enhanced existing signature group filtering to use correct regex pattern (removed `^` anchor to match `owners_owner1_signature_owner` format)
+
+**Behavior**: 
+- Owner 1 fields (all types) → Always visible
+- Owner 2-5 fields (all types) → Only visible when total ownership percentage < 100%
+- Automatically expands next owner slot when user enters ownership percentage
+
+**Pattern Support**: Handles both naming conventions:
+- Direct: `owner1_phone`, `owner1_mailing_address.street1`
+- Grouped: `owners_owner1_signature_owner.signerName`
 
 ## User Preferences
 Preferred communication style: Simple, everyday language.
