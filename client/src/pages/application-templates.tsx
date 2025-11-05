@@ -1409,6 +1409,7 @@ function FieldConfigurationDialog({
     { value: 'date', label: 'Date' },
     { value: 'number', label: 'Number' },
     { value: 'percentage', label: 'Percentage' },
+    { value: 'ssn', label: 'SSN (Social Security Number)' },
     { value: 'select', label: 'Select' },
     { value: 'checkbox', label: 'Checkbox' },
     { value: 'textarea', label: 'Textarea' },
