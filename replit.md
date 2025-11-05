@@ -37,6 +37,23 @@ Core CRM is a comprehensive merchant payment processing management system design
 
 **Security Note**: Current implementation stores SSN as formatted text. For production, consider encryption at rest and masking in display (e.g., `***-**-6789`).
 
+#### Expiration Date Validation
+**Added automatic validation for expiration date fields** to ensure dates are in the future.
+
+**Implementation**:
+- **Auto-Detection**: Any date field containing "exp" or "expiration" in its name is automatically validated
+- **Validation Logic**: Compares entered date against today's date
+- **Error Message**: Displays "Expiration date must be in the future" if validation fails
+- **Fair Comparison**: Resets time to start of day for accurate date-only comparison
+
+**Use Cases**: Credit card expiration dates, license expiration dates, insurance policy expiration, permit expiration dates
+
+**Examples of Auto-Detected Fields**:
+- `creditCardExpiration`
+- `licenseExpirationDate`
+- `insuranceExpDate`
+- `permitExp`
+
 ### PDF Parser & Owner Field Visibility Fixes (Nov 5, 2025)
 
 #### PDF Parser Address & Signature Group Extraction
