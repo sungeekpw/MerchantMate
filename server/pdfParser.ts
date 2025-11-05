@@ -340,13 +340,17 @@ export class PDFFormParser {
   /**
    * Extract address groups from parsed fields
    * Pattern: {prefix}.{canonicalField} where canonicalField = street1|city|state|postalcode|country
+   * Uses original pdfFieldId which preserves dots (e.g., "merchant_mailing_address.street1")
    */
   private extractAddressGroups(fields: ParsedFormField[]): any[] {
     const addressFieldPattern = /^(.+)\.(street1|address1|city|state|postalcode|zipcode|country)$/i;
     const groupMap = new Map<string, any>();
     
     fields.forEach(field => {
-      const match = field.fieldName.match(addressFieldPattern);
+      // Use pdfFieldId (original PDF field name) instead of normalized fieldName
+      const pdfFieldId = field.pdfFieldId || field.fieldName;
+      const match = pdfFieldId.match(addressFieldPattern);
+      
       if (match) {
         const [, prefix, canonicalField] = match;
         
@@ -358,11 +362,13 @@ export class PDFFormParser {
           });
         }
         
-        // Map canonical field to the actual PDF field name
+        // Map canonical field to the actual normalized field name (what's used in the app)
         const normalizedCanonical = canonicalField.toLowerCase() === 'zipcode' ? 'postalcode' : 
                                    canonicalField.toLowerCase() === 'address1' ? 'street1' : 
                                    canonicalField.toLowerCase();
         groupMap.get(prefix)!.fieldMappings[normalizedCanonical] = field.fieldName;
+        
+        console.log(`✅ Address field matched: ${pdfFieldId} → prefix: ${prefix} → canonical: ${normalizedCanonical} → mapped to: ${field.fieldName}`);
       }
     });
     
@@ -372,13 +378,17 @@ export class PDFFormParser {
   /**
    * Extract signature groups from parsed fields
    * Pattern: {prefix}_signature_{role}.{fieldType} where fieldType = signerName|signature|initials|email|dateSigned|ownershipPercentage
+   * Uses original pdfFieldId which preserves dots (e.g., "owners_owner1_signature_owner.signerName")
    */
   private extractSignatureGroups(fields: ParsedFormField[]): any[] {
     const signatureFieldPattern = /^(.+)_signature_([^.]+)\.(.+)$/i;
     const groupMap = new Map<string, any>();
     
     fields.forEach(field => {
-      const match = field.fieldName.match(signatureFieldPattern);
+      // Use pdfFieldId (original PDF field name) instead of normalized fieldName
+      const pdfFieldId = field.pdfFieldId || field.fieldName;
+      const match = pdfFieldId.match(signatureFieldPattern);
+      
       if (match) {
         const [, prefix, role, fieldType] = match;
         const groupKey = `${prefix}_signature_${role}`;
@@ -393,9 +403,11 @@ export class PDFFormParser {
           });
         }
         
-        // Map field type to the actual PDF field name
+        // Map field type to the actual normalized field name (what's used in the app)
         const normalizedFieldType = fieldType.toLowerCase();
         groupMap.get(groupKey)!.fieldMappings[normalizedFieldType] = field.fieldName;
+        
+        console.log(`✅ Signature field matched: ${pdfFieldId} → prefix: ${prefix} → role: ${role} → fieldType: ${normalizedFieldType} → mapped to: ${field.fieldName}`);
       }
     });
     
