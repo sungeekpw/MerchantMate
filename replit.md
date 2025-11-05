@@ -1,91 +1,7 @@
 # Core CRM - Merchant Payment Processing System
 
 ## Overview
-Core CRM is a comprehensive merchant payment processing management system designed to streamline merchant onboarding, transaction management, location tracking, form processing, and analytics. It offers role-based access for various user types (merchants, agents, administrators, corporate users). The project aims to provide a robust, scalable, and secure platform for payment processing businesses, empowering them with efficient, transparent, and secure payment management to gain a competitive edge.
-
-## Recent Changes
-
-### Field Type Enhancements: Percentage & SSN (Nov 5, 2025)
-
-#### Percentage Field Type
-**Added comprehensive percentage field support** across all application components.
-
-**Implementation**:
-- **Template Manager**: Added "Percentage" option to field type selector in `application-templates.tsx`
-- **PDF Parser**: Auto-detection for fields containing "percent" or "ownership" in their name
-- **Enhanced Wizard**: Custom input renderer with:
-  - Number input restricted to 0-100 range
-  - Step of 0.01 for decimal percentages
-  - Visual "%" symbol on the right side
-  - Built-in validation preventing values outside 0-100
-
-**Use Cases**: Ownership percentages, commission rates, discount amounts, tax rates
-
-#### SSN (Social Security Number) Field Type
-**Added SSN field type with automatic formatting and validation**.
-
-**Implementation**:
-- **Template Manager**: Added "SSN (Social Security Number)" option to field type selector
-- **PDF Parser**: Auto-detection for fields containing "ssn" or "social" in their name
-- **Enhanced Wizard**: Custom input renderer with:
-  - Automatic formatting as XXX-XX-XXXX
-  - Only accepts numeric input (non-digits automatically removed)
-  - Maximum 9 digits enforced
-  - Progressive hyphen insertion as user types
-
-**Format**: Automatically formats raw digits `123456789` → `123-45-6789`
-
-**Security Note**: Current implementation stores SSN as formatted text. For production, consider encryption at rest and masking in display (e.g., `***-**-6789`).
-
-#### Expiration Date Validation
-**Added automatic validation for expiration date fields** to ensure dates are in the future.
-
-**Implementation**:
-- **Auto-Detection**: Any date field containing "exp" or "expiration" in its name is automatically validated
-- **Validation Logic**: Compares entered date against today's date
-- **Error Message**: Displays "Expiration date must be in the future" if validation fails
-- **Fair Comparison**: Resets time to start of day for accurate date-only comparison
-
-**Use Cases**: Credit card expiration dates, license expiration dates, insurance policy expiration, permit expiration dates
-
-**Examples of Auto-Detected Fields**:
-- `creditCardExpiration`
-- `licenseExpirationDate`
-- `insuranceExpDate`
-- `permitExp`
-
-### PDF Parser & Owner Field Visibility Fixes (Nov 5, 2025)
-
-#### PDF Parser Address & Signature Group Extraction
-**Fixed critical bug**: PDF parser now correctly extracts address and signature groups from uploaded templates.
-
-**Problem**: The parser was detecting address/signature fields but not creating the addressGroups/signatureGroups arrays. The issue was that extraction methods were using normalized fieldNames (e.g., `merchant_mailing_address_street1`) instead of the original pdfFieldIds (e.g., `merchant_mailing_address.street1`) for pattern matching.
-
-**Solution**: Updated `extractAddressGroups()` and `extractSignatureGroups()` to:
-- Use original `pdfFieldId` (preserves dots) for regex pattern matching
-- Store normalized `fieldName` in `fieldMappings` for downstream consumption
-- Added debug logging to track successful matches
-
-**Impact**: Templates uploaded now properly populate addressGroups and signatureGroups JSONB columns, enabling the Enhanced PDF Wizard to auto-detect and render address/signature input components.
-
-#### Owner Field Visibility & Progressive Disclosure
-**Fixed critical bug**: Enhanced PDF Wizard now correctly filters all owner 2-5 fields based on ownership percentage logic.
-
-**Problem**: All 5 owner data entry blocks (regular fields, address groups, and signature groups) were always visible, overwhelming users even when only 1 owner was needed.
-
-**Solution**: Implemented comprehensive filtering across three rendering paths:
-1. **Regular Fields**: Added owner pattern matching in `shouldShowField()` to filter fields starting with `owner2_`, `owner3_`, etc.
-2. **Address Groups**: Added owner filtering in address group insertion logic to skip `owner2_mailing_address`, etc.
-3. **Signature Groups**: Enhanced existing signature group filtering to use correct regex pattern (removed `^` anchor to match `owners_owner1_signature_owner` format)
-
-**Behavior**: 
-- Owner 1 fields (all types) → Always visible
-- Owner 2-5 fields (all types) → Only visible when total ownership percentage < 100%
-- Automatically expands next owner slot when user enters ownership percentage
-
-**Pattern Support**: Handles both naming conventions:
-- Direct: `owner1_phone`, `owner1_mailing_address.street1`
-- Grouped: `owners_owner1_signature_owner.signerName`
+Core CRM is a comprehensive merchant payment processing management system designed to streamline merchant onboarding, transaction management, location tracking, form processing, and analytics. It offers role-based access for various user types (merchants, agents, administrators, corporate users). The project aims to provide a robust, scalable, and secure platform for payment processing businesses, empowering them with efficient, transparent, and secure payment management to gain a competitive edge. Key capabilities include enhanced field types (Percentage, SSN, Expiration Date validation), advanced PDF parsing for address and signature groups, and progressive disclosure of owner fields.
 
 ## User Preferences
 Preferred communication style: Simple, everyday language.
@@ -113,17 +29,10 @@ Preferred communication style: Simple, everyday language.
 - **Merchant & Agent Management**: Comprehensive profiles, assignment, status, fee management.
 - **Location Management**: Polymorphic locations with geolocation and operating hours.
 - **Transaction Processing**: Tracking, commission calculations, revenue analytics.
-- **Form Management System**: PDF upload/parsing, dynamic field generation, public access, conditional fields with real-time evaluation.
+- **Form Management System**: PDF upload/parsing (including auto-detection for address, signature, percentage, SSN, and expiration date fields), dynamic field generation, public access, conditional fields with real-time evaluation.
 - **Dashboard System**: Personalized, widget-based dashboards with real-time analytics.
-- **Digital Signature System**: Comprehensive signature capture and management:
-  - **Multi-Role Signatures**: Support for owner, agent, guarantor, witness, and acknowledgement signatures
-  - **Auto-Detection**: PDF field pattern detection using `{prefix}_signature_{role}.{fieldType}` convention
-  - **Capture Methods**: Canvas-based drawing and typed signature input
-  - **Email Workflows**: Automated signature request emails with 7-day expiration
-  - **Trigger Integration**: signature_requested, signature_captured, signature_expired events
-  - **Status Tracking**: pending, requested, signed, expired states with timestamp tracking
-  - **Security**: Token-based authentication, expiration validation, audit trail logging
-- **Address Validation & Autocomplete**: Google Maps Geocoding and Places Autocomplete integration with standardized components and backend mapping.
+- **Digital Signature System**: Comprehensive signature capture and management with multi-role support, auto-detection from PDFs, canvas/typed capture methods, email workflows, status tracking, token-based security, and audit trails.
+- **Address Validation & Autocomplete**: Google Maps Geocoding and Places Autocomplete integration.
 - **Campaign Management**: Full CRUD for campaigns, pricing types, fee groups, equipment associations.
 - **SOC2 Compliance Features**: Comprehensive audit trail, logging, security events, login attempt tracking.
 - **Generic Trigger/Action Catalog System**: Extensible event-driven action system supporting multi-channel notifications and action chaining.
@@ -131,52 +40,10 @@ Preferred communication style: Simple, everyday language.
 
 ### System Design Choices
 - **Testing Framework**: TDD-style with Jest and React Testing Library.
-- **Schema Management**: Comprehensive database schema comparison, synchronization, version-controlled migration system, and drift detection.
-- **Multi-Environment Support**: Session-based database environment switching (Development, Test, Production).
-- **Database Safety**: Strict protocols and wrapper scripts to prevent accidental production database modifications.
-- **Deployment Pipeline Compliance**: All schema changes must follow Dev → Test → Production pipeline.
+- **Schema Management**: Migration-first deployment pipeline with Drizzle's migration system for automated, deterministic, and auditable schema changes.
+- **Multi-Environment Support**: Session-based database environment switching (Development, Test, Production) with a strict `Dev → Test → Production` promotion workflow.
+- **Database Safety**: Strict protocols and wrapper scripts to prevent accidental production database modifications, including automatic backups and checksum validation for migrations.
 - **User-Company Association Pattern**: **CRITICAL ARCHITECTURE** - All agent and merchant lookups MUST use the generic pattern: `User → user_company_associations → Company → Agent/Merchant`.
-
-## Signature System Architecture
-
-### Database Schema
-- **signature_captures**: Stores all signature data with fields:
-  - `id`, `applicationId`, `prospectId`, `roleKey`, `signerType`, `signerName`, `signerEmail`
-  - `signature` (base64), `signatureType` (canvas/typed), `initials`, `dateSigned`
-  - `timestampSigned`, `timestampRequested`, `timestampExpires`, `requestToken`
-  - `status` (pending/requested/signed/expired), `notes`, `ownershipPercentage`
-
-### Field Naming Conventions
-Signature groups use a strict naming pattern for PDF field detection:
-- **Pattern**: `{prefix}_signature_{role}.{fieldType}`
-- **Example**: `owner1_signature_owner.signername`, `owner1_signature_owner.signature`, `owner1_signature_owner.email`
-- **Field Types**: `signername`, `signature`, `initials`, `email`, `datesigned`
-- **Role Prefixes**: `owner1`, `owner2`, `guarantor`, `agent`, `witness`
-
-### API Endpoints
-- `POST /api/signature-requests` - Request signature from signer (authenticated)
-- `POST /api/signatures/capture` - Submit signature (public, token-validated)
-- `GET /api/signatures/:token/status` - Check signature status (public)
-- `POST /api/signatures/:token/resend` - Resend expired request (authenticated)
-- `GET /api/signatures/application/:applicationId` - Get all signatures for application
-- `GET /api/signatures/prospect/:prospectId` - Get all signatures for prospect
-
-### Workflow States
-1. **Pending**: Initial state, signature not yet requested
-2. **Requested**: Email sent to signer with token link (7-day expiration)
-3. **Signed**: Signature captured and stored
-4. **Expired**: Request token expired after 7 days
-
-### Trigger/Action Integration
-- **signature_requested**: Fires after successful email send, creates audit trail
-- **signature_captured**: Fires when signature is submitted, sends confirmation email
-- **signature_expired**: Fires when signature expires (requires scheduled job)
-- **Email Templates**: Request, Confirmation, 3-Day Reminder, 1-Day Reminder, Expiration Notice
-
-### Frontend Components
-- **SignatureGroupInput**: Reusable component with canvas/typed signature capture
-- **Enhanced PDF Wizard**: Auto-detects signature groups and renders signature controls
-- **Status Indicators**: Visual feedback for pending, requested, signed, expired states
 
 ## External Dependencies
 - **pg**: Native PostgreSQL driver.
