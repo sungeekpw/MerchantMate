@@ -10014,11 +10014,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // TRIGGER CATALOG API ENDPOINTS - Admin Only
   // ============================================================================
 
-  // Get all triggers
+  // Get all triggers with action counts
   app.get("/api/admin/trigger-catalog", requireRole(['admin', 'super_admin']), async (req, res) => {
     try {
-      const triggers = await storage.getAllTriggerCatalog();
-      res.json(triggers);
+      const db = getDynamicDatabase(req.session.dbEnvironment || 'development');
+      
+      // Get triggers with action counts
+      const triggers = await db.execute(sql`
+        SELECT 
+          tc.*,
+          COUNT(ta.id) as action_count
+        FROM trigger_catalog tc
+        LEFT JOIN trigger_actions ta ON tc.id = ta.trigger_id
+        GROUP BY tc.id
+        ORDER BY tc.created_at DESC
+      `);
+      
+      res.json(triggers.rows.map((row: any) => ({
+        id: row.id,
+        triggerKey: row.trigger_key,
+        name: row.name,
+        description: row.description,
+        category: row.category,
+        contextSchema: row.context_schema,
+        isActive: row.is_active,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+        actionCount: parseInt(row.action_count) || 0
+      })));
     } catch (error) {
       console.error("Error fetching trigger catalog:", error);
       res.status(500).json({ message: "Failed to fetch trigger catalog" });
@@ -10159,6 +10182,79 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error deleting trigger action:", error);
       res.status(500).json({ message: "Failed to delete trigger action" });
+    }
+  });
+
+  // ============================================================================
+  // ACTION ACTIVITY API ENDPOINTS - Admin Only
+  // ============================================================================
+
+  // Get action activity statistics
+  app.get("/api/admin/action-activity/stats", requireRole(['admin', 'super_admin']), async (req, res) => {
+    try {
+      const db = getDynamicDatabase(req.session.dbEnvironment || 'development');
+      
+      // Get activity statistics
+      const stats = await db.execute(sql`
+        SELECT 
+          COUNT(*) as total_sent,
+          SUM(CASE WHEN status IN ('sent', 'delivered') THEN 1 ELSE 0 END) as delivered,
+          SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END) as failed,
+          SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending
+        FROM action_activity
+      `);
+      
+      const row = stats.rows[0] as any;
+      const totalSent = parseInt(row.total_sent) || 0;
+      const delivered = parseInt(row.delivered) || 0;
+      const failed = parseInt(row.failed) || 0;
+      
+      res.json({
+        totalSent,
+        delivered,
+        failed,
+        pending: parseInt(row.pending) || 0,
+        deliveryRate: totalSent > 0 ? Math.round((delivered / totalSent) * 100) : 0,
+        failureRate: totalSent > 0 ? Math.round((failed / totalSent) * 100) : 0
+      });
+    } catch (error) {
+      console.error("Error fetching action activity stats:", error);
+      res.status(500).json({ message: "Failed to fetch activity statistics" });
+    }
+  });
+
+  // Get recent action activity
+  app.get("/api/admin/action-activity/recent", requireRole(['admin', 'super_admin']), async (req, res) => {
+    try {
+      const limit = parseInt(req.query.limit as string) || 20;
+      const db = getDynamicDatabase(req.session.dbEnvironment || 'development');
+      
+      // Get recent activity with template names
+      const activity = await db.execute(sql`
+        SELECT 
+          aa.id,
+          aa.action_type,
+          aa.status,
+          aa.recipient,
+          aa.executed_at,
+          at.name as template_name
+        FROM action_activity aa
+        LEFT JOIN action_templates at ON aa.action_template_id = at.id
+        ORDER BY aa.executed_at DESC
+        LIMIT ${limit}
+      `);
+      
+      res.json(activity.rows.map((row: any) => ({
+        id: row.id,
+        actionType: row.action_type,
+        status: row.status,
+        recipient: row.recipient,
+        executedAt: row.executed_at,
+        templateName: row.template_name || 'Unknown Template'
+      })));
+    } catch (error) {
+      console.error("Error fetching recent action activity:", error);
+      res.status(500).json({ message: "Failed to fetch recent activity" });
     }
   });
 
