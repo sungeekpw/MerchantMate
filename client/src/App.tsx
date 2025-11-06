@@ -45,7 +45,6 @@ import Equipment from "@/pages/equipment";
 import Acquirers from "@/pages/acquirers";
 import ApplicationTemplates from "@/pages/application-templates";
 import FormDemo from "@/pages/form-demo";
-import EmailManagement from "@/pages/email-management";
 import ActionTemplates from "@/pages/action-templates";
 import CommunicationsManagement from "@/pages/communications-management";
 import ApiDocumentation from "@/pages/api-documentation";
@@ -357,24 +356,6 @@ function AuthenticatedApp() {
                   />
                   <main className="flex-1 overflow-auto bg-gray-50">
                     <Security />
-                  </main>
-                </>
-              );
-            }}
-          </Route>
-          <Route path="/email-management">
-            {() => {
-              const userRoles = (user as any)?.roles || [];
-              if (!user || (!userRoles.includes('admin') && !userRoles.includes('super_admin'))) return <NotFound />;
-              const pageInfo = getPageInfo("/email-management");
-              return (
-                <>
-                  <Header 
-                    title={pageInfo.title} 
-                    onSearch={setGlobalSearch}
-                  />
-                  <main className="flex-1 overflow-auto bg-gray-50">
-                    <EmailManagement />
                   </main>
                 </>
               );
