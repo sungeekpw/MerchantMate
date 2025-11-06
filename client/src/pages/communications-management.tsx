@@ -1,9 +1,16 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
+import { useToast } from "@/hooks/use-toast";
+import { queryClient, apiRequest } from "@/lib/queryClient";
 import { 
   Mail, 
   MessageSquare, 
@@ -13,7 +20,8 @@ import {
   Send,
   Clock,
   CheckCircle,
-  XCircle
+  XCircle,
+  Pencil
 } from "lucide-react";
 
 // Import existing action templates page as a component
@@ -21,6 +29,10 @@ import ActionTemplatesPage from "./action-templates";
 
 // Triggers Management Component
 function TriggersManagement() {
+  const [editingTrigger, setEditingTrigger] = useState<any>(null);
+  const [editForm, setEditForm] = useState({ name: '', description: '', isActive: true });
+  const { toast } = useToast();
+
   const { data: triggers, isLoading, error } = useQuery({
     queryKey: ['/api/admin/trigger-catalog'],
     queryFn: async () => {
@@ -42,6 +54,52 @@ function TriggersManagement() {
       return response.json();
     }
   });
+
+  const updateTriggerMutation = useMutation({
+    mutationFn: async (data: { id: number; name: string; description: string; isActive: boolean }) => {
+      return apiRequest(`/api/admin/trigger-catalog/${data.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: data.name,
+          description: data.description,
+          isActive: data.isActive
+        })
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/trigger-catalog'] });
+      toast({
+        title: "Trigger Updated",
+        description: "The trigger has been successfully updated."
+      });
+      setEditingTrigger(null);
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Update Failed",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
+  });
+
+  const handleEditClick = (trigger: any) => {
+    setEditingTrigger(trigger);
+    setEditForm({
+      name: trigger.name,
+      description: trigger.description,
+      isActive: trigger.isActive
+    });
+  };
+
+  const handleSaveEdit = () => {
+    if (!editingTrigger) return;
+    updateTriggerMutation.mutate({
+      id: editingTrigger.id,
+      ...editForm
+    });
+  };
 
   console.log('Triggers query state:', { triggers, isLoading, error });
 
@@ -86,7 +144,7 @@ function TriggersManagement() {
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="space-y-2">
+                <div className="space-y-3">
                   <div className="flex items-center text-sm">
                     <Zap className="w-4 h-4 mr-2 text-muted-foreground" />
                     <code className="text-xs bg-muted px-2 py-1 rounded">
@@ -96,6 +154,16 @@ function TriggersManagement() {
                   <div className="text-sm text-muted-foreground">
                     <strong>{trigger.actionCount || 0}</strong> action(s) linked
                   </div>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="w-full"
+                    onClick={() => handleEditClick(trigger)}
+                    data-testid={`button-edit-trigger-${trigger.id}`}
+                  >
+                    <Pencil className="w-3 h-3 mr-2" />
+                    Edit Trigger
+                  </Button>
                 </div>
               </CardContent>
             </Card>
@@ -106,6 +174,77 @@ function TriggersManagement() {
           </div>
         )}
       </div>
+
+      {/* Edit Trigger Dialog */}
+      <Dialog open={!!editingTrigger} onOpenChange={(open) => !open && setEditingTrigger(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Trigger</DialogTitle>
+            <DialogDescription>
+              Update trigger details. The trigger key cannot be changed.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="trigger-key">Trigger Key (Read-only)</Label>
+              <Input 
+                id="trigger-key"
+                value={editingTrigger?.triggerKey || ''}
+                disabled
+                className="bg-muted"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="trigger-name">Name</Label>
+              <Input 
+                id="trigger-name"
+                value={editForm.name}
+                onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                placeholder="Enter trigger name"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="trigger-description">Description</Label>
+              <Textarea 
+                id="trigger-description"
+                value={editForm.description}
+                onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
+                placeholder="Enter trigger description"
+                rows={3}
+              />
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label htmlFor="trigger-active">Active Status</Label>
+                <div className="text-sm text-muted-foreground">
+                  Enable or disable this trigger
+                </div>
+              </div>
+              <Switch 
+                id="trigger-active"
+                checked={editForm.isActive}
+                onCheckedChange={(checked) => setEditForm({ ...editForm, isActive: checked })}
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditingTrigger(null)}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleSaveEdit}
+              disabled={updateTriggerMutation.isPending}
+            >
+              {updateTriggerMutation.isPending ? 'Saving...' : 'Save Changes'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
