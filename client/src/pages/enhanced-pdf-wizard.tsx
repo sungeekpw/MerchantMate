@@ -1307,6 +1307,7 @@ export default function EnhancedPdfWizard() {
           position: sectionIndex * 100 + fieldIndex,
           section: section.title,
           description: field.description || null,
+          placeholder: field.placeholder || null,
           addressGroupConfig: field.addressGroupConfig || null,
           signatureGroupConfig: field.signatureGroupConfig || null,
         }))
