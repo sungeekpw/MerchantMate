@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -7,13 +7,10 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { Switch } from '@/components/ui/switch';
-import { Separator } from '@/components/ui/separator';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { Plus, DollarSign, Percent, Info, AlertCircle, CheckCircle2, Package, Check, ChevronDown, ChevronRight } from 'lucide-react';
+import { DollarSign, AlertCircle } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
 import { queryClient } from '@/lib/queryClient';
@@ -24,6 +21,7 @@ interface FeeGroup {
   description?: string;
   displayOrder: number;
   isActive: boolean;
+  feeItems: FeeItem[];
 }
 
 interface FeeItem {
@@ -31,12 +29,11 @@ interface FeeItem {
   name: string;
   description?: string;
   feeGroupId: number;
-  valueType: 'amount' | 'percentage' | 'placeholder';
+  valueType: 'percentage' | 'fixed' | 'basis_points';
   defaultValue?: string;
-  additionalInfo?: string;
+  isRequired: boolean;
   displayOrder: number;
   isActive: boolean;
-  feeGroup?: FeeGroup;
 }
 
 interface PricingType {
@@ -44,7 +41,6 @@ interface PricingType {
   name: string;
   description?: string;
   isActive: boolean;
-  feeItems?: FeeItem[];
 }
 
 interface CampaignFeeValue {
@@ -62,11 +58,27 @@ interface EquipmentItem {
   isActive: boolean;
 }
 
+interface ApplicationTemplate {
+  id: number;
+  templateName: string;
+  version: string;
+  acquirerId: number;
+  isActive: boolean;
+}
+
 interface Campaign {
   id: number;
   name: string;
   description?: string;
-  acquirer: string;
+  acquirerId: number;
+  acquirer: {
+    id: number;
+    name: string;
+    displayName: string;
+    code: string;
+    description?: string;
+    isActive: boolean;
+  };
   pricingType: {
     id: number;
     name: string;
@@ -98,15 +110,15 @@ export function EnhancedCampaignDialog({
   const [formData, setFormData] = useState({
     name: '',
     description: '',
-    acquirer: '',
+    acquirerId: null as number | null,
     equipment: '',
     currency: 'USD',
+    pricingTypeId: null as number | null,
   });
   
   const [feeValues, setFeeValues] = useState<Record<number, string>>({});
   const [selectedEquipment, setSelectedEquipment] = useState<number[]>([]);
-  const [activePricingTypes, setActivePricingTypes] = useState<number[]>([]);
-  const [expandedPricingTypes, setExpandedPricingTypes] = useState<string[]>([]);
+  const [selectedTemplates, setSelectedTemplates] = useState<number[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const defaultsSetRef = useRef(false);
 
@@ -122,38 +134,30 @@ export function EnhancedCampaignDialog({
     },
   });
 
-  const { data: feeGroups = [], isLoading: feeGroupsLoading } = useQuery({
-    queryKey: ['/api/fee-groups'],
+  // Get acquirers for dropdown
+  const { data: acquirers = [], isLoading: acquirersLoading } = useQuery({
+    queryKey: ['/api/acquirers'],
     queryFn: async () => {
-      const response = await fetch('/api/fee-groups', {
+      const response = await fetch('/api/acquirers', {
+        credentials: 'include'
+      });
+      if (!response.ok) throw new Error('Failed to fetch acquirers');
+      return response.json();
+    },
+  });
+
+  // Get fee groups for selected pricing type
+  const { data: selectedPricingTypeFeeGroups, isLoading: feeGroupsLoading } = useQuery({
+    queryKey: ['/api/pricing-types', formData.pricingTypeId, 'fee-groups'],
+    queryFn: async () => {
+      if (!formData.pricingTypeId) return null;
+      const response = await fetch(`/api/pricing-types/${formData.pricingTypeId}/fee-groups`, {
         credentials: 'include'
       });
       if (!response.ok) throw new Error('Failed to fetch fee groups');
       return response.json();
     },
-  });
-
-  // Create queries for fee items for each pricing type
-  const pricingTypeFeeItemsQueries = useQuery({
-    queryKey: ['/api/pricing-types-with-fee-items'],
-    queryFn: async () => {
-      const pricingTypesWithFeeItems = await Promise.all(
-        pricingTypes.map(async (pt) => {
-          try {
-            const response = await fetch(`/api/pricing-types/${pt.id}/fee-items`, {
-              credentials: 'include'
-            });
-            if (!response.ok) return { ...pt, feeItems: [] };
-            const feeItems = await response.json();
-            return { ...pt, feeItems };
-          } catch (error) {
-            return { ...pt, feeItems: [] };
-          }
-        })
-      );
-      return pricingTypesWithFeeItems;
-    },
-    enabled: pricingTypes.length > 0,
+    enabled: !!formData.pricingTypeId,
   });
 
   // Get equipment items
@@ -166,6 +170,36 @@ export function EnhancedCampaignDialog({
       if (!response.ok) throw new Error('Failed to fetch equipment items');
       return response.json();
     },
+  });
+
+  // Get application templates for selected acquirer
+  const { data: applicationTemplates = [], isLoading: templatesLoading } = useQuery({
+    queryKey: ['/api/acquirer-application-templates', formData.acquirerId],
+    queryFn: async () => {
+      if (!formData.acquirerId) return [];
+      const response = await fetch('/api/acquirer-application-templates', {
+        credentials: 'include'
+      });
+      if (!response.ok) throw new Error('Failed to fetch templates');
+      const allTemplates = await response.json();
+      // Filter by acquirer
+      return allTemplates.filter((t: ApplicationTemplate) => t.acquirerId === formData.acquirerId && t.isActive);
+    },
+    enabled: !!formData.acquirerId,
+  });
+
+  // Fetch existing campaign templates when editing
+  const { data: campaignTemplates = [] } = useQuery<{ id: number; templateId: number }[]>({
+    queryKey: ['/api/campaigns', editCampaignId, 'templates'],
+    queryFn: async () => {
+      if (!editCampaignId) return [];
+      const response = await fetch(`/api/campaigns/${editCampaignId}/templates`, {
+        credentials: 'include'
+      });
+      if (!response.ok) throw new Error('Failed to fetch campaign templates');
+      return response.json();
+    },
+    enabled: !!editCampaignId && open,
   });
 
   // Create campaign mutation
@@ -244,14 +278,14 @@ export function EnhancedCampaignDialog({
     setFormData({
       name: '',
       description: '',
-      acquirer: '',
+      acquirerId: null,
       equipment: '',
       currency: 'USD',
+      pricingTypeId: null,
     });
     setFeeValues({});
     setSelectedEquipment([]);
-    setActivePricingTypes([]);
-    setExpandedPricingTypes([]);
+    setSelectedTemplates([]);
     setErrors({});
     defaultsSetRef.current = false;
   };
@@ -264,6 +298,24 @@ export function EnhancedCampaignDialog({
         return prev.filter(id => id !== equipmentId);
       }
     });
+  };
+
+  const handleTemplateChange = (templateId: number, checked: boolean) => {
+    setSelectedTemplates(prev => {
+      if (checked) {
+        return [...prev, templateId];
+      } else {
+        return prev.filter(id => id !== templateId);
+      }
+    });
+  };
+
+  // Handle pricing type selection
+  const handlePricingTypeChange = (pricingTypeId: string) => {
+    const id = pricingTypeId ? parseInt(pricingTypeId) : null;
+    setFormData(prev => ({ ...prev, pricingTypeId: id }));
+    // Clear existing fee values when changing pricing type
+    setFeeValues({});
   };
 
   const validateForm = () => {
@@ -279,11 +331,11 @@ export function EnhancedCampaignDialog({
       newErrors.description = 'Description must be 300 characters or less';
     }
     
-    if (activePricingTypes.length === 0) {
-      newErrors.pricingTypes = 'At least one pricing type must be configured';
+    if (!formData.pricingTypeId) {
+      newErrors.pricingType = 'Pricing type is required';
     }
     
-    if (!formData.acquirer) {
+    if (!formData.acquirerId) {
       newErrors.acquirer = 'Acquirer is required';
     }
 
@@ -294,14 +346,21 @@ export function EnhancedCampaignDialog({
   const handleSubmit = () => {
     if (!validateForm()) return;
 
+    // Transform feeValues object to array format expected by backend
+    const feeValuesArray = Object.entries(feeValues)
+      .filter(([_, value]) => value && value.trim() !== '') // Only include non-empty values
+      .map(([feeItemId, value]) => ({
+        feeItemId: parseInt(feeItemId),
+        value: value.trim(),
+        valueType: "percentage" // Default to percentage, can be enhanced later
+      }));
+
     const campaignData = {
       ...formData,
-      pricingTypeIds: activePricingTypes,
-      equipmentIds: selectedEquipment,
-      feeValues: Object.entries(feeValues).map(([feeItemId, value]) => ({
-        feeItemId: parseInt(feeItemId),
-        value: value.toString(),
-      })),
+      pricingTypeId: formData.pricingTypeId,
+      feeValues: feeValuesArray,
+      equipmentIds: selectedEquipment, // Backend expects 'equipmentIds', not 'selectedEquipment'
+      templateIds: selectedTemplates, // Backend expects 'templateIds'
     };
 
     if (editCampaignId) {
@@ -311,92 +370,17 @@ export function EnhancedCampaignDialog({
     }
   };
 
-  const handleFeeValueChange = (feeItemId: number, value: string, pricingTypeId: number) => {
-    setFeeValues(prev => ({
-      ...prev,
-      [feeItemId]: value,
-    }));
-    
-    // Mark pricing type as configured if any fee value is set
-    if (value && value.trim() !== '') {
-      setActivePricingTypes(prev => {
-        if (!prev.includes(pricingTypeId)) {
-          return [...prev, pricingTypeId];
-        }
-        return prev;
-      });
-    }
-  };
-
-  const formatValueType = (valueType: string) => {
-    switch (valueType) {
-      case 'percentage': return '%';
-      case 'amount': return '$';
-      case 'placeholder': return 'ID';
-      default: return '';
-    }
-  };
-
-  const getValueIcon = (valueType: string) => {
-    switch (valueType) {
-      case 'percentage': return <Percent className="h-4 w-4" />;
-      case 'amount': return <DollarSign className="h-4 w-4" />;
-      default: return null;
-    }
-  };
-
-  // Get pricing types with fee items data
-  const pricingTypesWithFeeItems = pricingTypeFeeItemsQueries.data || [];
-  
-  // Helper function to group fee items by fee group for each pricing type
-  const groupFeeItemsByGroup = (feeItems: FeeItem[]) => {
-    return feeItems.reduce((groups: Record<string, FeeItem[]>, item: FeeItem) => {
-      const groupName = item.feeGroup?.name || 'Other';
-      if (!groups[groupName]) {
-        groups[groupName] = [];
-      }
-      groups[groupName].push(item);
-      return groups;
-    }, {});
-  };
-
-  // Handle pricing type toggle
-  const togglePricingType = (pricingTypeId: number) => {
-    setActivePricingTypes(prev => {
-      if (prev.includes(pricingTypeId)) {
-        return prev.filter(id => id !== pricingTypeId);
-      } else {
-        return [...prev, pricingTypeId];
-      }
-    });
-  };
-
-  // Handle expand all functionality
-  const handleExpandAll = () => {
-    const allPricingTypeIds = pricingTypesWithFeeItems.map(pt => pt.id.toString());
-    setExpandedPricingTypes(allPricingTypeIds);
-    setActivePricingTypes(pricingTypesWithFeeItems.map(pt => pt.id));
-  };
-
-  const handleCollapseAll = () => {
-    setExpandedPricingTypes([]);
-  };
-
   // Effect to populate form data when editing
   useEffect(() => {
     if (editCampaignData && open) {
       setFormData({
         name: editCampaignData.name,
         description: editCampaignData.description || '',
-        acquirer: editCampaignData.acquirer,
+        acquirerId: editCampaignData.acquirer?.id || editCampaignData.acquirerId || null,
         equipment: '',
         currency: 'USD',
+        pricingTypeId: editCampaignData.pricingType?.id || null,
       });
-      
-      // Set active pricing types
-      if (editCampaignData.pricingType?.id) {
-        setActivePricingTypes([editCampaignData.pricingType.id]);
-      }
       
       // Set fee values if available
       if (editCampaignData.feeValues) {
@@ -406,11 +390,25 @@ export function EnhancedCampaignDialog({
         });
         setFeeValues(feeValueMap);
       }
+      
+      // Set selected equipment if available
+      if (editCampaignData.equipmentAssociations) {
+        const equipmentIds = editCampaignData.equipmentAssociations.map(assoc => assoc.equipmentItem.id);
+        setSelectedEquipment(equipmentIds);
+      }
     } else if (!editCampaignData && open) {
       // Reset form when opening for creation
       resetForm();
     }
   }, [editCampaignData, open]);
+
+  // Separate effect to load campaign templates when editing
+  useEffect(() => {
+    if (editCampaignId && campaignTemplates && open) {
+      const templateIds = campaignTemplates.map(ct => ct.templateId);
+      setSelectedTemplates(templateIds);
+    }
+  }, [campaignTemplates, editCampaignId, open]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -435,37 +433,18 @@ export function EnhancedCampaignDialog({
                 <CardTitle className="text-base">Campaign Information</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="name">Campaign Name *</Label>
-                    <Input
-                      id="name"
-                      placeholder="Enter campaign name"
-                      value={formData.name}
-                      onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                      className={errors.name ? 'border-destructive' : ''}
-                    />
-                    {errors.name && (
-                      <p className="text-sm text-destructive mt-1">{errors.name}</p>
-                    )}
-                  </div>
-                  
-                  <div>
-                    <Label htmlFor="acquirer">Acquirer *</Label>
-                    <Select value={formData.acquirer} onValueChange={(value) => setFormData(prev => ({ ...prev, acquirer: value }))}>
-                      <SelectTrigger className={errors.acquirer ? 'border-destructive' : ''}>
-                        <SelectValue placeholder="Select acquirer" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Esquire">Esquire</SelectItem>
-                        <SelectItem value="Merrick">Merrick</SelectItem>
-                        <SelectItem value="Wells Fargo">Wells Fargo</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    {errors.acquirer && (
-                      <p className="text-sm text-destructive mt-1">{errors.acquirer}</p>
-                    )}
-                  </div>
+                <div>
+                  <Label htmlFor="name">Campaign Name *</Label>
+                  <Input
+                    id="name"
+                    placeholder="Enter campaign name"
+                    value={formData.name}
+                    onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                    className={errors.name ? 'border-destructive' : ''}
+                  />
+                  {errors.name && (
+                    <p className="text-sm text-destructive mt-1">{errors.name}</p>
+                  )}
                 </div>
 
                 <div>
@@ -495,264 +474,174 @@ export function EnhancedCampaignDialog({
                   </p>
                 </div>
                 
-                {errors.pricingTypes && (
-                  <Alert className="border-destructive">
-                    <AlertCircle className="h-4 w-4" />
-                    <AlertDescription className="text-destructive">
-                      {errors.pricingTypes}
-                    </AlertDescription>
-                  </Alert>
-                )}
-
-
-              </CardContent>
-            </Card>
-
-            {/* Pricing Types Configuration */}
-            <Card>
-              <CardHeader className="pb-3">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle className="text-base flex items-center">
-                      <DollarSign className="h-4 w-4 mr-2" />
-                      Pricing Types Configuration *
-                    </CardTitle>
-                    <CardDescription>
-                      Configure fees for different pricing types. Expand each pricing type to set fee values.
-                    </CardDescription>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      onClick={handleExpandAll}
-                      disabled={pricingTypesWithFeeItems.length === 0}
-                    >
-                      Expand All
-                    </Button>
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      onClick={handleCollapseAll}
-                    >
-                      Collapse All
-                    </Button>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                {pricingTypeFeeItemsQueries.isLoading ? (
-                  <div className="text-center py-8 text-muted-foreground">
-                    Loading pricing types...
-                  </div>
-                ) : pricingTypesWithFeeItems.length === 0 ? (
-                  <Alert>
-                    <AlertCircle className="h-4 w-4" />
-                    <AlertDescription>
-                      No pricing types are available. Contact an administrator to add pricing types.
-                    </AlertDescription>
-                  </Alert>
-                ) : (
-                  <div className="space-y-4">
-                    <div className="text-sm text-muted-foreground mb-4">
-                      {activePricingTypes.length} of {pricingTypesWithFeeItems.length} pricing types configured
-                    </div>
-                    <Accordion 
-                      type="multiple" 
-                      value={expandedPricingTypes} 
-                      onValueChange={setExpandedPricingTypes}
-                      className="w-full"
-                    >
-                      {pricingTypesWithFeeItems.map((pricingType) => (
-                        <AccordionItem key={pricingType.id} value={pricingType.id.toString()}>
-                          <AccordionTrigger className="text-left hover:no-underline">
-                            <div className="flex items-center justify-between w-full pr-4">
-                              <div className="flex items-center space-x-3">
-                                <div className="flex items-center space-x-2">
-                                  <h3 className="font-medium">{pricingType.name}</h3>
-                                  {activePricingTypes.includes(pricingType.id) && (
-                                    <Badge variant="default" className="text-xs">
-                                      Configured
-                                    </Badge>
-                                  )}
-                                </div>
-                              </div>
-                              <div className="text-sm text-muted-foreground">
-                                {pricingType.feeItems?.length || 0} fee items
-                              </div>
-                            </div>
-                          </AccordionTrigger>
-                          <AccordionContent>
-                            {pricingType.description && (
-                              <p className="text-sm text-muted-foreground mb-4">
-                                {pricingType.description}
-                              </p>
-                            )}
-                            
-                            {!pricingType.feeItems || pricingType.feeItems.length === 0 ? (
-                              <Alert>
-                                <AlertCircle className="h-4 w-4" />
-                                <AlertDescription>
-                                  No fee items are configured for this pricing type.
-                                </AlertDescription>
-                              </Alert>
-                            ) : (
-                              <div className="space-y-6">
-                                {Object.entries(groupFeeItemsByGroup(pricingType.feeItems)).map(([groupName, items]) => (
-                                  <div key={groupName}>
-                                    <h4 className="font-medium text-sm mb-3 flex items-center">
-                                      <Badge variant="outline" className="mr-2">{groupName}</Badge>
-                                      <span className="text-muted-foreground">
-                                        {items.length} item{items.length !== 1 ? 's' : ''}
-                                      </span>
-                                    </h4>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                                      {items.map((item: FeeItem) => (
-                                        <div key={item.id} className="border rounded-lg p-3 space-y-2">
-                                          <div className="flex items-center justify-between">
-                                            <Label htmlFor={`fee-${item.id}`} className="text-sm font-medium">
-                                              {item.name}
-                                            </Label>
-                                            {item.additionalInfo && (
-                                              <button
-                                                type="button"
-                                                className="text-muted-foreground hover:text-foreground"
-                                                title={item.additionalInfo}
-                                              >
-                                                <Info className="h-3 w-3" />
-                                              </button>
-                                            )}
-                                          </div>
-                                          
-                                          {item.description && (
-                                            <p className="text-xs text-muted-foreground">
-                                              {item.description}
-                                            </p>
-                                          )}
-                                          
-                                          <div className="flex items-center space-x-2">
-                                            <div className="relative flex-1">
-                                              <Input
-                                                id={`fee-${item.id}`}
-                                                type={item.valueType === 'placeholder' ? 'text' : 'number'}
-                                                step={item.valueType === 'percentage' ? '0.01' : '0.01'}
-                                                min="0"
-                                                placeholder={item.valueType === 'placeholder' ? 'Enter value' : '0.00'}
-                                                value={feeValues[item.id] ?? ''}
-                                                onChange={(e) => handleFeeValueChange(item.id, e.target.value, pricingType.id)}
-                                                className="pr-8"
-                                              />
-                                              <div className="absolute right-2 top-1/2 transform -translate-y-1/2 text-muted-foreground flex items-center">
-                                                {getValueIcon(item.valueType)}
-                                                <span className="text-xs ml-1">
-                                                  {formatValueType(item.valueType)}
-                                                </span>
-                                              </div>
-                                            </div>
-                                          </div>
-                                        </div>
-                                      ))}
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-                          </AccordionContent>
-                        </AccordionItem>
+                <div>
+                  <Label htmlFor="acquirer">Acquirer *</Label>
+                  <Select value={formData.acquirerId?.toString() || ''} onValueChange={(value) => setFormData(prev => ({ ...prev, acquirerId: parseInt(value) }))}>
+                    <SelectTrigger className={errors.acquirer ? 'border-destructive' : ''}>
+                      <SelectValue placeholder="Select acquirer" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {acquirers.map((acquirer) => (
+                        <SelectItem key={acquirer.id} value={acquirer.id.toString()}>
+                          {acquirer.displayName}
+                        </SelectItem>
                       ))}
-                    </Accordion>
-                  </div>
-                )}
+                    </SelectContent>
+                  </Select>
+                  {errors.acquirer && (
+                    <p className="text-sm text-destructive mt-1">{errors.acquirer}</p>
+                  )}
+                </div>
+
+                <div>
+                  <Label htmlFor="pricingType">Pricing Type *</Label>
+                  <Select value={formData.pricingTypeId?.toString() || ''} onValueChange={handlePricingTypeChange}>
+                    <SelectTrigger className={errors.pricingType ? 'border-destructive' : ''}>
+                      <SelectValue placeholder="Select pricing type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {pricingTypes.map((pricingType) => (
+                        <SelectItem key={pricingType.id} value={pricingType.id.toString()}>
+                          {pricingType.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {errors.pricingType && (
+                    <p className="text-sm text-destructive mt-1">{errors.pricingType}</p>
+                  )}
+                </div>
               </CardContent>
             </Card>
+
+            {/* Fee Configuration */}
+            {formData.pricingTypeId && selectedPricingTypeFeeGroups && (
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base flex items-center">
+                    <DollarSign className="h-4 w-4 mr-2" />
+                    Fee Configuration
+                  </CardTitle>
+                  <CardDescription>
+                    Configure fee values for {selectedPricingTypeFeeGroups.pricingType.name} pricing type.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {feeGroupsLoading ? (
+                    <div className="text-center py-8 text-muted-foreground">
+                      Loading fee items...
+                    </div>
+                  ) : (
+                    <div className="space-y-6">
+                      {selectedPricingTypeFeeGroups.feeGroups.map((feeGroup: FeeGroup) => (
+                        <div key={feeGroup.id} className="space-y-3">
+                          <div className="flex items-center space-x-2">
+                            <h4 className="font-medium text-sm">{feeGroup.name}</h4>
+                            {feeGroup.description && (
+                              <p className="text-xs text-muted-foreground">- {feeGroup.description}</p>
+                            )}
+                          </div>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pl-4">
+                            {feeGroup.feeItems.map((feeItem: FeeItem) => (
+                              <div key={feeItem.id} className="space-y-2">
+                                <Label htmlFor={`fee-${feeItem.id}`} className="text-xs">
+                                  {feeItem.name}
+                                  {feeItem.isRequired && <span className="text-destructive ml-1">*</span>}
+                                </Label>
+                                <div className="flex items-center space-x-2">
+                                  <Input
+                                    id={`fee-${feeItem.id}`}
+                                    type="text"
+                                    placeholder={feeItem.defaultValue || '0.00'}
+                                    value={feeValues[feeItem.id] || ''}
+                                    onChange={(e) => setFeeValues(prev => ({ ...prev, [feeItem.id]: e.target.value }))}
+                                    className="text-sm"
+                                  />
+                                  <Badge variant="outline" className="text-xs">
+                                    {feeItem.valueType === 'percentage' ? '%' : 
+                                     feeItem.valueType === 'basis_points' ? 'bp' : '$'}
+                                  </Badge>
+                                </div>
+                                {feeItem.description && (
+                                  <p className="text-xs text-muted-foreground">{feeItem.description}</p>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Application Template Selection */}
+            {formData.acquirerId && (
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base">Application Templates</CardTitle>
+                  <CardDescription>
+                    Select application templates for this campaign (e.g., for amendments and different use cases).
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {templatesLoading ? (
+                    <div className="text-center py-8 text-muted-foreground">
+                      Loading templates...
+                    </div>
+                  ) : applicationTemplates.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground">
+                      No templates available for this acquirer. Please create templates first.
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {applicationTemplates.map((template: ApplicationTemplate) => (
+                        <div key={template.id} className="flex items-center space-x-2">
+                          <Checkbox
+                            id={`template-${template.id}`}
+                            checked={selectedTemplates.includes(template.id)}
+                            onCheckedChange={(checked) => handleTemplateChange(template.id, checked as boolean)}
+                            data-testid={`checkbox-template-${template.id}`}
+                          />
+                          <Label htmlFor={`template-${template.id}`} className="text-sm cursor-pointer">
+                            {template.templateName} <Badge variant="outline" className="ml-1 text-xs">v{template.version}</Badge>
+                          </Label>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
 
             {/* Equipment Selection */}
             <Card>
               <CardHeader className="pb-3">
-                <CardTitle className="text-base flex items-center">
-                  <Package className="h-4 w-4 mr-2" />
-                  Equipment Selection
-                </CardTitle>
+                <CardTitle className="text-base">Equipment Selection</CardTitle>
                 <CardDescription>
-                  Choose equipment items to associate with this campaign (optional)
+                  Select equipment items to include with this campaign.
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 {equipmentLoading ? (
                   <div className="text-center py-8 text-muted-foreground">
-                    Loading equipment...
+                    Loading equipment items...
                   </div>
-                ) : equipmentItems.length === 0 ? (
-                  <Alert>
-                    <AlertCircle className="h-4 w-4" />
-                    <AlertDescription>
-                      No equipment items are available. Contact an administrator to add equipment.
-                    </AlertDescription>
-                  </Alert>
                 ) : (
-                  <div className="space-y-4">
-                    <div className="text-sm text-muted-foreground mb-3">
-                      {selectedEquipment.length} of {equipmentItems.length} equipment items selected
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {equipmentItems.map((item: EquipmentItem) => (
-                        <div
-                          key={item.id}
-                          className={`border rounded-lg p-4 transition-all ${
-                            selectedEquipment.includes(item.id)
-                              ? 'border-primary bg-primary/5 ring-1 ring-primary/20'
-                              : 'border-border hover:border-primary/50'
-                          }`}
-                        >
-                          <div className="flex items-start space-x-3">
-                            <Checkbox
-                              id={`equipment-${item.id}`}
-                              checked={selectedEquipment.includes(item.id)}
-                              onCheckedChange={(checked) => 
-                                handleEquipmentChange(item.id, checked as boolean)
-                              }
-                              className="mt-1"
-                            />
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center space-x-3 mb-2">
-                                {(item.imageUrl || item.imageData) && (
-                                  <img
-                                    src={item.imageUrl || item.imageData}
-                                    alt={item.name}
-                                    className="w-12 h-12 object-contain rounded bg-muted p-1"
-                                  />
-                                )}
-                                <div className="flex-1">
-                                  <Label htmlFor={`equipment-${item.id}`} className="text-sm font-medium cursor-pointer">
-                                    {item.name}
-                                  </Label>
-                                  {selectedEquipment.includes(item.id) && (
-                                    <Check className="h-4 w-4 text-primary ml-1 inline" />
-                                  )}
-                                </div>
-                              </div>
-                              
-                              {item.description && (
-                                <p className="text-xs text-muted-foreground mb-2">
-                                  {item.description}
-                                </p>
-                              )}
-                              
-                              {item.specifications && typeof item.specifications === 'string' && item.specifications.trim() && (
-                                <div className="text-xs text-muted-foreground">
-                                  <span className="font-medium">Specs:</span> {item.specifications}
-                                </div>
-                              )}
-                              {item.specifications && typeof item.specifications === 'object' && item.specifications !== null && Object.keys(item.specifications).length > 0 && (
-                                <div className="text-xs text-muted-foreground">
-                                  <span className="font-medium">Specs:</span> {JSON.stringify(item.specifications)}
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {equipmentItems.map((item: EquipmentItem) => (
+                      <div key={item.id} className="flex items-center space-x-2">
+                        <Checkbox
+                          id={`equipment-${item.id}`}
+                          checked={selectedEquipment.includes(item.id)}
+                          onCheckedChange={(checked) => handleEquipmentChange(item.id, checked as boolean)}
+                        />
+                        <Label htmlFor={`equipment-${item.id}`} className="text-sm cursor-pointer">
+                          {item.name}
+                        </Label>
+                      </div>
+                    ))}
                   </div>
                 )}
               </CardContent>
@@ -760,17 +649,17 @@ export function EnhancedCampaignDialog({
           </div>
         </ScrollArea>
 
-        <DialogFooter>
+        <DialogFooter className="flex justify-between">
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
           <Button 
-            onClick={handleSubmit}
-            disabled={createCampaignMutation.isPending || updateCampaignMutation.isPending || activePricingTypes.length === 0}
+            onClick={handleSubmit} 
+            disabled={createCampaignMutation.isPending || updateCampaignMutation.isPending}
           >
-            {editCampaignId 
-              ? (updateCampaignMutation.isPending ? "Updating..." : "Update Campaign")
-              : (createCampaignMutation.isPending ? 'Creating...' : 'Create Campaign')
+            {(createCampaignMutation.isPending || updateCampaignMutation.isPending) 
+              ? (editCampaignId ? 'Updating...' : 'Creating...') 
+              : (editCampaignId ? 'Update Campaign' : 'Create Campaign')
             }
           </Button>
         </DialogFooter>
