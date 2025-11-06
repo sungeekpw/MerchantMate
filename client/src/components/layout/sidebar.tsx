@@ -37,8 +37,7 @@ const baseNavigation = [
   { name: "Users", href: "/users", icon: User, requiresRole: ['admin', 'corporate', 'super_admin'] },
   { name: "Reports", href: "/reports", icon: FileText, requiresRole: ['admin', 'corporate', 'super_admin'] },
   { name: "Security", href: "/security", icon: Shield, requiresRole: ['admin', 'super_admin'] },
-  { name: "Communications", href: "/email-management", icon: Mail, requiresRole: ['admin', 'super_admin'] },
-  { name: "Action Templates", href: "/action-templates", icon: Zap, requiresRole: ['admin', 'super_admin'] },
+  { name: "Communications", href: "/communications", icon: Mail, requiresRole: ['admin', 'super_admin'] },
   { name: "API Documentation", href: "/api-documentation", icon: Book, requiresRole: ['admin', 'super_admin'] },
   { name: "Testing Utilities", href: "/testing-utilities", icon: TestTube, requiresRole: ['super_admin'] },
 ];
