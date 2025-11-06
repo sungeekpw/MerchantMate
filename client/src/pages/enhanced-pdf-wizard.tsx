@@ -349,6 +349,10 @@ export default function EnhancedPdfWizard() {
 
   // Helper function to calculate total ownership percentage from active owners
   const calculateTotalOwnership = (): number => {
+    console.log('🔢 Calculating total ownership...');
+    console.log('  Active owner slots:', Array.from(activeOwnerSlots));
+    console.log('  FormData keys with "owner":', Object.keys(formData).filter(k => k.toLowerCase().includes('owner')));
+    
     let total = 0;
     activeOwnerSlots.forEach((slotNumber) => {
       const ownerKey = `owner${slotNumber}`;
@@ -356,17 +360,23 @@ export default function EnhancedPdfWizard() {
       let found = false;
       
       // First, check signature group data for ownership percentage
-      const ownerDataStr = formData[`_signatureGroup_${ownerKey}_signature_owner`];
+      const signatureGroupKey = `_signatureGroup_${ownerKey}_signature_owner`;
+      const ownerDataStr = formData[signatureGroupKey];
+      console.log(`  Checking signature group key "${signatureGroupKey}":`, ownerDataStr);
+      
       if (ownerDataStr && !found) {
         try {
           const ownerData = JSON.parse(ownerDataStr);
+          console.log(`    Parsed data:`, ownerData);
           const percentage = parseFloat(ownerData.ownershipPercentage || '0');
+          console.log(`    Ownership percentage:`, percentage);
           if (!isNaN(percentage) && percentage > 0) {
             ownerPercentage = percentage;
             found = true;
+            console.log(`    ✓ Found percentage in signature group: ${percentage}%`);
           }
         } catch (e) {
-          // Ignore parse errors
+          console.log(`    ✗ Parse error:`, e);
         }
       }
       
@@ -378,6 +388,7 @@ export default function EnhancedPdfWizard() {
           `owner${slotNumber}OwnershipPercentage`,
         ];
         
+        console.log(`  Checking standalone patterns for owner${slotNumber}...`);
         for (const fieldPattern of standaloneFieldPatterns) {
           const value = formData[fieldPattern];
           if (value !== undefined && value !== null && value !== '') {
@@ -385,14 +396,21 @@ export default function EnhancedPdfWizard() {
             if (!isNaN(percentage) && percentage > 0) {
               ownerPercentage = percentage;
               found = true;
-              break; // Stop checking patterns once we find a value
+              console.log(`    ✓ Found percentage in standalone field "${fieldPattern}": ${percentage}%`);
+              break;
             }
           }
         }
       }
       
+      if (!found) {
+        console.log(`  ✗ No percentage found for owner${slotNumber}`);
+      }
+      
       total += ownerPercentage;
     });
+    
+    console.log(`🔢 Total ownership calculated: ${total}%`);
     return total;
   };
 
