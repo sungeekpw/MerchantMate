@@ -22,7 +22,9 @@ import {
   Clock,
   CheckCircle,
   XCircle,
-  Pencil
+  Pencil,
+  Plus,
+  Bell
 } from "lucide-react";
 
 // Import existing action templates page as a component
@@ -31,7 +33,10 @@ import ActionTemplatesPage from "./action-templates";
 // Triggers Management Component
 function TriggersManagement() {
   const [editingTrigger, setEditingTrigger] = useState<any>(null);
+  const [selectedTrigger, setSelectedTrigger] = useState<any>(null);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [actionDialogOpen, setActionDialogOpen] = useState(false);
+  const [editingAction, setEditingAction] = useState<any>(null);
   const [editForm, setEditForm] = useState({ name: '', description: '', isActive: true });
   const [createForm, setCreateForm] = useState({ 
     triggerKey: '', 
@@ -62,6 +67,19 @@ function TriggersManagement() {
       if (!response.ok) throw new Error('Failed to fetch action templates');
       return response.json();
     }
+  });
+
+  const { data: triggerActions = [] } = useQuery({
+    queryKey: ['/api/admin/trigger-catalog', selectedTrigger?.id, 'actions'],
+    queryFn: async () => {
+      if (!selectedTrigger) return [];
+      const response = await fetch(`/api/admin/trigger-catalog/${selectedTrigger.id}/actions`, {
+        credentials: 'include'
+      });
+      if (!response.ok) throw new Error('Failed to fetch trigger actions');
+      return response.json();
+    },
+    enabled: !!selectedTrigger
   });
 
   const createTriggerMutation = useMutation({
@@ -117,6 +135,51 @@ function TriggersManagement() {
     });
   };
 
+  const createActionMutation = useMutation({
+    mutationFn: async (data: any) => {
+      return apiRequest('POST', '/api/admin/trigger-actions', data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/trigger-catalog', selectedTrigger?.id, 'actions'] });
+      toast({
+        title: "Action Added",
+        description: "The action has been successfully linked to the trigger."
+      });
+      setActionDialogOpen(false);
+      setEditingAction(null);
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Failed to Add Action",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
+  });
+
+  const updateActionMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const { id, ...updateData } = data;
+      return apiRequest('PUT', `/api/admin/trigger-actions/${id}`, updateData);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/trigger-catalog', selectedTrigger?.id, 'actions'] });
+      toast({
+        title: "Action Updated",
+        description: "The action has been successfully updated."
+      });
+      setActionDialogOpen(false);
+      setEditingAction(null);
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Failed to Update Action",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
+  });
+
   const handleCreateTrigger = () => {
     createTriggerMutation.mutate(createForm);
   };
@@ -127,6 +190,36 @@ function TriggersManagement() {
       id: editingTrigger.id,
       ...editForm
     });
+  };
+
+  const handleActionSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+    
+    const maxSequence = triggerActions.length > 0 
+      ? Math.max(...triggerActions.map((a: any) => a.sequenceOrder))
+      : 0;
+    const nextSequence = editingAction 
+      ? parseInt(formData.get('sequenceOrder') as string) || editingAction.sequenceOrder
+      : maxSequence + 1;
+    
+    const data = {
+      triggerId: selectedTrigger?.id,
+      actionTemplateId: parseInt(formData.get('actionTemplateId') as string),
+      sequenceOrder: nextSequence,
+      delaySeconds: parseInt(formData.get('delaySeconds') as string) || 0,
+      requiresEmailPreference: !!formData.get('requiresEmailPreference'),
+      requiresSmsPreference: !!formData.get('requiresSmsPreference'),
+      retryOnFailure: !!formData.get('retryOnFailure'),
+      maxRetries: parseInt(formData.get('maxRetries') as string) || 3,
+      isActive: !!formData.get('isActive')
+    };
+    
+    if (editingAction) {
+      updateActionMutation.mutate({ id: editingAction.id, ...data });
+    } else {
+      createActionMutation.mutate(data);
+    }
   };
 
   console.log('Triggers query state:', { triggers, isLoading, error });
@@ -145,7 +238,7 @@ function TriggersManagement() {
         <div>
           <h2 className="text-2xl font-bold">Trigger Catalog</h2>
           <p className="text-muted-foreground">
-            Manage automated events that trigger communication actions
+            Manage automated events and link them to action templates
           </p>
         </div>
         <Button 
@@ -157,53 +250,143 @@ function TriggersManagement() {
         </Button>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {triggers && triggers.length > 0 ? (
-          triggers.map((trigger: any) => (
-            <Card key={trigger.id} data-testid={`card-trigger-${trigger.id}`}>
-              <CardHeader>
-                <div className="flex items-start justify-between">
-                  <div>
-                    <CardTitle className="text-lg">{trigger.name}</CardTitle>
-                    <CardDescription className="mt-1">
-                      {trigger.description}
-                    </CardDescription>
-                  </div>
-                  <Badge variant={trigger.isActive ? "default" : "secondary"}>
-                    {trigger.isActive ? "Active" : "Inactive"}
-                  </Badge>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  <div className="flex items-center text-sm">
-                    <Zap className="w-4 h-4 mr-2 text-muted-foreground" />
-                    <code className="text-xs bg-muted px-2 py-1 rounded">
-                      {trigger.triggerKey}
-                    </code>
-                  </div>
-                  <div className="text-sm text-muted-foreground">
-                    <strong>{trigger.actionCount || 0}</strong> action(s) linked
-                  </div>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className="w-full"
-                    onClick={() => handleEditClick(trigger)}
-                    data-testid={`button-edit-trigger-${trigger.id}`}
+      <div className="grid gap-4 md:grid-cols-2">
+        {/* Left Column - Triggers List */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Available Triggers</CardTitle>
+            <CardDescription>Select a trigger to view and manage its actions</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {triggers && triggers.length > 0 ? (
+              <div className="space-y-2">
+                {triggers.map((trigger: any) => (
+                  <div
+                    key={trigger.id}
+                    className={`p-3 border rounded-lg cursor-pointer transition-colors ${
+                      selectedTrigger?.id === trigger.id 
+                        ? 'border-primary bg-primary/5' 
+                        : 'hover:bg-muted'
+                    }`}
+                    onClick={() => setSelectedTrigger(trigger)}
+                    data-testid={`trigger-item-${trigger.id}`}
                   >
-                    <Pencil className="w-3 h-3 mr-2" />
-                    Edit Trigger
-                  </Button>
+                    <div className="flex justify-between items-start">
+                      <div className="flex-1">
+                        <h4 className="font-medium">{trigger.name}</h4>
+                        <p className="text-sm text-muted-foreground">{trigger.triggerKey}</p>
+                        {trigger.description && (
+                          <p className="text-xs text-muted-foreground mt-1">{trigger.description}</p>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Badge variant={trigger.isActive ? "default" : "secondary"} className="text-xs">
+                          {trigger.isActive ? "Active" : "Inactive"}
+                        </Badge>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleEditClick(trigger);
+                          }}
+                          data-testid={`button-edit-trigger-${trigger.id}`}
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-12 text-muted-foreground">
+                No triggers found. Create one to get started.
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Right Column - Trigger Actions */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Trigger Actions</CardTitle>
+            <CardDescription>
+              {selectedTrigger ? `Actions for: ${selectedTrigger.name}` : 'Select a trigger to view actions'}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {selectedTrigger ? (
+              <div className="space-y-4">
+                <Button 
+                  onClick={() => {
+                    setEditingAction(null);
+                    setActionDialogOpen(true);
+                  }} 
+                  variant="outline" 
+                  size="sm"
+                  data-testid="button-add-action"
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add Action
+                </Button>
+
+                <div className="space-y-2">
+                  {triggerActions && triggerActions.length > 0 ? (
+                    triggerActions.map((action: any) => (
+                      <div
+                        key={action.id}
+                        className="p-3 border rounded-lg"
+                        data-testid={`action-item-${action.id}`}
+                      >
+                        <div className="flex justify-between items-start">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                              <Badge variant="outline" className="text-xs">
+                                #{action.sequenceOrder}
+                              </Badge>
+                              <h5 className="font-medium text-sm">
+                                {action.actionTemplate?.name || `Template #${action.actionTemplateId}`}
+                              </h5>
+                            </div>
+                            <div className="text-xs text-muted-foreground mt-1 space-x-2">
+                              {action.delaySeconds > 0 && <span>Delay: {action.delaySeconds}s</span>}
+                              {action.retryOnFailure && <span>Retry: {action.maxRetries}x</span>}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Badge variant={action.isActive ? "default" : "secondary"} className="text-xs">
+                              {action.isActive ? "Active" : "Inactive"}
+                            </Badge>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                setEditingAction(action);
+                                setActionDialogOpen(true);
+                              }}
+                              data-testid={`button-edit-action-${action.id}`}
+                            >
+                              <Pencil className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-center py-8 text-muted-foreground text-sm">
+                      No actions configured. Click "Add Action" to get started.
+                    </div>
+                  )}
                 </div>
-              </CardContent>
-            </Card>
-          ))
-        ) : (
-          <div className="col-span-full text-center py-12 text-muted-foreground">
-            No triggers found. Create one to get started.
-          </div>
-        )}
+              </div>
+            ) : (
+              <div className="text-center py-12 text-muted-foreground">
+                Select a trigger from the left to manage its actions
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
 
       {/* Create Trigger Dialog */}
@@ -300,6 +483,159 @@ function TriggersManagement() {
               {createTriggerMutation.isPending ? 'Creating...' : 'Create Trigger'}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Action Management Dialog */}
+      <Dialog open={actionDialogOpen} onOpenChange={setActionDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>{editingAction ? 'Edit' : 'Add'} Action to Trigger</DialogTitle>
+            <DialogDescription>
+              {editingAction ? 'Update action settings' : `Link an action template to ${selectedTrigger?.name}`}
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleActionSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="actionTemplateId">Action Template <span className="text-red-500">*</span></Label>
+              <Select name="actionTemplateId" defaultValue={editingAction?.actionTemplateId?.toString()} required>
+                <SelectTrigger data-testid="select-action-template">
+                  <SelectValue placeholder="Select action template" />
+                </SelectTrigger>
+                <SelectContent>
+                  {actionTemplates && actionTemplates.map((template: any) => (
+                    <SelectItem key={template.id} value={template.id.toString()}>
+                      <div className="flex items-center gap-2">
+                        {template.actionType === 'email' ? (
+                          <Mail className="h-4 w-4 text-blue-500" />
+                        ) : (
+                          <Bell className="h-4 w-4 text-purple-500" />
+                        )}
+                        <span>{template.name}</span>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="sequenceOrder">Sequence Order</Label>
+                <Input 
+                  id="sequenceOrder" 
+                  name="sequenceOrder" 
+                  type="number" 
+                  defaultValue={editingAction?.sequenceOrder || 1} 
+                  min="1"
+                  data-testid="input-sequence-order" 
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="delaySeconds">Delay (seconds)</Label>
+                <Input 
+                  id="delaySeconds" 
+                  name="delaySeconds" 
+                  type="number" 
+                  defaultValue={editingAction?.delaySeconds || 0} 
+                  min="0"
+                  data-testid="input-delay-seconds" 
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Preferences</Label>
+              <div className="space-y-2">
+                <div className="flex items-center space-x-2">
+                  <input 
+                    type="checkbox" 
+                    id="requiresEmailPreference" 
+                    name="requiresEmailPreference"
+                    defaultChecked={editingAction?.requiresEmailPreference || false}
+                    className="rounded"
+                    data-testid="checkbox-email-preference"
+                  />
+                  <Label htmlFor="requiresEmailPreference" className="font-normal">
+                    Requires email preference
+                  </Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <input 
+                    type="checkbox" 
+                    id="requiresSmsPreference" 
+                    name="requiresSmsPreference"
+                    defaultChecked={editingAction?.requiresSmsPreference || false}
+                    className="rounded"
+                    data-testid="checkbox-sms-preference"
+                  />
+                  <Label htmlFor="requiresSmsPreference" className="font-normal">
+                    Requires SMS preference
+                  </Label>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Retry Settings</Label>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex items-center space-x-2">
+                  <input 
+                    type="checkbox" 
+                    id="retryOnFailure" 
+                    name="retryOnFailure"
+                    defaultChecked={editingAction?.retryOnFailure || false}
+                    className="rounded"
+                    data-testid="checkbox-retry-on-failure"
+                  />
+                  <Label htmlFor="retryOnFailure" className="font-normal">
+                    Retry on failure
+                  </Label>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="maxRetries">Max Retries</Label>
+                  <Input 
+                    id="maxRetries" 
+                    name="maxRetries" 
+                    type="number" 
+                    defaultValue={editingAction?.maxRetries || 3} 
+                    min="0"
+                    max="10"
+                    data-testid="input-max-retries"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center space-x-2">
+              <input 
+                type="checkbox" 
+                id="isActive" 
+                name="isActive"
+                defaultChecked={editingAction?.isActive ?? true}
+                className="rounded"
+                data-testid="checkbox-action-active"
+              />
+              <Label htmlFor="isActive" className="font-normal">
+                Active
+              </Label>
+            </div>
+
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setActionDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button 
+                type="submit" 
+                disabled={createActionMutation.isPending || updateActionMutation.isPending}
+                data-testid="button-submit-action"
+              >
+                {createActionMutation.isPending || updateActionMutation.isPending 
+                  ? 'Saving...' 
+                  : (editingAction ? 'Update' : 'Add') + ' Action'}
+              </Button>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
 
