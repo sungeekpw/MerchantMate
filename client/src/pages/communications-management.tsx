@@ -21,16 +21,36 @@ import ActionTemplatesPage from "./action-templates";
 
 // Triggers Management Component
 function TriggersManagement() {
-  const { data: triggers, isLoading } = useQuery({
-    queryKey: ['/api/triggers/catalog'],
+  const { data: triggers, isLoading, error } = useQuery({
+    queryKey: ['/api/admin/trigger-catalog'],
+    queryFn: async () => {
+      const response = await fetch('/api/admin/trigger-catalog', {
+        credentials: 'include'
+      });
+      if (!response.ok) throw new Error('Failed to fetch triggers');
+      return response.json();
+    }
   });
 
   const { data: actionTemplates } = useQuery({
     queryKey: ['/api/action-templates'],
+    queryFn: async () => {
+      const response = await fetch('/api/action-templates', {
+        credentials: 'include'
+      });
+      if (!response.ok) throw new Error('Failed to fetch action templates');
+      return response.json();
+    }
   });
+
+  console.log('Triggers query state:', { triggers, isLoading, error });
 
   if (isLoading) {
     return <div className="p-8 text-center">Loading triggers...</div>;
+  }
+
+  if (error) {
+    return <div className="p-8 text-center text-red-600">Error loading triggers: {(error as Error).message}</div>;
   }
 
   return (
@@ -42,43 +62,49 @@ function TriggersManagement() {
             Manage automated events that trigger communication actions
           </p>
         </div>
-        <Button>
+        <Button data-testid="button-create-trigger">
           <Zap className="w-4 h-4 mr-2" />
           Create Trigger
         </Button>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {triggers?.map((trigger: any) => (
-          <Card key={trigger.id}>
-            <CardHeader>
-              <div className="flex items-start justify-between">
-                <div>
-                  <CardTitle className="text-lg">{trigger.name}</CardTitle>
-                  <CardDescription className="mt-1">
-                    {trigger.description}
-                  </CardDescription>
+        {triggers && triggers.length > 0 ? (
+          triggers.map((trigger: any) => (
+            <Card key={trigger.id} data-testid={`card-trigger-${trigger.id}`}>
+              <CardHeader>
+                <div className="flex items-start justify-between">
+                  <div>
+                    <CardTitle className="text-lg">{trigger.name}</CardTitle>
+                    <CardDescription className="mt-1">
+                      {trigger.description}
+                    </CardDescription>
+                  </div>
+                  <Badge variant={trigger.isActive ? "default" : "secondary"}>
+                    {trigger.isActive ? "Active" : "Inactive"}
+                  </Badge>
                 </div>
-                <Badge variant={trigger.isActive ? "default" : "secondary"}>
-                  {trigger.isActive ? "Active" : "Inactive"}
-                </Badge>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                <div className="flex items-center text-sm">
-                  <Zap className="w-4 h-4 mr-2 text-muted-foreground" />
-                  <code className="text-xs bg-muted px-2 py-1 rounded">
-                    {trigger.triggerKey}
-                  </code>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  <div className="flex items-center text-sm">
+                    <Zap className="w-4 h-4 mr-2 text-muted-foreground" />
+                    <code className="text-xs bg-muted px-2 py-1 rounded">
+                      {trigger.triggerKey}
+                    </code>
+                  </div>
+                  <div className="text-sm text-muted-foreground">
+                    <strong>{trigger.actionCount || 0}</strong> action(s) linked
+                  </div>
                 </div>
-                <div className="text-sm text-muted-foreground">
-                  <strong>{trigger.actionCount || 0}</strong> action(s) linked
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+              </CardContent>
+            </Card>
+          ))
+        ) : (
+          <div className="col-span-full text-center py-12 text-muted-foreground">
+            No triggers found. Create one to get started.
+          </div>
+        )}
       </div>
     </div>
   );
@@ -87,11 +113,25 @@ function TriggersManagement() {
 // Activity & Analytics Component
 function ActivityAnalytics() {
   const { data: stats, isLoading } = useQuery({
-    queryKey: ['/api/action-activity/stats'],
+    queryKey: ['/api/admin/action-activity/stats'],
+    queryFn: async () => {
+      const response = await fetch('/api/admin/action-activity/stats', {
+        credentials: 'include'
+      });
+      if (!response.ok) throw new Error('Failed to fetch activity stats');
+      return response.json();
+    }
   });
 
   const { data: recentActivity } = useQuery({
-    queryKey: ['/api/action-activity/recent'],
+    queryKey: ['/api/admin/action-activity/recent'],
+    queryFn: async () => {
+      const response = await fetch('/api/admin/action-activity/recent', {
+        credentials: 'include'
+      });
+      if (!response.ok) throw new Error('Failed to fetch recent activity');
+      return response.json();
+    }
   });
 
   if (isLoading) {
@@ -317,20 +357,41 @@ export default function CommunicationsManagement() {
 function TemplateCount() {
   const { data } = useQuery({
     queryKey: ['/api/action-templates'],
+    queryFn: async () => {
+      const response = await fetch('/api/action-templates', {
+        credentials: 'include'
+      });
+      if (!response.ok) throw new Error('Failed to fetch templates');
+      return response.json();
+    }
   });
   return <span>{data?.length || 0}</span>;
 }
 
 function TriggerCount() {
   const { data } = useQuery({
-    queryKey: ['/api/triggers/catalog'],
+    queryKey: ['/api/admin/trigger-catalog'],
+    queryFn: async () => {
+      const response = await fetch('/api/admin/trigger-catalog', {
+        credentials: 'include'
+      });
+      if (!response.ok) throw new Error('Failed to fetch triggers');
+      return response.json();
+    }
   });
   return <span>{data?.filter((t: any) => t.isActive)?.length || 0}</span>;
 }
 
 function MonthlyActivityCount() {
   const { data } = useQuery({
-    queryKey: ['/api/action-activity/stats'],
+    queryKey: ['/api/admin/action-activity/stats'],
+    queryFn: async () => {
+      const response = await fetch('/api/admin/action-activity/stats', {
+        credentials: 'include'
+      });
+      if (!response.ok) throw new Error('Failed to fetch stats');
+      return response.json();
+    }
   });
   return <span>{data?.totalSent || 0}</span>;
 }
