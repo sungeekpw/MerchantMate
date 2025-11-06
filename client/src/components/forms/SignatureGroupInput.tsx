@@ -317,7 +317,24 @@ export function SignatureGroupInput({
                   id={`${config.groupKey}-name`}
                   type="text"
                   value={signerName}
-                  onChange={(e) => setSignerName(e.target.value)}
+                  onChange={(e) => {
+                    const newValue = e.target.value;
+                    setSignerName(newValue);
+                    
+                    // Immediately update parent with current data
+                    onChange({
+                      signerName: newValue,
+                      signerEmail,
+                      signature: signatureType === 'draw' ? drawnSignature : typedSignature,
+                      signatureType: signatureType === 'draw' ? 'drawn' : 'typed',
+                      initials,
+                      ownershipPercentage,
+                      status: value?.status || 'pending',
+                      timestampSigned: value?.timestampSigned,
+                      timestampRequested: value?.timestampRequested,
+                      timestampExpires: value?.timestampExpires,
+                    });
+                  }}
                   placeholder="Enter signer name"
                   disabled={disabled || isRequested}
                   data-testid={`${dataTestId}-signer-name`}
@@ -331,7 +348,24 @@ export function SignatureGroupInput({
                   id={`${config.groupKey}-email`}
                   type="email"
                   value={signerEmail}
-                  onChange={(e) => setSignerEmail(e.target.value)}
+                  onChange={(e) => {
+                    const newValue = e.target.value;
+                    setSignerEmail(newValue);
+                    
+                    // Immediately update parent with current data
+                    onChange({
+                      signerName,
+                      signerEmail: newValue,
+                      signature: signatureType === 'draw' ? drawnSignature : typedSignature,
+                      signatureType: signatureType === 'draw' ? 'drawn' : 'typed',
+                      initials,
+                      ownershipPercentage,
+                      status: value?.status || 'pending',
+                      timestampSigned: value?.timestampSigned,
+                      timestampRequested: value?.timestampRequested,
+                      timestampExpires: value?.timestampExpires,
+                    });
+                  }}
                   placeholder="Enter email"
                   disabled={disabled || isRequested}
                   data-testid={`${dataTestId}-signer-email`}
@@ -349,7 +383,24 @@ export function SignatureGroupInput({
                     max="100"
                     step="0.1"
                     value={ownershipPercentage}
-                    onChange={(e) => setOwnershipPercentage(e.target.value)}
+                    onChange={(e) => {
+                      const newValue = e.target.value;
+                      setOwnershipPercentage(newValue);
+                      
+                      // Immediately update parent with current data including new ownership percentage
+                      onChange({
+                        signerName,
+                        signerEmail,
+                        signature: signatureType === 'draw' ? drawnSignature : typedSignature,
+                        signatureType: signatureType === 'draw' ? 'drawn' : 'typed',
+                        initials,
+                        ownershipPercentage: newValue,
+                        status: value?.status || 'pending',
+                        timestampSigned: value?.timestampSigned,
+                        timestampRequested: value?.timestampRequested,
+                        timestampExpires: value?.timestampExpires,
+                      });
+                    }}
                     placeholder="25.0"
                     disabled={disabled || isRequested}
                     data-testid={`${dataTestId}-ownership`}
