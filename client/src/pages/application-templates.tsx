@@ -1835,6 +1835,7 @@ function FieldConfigurationDialog({
                                 <SelectItem value="contains">Contains</SelectItem>
                                 <SelectItem value="is_checked">Is Checked</SelectItem>
                                 <SelectItem value="is_not_checked">Is Not Checked</SelectItem>
+                                <SelectItem value="is_not_empty">Is Not Empty (Has Value)</SelectItem>
                               </SelectContent>
                             </Select>
                           </div>
@@ -1867,7 +1868,8 @@ function FieldConfigurationDialog({
                           {editingField.conditional.when?.operator === 'contains' && 'contains'}
                           {editingField.conditional.when?.operator === 'is_checked' && 'is checked'}
                           {editingField.conditional.when?.operator === 'is_not_checked' && 'is not checked'}
-                          {' '}<strong>"{editingField.conditional.when?.value || '(enter value)'}"</strong>
+                          {editingField.conditional.when?.operator === 'is_not_empty' && 'is not empty (has any value)'}
+                          {editingField.conditional.when?.operator !== 'is_not_empty' && <>{' '}<strong>"{editingField.conditional.when?.value || '(enter value)'}"</strong></>}
                         </div>
                       </div>
                     )}
