@@ -2625,6 +2625,57 @@ export default function EnhancedPdfWizard() {
           </div>
         );
 
+      case 'boolean':
+        return (
+          <div className="space-y-2">
+            <div className="flex items-center gap-1">
+              <Label className="text-sm font-medium text-gray-700">
+                {field.fieldLabel}
+                {field.isRequired && <span className="text-red-500 ml-1">*</span>}
+              </Label>
+              {field.description && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Info className="h-4 w-4 text-gray-400 hover:text-gray-600 cursor-help" />
+                  </TooltipTrigger>
+                  <TooltipContent className="max-w-xs">
+                    <p className="text-sm">{field.description}</p>
+                  </TooltipContent>
+                </Tooltip>
+              )}
+            </div>
+            <RadioGroup value={value} onValueChange={(value) => handleFieldChange(field.fieldName, value)}>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem
+                  value="yes"
+                  id={`${field.fieldName}-yes`}
+                  data-testid={`radio-${field.fieldName}-yes`}
+                />
+                <Label
+                  htmlFor={`${field.fieldName}-yes`}
+                  className="text-sm font-normal cursor-pointer"
+                >
+                  Yes
+                </Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem
+                  value="no"
+                  id={`${field.fieldName}-no`}
+                  data-testid={`radio-${field.fieldName}-no`}
+                />
+                <Label
+                  htmlFor={`${field.fieldName}-no`}
+                  className="text-sm font-normal cursor-pointer"
+                >
+                  No
+                </Label>
+              </div>
+            </RadioGroup>
+            {hasError && <p className="text-xs text-red-500">{hasError}</p>}
+          </div>
+        );
+
       case 'textarea':
         return (
           <div className="space-y-2">
