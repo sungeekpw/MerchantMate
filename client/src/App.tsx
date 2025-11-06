@@ -47,6 +47,7 @@ import ApplicationTemplates from "@/pages/application-templates";
 import FormDemo from "@/pages/form-demo";
 import EmailManagement from "@/pages/email-management";
 import ActionTemplates from "@/pages/action-templates";
+import CommunicationsManagement from "@/pages/communications-management";
 import ApiDocumentation from "@/pages/api-documentation";
 import TestingUtilities from "@/pages/testing-utilities";
 import AlertsPage from "@/pages/AlertsPage";
@@ -147,6 +148,11 @@ function AuthenticatedApp() {
         return {
           title: "Action Templates",
           subtitle: "Manage reusable action templates for triggers and workflows"
+        };
+      case "/communications":
+        return {
+          title: "Communications Management",
+          subtitle: "Unified hub for managing multi-channel communications: email, SMS, webhooks, and notifications"
         };
       case "/pdf-forms":
         return {
@@ -387,6 +393,24 @@ function AuthenticatedApp() {
                   />
                   <main className="flex-1 overflow-auto bg-gray-50">
                     <ActionTemplates />
+                  </main>
+                </>
+              );
+            }}
+          </Route>
+          <Route path="/communications">
+            {() => {
+              const userRoles = (user as any)?.roles || [];
+              if (!user || (!userRoles.includes('admin') && !userRoles.includes('super_admin'))) return <NotFound />;
+              const pageInfo = getPageInfo("/communications");
+              return (
+                <>
+                  <Header 
+                    title={pageInfo.title} 
+                    onSearch={setGlobalSearch}
+                  />
+                  <main className="flex-1 overflow-auto bg-gray-50">
+                    <CommunicationsManagement />
                   </main>
                 </>
               );
