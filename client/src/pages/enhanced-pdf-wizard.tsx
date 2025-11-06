@@ -352,16 +352,18 @@ export default function EnhancedPdfWizard() {
     let total = 0;
     activeOwnerSlots.forEach((slotNumber) => {
       const ownerKey = `owner${slotNumber}`;
+      let ownerPercentage = 0;
+      let found = false;
       
       // First, check signature group data for ownership percentage
       const ownerDataStr = formData[`_signatureGroup_${ownerKey}_signature_owner`];
-      if (ownerDataStr) {
+      if (ownerDataStr && !found) {
         try {
           const ownerData = JSON.parse(ownerDataStr);
           const percentage = parseFloat(ownerData.ownershipPercentage || '0');
           if (!isNaN(percentage) && percentage > 0) {
-            total += percentage;
-            return; // Use signature group data if available
+            ownerPercentage = percentage;
+            found = true;
           }
         } catch (e) {
           // Ignore parse errors
@@ -369,23 +371,27 @@ export default function EnhancedPdfWizard() {
       }
       
       // Fallback: check for standalone ownership percentage fields
-      // Common patterns: owner1_ownership_percentage, owners_owner1_ownership_percentage
-      const standaloneFieldPatterns = [
-        `owner${slotNumber}_ownership_percentage`,
-        `owners_owner${slotNumber}_ownership_percentage`,
-        `owner${slotNumber}OwnershipPercentage`,
-      ];
-      
-      for (const fieldPattern of standaloneFieldPatterns) {
-        const value = formData[fieldPattern];
-        if (value !== undefined && value !== null && value !== '') {
-          const percentage = parseFloat(value);
-          if (!isNaN(percentage) && percentage > 0) {
-            total += percentage;
-            return; // Use first matching field found
+      if (!found) {
+        const standaloneFieldPatterns = [
+          `owner${slotNumber}_ownership_percentage`,
+          `owners_owner${slotNumber}_ownership_percentage`,
+          `owner${slotNumber}OwnershipPercentage`,
+        ];
+        
+        for (const fieldPattern of standaloneFieldPatterns) {
+          const value = formData[fieldPattern];
+          if (value !== undefined && value !== null && value !== '') {
+            const percentage = parseFloat(value);
+            if (!isNaN(percentage) && percentage > 0) {
+              ownerPercentage = percentage;
+              found = true;
+              break; // Stop checking patterns once we find a value
+            }
           }
         }
       }
+      
+      total += ownerPercentage;
     });
     return total;
   };
