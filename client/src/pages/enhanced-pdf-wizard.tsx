@@ -2427,14 +2427,15 @@ export default function EnhancedPdfWizard() {
                 } ${
                   addressFieldsLocked && (field.fieldName === 'city' || field.fieldName === 'zipCode') ? 'bg-gray-50 cursor-not-allowed' : ''
                 }`}
-                placeholder={field.fieldType === 'email' ? 'Enter email address' : 
+                placeholder={field.placeholder || 
+                            (field.fieldType === 'email' ? 'Enter email address' : 
                             field.fieldType === 'phone' ? 'Enter phone number' : 
                             field.fieldName === 'address' ? 'Enter street address (e.g., 123 Main St)' :
                             field.fieldName === 'addressLine2' ? 'Suite, apt, floor, etc. (optional)' :
                             (field.fieldName === 'federalTaxId' || field.fieldName === 'taxId') ? 'Enter 9-digit EIN (will format as XX-XXXXXXX)' :
                             ['monthlyVolume', 'averageTicket', 'highestTicket', 'avgMonthlyVolume', 'avgTicketAmount', 'highestTicketAmount'].includes(field.fieldName) ? 
                               `Enter amount (e.g., 10000.00)` :
-                            `Enter ${field.fieldLabel.toLowerCase()}`}
+                            `Enter ${field.fieldLabel.toLowerCase()}`)}
                 readOnly={isReadOnly}
                 tabIndex={isReadOnly ? -1 : undefined}
                 autoFocus={shouldAutoFocus}
@@ -2700,7 +2701,7 @@ export default function EnhancedPdfWizard() {
               value={value}
               onChange={(e) => handleFieldChange(field.fieldName, e.target.value)}
               className={hasError ? 'border-red-500' : ''}
-              placeholder={`Enter ${field.fieldLabel.toLowerCase()}`}
+              placeholder={field.placeholder || `Enter ${field.fieldLabel.toLowerCase()}`}
               rows={3}
             />
             {hasError && <p className="text-xs text-red-500">{hasError}</p>}
@@ -2751,9 +2752,10 @@ export default function EnhancedPdfWizard() {
               onChange={(e) => handleFieldChange(field.fieldName, e.target.value)}
               onBlur={(e) => handleMoneyBlur(field.fieldName, e.target.value)}
               className={hasError ? 'border-red-500' : ''}
-              placeholder={['monthlyVolume', 'averageTicket', 'highestTicket', 'avgMonthlyVolume', 'avgTicketAmount', 'highestTicketAmount'].includes(field.fieldName) ? 
+              placeholder={field.placeholder || 
+                (['monthlyVolume', 'averageTicket', 'highestTicket', 'avgMonthlyVolume', 'avgTicketAmount', 'highestTicketAmount'].includes(field.fieldName) ? 
                 `Enter amount (e.g., 10000.00)` : 
-                `Enter ${field.fieldLabel.toLowerCase()}`}
+                `Enter ${field.fieldLabel.toLowerCase()}`)}
             />
             {hasError && <p className="text-xs text-red-500">{hasError}</p>}
           </div>
@@ -2782,7 +2784,7 @@ export default function EnhancedPdfWizard() {
                   }
                 }}
                 className={`pr-8 ${hasError ? 'border-red-500' : ''}`}
-                placeholder="Enter percentage (0-100)"
+                placeholder={field.placeholder || "Enter percentage (0-100)"}
                 data-testid={`input-${field.fieldName}`}
               />
               <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm pointer-events-none">
