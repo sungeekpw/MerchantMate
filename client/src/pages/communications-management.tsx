@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { 
@@ -30,7 +31,15 @@ import ActionTemplatesPage from "./action-templates";
 // Triggers Management Component
 function TriggersManagement() {
   const [editingTrigger, setEditingTrigger] = useState<any>(null);
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [editForm, setEditForm] = useState({ name: '', description: '', isActive: true });
+  const [createForm, setCreateForm] = useState({ 
+    triggerKey: '', 
+    name: '', 
+    description: '', 
+    category: 'system',
+    isActive: true 
+  });
   const { toast } = useToast();
 
   const { data: triggers, isLoading, error } = useQuery({
@@ -55,17 +64,32 @@ function TriggersManagement() {
     }
   });
 
+  const createTriggerMutation = useMutation({
+    mutationFn: async (data: { triggerKey: string; name: string; description: string; category: string; isActive: boolean }) => {
+      return apiRequest('POST', '/api/admin/trigger-catalog', data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/trigger-catalog'] });
+      toast({
+        title: "Trigger Created",
+        description: "The new trigger has been successfully created."
+      });
+      setCreateDialogOpen(false);
+      setCreateForm({ triggerKey: '', name: '', description: '', category: 'system', isActive: true });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Creation Failed",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
+  });
+
   const updateTriggerMutation = useMutation({
     mutationFn: async (data: { id: number; name: string; description: string; isActive: boolean }) => {
-      return apiRequest(`/api/admin/trigger-catalog/${data.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: data.name,
-          description: data.description,
-          isActive: data.isActive
-        })
-      });
+      const { id, ...updateData } = data;
+      return apiRequest('PUT', `/api/admin/trigger-catalog/${id}`, updateData);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/trigger-catalog'] });
@@ -91,6 +115,10 @@ function TriggersManagement() {
       description: trigger.description,
       isActive: trigger.isActive
     });
+  };
+
+  const handleCreateTrigger = () => {
+    createTriggerMutation.mutate(createForm);
   };
 
   const handleSaveEdit = () => {
@@ -120,7 +148,10 @@ function TriggersManagement() {
             Manage automated events that trigger communication actions
           </p>
         </div>
-        <Button data-testid="button-create-trigger">
+        <Button 
+          onClick={() => setCreateDialogOpen(true)}
+          data-testid="button-create-trigger"
+        >
           <Zap className="w-4 h-4 mr-2" />
           Create Trigger
         </Button>
@@ -174,6 +205,103 @@ function TriggersManagement() {
           </div>
         )}
       </div>
+
+      {/* Create Trigger Dialog */}
+      <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Create New Trigger</DialogTitle>
+            <DialogDescription>
+              Define a new trigger event for the system. This will be available for linking to action templates.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="new-trigger-key">Trigger Key <span className="text-red-500">*</span></Label>
+              <Input 
+                id="new-trigger-key"
+                value={createForm.triggerKey}
+                onChange={(e) => setCreateForm({ ...createForm, triggerKey: e.target.value })}
+                placeholder="e.g., user_login, order_completed"
+                required
+              />
+              <p className="text-xs text-muted-foreground">
+                Unique identifier used in code. Use snake_case format.
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="new-trigger-name">Display Name <span className="text-red-500">*</span></Label>
+              <Input 
+                id="new-trigger-name"
+                value={createForm.name}
+                onChange={(e) => setCreateForm({ ...createForm, name: e.target.value })}
+                placeholder="e.g., User Login Event"
+                required
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="new-trigger-description">Description</Label>
+              <Textarea 
+                id="new-trigger-description"
+                value={createForm.description}
+                onChange={(e) => setCreateForm({ ...createForm, description: e.target.value })}
+                placeholder="Describe when this trigger fires and what it's used for"
+                rows={3}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="new-trigger-category">Category</Label>
+              <Select 
+                value={createForm.category} 
+                onValueChange={(value) => setCreateForm({ ...createForm, category: value })}
+              >
+                <SelectTrigger id="new-trigger-category">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="user">User</SelectItem>
+                  <SelectItem value="application">Application</SelectItem>
+                  <SelectItem value="agent">Agent</SelectItem>
+                  <SelectItem value="merchant">Merchant</SelectItem>
+                  <SelectItem value="system">System</SelectItem>
+                  <SelectItem value="payment">Payment</SelectItem>
+                  <SelectItem value="notification">Notification</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label htmlFor="new-trigger-active">Active</Label>
+                <div className="text-sm text-muted-foreground">
+                  Enable this trigger immediately
+                </div>
+              </div>
+              <Switch 
+                id="new-trigger-active"
+                checked={createForm.isActive}
+                onCheckedChange={(checked) => setCreateForm({ ...createForm, isActive: checked })}
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCreateDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleCreateTrigger}
+              disabled={createTriggerMutation.isPending || !createForm.triggerKey || !createForm.name}
+            >
+              {createTriggerMutation.isPending ? 'Creating...' : 'Create Trigger'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Edit Trigger Dialog */}
       <Dialog open={!!editingTrigger} onOpenChange={(open) => !open && setEditingTrigger(null)}>
