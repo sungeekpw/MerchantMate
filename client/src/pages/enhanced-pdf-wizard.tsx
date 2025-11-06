@@ -1409,6 +1409,17 @@ export default function EnhancedPdfWizard() {
               conditionMet = !dependentFieldValue || dependentFieldValue === false || dependentFieldValue === 'false' || dependentFieldValue === 'no' || dependentFieldValue === 'No';
             }
             break;
+          case 'is_not_empty':
+            // Check if field has any value (not null, undefined, or empty string)
+            if (Array.isArray(dependentFieldValue)) {
+              conditionMet = dependentFieldValue.length > 0;
+            } else {
+              conditionMet = dependentFieldValue !== null && 
+                           dependentFieldValue !== undefined && 
+                           dependentFieldValue !== '' &&
+                           String(dependentFieldValue).trim() !== '';
+            }
+            break;
           default:
             conditionMet = false;
         }
