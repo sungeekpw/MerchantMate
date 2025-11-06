@@ -45,6 +45,57 @@ Preferred communication style: Simple, everyday language.
 - **Database Safety**: Strict protocols and wrapper scripts to prevent accidental production database modifications, including automatic backups and checksum validation for migrations.
 - **User-Company Association Pattern**: **CRITICAL ARCHITECTURE** - All agent and merchant lookups MUST use the generic pattern: `User → user_company_associations → Company → Agent/Merchant`.
 
+## **🚨 CRITICAL: Database Schema Change Workflow**
+
+### **MANDATORY RULE for AI Agents:**
+**AFTER EVERY CHANGE to `shared/schema.ts`, you MUST immediately generate a migration.**
+
+### **Required Steps (Non-Negotiable):**
+
+1. **Make Schema Change** - Edit `shared/schema.ts`
+2. **IMMEDIATELY Generate Migration** - Run:
+   ```bash
+   tsx scripts/migration-manager.ts generate
+   ```
+3. **Verify Migration Created** - Check `migrations/` directory for new `.sql` file
+4. **Document Change** - Update Recent Changes section in this file
+
+### **Why This is Critical:**
+- ❌ **Without migration**: Test/Production won't get schema changes
+- ❌ **Schema drift**: Environments become out of sync
+- ❌ **Deployment failures**: Automated sync commands will fail
+- ✅ **With migration**: All environments stay synchronized
+
+### **Migration Commands Reference:**
+
+**For Agents Making Schema Changes:**
+```bash
+# After editing shared/schema.ts:
+tsx scripts/migration-manager.ts generate        # Creates migration SQL file
+tsx scripts/migration-manager.ts status          # Verify migration is listed
+```
+
+**For Admin Deployments:**
+```bash
+tsx scripts/sync-environments.ts dev-to-test     # Deploy to Test
+tsx scripts/sync-environments.ts test-to-prod    # Deploy to Production
+```
+
+**For Troubleshooting:**
+```bash
+tsx scripts/migration-manager.ts validate        # Check for schema drift
+tsx scripts/migration-manager.ts apply test      # Manually apply to Test
+tsx scripts/migration-manager.ts apply prod      # Manually apply to Production
+```
+
+### **Migration System Details:**
+- **Tracking Table**: `schema_migrations` in each environment
+- **Migration Files**: Stored in `migrations/` directory as SQL files
+- **Automatic Backups**: Created before each migration apply
+- **Transactional**: Each migration runs in a transaction (atomic)
+- **Checksum Validation**: Prevents file tampering
+- **Environment-Specific**: Each environment tracks its own migration history
+
 ## External Dependencies
 - **pg**: Native PostgreSQL driver.
 - **drizzle-orm**: Type-safe ORM for PostgreSQL.
