@@ -355,34 +355,41 @@ export default function EnhancedPdfWizard() {
     
     let total = 0;
     activeOwnerSlots.forEach((slotNumber) => {
-      const ownerKey = `owner${slotNumber}`;
       let ownerPercentage = 0;
       let found = false;
       
-      // First, check signature group data for ownership percentage
-      const signatureGroupKey = `_signatureGroup_${ownerKey}_signature_owner`;
-      const ownerDataStr = formData[signatureGroupKey];
-      console.log(`  Checking signature group key "${signatureGroupKey}":`, ownerDataStr);
+      // Try multiple signature group key patterns
+      const signatureGroupKeyPatterns = [
+        `_signatureGroup_owners_owner${slotNumber}_signature_owner`,  // Full pattern from PDF
+        `_signatureGroup_owner${slotNumber}_signature_owner`,         // Short pattern
+      ];
       
-      if (ownerDataStr && !found) {
-        try {
-          const ownerData = JSON.parse(ownerDataStr);
-          console.log(`    Parsed data:`, ownerData);
-          const percentage = parseFloat(ownerData.ownershipPercentage || '0');
-          console.log(`    Ownership percentage:`, percentage);
-          if (!isNaN(percentage) && percentage > 0) {
-            ownerPercentage = percentage;
-            found = true;
-            console.log(`    ✓ Found percentage in signature group: ${percentage}%`);
+      for (const signatureGroupKey of signatureGroupKeyPatterns) {
+        const ownerDataStr = formData[signatureGroupKey];
+        console.log(`  Checking signature group key "${signatureGroupKey}":`, ownerDataStr ? 'FOUND' : 'not found');
+        
+        if (ownerDataStr && !found) {
+          try {
+            const ownerData = JSON.parse(ownerDataStr);
+            console.log(`    Parsed data:`, ownerData);
+            const percentage = parseFloat(ownerData.ownershipPercentage || '0');
+            console.log(`    Ownership percentage:`, percentage);
+            if (!isNaN(percentage) && percentage > 0) {
+              ownerPercentage = percentage;
+              found = true;
+              console.log(`    ✓ Found percentage in signature group: ${percentage}%`);
+              break;
+            }
+          } catch (e) {
+            console.log(`    ✗ Parse error:`, e);
           }
-        } catch (e) {
-          console.log(`    ✗ Parse error:`, e);
         }
       }
       
       // Fallback: check for standalone ownership percentage fields
       if (!found) {
         const standaloneFieldPatterns = [
+          `owners_owner${slotNumber}_signature_owner.ownershipPercentage`, // Dotted field from PDF
           `owner${slotNumber}_ownership_percentage`,
           `owners_owner${slotNumber}_ownership_percentage`,
           `owner${slotNumber}OwnershipPercentage`,
